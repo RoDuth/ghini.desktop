@@ -22,8 +22,6 @@ view tests
 import os
 from datetime import datetime
 from pathlib import Path
-from time import sleep
-from unittest import TestCase
 from unittest import mock
 
 from gi.repository import Gdk
@@ -35,7 +33,6 @@ from bauble import db
 from bauble import error
 from bauble import meta
 from bauble import paths
-from bauble import pluginmgr
 from bauble import prefs
 from bauble import search
 from bauble import utils
@@ -46,7 +43,6 @@ from bauble.search.strategies import MapperSearch
 from bauble.test import BaubleTestCase
 from bauble.test import get_setUp_data_funcs
 from bauble.test import update_gui
-from bauble.test import uri
 from bauble.test import wait_on_threads
 from bauble.ui import GUI
 from bauble.view import _MAINSTR_TMPL
@@ -56,10 +52,8 @@ from bauble.view import INFOBOXPAGE_WIDTH_PREF
 from bauble.view import PIC_PANE_PAGE_PREF
 from bauble.view import PIC_PANE_WIDTH_PREF
 from bauble.view import SEARCH_CACHE_SIZE_PREF
-from bauble.view import SEARCH_COUNT_FAST_PREF
 from bauble.view import SEARCH_POLL_SECS_PREF
 from bauble.view import SEARCH_REFRESH_PREF
-from bauble.view import AddOneDot
 from bauble.view import BaubleLinkButton
 from bauble.view import HistoryView
 from bauble.view import InfoBox
@@ -71,108 +65,9 @@ from bauble.view import PropertiesExpander
 from bauble.view import SearchView
 from bauble.view import get_search_view
 from bauble.view import get_search_view_selected
-from bauble.view import multiproc_counter
 from bauble.view import select_in_search_results
 
 # pylint: disable=too-few-public-methods
-
-
-class TestMultiprocCounter(BaubleTestCase):
-    def setUp(self):
-        if ":memory:" in uri or "?mode=memory" in uri:
-            # for the sake of multiprocessing, create a temp file database and
-            # populate it rather than use an in memory database
-            from tempfile import mkstemp
-
-            self.db_handle, self.temp_db = mkstemp(suffix=".db", text=True)
-            self.uri = f"sqlite:///{self.temp_db}"
-            db.open_conn(self.uri, verify=False, show_error_dialogs=False)
-            self.handle, self.temp = mkstemp(suffix=".cfg", text=True)
-            # reason not to use `from bauble.prefs import prefs`
-            prefs.default_prefs_file = self.temp
-            prefs.prefs = prefs._prefs(filename=self.temp)
-            prefs.prefs.init()
-            prefs.prefs[prefs.web_proxy_prefs] = "no_proxies"
-            pluginmgr.plugins.clear()
-            pluginmgr.load()
-            db.create(import_defaults=False)
-            pluginmgr.install("all", False, force=True)
-            pluginmgr.init()
-            self.session = db.Session()
-        else:
-            super().setUp()
-            self.uri = uri
-
-        # add some data
-        for func in get_setUp_data_funcs():
-            func()
-
-    def tearDown(self):
-        if ":memory:" in uri or "?mode=memory" in uri:
-            update_gui()
-            wait_on_threads()
-            self.session.close()
-            os.close(self.db_handle)
-            os.remove(self.temp_db)
-            os.close(self.handle)
-            os.remove(self.temp)
-            db.engine.dispose()
-        else:
-            super().tearDown()
-
-    def test_multiproc_counter_all_domains(self):
-        # NOTE for coverage to work need to set
-        # concurency=multiprocessing,thread
-        from functools import partial
-        from multiprocessing import Pool
-
-        classes = []
-        for klass in MapperSearch.get_domain_classes().values():
-            if self.session.query(klass).get(1):
-                classes.append(klass)
-
-        results = []
-
-        with Pool() as pool:
-            procs = []
-            for klass in classes:
-                func = partial(multiproc_counter, self.uri, klass)
-                procs.append(pool.map_async(func, [[1]]))
-
-            for proc in procs:
-                while not proc.ready():
-                    proc.wait(0.1)
-
-            for proc in procs:
-                result = proc.get(9.0)
-                results.append(result)
-
-            pool.close()
-            pool.join()
-
-        for result in results:
-            self.assertEqual(len(result), 1)
-            self.assertTrue(isinstance(result[0], dict))
-            self.assertGreaterEqual(len(result[0].keys()), 1)
-
-
-class TestAddOneDot(TestCase):
-
-    @mock.patch("bauble.gui")
-    def test_add_one_dot(self, mock_gui):
-        aod = AddOneDot()
-        aod.start()
-        sleep(2.2)
-        aod.cancel()
-        wait_on_threads()
-        update_gui()
-
-        self.assertAlmostEqual(aod.number_of_dots, 2, delta=1)
-
-        statusbar_calls = mock_gui.widgets.statusbar.push.call_args_list
-        self.assertTrue(
-            statusbar_calls[-1][0][1].startswith("counting results.")
-        )
 
 
 class TestSearchView(BaubleTestCase):
@@ -750,16 +645,6 @@ class TestSearchView(BaubleTestCase):
         )
         self.assertIn(
             "size of non homogeneous result: 3",
-            mock_status_bar.push.call_args[0],
-        )
-
-    def test_update_statusbar_count_fast(self):
-        prefs.prefs[SEARCH_COUNT_FAST_PREF] = "no"
-        search_view = get_search_view()
-        mock_status_bar = mock.Mock()
-        search_view._update_statusbar([1, 2, 3], statusbar=mock_status_bar)
-        self.assertIn(
-            "size of result: 3",
             mock_status_bar.push.call_args[0],
         )
 

@@ -43,7 +43,6 @@ from sqlalchemy.orm.exc import NoResultFound
 
 from bauble import btypes
 from bauble import db
-from bauble import error
 from bauble import paths
 from bauble import prefs
 from bauble import search
@@ -52,11 +51,13 @@ from bauble.meta import BaubleMeta
 from bauble.test import BaubleClassTestCase
 from bauble.test import BaubleTestCase
 from bauble.test import check_dupids
+from bauble.test import get_setUp_data_funcs
 from bauble.test import mockfunc
 from bauble.test import update_gui
 from bauble.test import wait_on_threads
 from bauble.view import SearchView
 
+from ..garden import Plant
 from . import PlantsPlugin
 from . import SplashInfoBox
 from . import SynonymsPresenter
@@ -1012,89 +1013,9 @@ class FamilyTests(PlantTestCase):
         fam2.accepted = fam2  # cannot be a synonym of itself
         self.assertRaises(IntegrityError, self.session.commit)
 
-    def test_top_level_count_w_plant_qty(self):
-        from ..garden import Accession
-        from ..garden import Location
-        from ..garden import Plant
-
-        fam = Family(family="Myrtaceae")
-        gen = Genus(epithet="Syzygium", family=fam)
-        sp = Species(epithet="australe", genus=gen)
-        acc = Accession(species=sp, code="1")
-        plant = Plant(
-            accession=acc,
-            quantity=1,
-            location=Location(name="site", code="STE"),
-            code="1",
-        )
-        self.session.add_all([fam, gen, sp, acc, plant])
-        self.session.commit()
-        self.assertEqual(len(fam.top_level_count()[(1, "Families")]), 1)
-        self.assertEqual(len(fam.top_level_count()[(2, "Genera")]), 1)
-        self.assertEqual(len(fam.top_level_count()[(3, "Species")]), 1)
-        self.assertEqual(fam.top_level_count()[(4, "Accessions")], 1)
-        self.assertEqual(fam.top_level_count()[(5, "Plantings")], 1)
-        self.assertEqual(fam.top_level_count()[(6, "Living plants")], 1)
-        self.assertEqual(len(fam.top_level_count()[(7, "Locations")]), 1)
-        self.assertEqual(len(fam.top_level_count()[(8, "Sources")]), 0)
-
-    def test_top_level_count_wo_plant_qty(self):
-        from ..garden import Accession
-        from ..garden import Location
-        from ..garden import Plant
-
-        fam = Family(family="Myrtaceae")
-        gen = Genus(epithet="Syzygium", family=fam)
-        sp = Species(epithet="australe", genus=gen)
-        acc = Accession(species=sp, code="1")
-        plant = Plant(
-            accession=acc,
-            quantity=0,
-            location=Location(name="site", code="STE"),
-            code="1",
-        )
-        self.session.add_all([fam, gen, sp, acc, plant])
-        self.session.commit()
-        self.assertEqual(len(fam.top_level_count()[(1, "Families")]), 1)
-        self.assertEqual(len(fam.top_level_count()[(2, "Genera")]), 1)
-        self.assertEqual(len(fam.top_level_count()[(3, "Species")]), 1)
-        self.assertEqual(fam.top_level_count()[(4, "Accessions")], 1)
-        self.assertEqual(fam.top_level_count()[(5, "Plantings")], 1)
-        self.assertEqual(fam.top_level_count()[(6, "Living plants")], 0)
-        self.assertEqual(len(fam.top_level_count()[(7, "Locations")]), 1)
-        self.assertEqual(len(fam.top_level_count()[(8, "Sources")]), 0)
-
-    def test_top_level_count_wo_plant_qty_exclude_inactive_set(self):
-        from ..garden import Accession
-        from ..garden import Location
-        from ..garden import Plant
-
-        fam = Family(family="Myrtaceae")
-        gen = Genus(epithet="Syzygium", family=fam)
-        sp = Species(epithet="australe", genus=gen)
-        acc = Accession(species=sp, code="1")
-        plant = Plant(
-            accession=acc,
-            quantity=0,
-            location=Location(name="site", code="STE"),
-            code="1",
-        )
-        self.session.add_all([fam, gen, sp, acc, plant])
-        self.session.commit()
-        prefs.prefs[prefs.exclude_inactive_pref] = True
-        self.assertEqual(len(fam.top_level_count()[(1, "Families")]), 1)
-        self.assertEqual(len(fam.top_level_count()[(2, "Genera")]), 1)
-        self.assertEqual(len(fam.top_level_count()[(3, "Species")]), 0)
-        self.assertEqual(fam.top_level_count()[(4, "Accessions")], 0)
-        self.assertEqual(fam.top_level_count()[(5, "Plantings")], 0)
-        self.assertEqual(fam.top_level_count()[(6, "Living plants")], 0)
-        self.assertEqual(len(fam.top_level_count()[(7, "Locations")]), 0)
-        self.assertEqual(len(fam.top_level_count()[(8, "Sources")]), 0)
-
     def test_pictures(self):
         from ..garden import Accession
         from ..garden import Location
-        from ..garden import Plant
         from ..garden import PlantPicture
 
         fam = self.session.query(Family).first()
@@ -1138,6 +1059,68 @@ class FamilyTests(PlantTestCase):
                     widgets["fam_name_data"].get_label(),
                     f"<big>{fam}</big> {utils.xml_safe(str(fam.author))}",
                 )
+
+
+class FamilyTopLevelCountTests(BaubleTestCase):
+    def setUp(self):
+        super().setUp()
+        for func in get_setUp_data_funcs():
+            func()
+
+    def test_top_level_count_w_plant_qty(self):
+
+        expected = (
+            "Families: 2, "
+            "Genera: 6, "
+            "Species: 25, "
+            "Accessions: 6, "
+            "Plantings: 5, "
+            "Living plants: 6, "
+            "Locations: 1, "
+            "Sources: 1"
+        )
+
+        self.assertEqual(str(Family.top_level_count([1, 2])), expected)
+
+    def test_top_level_count_wo_plant_qty(self):
+        plt = self.session.query(Plant).get(1)
+        self.session.delete(plt)
+        plt = self.session.query(Plant).get(2)
+        plt.quantity = 0
+        self.session.commit()
+
+        expected = (
+            "Families: 2, "
+            "Genera: 6, "
+            "Species: 25, "
+            "Accessions: 6, "
+            "Plantings: 4, "
+            "Living plants: 4, "
+            "Locations: 1, "
+            "Sources: 1"
+        )
+
+        self.assertEqual(str(Family.top_level_count([1, 2])), expected)
+
+    def test_top_level_count_wo_plant_qty_exclude_inactive_set(self):
+        plt = self.session.query(Plant).get(1)
+        self.session.delete(plt)
+        plt = self.session.query(Plant).get(2)
+        plt.quantity = 0
+        self.session.commit()
+
+        expected = (
+            "Families: 2, "
+            "Genera: 6, "
+            "Species: 25, "
+            "Accessions: 5, "
+            "Plantings: 2, "
+            "Living plants: 4, "
+            "Locations: 1, "
+            "Sources: 1"
+        )
+
+        self.assertEqual(str(Family.top_level_count([1, 2], True)), expected)
 
 
 class FamilyEditorTests(PlantTestCase):
@@ -1473,7 +1456,6 @@ class GenusTests(PlantTestCase):
     def test_count_children_w_plant_w_qty(self):
         from ..garden import Accession
         from ..garden import Location
-        from ..garden import Plant
 
         fam = Family(family="Myrtaceae")
         gen = Genus(epithet="Syzygium", family=fam)
@@ -1494,7 +1476,6 @@ class GenusTests(PlantTestCase):
         # should be the same as if exclude inactive not set.
         from ..garden import Accession
         from ..garden import Location
-        from ..garden import Plant
 
         fam = Family(family="Myrtaceae")
         gen = Genus(epithet="Syzygium", family=fam)
@@ -1516,7 +1497,6 @@ class GenusTests(PlantTestCase):
     def test_count_children_w_plant_wo_qty(self):
         from ..garden import Accession
         from ..garden import Location
-        from ..garden import Plant
 
         fam = Family(family="Myrtaceae")
         gen = Genus(epithet="Syzygium", family=fam)
@@ -1536,7 +1516,6 @@ class GenusTests(PlantTestCase):
     def test_count_children_w_plant_wo_qty_exclude_inactive_set(self):
         from ..garden import Accession
         from ..garden import Location
-        from ..garden import Plant
 
         fam = Family(family="Myrtaceae")
         gen = Genus(epithet="Syzygium", family=fam)
@@ -1555,89 +1534,9 @@ class GenusTests(PlantTestCase):
 
         self.assertEqual(gen.count_children(), 0)
 
-    def test_top_level_count_w_plant_qty(self):
-        from ..garden import Accession
-        from ..garden import Location
-        from ..garden import Plant
-
-        fam = Family(family="Myrtaceae")
-        gen = Genus(epithet="Syzygium", family=fam)
-        sp = Species(epithet="australe", genus=gen)
-        acc = Accession(species=sp, code="1")
-        plant = Plant(
-            accession=acc,
-            quantity=1,
-            location=Location(name="site", code="STE"),
-            code="1",
-        )
-        self.session.add_all([fam, gen, sp, acc, plant])
-        self.session.commit()
-        self.assertEqual(len(gen.top_level_count()[(1, "Genera")]), 1)
-        self.assertEqual(len(gen.top_level_count()[(2, "Families")]), 1)
-        self.assertEqual(gen.top_level_count()[(3, "Species")], 1)
-        self.assertEqual(gen.top_level_count()[(4, "Accessions")], 1)
-        self.assertEqual(gen.top_level_count()[(5, "Plantings")], 1)
-        self.assertEqual(gen.top_level_count()[(6, "Living plants")], 1)
-        self.assertEqual(len(gen.top_level_count()[(7, "Locations")]), 1)
-        self.assertEqual(len(gen.top_level_count()[(8, "Sources")]), 0)
-
-    def test_top_level_count_wo_plant_qty(self):
-        from ..garden import Accession
-        from ..garden import Location
-        from ..garden import Plant
-
-        fam = Family(family="Myrtaceae")
-        gen = Genus(epithet="Syzygium", family=fam)
-        sp = Species(epithet="australe", genus=gen)
-        acc = Accession(species=sp, code="1")
-        plant = Plant(
-            accession=acc,
-            quantity=0,
-            location=Location(name="site", code="STE"),
-            code="1",
-        )
-        self.session.add_all([fam, gen, sp, acc, plant])
-        self.session.commit()
-        self.assertEqual(len(gen.top_level_count()[(1, "Genera")]), 1)
-        self.assertEqual(len(gen.top_level_count()[(2, "Families")]), 1)
-        self.assertEqual(gen.top_level_count()[(3, "Species")], 1)
-        self.assertEqual(gen.top_level_count()[(4, "Accessions")], 1)
-        self.assertEqual(gen.top_level_count()[(5, "Plantings")], 1)
-        self.assertEqual(gen.top_level_count()[(6, "Living plants")], 0)
-        self.assertEqual(len(gen.top_level_count()[(7, "Locations")]), 1)
-        self.assertEqual(len(gen.top_level_count()[(8, "Sources")]), 0)
-
-    def test_top_level_count_wo_plant_qty_exclude_inactive_set(self):
-        from ..garden import Accession
-        from ..garden import Location
-        from ..garden import Plant
-
-        fam = Family(family="Myrtaceae")
-        gen = Genus(epithet="Syzygium", family=fam)
-        sp = Species(epithet="australe", genus=gen)
-        acc = Accession(species=sp, code="1")
-        plant = Plant(
-            accession=acc,
-            quantity=0,
-            location=Location(name="site", code="STE"),
-            code="1",
-        )
-        self.session.add_all([fam, gen, sp, acc, plant])
-        self.session.commit()
-        prefs.prefs[prefs.exclude_inactive_pref] = True
-        self.assertEqual(len(gen.top_level_count()[(1, "Genera")]), 1)
-        self.assertEqual(len(gen.top_level_count()[(2, "Families")]), 1)
-        self.assertEqual(gen.top_level_count()[(3, "Species")], 0)
-        self.assertEqual(gen.top_level_count()[(4, "Accessions")], 0)
-        self.assertEqual(gen.top_level_count()[(5, "Plantings")], 0)
-        self.assertEqual(gen.top_level_count()[(6, "Living plants")], 0)
-        self.assertEqual(len(gen.top_level_count()[(7, "Locations")]), 0)
-        self.assertEqual(len(gen.top_level_count()[(8, "Sources")]), 0)
-
     def test_pictures(self):
         from ..garden import Accession
         from ..garden import Location
-        from ..garden import Plant
         from ..garden import PlantPicture
 
         gen = self.session.query(Genus).first()
@@ -1687,7 +1586,6 @@ class GenusTests(PlantTestCase):
     def test_has_children(self):
         from ..garden import Accession
         from ..garden import Location
-        from ..garden import Plant
 
         gen = self.session.query(Genus).first()
         sp = gen.species[0]
@@ -1720,6 +1618,68 @@ class GenusTests(PlantTestCase):
         self.session.commit()
 
         self.assertFalse(gen.has_children())
+
+
+class GenusTopLevelCountTests(BaubleTestCase):
+    def setUp(self):
+        super().setUp()
+        for func in get_setUp_data_funcs():
+            func()
+
+    def test_top_level_count_w_plant_qty(self):
+
+        expected = (
+            "Families: 2, "
+            "Genera: 2, "
+            "Species: 15, "
+            "Accessions: 4, "
+            "Plantings: 3, "
+            "Living plants: 4, "
+            "Locations: 1, "
+            "Sources: 1"
+        )
+
+        self.assertEqual(str(Genus.top_level_count([1, 3])), expected)
+
+    def test_top_level_count_wo_plant_qty(self):
+        plt = self.session.query(Plant).get(1)
+        self.session.delete(plt)
+        plt = self.session.query(Plant).get(2)
+        plt.quantity = 0
+        self.session.commit()
+
+        expected = (
+            "Families: 2, "
+            "Genera: 2, "
+            "Species: 15, "
+            "Accessions: 4, "
+            "Plantings: 2, "
+            "Living plants: 3, "
+            "Locations: 1, "
+            "Sources: 1"
+        )
+
+        self.assertEqual(str(Genus.top_level_count([1, 3])), expected)
+
+    def test_top_level_count_wo_plant_qty_exclude_inactive_set(self):
+        plt = self.session.query(Plant).get(1)
+        self.session.delete(plt)
+        plt = self.session.query(Plant).get(2)
+        plt.quantity = 0
+        self.session.commit()
+
+        expected = (
+            "Families: 2, "
+            "Genera: 2, "
+            "Species: 15, "
+            "Accessions: 3, "
+            "Plantings: 1, "
+            "Living plants: 3, "
+            "Locations: 1, "
+            "Sources: 1"
+        )
+
+        self.assertEqual(str(Genus.top_level_count([1, 3], True)), expected)
 
 
 class GenusEditorTests(PlantTestCase):
@@ -2482,7 +2442,6 @@ class SpeciesTests(PlantTestCase):
     def test_active_plants_w_qty(self):
         from ..garden import Accession
         from ..garden import Location
-        from ..garden import Plant
 
         fam = Family(family="Myrtaceae")
         gen = Genus(epithet="Syzygium", family=fam)
@@ -2507,7 +2466,6 @@ class SpeciesTests(PlantTestCase):
     def test_active_plants_wo_qty(self):
         from ..garden import Accession
         from ..garden import Location
-        from ..garden import Plant
 
         fam = Family(family="Myrtaceae")
         gen = Genus(epithet="Syzygium", family=fam)
@@ -2545,7 +2503,6 @@ class SpeciesTests(PlantTestCase):
     def test_count_children_w_plant_w_qty(self):
         from ..garden import Accession
         from ..garden import Location
-        from ..garden import Plant
 
         fam = Family(family="Myrtaceae")
         gen = Genus(epithet="Syzygium", family=fam)
@@ -2566,7 +2523,6 @@ class SpeciesTests(PlantTestCase):
         # should be the same as if exclude inactive not set.
         from ..garden import Accession
         from ..garden import Location
-        from ..garden import Plant
 
         fam = Family(family="Myrtaceae")
         gen = Genus(epithet="Syzygium", family=fam)
@@ -2588,7 +2544,6 @@ class SpeciesTests(PlantTestCase):
     def test_count_children_w_plant_wo_qty(self):
         from ..garden import Accession
         from ..garden import Location
-        from ..garden import Plant
 
         fam = Family(family="Myrtaceae")
         gen = Genus(epithet="Syzygium", family=fam)
@@ -2608,7 +2563,6 @@ class SpeciesTests(PlantTestCase):
     def test_count_children_w_plant_wo_qty_exclude_inactive_set(self):
         from ..garden import Accession
         from ..garden import Location
-        from ..garden import Plant
 
         fam = Family(family="Myrtaceae")
         gen = Genus(epithet="Syzygium", family=fam)
@@ -2626,85 +2580,6 @@ class SpeciesTests(PlantTestCase):
         prefs.prefs[prefs.exclude_inactive_pref] = True
 
         self.assertEqual(sp.count_children(), 0)
-
-    def test_top_level_count_w_plant_qty(self):
-        from ..garden import Accession
-        from ..garden import Location
-        from ..garden import Plant
-
-        fam = Family(family="Myrtaceae")
-        gen = Genus(epithet="Syzygium", family=fam)
-        sp = Species(epithet="australe", genus=gen)
-        acc = Accession(species=sp, code="1")
-        plant = Plant(
-            accession=acc,
-            quantity=1,
-            location=Location(name="site", code="STE"),
-            code="1",
-        )
-        self.session.add_all([fam, gen, sp, acc, plant])
-        self.session.commit()
-        self.assertEqual(sp.top_level_count()[(1, "Species")], 1)
-        self.assertEqual(len(sp.top_level_count()[(2, "Genera")]), 1)
-        self.assertEqual(len(sp.top_level_count()[(3, "Families")]), 1)
-        self.assertEqual(sp.top_level_count()[(4, "Accessions")], 1)
-        self.assertEqual(sp.top_level_count()[(5, "Plantings")], 1)
-        self.assertEqual(sp.top_level_count()[(6, "Living plants")], 1)
-        self.assertEqual(len(sp.top_level_count()[(7, "Locations")]), 1)
-        self.assertEqual(len(sp.top_level_count()[(8, "Sources")]), 0)
-
-    def test_top_level_count_wo_plant_qty(self):
-        from ..garden import Accession
-        from ..garden import Location
-        from ..garden import Plant
-
-        fam = Family(family="Myrtaceae")
-        gen = Genus(epithet="Syzygium", family=fam)
-        sp = Species(epithet="australe", genus=gen)
-        acc = Accession(species=sp, code="1")
-        plant = Plant(
-            accession=acc,
-            quantity=0,
-            location=Location(name="site", code="STE"),
-            code="1",
-        )
-        self.session.add_all([fam, gen, sp, acc, plant])
-        self.session.commit()
-        self.assertEqual(sp.top_level_count()[(1, "Species")], 1)
-        self.assertEqual(len(sp.top_level_count()[(2, "Genera")]), 1)
-        self.assertEqual(len(sp.top_level_count()[(3, "Families")]), 1)
-        self.assertEqual(sp.top_level_count()[(4, "Accessions")], 1)
-        self.assertEqual(sp.top_level_count()[(5, "Plantings")], 1)
-        self.assertEqual(sp.top_level_count()[(6, "Living plants")], 0)
-        self.assertEqual(len(sp.top_level_count()[(7, "Locations")]), 1)
-        self.assertEqual(len(sp.top_level_count()[(8, "Sources")]), 0)
-
-    def test_top_level_count_wo_plant_qty_exclude_inactive_set(self):
-        from ..garden import Accession
-        from ..garden import Location
-        from ..garden import Plant
-
-        fam = Family(family="Myrtaceae")
-        gen = Genus(epithet="Syzygium", family=fam)
-        sp = Species(epithet="australe", genus=gen)
-        acc = Accession(species=sp, code="1")
-        plant = Plant(
-            accession=acc,
-            quantity=0,
-            location=Location(name="site", code="STE"),
-            code="1",
-        )
-        self.session.add_all([fam, gen, sp, acc, plant])
-        self.session.commit()
-        prefs.prefs[prefs.exclude_inactive_pref] = True
-        self.assertEqual(sp.top_level_count()[(1, "Species")], 1)
-        self.assertEqual(len(sp.top_level_count()[(2, "Genera")]), 1)
-        self.assertEqual(len(sp.top_level_count()[(3, "Families")]), 1)
-        self.assertEqual(sp.top_level_count()[(4, "Accessions")], 0)
-        self.assertEqual(sp.top_level_count()[(5, "Plantings")], 0)
-        self.assertEqual(sp.top_level_count()[(6, "Living plants")], 0)
-        self.assertEqual(len(sp.top_level_count()[(7, "Locations")]), 0)
-        self.assertEqual(len(sp.top_level_count()[(8, "Sources")]), 0)
 
     def test_custom_column_acts_as_unicode_before_init(self):
         sp = self.session.query(Species).first()
@@ -2813,7 +2688,6 @@ class SpeciesTests(PlantTestCase):
     def test_pictures_property_w_plant_pics(self):
         from ..garden import Accession
         from ..garden import Location
-        from ..garden import Plant
         from ..garden import PlantPicture
 
         fam = Family(family="Myrtaceae")
@@ -2844,7 +2718,6 @@ class SpeciesTests(PlantTestCase):
     def test_pictures_property_w_pics_and_plant_pics(self):
         from ..garden import Accession
         from ..garden import Location
-        from ..garden import Plant
         from ..garden import PlantPicture
 
         fam = Family(family="Myrtaceae")
@@ -2883,6 +2756,68 @@ class SpeciesTests(PlantTestCase):
         self.assertEqual(sp.pictures, [])
 
 
+class SpeciesTopLevelCountTests(BaubleTestCase):
+    def setUp(self):
+        super().setUp()
+        for func in get_setUp_data_funcs():
+            func()
+
+    def test_top_level_count_w_plant_qty(self):
+
+        expected = (
+            "Families: 2, "
+            "Genera: 2, "
+            "Species: 2, "
+            "Accessions: 4, "
+            "Plantings: 3, "
+            "Living plants: 4, "
+            "Locations: 1, "
+            "Sources: 1"
+        )
+
+        self.assertEqual(str(Species.top_level_count([1, 3])), expected)
+
+    def test_top_level_count_wo_plant_qty(self):
+        plt = self.session.query(Plant).get(1)
+        self.session.delete(plt)
+        plt = self.session.query(Plant).get(2)
+        plt.quantity = 0
+        self.session.commit()
+
+        expected = (
+            "Families: 2, "
+            "Genera: 2, "
+            "Species: 2, "
+            "Accessions: 4, "
+            "Plantings: 2, "
+            "Living plants: 3, "
+            "Locations: 1, "
+            "Sources: 1"
+        )
+
+        self.assertEqual(str(Species.top_level_count([1, 3])), expected)
+
+    def test_top_level_count_wo_plant_qty_exclude_inactive_set(self):
+        plt = self.session.query(Plant).get(1)
+        self.session.delete(plt)
+        plt = self.session.query(Plant).get(2)
+        plt.quantity = 0
+        self.session.commit()
+
+        expected = (
+            "Families: 2, "
+            "Genera: 2, "
+            "Species: 2, "
+            "Accessions: 3, "
+            "Plantings: 1, "
+            "Living plants: 3, "
+            "Locations: 1, "
+            "Sources: 1"
+        )
+
+        self.assertEqual(str(Species.top_level_count([1, 3], True)), expected)
+
+
 class VernacularNameTests(BaubleTestCase):
     def test_has_children_same_as_species(self):
         for vern in self.session.query(VernacularName):
@@ -2918,6 +2853,13 @@ class VernacularNameTests(BaubleTestCase):
         self.assertCountEqual(
             [i.id for i in spp], [i.species.id for i in verns]
         )
+
+    def test_top_level_count_same_as_species(self):
+        for vern in self.session.query(VernacularName):
+
+            self.assertEqual(
+                vern.top_level_count(), vern.species.top_level_count()
+            )
 
 
 class MarkupItalicsTests(TestCase):
@@ -3564,6 +3506,10 @@ class GeographyTests(BaubleClassTestCase):
         expander = GeneralGeographyExpander(widgets)
         expander.update(qld)
         mock_mlc.assert_called()
+
+    def test_top_level_count(self):
+        # check we get the plural name
+        self.assertEqual(Geography.top_level_count([1, 2]), "Geographies: 2")
 
 
 class GeographyTests2(TestCase):

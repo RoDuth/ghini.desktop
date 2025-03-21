@@ -1,6 +1,6 @@
 # Copyright 2008-2010 Brett Adams
 # Copyright 2015 Mario Frasca <mario@anche.no>.
-# Copyright 2020-2023 Ross Demuth <rossdemuth123@gmail.com>
+# Copyright 2020-2025 Ross Demuth <rossdemuth123@gmail.com>
 #
 # This file is part of ghini.desktop.
 #
@@ -31,7 +31,10 @@ from gi.repository import Gtk
 from sqlalchemy import Column
 from sqlalchemy import Unicode
 from sqlalchemy import UnicodeText
+from sqlalchemy import distinct
+from sqlalchemy import func
 from sqlalchemy import literal
+from sqlalchemy import select
 from sqlalchemy.exc import DBAPIError
 from sqlalchemy.orm import Session
 from sqlalchemy.orm import backref
@@ -256,25 +259,51 @@ class Location(db.Domain, db.WithNotes):
             return f"({self.code}) {self.name}"
         return str(self.code)
 
-    def top_level_count(self):
-        plants = db.get_active_children("plants", self)
-        accessions = set(p.accession for p in plants)
-        species = set(a.species for a in accessions)
-        genera = set(s.genus for s in species)
-        return {
-            (1, "Locations"): 1,
-            (2, "Plantings"): len(plants),
-            (3, "Living plants"): sum(p.quantity for p in self.plants),
-            (4, "Accessions"): set(a.id for a in accessions),
-            (5, "Species"): set(s.id for s in species),
-            (6, "Genera"): set(g.id for g in genera),
-            (7, "Families"): set(g.family.id for g in genera),
-            (8, "Sources"): set(
-                a.source.source_detail.id
-                for a in accessions
-                if a.source and a.source.source_detail
-            ),
-        }
+    @classmethod
+    def top_level_count(
+        cls,
+        ids: list[int],
+        exclude_inactive: bool = False,
+    ) -> db.TopLevelCount:
+
+        from ..plants import Family
+        from ..plants import Genus
+        from ..plants import Species
+        from . import Accession
+        from . import Plant
+        from . import Source
+        from . import SourceDetail
+
+        stmt = (
+            select(
+                func.count(distinct(Family.id)),
+                func.count(distinct(Genus.id)),
+                func.count(distinct(Species.id)),
+                func.count(distinct(Accession.id)),
+                func.count(Plant.id),
+                func.sum(Plant.quantity),
+                func.count(distinct(Location.id)),
+                func.count(distinct(SourceDetail.id)),
+            )
+            .select_from(cls)
+            .join(Plant)
+            .join(Accession)
+            .join(Species)
+            .join(Genus)
+            .join(Family)
+            .outerjoin(Source)
+            .outerjoin(SourceDetail)
+            .where(cls.id.in_(ids))
+        )
+
+        if exclude_inactive:
+            # pylint: disable=no-member
+            stmt = stmt.where(Plant.active.is_(True))  # type: ignore [attr-defined] # noqa
+
+        with db.Session() as session:
+            result = session.execute(stmt).one()
+
+        return db.TopLevelCount(*result)
 
     def has_children(self):
         cls = self.__class__.plants.prop.mapper.class_

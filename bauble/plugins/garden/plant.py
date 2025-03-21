@@ -1,7 +1,7 @@
 # Copyright 2008-2010 Brett Adams
 # Copyright 2015-2017 Mario Frasca <mario@anche.no>.
 # Copyright 2017 Jardín Botánico de Quito
-# Copyright 2020-2024 Ross Demuth <rossdemuth123@gmail.com>
+# Copyright 2020-2025 Ross Demuth <rossdemuth123@gmail.com>
 #
 # This file is part of ghini.desktop.
 #
@@ -56,6 +56,7 @@ from sqlalchemy import Unicode
 from sqlalchemy import UnicodeText
 from sqlalchemy import UniqueConstraint
 from sqlalchemy import and_
+from sqlalchemy import distinct
 from sqlalchemy import event
 from sqlalchemy import func
 from sqlalchemy import not_
@@ -1038,18 +1039,49 @@ class Plant(db.Domain, db.WithNotes):
         for dist in dists:
             yield (dist.geography, self.accession.species, self.accession)
 
-    def top_level_count(self):
-        source = self.accession.source and self.accession.source.source_detail
-        return {
-            (1, "Plantings"): 1,
-            (2, "Accessions"): set([self.accession.id]),
-            (3, "Species"): set([self.accession.species.id]),
-            (4, "Genera"): set([self.accession.species.genus.id]),
-            (5, "Families"): set([self.accession.species.genus.family.id]),
-            (6, "Living plants"): self.quantity,
-            (7, "Locations"): set([self.location.id]),
-            (8, "Sources"): set([source.id] if source else []),
-        }
+    @classmethod
+    def top_level_count(
+        cls,
+        ids: list[int],
+        exclude_inactive: bool = False,
+    ) -> db.TopLevelCount:
+
+        from ..plants import Family
+        from ..plants import Genus
+        from ..plants import Species
+        from . import Source
+        from . import SourceDetail
+
+        stmt = (
+            select(
+                func.count(distinct(Family.id)),
+                func.count(distinct(Genus.id)),
+                func.count(distinct(Species.id)),
+                func.count(distinct(Accession.id)),
+                func.count(cls.id),
+                func.sum(cls.quantity),
+                func.count(distinct(Location.id)),
+                func.count(distinct(SourceDetail.id)),
+            )
+            .select_from(cls)
+            .join(Accession)
+            .join(Species)
+            .join(Genus)
+            .join(Family)
+            .join(Location)
+            .outerjoin(Source)
+            .outerjoin(SourceDetail)
+            .where(cls.id.in_(ids))
+        )
+
+        if exclude_inactive:
+            # pylint: disable=no-member
+            stmt = stmt.where(cls.active.is_(True))  # type: ignore [attr-defined] # noqa
+
+        with db.Session() as session:
+            result = session.execute(stmt).one()
+
+        return db.TopLevelCount(*result)
 
 
 # ensure an appropriate change has been capture for all changes or insertions.

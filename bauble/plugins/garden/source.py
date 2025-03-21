@@ -1,7 +1,7 @@
 # Copyright 2008-2010 Brett Adams
 # Copyright 2015-2016 Mario Frasca <mario@anche.no>.
 # Copyright 2017 Jardín Botánico de Quito
-# Copyright 2020-2023 Ross Demuth <rossdemuth123@gmail.com>
+# Copyright 2020-2025 Ross Demuth <rossdemuth123@gmail.com>
 #
 # This file is part of ghini.desktop.
 #
@@ -38,7 +38,10 @@ from sqlalchemy import ForeignKey
 from sqlalchemy import Integer
 from sqlalchemy import Unicode
 from sqlalchemy import UnicodeText
+from sqlalchemy import distinct
+from sqlalchemy import func
 from sqlalchemy import literal
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 from sqlalchemy.orm import backref
 from sqlalchemy.orm import relationship
@@ -1196,6 +1199,51 @@ class SourceDetail(db.Domain):
         if prefs.prefs.get(prefs.exclude_inactive_pref):
             plt_pics = plt_pics.filter(Plant.active.is_(True))  # type: ignore [attr-defined] # noqa
         return plt_pics.all()
+
+    @classmethod
+    def top_level_count(
+        cls,
+        ids: list[int],
+        exclude_inactive: bool = False,
+    ) -> db.TopLevelCount:
+
+        from ..plants import Family
+        from ..plants import Genus
+        from ..plants import Species
+        from . import Accession
+        from . import Location
+        from . import Plant
+
+        stmt = (
+            select(
+                func.count(distinct(Family.id)),
+                func.count(distinct(Genus.id)),
+                func.count(distinct(Species.id)),
+                func.count(distinct(Accession.id)),
+                func.count(Plant.id),
+                func.sum(Plant.quantity),
+                func.count(distinct(Location.id)),
+                func.count(distinct(SourceDetail.id)),
+            )
+            .select_from(cls)
+            .outerjoin(Source)
+            .outerjoin(Accession)
+            .outerjoin(Species)
+            .outerjoin(Genus)
+            .outerjoin(Family)
+            .outerjoin(Plant)
+            .outerjoin(Location)
+            .where(cls.id.in_(ids))
+        )
+
+        if exclude_inactive:
+            # pylint: disable=no-member
+            stmt = stmt.where(Accession.active.is_(True))  # type: ignore [attr-defined] # noqa
+
+        with db.Session() as session:
+            result = session.execute(stmt).one()
+
+        return db.TopLevelCount(*result)
 
 
 # backwards compatibility (e.g. Tags, History)

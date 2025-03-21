@@ -1181,31 +1181,57 @@ class PlantTests(GardenTestCase):
         self.assertNotIn(self.plant, plt_active_in_db)
 
     def test_top_level_count_w_plant_qty(self):
-        plt = self.plant
+        expected = (
+            "Families: 1, "
+            "Genera: 2, "
+            "Species: 2, "
+            "Accessions: 2, "
+            "Plantings: 2, "
+            "Living plants: 2, "
+            "Locations: 1, "
+            "Sources: 1"
+        )
 
-        self.assertEqual(plt.top_level_count()[(1, "Plantings")], 1)
-        self.assertEqual(len(plt.top_level_count()[(2, "Accessions")]), 1)
-        self.assertEqual(len(plt.top_level_count()[(3, "Species")]), 1)
-        self.assertEqual(len(plt.top_level_count()[(4, "Genera")]), 1)
-        self.assertEqual(len(plt.top_level_count()[(5, "Families")]), 1)
-        self.assertEqual(plt.top_level_count()[(6, "Living plants")], 1)
-        self.assertEqual(len(plt.top_level_count()[(7, "Locations")]), 1)
-        self.assertEqual(len(plt.top_level_count()[(8, "Sources")]), 0)
+        self.assertEqual(str(Plant.top_level_count([1, 2])), expected)
+        # exclude_inactive makes no differnce here
+        self.assertEqual(str(Plant.top_level_count([1, 2], True)), expected)
 
     def test_top_level_count_wo_plant_qty(self):
-        self.plant.quantity = 0
-        plt = self.plant
-
+        plts = self.session.query(Plant).filter(Plant.id.in_([1, 2]))
+        for plt in plts:
+            plt.quantity = 0
         self.session.commit()
 
-        self.assertEqual(plt.top_level_count()[(1, "Plantings")], 1)
-        self.assertEqual(len(plt.top_level_count()[(2, "Accessions")]), 1)
-        self.assertEqual(len(plt.top_level_count()[(3, "Species")]), 1)
-        self.assertEqual(len(plt.top_level_count()[(4, "Genera")]), 1)
-        self.assertEqual(len(plt.top_level_count()[(5, "Families")]), 1)
-        self.assertEqual(plt.top_level_count()[(6, "Living plants")], 0)
-        self.assertEqual(len(plt.top_level_count()[(7, "Locations")]), 1)
-        self.assertEqual(len(plt.top_level_count()[(8, "Sources")]), 0)
+        expected = (
+            "Families: 1, "
+            "Genera: 2, "
+            "Species: 2, "
+            "Accessions: 2, "
+            "Plantings: 2, "
+            "Living plants: 0, "
+            "Locations: 1, "
+            "Sources: 1"
+        )
+
+        self.assertEqual(str(Plant.top_level_count([1, 2])), expected)
+
+    def test_top_level_count_wo_plant_qty_exclude_inactive(self):
+        plt = self.session.query(Plant).get(1)
+        plt.quantity = 0
+        self.session.commit()
+
+        expected = (
+            "Families: 1, "
+            "Genera: 1, "
+            "Species: 1, "
+            "Accessions: 1, "
+            "Plantings: 1, "
+            "Living plants: 1, "
+            "Locations: 1, "
+            "Sources: 0"
+        )
+
+        self.assertEqual(str(Plant.top_level_count([1, 2], True)), expected)
 
     def test_commit_changes_does_not_generate_pointless_changes(self):
         start = len(self.plant.changes)
@@ -3031,70 +3057,100 @@ class AccessionTests(GardenTestCase):
         self.assertEqual(acc.count_children(), 0)
 
     def test_top_level_count_w_plant_qty(self):
-        acc = self.create(Accession, species=self.species, code="1")
-        self.create(
-            Plant,
-            accession=acc,
-            quantity=1,
-            location=Location(name="site", code="STE"),
-            code="1",
+        expected = (
+            "Families: 1, "
+            "Genera: 2, "
+            "Species: 2, "
+            "Accessions: 2, "
+            "Plantings: 3, "
+            "Living plants: 3, "
+            "Locations: 1, "
+            "Sources: 1"
         )
-        self.session.commit()
 
-        self.assertEqual(acc.top_level_count()[(1, "Accessions")], 1)
-        self.assertEqual(len(acc.top_level_count()[(2, "Species")]), 1)
-        self.assertEqual(len(acc.top_level_count()[(3, "Genera")]), 1)
-        self.assertEqual(len(acc.top_level_count()[(4, "Families")]), 1)
-        self.assertEqual(acc.top_level_count()[(5, "Plantings")], 1)
-        self.assertEqual(acc.top_level_count()[(6, "Living plants")], 1)
-        self.assertEqual(len(acc.top_level_count()[(7, "Locations")]), 1)
-        self.assertEqual(len(acc.top_level_count()[(8, "Sources")]), 0)
+        self.assertEqual(str(Accession.top_level_count([1, 2])), expected)
+        # exclude_inactive makes no differnce here
+        self.assertEqual(
+            str(Accession.top_level_count([1, 2], True)), expected
+        )
 
     def test_top_level_count_wo_plant_qty(self):
-        acc = self.create(Accession, species=self.species, code="1")
-        self.create(
-            Plant,
-            accession=acc,
-            quantity=0,
-            location=Location(name="site", code="STE"),
-            code="1",
-        )
+        plt = self.session.query(Plant).get(1)
+        plt.quantity = 0
         self.session.commit()
 
-        self.assertEqual(acc.top_level_count()[(1, "Accessions")], 1)
-        self.assertEqual(len(acc.top_level_count()[(2, "Species")]), 1)
-        self.assertEqual(len(acc.top_level_count()[(3, "Genera")]), 1)
-        self.assertEqual(len(acc.top_level_count()[(4, "Families")]), 1)
-        self.assertEqual(acc.top_level_count()[(5, "Plantings")], 1)
-        self.assertEqual(acc.top_level_count()[(6, "Living plants")], 0)
-        self.assertEqual(len(acc.top_level_count()[(7, "Locations")]), 1)
-        self.assertEqual(len(acc.top_level_count()[(8, "Sources")]), 0)
-
-    def test_top_level_count_wo_plant_qty_exclude_inactive_set(self):
-        # NOTE in the reality this accession would not show in search view with
-        # exclude inactive set unless it had a second alive plant (and
-        # hence top_level_count would not be called) but thats not a concern
-        # here.
-        acc = self.create(Accession, species=self.species, code="1")
-        self.create(
-            Plant,
-            accession=acc,
-            quantity=0,
-            location=Location(name="site", code="STE"),
-            code="1",
+        expected = (
+            "Families: 1, "
+            "Genera: 2, "
+            "Species: 2, "
+            "Accessions: 2, "
+            "Plantings: 3, "
+            "Living plants: 2, "
+            "Locations: 1, "
+            "Sources: 1"
         )
+
+        self.assertEqual(str(Accession.top_level_count([1, 2])), expected)
+
+    def test_top_level_count_wo_plant_qty_exclude_inactive(self):
+        plt = self.session.query(Plant).get(1)
+        plt.quantity = 0
         self.session.commit()
 
-        prefs.prefs[prefs.exclude_inactive_pref] = True
+        expected = (
+            "Families: 1, "
+            "Genera: 1, "
+            "Species: 1, "
+            "Accessions: 1, "
+            "Plantings: 2, "
+            "Living plants: 2, "
+            "Locations: 1, "
+            "Sources: 0"
+        )
 
-        self.assertEqual(acc.top_level_count()[(1, "Accessions")], 1)
-        self.assertEqual(len(acc.top_level_count()[(2, "Species")]), 1)
-        self.assertEqual(len(acc.top_level_count()[(3, "Genera")]), 1)
-        self.assertEqual(len(acc.top_level_count()[(4, "Families")]), 1)
-        self.assertEqual(acc.top_level_count()[(5, "Plantings")], 0)
-        self.assertEqual(acc.top_level_count()[(6, "Living plants")], 0)
-        self.assertEqual(len(acc.top_level_count()[(7, "Locations")]), 0)
-        self.assertEqual(len(acc.top_level_count()[(8, "Sources")]), 0)
+        self.assertEqual(
+            str(Accession.top_level_count([1, 2], True)), expected
+        )
+
+    def test_top_level_count_wo_plant(self):
+        plt = self.session.query(Plant).get(1)
+        self.session.delete(plt)
+        self.session.commit()
+
+        expected = (
+            "Families: 1, "
+            "Genera: 2, "
+            "Species: 2, "
+            "Accessions: 2, "
+            "Plantings: 2, "
+            "Living plants: 2, "
+            "Locations: 1, "
+            "Sources: 1"
+        )
+
+        self.assertEqual(str(Accession.top_level_count([1, 2])), expected)
+
+    def test_top_level_count_wo_plant_exclude_inactive(self):
+        plt = self.session.query(Plant).get(1)
+        self.session.delete(plt)
+        plt = self.session.query(Plant).get(2)
+        plt.quantity = 0
+        self.session.commit()
+
+        expected = (
+            "Families: 1, "
+            "Genera: 2, "
+            "Species: 2, "
+            "Accessions: 2, "
+            "Plantings: 1, "
+            "Living plants: 1, "
+            "Locations: 1, "
+            "Sources: 1"
+        )
+
+        self.assertEqual(
+            str(Accession.top_level_count([1, 2], True)), expected
+        )
 
     def test_pictures(self):
         acc = self.session.query(Accession).first()
@@ -4081,51 +4137,77 @@ class LocationTests(GardenTestCase):
         self.assertEqual(loc.count_children(), 0)
 
     def test_top_level_count_w_plant_qty(self):
-        acc = self.create(Accession, species=self.species, code="1")
-        loc = Location(name="site", code="STE")
-        self.create(Plant, accession=acc, quantity=1, location=loc, code="1")
-        self.session.commit()
 
-        self.assertEqual(loc.top_level_count()[(1, "Locations")], 1)
-        self.assertEqual(loc.top_level_count()[(2, "Plantings")], 1)
-        self.assertEqual(loc.top_level_count()[(3, "Living plants")], 1)
-        self.assertEqual(len(loc.top_level_count()[(4, "Accessions")]), 1)
-        self.assertEqual(len(loc.top_level_count()[(5, "Species")]), 1)
-        self.assertEqual(len(loc.top_level_count()[(6, "Genera")]), 1)
-        self.assertEqual(len(loc.top_level_count()[(7, "Families")]), 1)
-        self.assertEqual(len(loc.top_level_count()[(8, "Sources")]), 0)
+        expected = (
+            "Families: 2, "
+            "Genera: 3, "
+            "Species: 3, "
+            "Accessions: 4, "
+            "Plantings: 5, "
+            "Living plants: 6, "
+            "Locations: 1, "
+            "Sources: 1"
+        )
+
+        self.assertEqual(str(Location.top_level_count([1, 2])), expected)
 
     def test_top_level_count_wo_plant_qty(self):
-        acc = self.create(Accession, species=self.species, code="1")
-        loc = Location(name="site", code="STE")
-        self.create(Plant, accession=acc, quantity=0, location=loc, code="1")
+        plts = self.session.query(Plant).filter(Plant.id.in_([1, 2]))
+        for plt in plts:
+            plt.quantity = 0
         self.session.commit()
 
-        self.assertEqual(loc.top_level_count()[(1, "Locations")], 1)
-        self.assertEqual(loc.top_level_count()[(2, "Plantings")], 1)
-        self.assertEqual(loc.top_level_count()[(3, "Living plants")], 0)
-        self.assertEqual(len(loc.top_level_count()[(4, "Accessions")]), 1)
-        self.assertEqual(len(loc.top_level_count()[(5, "Species")]), 1)
-        self.assertEqual(len(loc.top_level_count()[(6, "Genera")]), 1)
-        self.assertEqual(len(loc.top_level_count()[(7, "Families")]), 1)
-        self.assertEqual(len(loc.top_level_count()[(8, "Sources")]), 0)
+        expected = (
+            "Families: 2, "
+            "Genera: 3, "
+            "Species: 3, "
+            "Accessions: 4, "
+            "Plantings: 5, "
+            "Living plants: 4, "
+            "Locations: 1, "
+            "Sources: 1"
+        )
 
-    def test_top_level_count_wo_plant_qty_exclude_inactive_set(self):
-        acc = self.create(Accession, species=self.species, code="1")
-        loc = Location(name="site", code="STE")
-        self.create(Plant, accession=acc, quantity=0, location=loc, code="1")
+        self.assertEqual(str(Location.top_level_count([1, 2])), expected)
+
+    def test_top_level_count_wo_plant_qty_exclude_inactive(self):
+        plts = self.session.query(Plant).filter(Plant.id.in_([1, 2]))
+        for plt in plts:
+            plt.quantity = 0
         self.session.commit()
 
-        prefs.prefs[prefs.exclude_inactive_pref] = True
+        expected = (
+            "Families: 2, "
+            "Genera: 2, "
+            "Species: 2, "
+            "Accessions: 2, "
+            "Plantings: 2, "
+            "Living plants: 4, "
+            "Locations: 1, "
+            "Sources: 0"
+        )
 
-        self.assertEqual(loc.top_level_count()[(1, "Locations")], 1)
-        self.assertEqual(loc.top_level_count()[(2, "Plantings")], 0)
-        self.assertEqual(loc.top_level_count()[(3, "Living plants")], 0)
-        self.assertEqual(len(loc.top_level_count()[(4, "Accessions")]), 0)
-        self.assertEqual(len(loc.top_level_count()[(5, "Species")]), 0)
-        self.assertEqual(len(loc.top_level_count()[(6, "Genera")]), 0)
-        self.assertEqual(len(loc.top_level_count()[(7, "Families")]), 0)
-        self.assertEqual(len(loc.top_level_count()[(8, "Sources")]), 0)
+        self.assertEqual(str(Location.top_level_count([1, 2], True)), expected)
+
+    def test_top_level_count_wo_plant_wo_plant_qty_exclude_inactive(self):
+        plt = self.session.query(Plant).get(1)
+        self.session.delete(plt)
+        plt = self.session.query(Plant).get(2)
+        plt.quantity = 0
+        self.session.commit()
+
+        expected = (
+            "Families: 2, "
+            "Genera: 2, "
+            "Species: 2, "
+            "Accessions: 2, "
+            "Plantings: 2, "
+            "Living plants: 4, "
+            "Locations: 1, "
+            "Sources: 0"
+        )
+
+        self.assertEqual(str(Location.top_level_count([1, 2], True)), expected)
 
     def test_pictures(self):
         loc = self.session.query(Location).first()

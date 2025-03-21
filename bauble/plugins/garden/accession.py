@@ -1,7 +1,7 @@
 # Copyright 2008-2010 Brett Adams
 # Copyright 2015-2016 Mario Frasca <mario@anche.no>.
 # Copyright 2017 Jardín Botánico de Quito
-# Copyright 2020-2024 Ross Demuth <rossdemuth123@gmail.com>
+# Copyright 2020-2025 Ross Demuth <rossdemuth123@gmail.com>
 #
 # This file is part of ghini.desktop.
 #
@@ -45,9 +45,13 @@ from sqlalchemy import ForeignKey
 from sqlalchemy import Integer
 from sqlalchemy import Unicode
 from sqlalchemy import UnicodeText
+from sqlalchemy import case
+from sqlalchemy import cast
+from sqlalchemy import distinct
 from sqlalchemy import exists
 from sqlalchemy import func
 from sqlalchemy import literal
+from sqlalchemy import select
 from sqlalchemy.exc import DBAPIError
 from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.orm import Session
@@ -56,9 +60,7 @@ from sqlalchemy.orm import object_mapper
 from sqlalchemy.orm import relationship
 from sqlalchemy.orm import validates
 from sqlalchemy.orm.session import object_session
-from sqlalchemy.sql.expression import case
-from sqlalchemy.sql.expression import cast
-from sqlalchemy.sql.expression import select
+from sqlalchemy.sql.expression import ColumnElement
 
 import bauble
 from bauble import btypes as types
@@ -944,19 +946,57 @@ class Accession(db.Domain, db.WithNotes):
     def markup(self):
         return f'{self.code} ({self.species.markup() if self.species else ""})'
 
-    def top_level_count(self):
-        source = self.source.source_detail if self.source else None
-        plants = db.get_active_children("plants", self)
-        return {
-            (1, "Accessions"): 1,
-            (2, "Species"): set([self.species.id]),
-            (3, "Genera"): set([self.species.genus.id]),
-            (4, "Families"): set([self.species.genus.family.id]),
-            (5, "Plantings"): len(plants),
-            (6, "Living plants"): sum(p.quantity for p in plants),
-            (7, "Locations"): set(p.location.id for p in plants),
-            (8, "Sources"): set([source.id] if source else []),
-        }
+    @classmethod
+    def top_level_count(
+        cls,
+        ids: list[int],
+        exclude_inactive: bool = False,
+    ) -> db.TopLevelCount:
+
+        from ..plants import Family
+        from ..plants import Genus
+
+        plant_id: ColumnElement = Plant.id
+        location_id: ColumnElement = Location.id
+
+        if exclude_inactive:
+            plant_id = case([(Plant.quantity > 0, 1)], else_=None)
+
+            location_id = case(
+                [(Plant.quantity > 0, Plant.location_id)],
+                else_=None,
+            )
+
+        stmt = (
+            select(
+                func.count(distinct(Family.id)),
+                func.count(distinct(Genus.id)),
+                func.count(distinct(Species.id)),
+                func.count(distinct(Accession.id)),
+                func.count(plant_id),
+                func.sum(Plant.quantity),
+                func.count(distinct(location_id)),
+                func.count(distinct(SourceDetail.id)),
+            )
+            .select_from(cls)
+            .join(Species)
+            .join(Genus)
+            .join(Family)
+            .outerjoin(Plant)
+            .outerjoin(Location)
+            .outerjoin(Source)
+            .outerjoin(SourceDetail)
+            .where(cls.id.in_(ids))
+        )
+
+        if exclude_inactive:
+            # pylint: disable=no-member
+            stmt = stmt.where(Accession.active.is_(True))  # type: ignore [attr-defined] # noqa
+
+        with db.Session() as session:
+            result = session.execute(stmt).one()
+
+        return db.TopLevelCount(*result)
 
     def has_children(self):
         cls = self.__class__.plants.prop.mapper.class_

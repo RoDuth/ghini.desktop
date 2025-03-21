@@ -2,7 +2,7 @@
 # Copyright 2015-2017 Mario Frasca <mario@anche.no>.
 # Copyright 2017 Jardín Botánico de Quito
 # Copyright 2018 Ilja Everilä
-# Copyright 2021-2024 Ross Demuth <rossdemuth123@gmail.com>
+# Copyright 2021-2025 Ross Demuth <rossdemuth123@gmail.com>
 #
 # This file is part of ghini.desktop.
 #
@@ -29,6 +29,7 @@ import os
 import re
 from collections.abc import Callable
 from collections.abc import Sequence
+from dataclasses import dataclass
 from typing import cast
 
 logger = logging.getLogger(__name__)
@@ -174,6 +175,33 @@ class Base(DBase):
     )
 
 
+@dataclass
+class TopLevelCount:
+    families: int
+    genera: int
+    species: int
+    accessions: int
+    plants: int
+    living: int
+    locations: int
+    sources: int
+
+    def __str__(self) -> str:
+        return ", ".join(
+            f"{k}: {v}"
+            for k, v in {
+                _("Families"): self.families,
+                _("Genera"): self.genera,
+                _("Species"): self.species,
+                _("Accessions"): self.accessions,
+                _("Plantings"): self.plants,
+                _("Living plants"): self.living or 0,
+                _("Locations"): self.locations,
+                _("Sources"): self.sources,
+            }.items()
+        )
+
+
 class Domain(Base):
     """Domains are a subset of tables that contain extra functionality as
     expected for SearchView etc..
@@ -184,18 +212,21 @@ class Domain(Base):
 
     __abstract__ = True
 
-    def top_level_count(self) -> dict[str, int]:
-        return {type(self).__name__: 1}
+    @classmethod
+    def top_level_count(
+        cls,
+        ids: list[int],
+        exclude_inactive: bool = False,  # pylint: disable=unused-argument
+    ) -> TopLevelCount | str:
+        return f"{cls.__name__.replace('y', 'ie')}s: {len(ids)}"
 
     def search_view_markup_pair(self) -> tuple[str, str]:
         return utils.xml_safe(str(self)), type(self).__name__
 
     def has_children(self) -> bool:
-        """All domain tables must implement this."""
         raise NotImplementedError
 
     def count_children(self) -> int:
-        """All domain tables must implement this."""
         raise NotImplementedError
 
 

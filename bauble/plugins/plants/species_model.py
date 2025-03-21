@@ -1,7 +1,7 @@
 # Copyright 2008-2010 Brett Adams
 # Copyright 2012-2016 Mario Frasca <mario@anche.no>.
 # Copyright 2017 Jardín Botánico de Quito
-# Copyright 2020-2023 Ross Demuth <rossdemuth123@gmail.com>
+# Copyright 2020-2025 Ross Demuth <rossdemuth123@gmail.com>
 #
 # This file is part of ghini.desktop.
 #
@@ -34,8 +34,16 @@ from sqlalchemy import Integer
 from sqlalchemy import Unicode
 from sqlalchemy import UnicodeText
 from sqlalchemy import UniqueConstraint
+from sqlalchemy import and_
+from sqlalchemy import case
+from sqlalchemy import cast
+from sqlalchemy import distinct
 from sqlalchemy import event
+from sqlalchemy import func
 from sqlalchemy import literal
+from sqlalchemy import or_
+from sqlalchemy import select
+from sqlalchemy import text
 from sqlalchemy.ext.associationproxy import association_proxy
 from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.orm import Mapped
@@ -44,12 +52,7 @@ from sqlalchemy.orm import backref
 from sqlalchemy.orm import object_session
 from sqlalchemy.orm import relationship
 from sqlalchemy.orm import synonym as sa_synonym
-from sqlalchemy.sql.expression import and_
-from sqlalchemy.sql.expression import case
-from sqlalchemy.sql.expression import cast
-from sqlalchemy.sql.expression import or_
-from sqlalchemy.sql.expression import select
-from sqlalchemy.sql.expression import text
+from sqlalchemy.sql.expression import ColumnElement
 
 from bauble import btypes as types
 from bauble import db
@@ -1113,25 +1116,69 @@ class Species(db.Domain, db.WithNotes):
     def distribution_map(self) -> DistributionMap:
         return DistributionMap([i.geography.id for i in self.distribution])
 
-    def top_level_count(self):
-        accessions = db.get_active_children("accessions", self)
-        plants = [
-            p for a in accessions for p in db.get_active_children("plants", a)
-        ]
-        return {
-            (1, "Species"): 1,
-            (2, "Genera"): set([self.genus.id]),
-            (3, "Families"): set([self.genus.family.id]),
-            (4, "Accessions"): len(accessions),
-            (5, "Plantings"): len(plants),
-            (6, "Living plants"): sum(p.quantity for p in plants),
-            (7, "Locations"): set(p.location.id for p in plants),
-            (8, "Sources"): set(
-                a.source.source_detail.id
-                for a in self.accessions
-                if a.source and a.source.source_detail
-            ),
-        }
+    @classmethod
+    def top_level_count(  # pylint: disable=too-many-locals
+        cls,
+        ids: list[int],
+        exclude_inactive: bool = False,
+    ) -> db.TopLevelCount:
+
+        # avoid circular imports
+        from ..garden import Accession
+        from ..garden import Location
+        from ..garden import Plant
+        from ..garden import Source
+        from ..garden import SourceDetail
+        from . import Family
+        from . import Genus
+
+        plant_id: ColumnElement = Plant.id
+        location_id: ColumnElement = Location.id
+        accession_id: ColumnElement = Accession.id
+        source_id: ColumnElement = SourceDetail.id
+
+        if exclude_inactive:
+            plant_id = case([(Plant.quantity > 0, 1)], else_=None)
+            location_id = case(
+                [(Plant.quantity > 0, Plant.location_id)],
+                else_=None,
+            )
+            # pylint: disable=no-member,line-too-long
+            accession_id = case(
+                [(Accession.active.is_(True), Accession.id)],  # type: ignore [attr-defined] # noqa
+                else_=None,
+            )
+            source_id = case(
+                [(Accession.active.is_(True), Source.source_detail_id)],  # type: ignore [attr-defined] # noqa
+                else_=None,
+            )
+
+        stmt = (
+            select(
+                func.count(distinct(Family.id)),
+                func.count(distinct(Genus.id)),
+                func.count(distinct(Species.id)),
+                func.count(distinct(accession_id)),
+                func.count(distinct(plant_id)),
+                func.sum(Plant.quantity),
+                func.count(distinct(location_id)),
+                func.count(distinct(source_id)),
+            )
+            .select_from(cls)
+            .join(Genus)
+            .join(Family)
+            .outerjoin(Accession)
+            .outerjoin(Plant)
+            .outerjoin(Location)
+            .outerjoin(Source)
+            .outerjoin(SourceDetail)
+            .where(cls.id.in_(ids))
+        )
+
+        with db.Session() as session:
+            result = session.execute(stmt).one()
+
+        return db.TopLevelCount(*result)
 
     def has_children(self):
         cls = self.__class__.accessions.prop.mapper.class_
@@ -1344,6 +1391,71 @@ class VernacularName(db.Domain):
             .scalar_subquery()
         )
         return cast(case([(cls.id.in_(active), 1)], else_=0), types.Boolean)
+
+    @classmethod
+    def top_level_count(
+        cls,
+        ids: list[int],
+        exclude_inactive: bool = False,
+    ) -> db.TopLevelCount:
+
+        # avoid circular imports
+        from ..garden import Accession
+        from ..garden import Location
+        from ..garden import Plant
+        from ..garden import Source
+        from ..garden import SourceDetail
+        from . import Family
+        from . import Genus
+
+        plant_id: ColumnElement = Plant.id
+        location_id: ColumnElement = Location.id
+        accession_id: ColumnElement = Accession.id
+        source_id: ColumnElement = SourceDetail.id
+
+        if exclude_inactive:
+            plant_id = case([(Plant.quantity > 0, 1)], else_=None)
+            location_id = case(
+                [(Plant.quantity > 0, Plant.location_id)],
+                else_=None,
+            )
+            # pylint: disable=no-member,line-too-long
+            accession_id = case(
+                [(Accession.active.is_(True), Accession.id)],  # type: ignore [attr-defined] # noqa
+                else_=None,
+            )
+            source_id = case(
+                [(Accession.active.is_(True), Source.source_detail_id)],  # type: ignore [attr-defined] # noqa
+                else_=None,
+            )
+
+        stmt = (
+            select(
+                func.count(distinct(Family.id)),
+                func.count(distinct(Genus.id)),
+                func.count(distinct(cls.id)),
+                func.count(distinct(accession_id)),
+                func.count(plant_id),
+                func.sum(Plant.quantity),
+                func.count(distinct(location_id)),
+                func.count(distinct(source_id)),
+            )
+            .select_from(cls)
+            .join(Species)
+            .join(Genus)
+            .join(Family)
+            .outerjoin(Accession)
+            .outerjoin(Plant)
+            .outerjoin(Location)
+            .outerjoin(Source)
+            .outerjoin(SourceDetail)
+            .where(cls.id.in_(ids))
+        )
+
+        with db.Session() as session:
+            result = session.execute(stmt).one()
+
+        return db.TopLevelCount(*result)
 
 
 class DefaultVernacularName(db.Base):

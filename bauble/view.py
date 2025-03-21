@@ -25,7 +25,6 @@ import html
 import itertools
 import json
 import logging
-import sys
 import textwrap
 import threading
 import traceback
@@ -108,13 +107,6 @@ SEARCH_CACHE_SIZE_PREF = "bauble.search.cache_size"
 SEARCH_REFRESH_PREF = "bauble.search.refresh"
 """Preference key, should search view attempt to refresh from the database
 regularly
-"""
-
-SEARCH_COUNT_FAST_PREF = "bauble.search.count_fast"
-"""Set multiprocessing processes on large searches to count top level count,
-
-Values: int (number of processes), bool (use multiprocessing),
-    str (just provide length of results)
 """
 
 EXPAND_ON_ACTIVATE_PREF = "bauble.search.expand_on_activate"
@@ -519,201 +511,7 @@ class LinksExpander(InfoExpander):
             utils.hide_widgets(widgets)
 
 
-class AddOneDot(threading.Thread):
-    def __init__(self) -> None:
-        super().__init__()
-        self.__stopped = threading.Event()
-        self.number_of_dots = 0
-
-    @staticmethod
-    def callback(number_of_dots: int) -> None:
-        statusbar = bauble.gui.widgets.statusbar
-        sbcontext_id = statusbar.get_context_id("searchview.nresults")
-        statusbar.pop(sbcontext_id)
-        statusbar.push(
-            sbcontext_id, _("counting results") + "." * number_of_dots
-        )
-
-    def cancel(self) -> None:
-        self.__stopped.set()
-
-    def run(self) -> None:
-        while not self.__stopped.wait(1.0):
-            self.number_of_dots += 1
-            GLib.idle_add(self.callback, self.number_of_dots)
-
-
-def multiproc_counter(url, klass, ids):
-    """multiprocessing worker to get top level count for a group of items.
-
-    :param url: database url as a string.
-    :param klass: sqlalchemy table class.
-    :param ids: a list of id numbers to query.
-    """
-    if sys.platform == "darwin":
-        # only on macos
-        # TODO need to investigate this further.  Dock icons pop up for every
-        # process produced.  The below suppresses the icon AFTER it has already
-        # popped up meaning you get a bunch of icons appearing for a
-        # around a second and then disappearing.
-        import AppKit  # type: ignore [import-untyped]
-
-        AppKit.NSApp.setActivationPolicy_(1)  # 2 also works
-    db.open_conn(url)
-    # get tables across plugins (e.g. plants - Genus, garden - Accession )
-    pluginmgr.load()
-    session = db.Session()
-    results = {}
-    for id_ in ids:
-        item = session.query(klass).get(id_)
-        # item has since been deleted elsewhere
-        if not item:
-            continue
-        for k, v in item.top_level_count().items():
-            if isinstance(v, set):
-                # need strings to pickle results
-                new_v = {str(i) for i in v}
-                results[k] = new_v.union(results.get(k, set()))
-            else:
-                results[k] = v + results.get(k, 0)
-    session.close()
-    db.engine.dispose()
-    return results
-
-
-class CountResultsTask(threading.Thread):
-    """Threading task to calculate top level count and place it on the status
-    bar
-
-    if search is large will deligate the counting task to multiprocessing
-    workers.
-    """
-
-    def __init__(self, klass, ids, dots_thread, group=None):
-        super().__init__(group=group, target=None, name=None)
-        self.klass = klass
-        self.ids = ids
-        self.dots_thread = dots_thread
-        self.__cancel = False
-
-    def cancel(self):
-        self.__cancel = True
-
-    def callback(self, items):
-        """Collate the results into a string.
-
-        when using multiprocessing this is used as callback for the worker"""
-        items_dct = {}
-        if isinstance(items, list):
-            for itm in items:
-                for k, v in itm.items():
-                    if isinstance(v, set):
-                        items_dct[k] = v.union(items_dct.get(k, set()))
-                    else:
-                        items_dct[k] = v + items_dct.get(k, 0)
-        else:
-            items_dct = items
-        result = []
-        for k, v in sorted(items_dct.items()):
-            if isinstance(k, tuple):
-                k = k[1]
-            if isinstance(v, set):
-                v = len(v)
-            result.append(f"{k}: {v}")
-            if self.__cancel:  # check whether caller asks to cancel
-                break
-        value = _("top level count: %s") % (", ".join(result))
-        self.set_statusbar(value)
-
-    def error(self, e):
-        """error_callback for multiprocessing worker.
-
-        Cancels dots_thread and logs error
-        """
-        self.dots_thread.cancel()
-        logger.debug("%s (%s)", type(e).__name__, e)
-        self.set_statusbar(f"{type(e).__name__} error counting results")
-
-    def set_statusbar(self, value):
-        """Put the results on the statusbar."""
-        if bauble.gui:
-            statusbar = bauble.gui.widgets.statusbar
-
-            def sb_call(text):
-                sbcontext_id = statusbar.get_context_id("searchview.nresults")
-                statusbar.pop(sbcontext_id)
-                statusbar.push(sbcontext_id, text)
-
-            if not self.__cancel:  # check whether caller asks to cancel
-                self.dots_thread.cancel()
-                GLib.idle_add(sb_call, value)
-        else:
-            self.dots_thread.cancel()
-            logger.debug("showing text %s", value)
-        # NOTE log used in tests
-        logger.debug("counting results class:%s complete", self.klass.__name__)
-
-    def run(self):
-        """Runs thread, decide whether to use multiprocessing or not.
-
-        Results are handed to self.callback either by the multiprocessing
-        worker or directly
-        """
-        count_fast = prefs.prefs.get(SEARCH_COUNT_FAST_PREF, True)
-        # NOTE these figures were arrived at by trial and error on a particular
-        # dataset. No guarantee they are ideal in all situations.
-        if self.klass.__name__ in ["Family", "Location"]:
-            max_ids = 30
-            chunk_size = 10
-        else:
-            max_ids = 300
-            chunk_size = 100
-        if count_fast and len(self.ids) > max_ids:
-            from functools import partial
-            from multiprocessing import get_context
-
-            proc = partial(multiproc_counter, str(db.engine.url), self.klass)
-            processes = None
-            # pylint: disable=unidiomatic-typecheck # bool is subclass of int,
-            # isinstance won't work.
-            if type(count_fast) is int:
-                processes = count_fast
-            logger.debug(
-                "counting results multiprocessing, processes=%s", processes
-            )
-            with get_context("spawn").Pool(processes) as pool:
-                amap = pool.map_async(
-                    proc,
-                    utils.chunks(self.ids, chunk_size),
-                    callback=self.callback,
-                    error_callback=self.error,
-                )
-                # keeps the thread alive and allow cancel
-                while not amap.ready():
-                    if self.__cancel:  # check whether caller asks to cancel
-                        pool.terminate()
-                        break
-                    amap.wait(0.5)
-        else:
-            session = db.Session()
-            results = {}
-            for id_ in self.ids:
-                item = session.query(self.klass).get(id_)
-                if self.__cancel:  # check whether caller asks to cancel
-                    break
-                # item has been deleted elswhere (race condition)
-                if not item:
-                    continue
-                for k, v in item.top_level_count().items():
-                    if isinstance(v, set):
-                        results[k] = v.union(results.get(k, set()))
-                    else:
-                        results[k] = v + results.get(k, 0)
-            session.close()
-            self.callback(results)
-
-
-class Picture(Protocol):
+class Picture(Protocol):  # pylint: disable=too-few-public-methods
     id: int
     category: str
     picture: str
@@ -1593,9 +1391,9 @@ class SearchView(pluginmgr.View, Gtk.Box):
                 Gtk.TreePath.new_first(), None, True, 0.5, 0.0
             )
 
+    @staticmethod
     def _update_statusbar(
-        self,
-        results: list,
+        results: Sequence[db.Domain],
         *,
         statusbar: Gtk.Statusbar | None = None,
     ) -> None:
@@ -1609,32 +1407,23 @@ class SearchView(pluginmgr.View, Gtk.Box):
         sbcontext_id = statusbar.get_context_id("searchview.nresults")
         statusbar.pop(sbcontext_id)
 
-        statusbar.push(
-            sbcontext_id,
-            _("Retrieving %s search results…") % len(results),
-        )
-
-        statusbar.pop(sbcontext_id)
-        statusbar.push(sbcontext_id, _("counting results"))
-        count_fast = prefs.prefs.get(SEARCH_COUNT_FAST_PREF, True)
-        if isinstance(count_fast, str):
-            statusbar.push(
-                sbcontext_id, _("size of result: %s") % len(results)
-            )
-        elif len(set(item.__class__ for item in results)) == 1:
-            dots_thread = self.start_thread(AddOneDot())
-            self.start_thread(
-                CountResultsTask(
-                    results[0].__class__,
-                    [i.id for i in results],
-                    dots_thread,
-                )
-            )
-        else:
+        if len(set(item.__class__ for item in results)) == 1:
+            class_ = results[0].__class__
+            sbcontext_id = statusbar.get_context_id("searchview.nresults")
+            statusbar.pop(sbcontext_id)
             statusbar.push(
                 sbcontext_id,
-                _("size of non homogeneous result: %s") % len(results),
+                _("TOP LEVEL COUNT: %s")
+                % class_.top_level_count(
+                    [i.id for i in results],
+                    prefs.prefs.get(prefs.exclude_inactive_pref, False),
+                ),
             )
+            return
+        statusbar.push(
+            sbcontext_id,
+            _("size of non homogeneous result: %s") % len(results),
+        )
 
     def _notify_no_result(self, text: str) -> None:
         bold = "<b>%s</b>"
