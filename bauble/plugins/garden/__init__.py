@@ -444,11 +444,16 @@ class GardenPlugin(pluginmgr.Plugin):
         action.set_state(value)
 
         prefs.prefs[prefs.exclude_inactive_pref] = value.get_boolean()
-        if isinstance(
-            view := bauble.gui.get_view(),
-            (prefs.PrefsView, bauble.ui.DefaultView),
-        ):
+
+        view = bauble.gui.get_view()
+
+        if isinstance(view, (prefs.PrefsView, bauble.ui.DefaultView)):
             view.update()
+
+        if isinstance(view, SearchView):
+            view.update_statusbar(
+                [i[0] for i in view.results_view.get_model()]
+            )
 
         from . import garden_map
 

@@ -1385,14 +1385,14 @@ class SearchView(pluginmgr.View, Gtk.Box):
             self._notify_no_result(text)
         else:
             self.populate_results(results)
-            self._update_statusbar(results)
+            self.update_statusbar(results)
             self.results_view.set_cursor(Gtk.TreePath.new_first())
             self.results_view.scroll_to_cell(
                 Gtk.TreePath.new_first(), None, True, 0.5, 0.0
             )
 
     @staticmethod
-    def _update_statusbar(
+    def update_statusbar(
         results: Sequence[db.Domain],
         *,
         statusbar: Gtk.Statusbar | None = None,
@@ -1537,17 +1537,21 @@ class SearchView(pluginmgr.View, Gtk.Box):
         # iterate over slice of size "steps", yield every 5%
         added = set()
         for obj in self._group_sort_results(results):
+
             if obj in added:  # only add unique object
                 continue
+
             added.add(obj)
 
             parent = model.prepend(None, [obj])
             steps_so_far += 1
+
             if (
                 not self.refresh
                 and self.row_meta[type(obj)].children is not None
             ):
                 model.prepend(parent, ["-"])
+
             if steps_so_far % five_percent == 0:
                 percent = float(steps_so_far) / float(len_results)
                 if 0 < percent < 1.0:

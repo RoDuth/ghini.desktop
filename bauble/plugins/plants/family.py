@@ -307,17 +307,25 @@ class Family(db.Domain, db.WithNotes):
                 [(Plant.quantity > 0, Plant.location_id)],
                 else_=None,
             )
-            # pylint: disable=no-member,line-too-long
             accession_id = case(
-                [(Accession.active.is_(True), Accession.id)],  # type: ignore [attr-defined] # noqa
+                [
+                    (Plant.id.is_(None), Accession.id),
+                    (Plant.quantity > 0, Accession.id),
+                ],
                 else_=None,
             )
             source_id = case(
-                [(Accession.active.is_(True), Source.source_detail_id)],  # type: ignore [attr-defined] # noqa
+                [
+                    (Plant.id.is_(None), Source.source_detail_id),
+                    (Plant.quantity > 0, Source.source_detail_id),
+                ],
                 else_=None,
             )
             species_id = case(
-                [(Species.active.is_(True), Species.id)],  # type: ignore [attr-defined] # noqa
+                [
+                    (Plant.id.is_(None), Species.id),
+                    (Plant.quantity > 0, Species.id),
+                ],
                 else_=None,
             )
 

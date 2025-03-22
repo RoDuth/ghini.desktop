@@ -1138,18 +1138,23 @@ class Species(db.Domain, db.WithNotes):
         source_id: ColumnElement = SourceDetail.id
 
         if exclude_inactive:
-            plant_id = case([(Plant.quantity > 0, 1)], else_=None)
+            plant_id = case([(Plant.quantity > 0, Plant.id)], else_=None)
             location_id = case(
                 [(Plant.quantity > 0, Plant.location_id)],
                 else_=None,
             )
-            # pylint: disable=no-member,line-too-long
             accession_id = case(
-                [(Accession.active.is_(True), Accession.id)],  # type: ignore [attr-defined] # noqa
+                [
+                    (Plant.id.is_(None), Accession.id),
+                    (Plant.quantity > 0, Accession.id),
+                ],
                 else_=None,
             )
             source_id = case(
-                [(Accession.active.is_(True), Source.source_detail_id)],  # type: ignore [attr-defined] # noqa
+                [
+                    (Plant.id.is_(None), Source.source_detail_id),
+                    (Plant.quantity > 0, Source.source_detail_id),
+                ],
                 else_=None,
             )
 
@@ -1393,7 +1398,7 @@ class VernacularName(db.Domain):
         return cast(case([(cls.id.in_(active), 1)], else_=0), types.Boolean)
 
     @classmethod
-    def top_level_count(
+    def top_level_count(  # pylint: disable=too-many-locals
         cls,
         ids: list[int],
         exclude_inactive: bool = False,
@@ -1414,18 +1419,23 @@ class VernacularName(db.Domain):
         source_id: ColumnElement = SourceDetail.id
 
         if exclude_inactive:
-            plant_id = case([(Plant.quantity > 0, 1)], else_=None)
+            plant_id = case([(Plant.quantity > 0, Plant.id)], else_=None)
             location_id = case(
                 [(Plant.quantity > 0, Plant.location_id)],
                 else_=None,
             )
-            # pylint: disable=no-member,line-too-long
             accession_id = case(
-                [(Accession.active.is_(True), Accession.id)],  # type: ignore [attr-defined] # noqa
+                [
+                    (Plant.id.is_(None), Accession.id),
+                    (Plant.quantity > 0, Accession.id),
+                ],
                 else_=None,
             )
             source_id = case(
-                [(Accession.active.is_(True), Source.source_detail_id)],  # type: ignore [attr-defined] # noqa
+                [
+                    (Plant.id.is_(None), Source.source_detail_id),
+                    (Plant.quantity > 0, Source.source_detail_id),
+                ],
                 else_=None,
             )
 

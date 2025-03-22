@@ -640,7 +640,7 @@ class TestSearchView(BaubleTestCase):
     def test_update_statusbar_non_homogeneous_result(self):
         search_view = get_search_view()
         mock_status_bar = mock.Mock()
-        search_view._update_statusbar(
+        search_view.update_statusbar(
             [1, "one", object()], statusbar=mock_status_bar
         )
         self.assertIn(
