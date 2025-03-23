@@ -1052,16 +1052,15 @@ class Plant(db.Domain, db.WithNotes):
         from . import Source
         from . import SourceDetail
 
-        stmt = (
+        base_ids_stmt = (
             select(
-                func.count(distinct(Family.id)),
-                func.count(distinct(Genus.id)),
-                func.count(distinct(Species.id)),
-                func.count(distinct(Accession.id)),
-                func.count(cls.id),
-                func.sum(cls.quantity),
-                func.count(distinct(Location.id)),
-                func.count(distinct(SourceDetail.id)),
+                Family.id,
+                Genus.id,
+                Species.id,
+                Accession.id,
+                cls.id,
+                Location.id,
+                SourceDetail.id,
             )
             .select_from(cls)
             .join(Accession)
@@ -1071,16 +1070,24 @@ class Plant(db.Domain, db.WithNotes):
             .join(Location)
             .outerjoin(Source)
             .outerjoin(SourceDetail)
-            .where(cls.id.in_(ids))
         )
+
+        base_count_stmt = select(
+            func.sum(Plant.quantity),
+        ).select_from(cls)
 
         if exclude_inactive:
             # pylint: disable=no-member
-            stmt = stmt.where(cls.active.is_(True))  # type: ignore [attr-defined] # noqa
+            base_ids_stmt = base_ids_stmt.where(
+                cls.active.is_(True),  # type: ignore [attr-defined]
+            )
+            base_count_stmt = base_count_stmt.where(
+                cls.active.is_(True),  # type: ignore [attr-defined]
+            )
 
-        with db.Session() as session:
-            result = session.execute(stmt).one()
-
+        result = cls._top_level_counter_helper(
+            base_ids_stmt, base_count_stmt, ids
+        )
         return db.TopLevelCount(*result)
 
 

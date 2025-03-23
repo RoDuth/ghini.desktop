@@ -960,23 +960,22 @@ class Accession(db.Domain, db.WithNotes):
         location_id: ColumnElement = Location.id
 
         if exclude_inactive:
-            plant_id = case([(Plant.quantity > 0, 1)], else_=None)
+            plant_id = case([(Plant.quantity > 0, Plant.id)], else_=None)
 
             location_id = case(
                 [(Plant.quantity > 0, Plant.location_id)],
                 else_=None,
             )
 
-        stmt = (
+        base_ids_stmt = (
             select(
-                func.count(distinct(Family.id)),
-                func.count(distinct(Genus.id)),
-                func.count(distinct(Species.id)),
-                func.count(distinct(Accession.id)),
-                func.count(plant_id),
-                func.sum(Plant.quantity),
-                func.count(distinct(location_id)),
-                func.count(distinct(SourceDetail.id)),
+                Family.id,
+                Genus.id,
+                Species.id,
+                cls.id,
+                plant_id,
+                location_id,
+                SourceDetail.id,
             )
             .select_from(cls)
             .join(Species)
@@ -986,17 +985,29 @@ class Accession(db.Domain, db.WithNotes):
             .outerjoin(Location)
             .outerjoin(Source)
             .outerjoin(SourceDetail)
-            .where(cls.id.in_(ids))
+        )
+
+        base_count_stmt = (
+            select(
+                func.sum(Plant.quantity),
+            )
+            .select_from(cls)
+            .outerjoin(Plant)
         )
 
         if exclude_inactive:
             # pylint: disable=no-member
-            stmt = stmt.where(Accession.active.is_(True))  # type: ignore [attr-defined] # noqa
+            base_ids_stmt = base_ids_stmt.where(
+                cls.active.is_(True),  # type: ignore [attr-defined]
+            )
+            base_count_stmt = base_count_stmt.where(
+                cls.active.is_(True),  # type: ignore [attr-defined]
+            )
 
-        with db.Session() as session:
-            result = session.execute(stmt).one()
-
-        return db.TopLevelCount(*result)
+        args = cls._top_level_counter_helper(
+            base_ids_stmt, base_count_stmt, ids
+        )
+        return db.TopLevelCount(*args)
 
     def has_children(self):
         cls = self.__class__.plants.prop.mapper.class_

@@ -274,16 +274,15 @@ class Location(db.Domain, db.WithNotes):
         from . import Source
         from . import SourceDetail
 
-        stmt = (
+        base_ids_stmt = (
             select(
-                func.count(distinct(Family.id)),
-                func.count(distinct(Genus.id)),
-                func.count(distinct(Species.id)),
-                func.count(distinct(Accession.id)),
-                func.count(Plant.id),
-                func.sum(Plant.quantity),
-                func.count(distinct(Location.id)),
-                func.count(distinct(SourceDetail.id)),
+                Family.id,
+                Genus.id,
+                Species.id,
+                Accession.id,
+                Plant.id,
+                Location.id,
+                SourceDetail.id,
             )
             .select_from(cls)
             .join(Plant)
@@ -293,17 +292,29 @@ class Location(db.Domain, db.WithNotes):
             .join(Family)
             .outerjoin(Source)
             .outerjoin(SourceDetail)
-            .where(cls.id.in_(ids))
+        )
+
+        base_count_stmt = (
+            select(
+                func.sum(Plant.quantity),
+            )
+            .select_from(cls)
+            .outerjoin(Plant)
         )
 
         if exclude_inactive:
             # pylint: disable=no-member
-            stmt = stmt.where(Plant.active.is_(True))  # type: ignore [attr-defined] # noqa
+            base_ids_stmt = base_ids_stmt.where(
+                Plant.active.is_(True),  # type: ignore [attr-defined]
+            )
+            base_count_stmt = base_count_stmt.where(
+                Plant.active.is_(True),  # type: ignore [attr-defined]
+            )
 
-        with db.Session() as session:
-            result = session.execute(stmt).one()
-
-        return db.TopLevelCount(*result)
+        args = cls._top_level_counter_helper(
+            base_ids_stmt, base_count_stmt, ids
+        )
+        return db.TopLevelCount(*args)
 
     def has_children(self):
         cls = self.__class__.plants.prop.mapper.class_

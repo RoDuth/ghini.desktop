@@ -2817,6 +2817,31 @@ class SpeciesTopLevelCountTests(BaubleTestCase):
 
         self.assertEqual(str(Species.top_level_count([1, 3], True)), expected)
 
+    def test_top_level_count_sp_wo_plant_qty_exclude_inactive_set(self):
+        plt = self.session.query(Plant).get(1)
+        for acc in plt.accession.species.accessions:
+
+            if not acc.plants:
+                self.session.delete(acc)
+                continue
+
+            for plt in acc.plants:
+                plt.quantity = 0
+
+        self.session.commit()
+        expected = (
+            "Families: 1, "
+            "Genera: 1, "
+            "Species: 1, "
+            "Accessions: 1, "
+            "Plantings: 1, "
+            "Living plants: 3, "
+            "Locations: 1, "
+            "Sources: 0"
+        )
+
+        self.assertEqual(str(Species.top_level_count([1, 3], True)), expected)
+
 
 class VernacularNameTests(BaubleTestCase):
     def test_has_children_same_as_species(self):
@@ -2855,11 +2880,22 @@ class VernacularNameTests(BaubleTestCase):
         )
 
     def test_top_level_count_same_as_species(self):
-        for vern in self.session.query(VernacularName):
+        for func in get_setUp_data_funcs():
+            func()
 
-            self.assertEqual(
-                vern.top_level_count(), vern.species.top_level_count()
-            )
+        verns = self.session.query(VernacularName).all()
+        vern_ids = [i.id for i in verns]
+        sp_ids = [i.species_id for i in verns]
+
+        self.assertEqual(
+            str(VernacularName.top_level_count(vern_ids)),
+            str(Species.top_level_count(sp_ids)),
+        )
+
+        self.assertEqual(
+            VernacularName.top_level_count(vern_ids, True),
+            Species.top_level_count(sp_ids, True),
+        )
 
 
 class MarkupItalicsTests(TestCase):

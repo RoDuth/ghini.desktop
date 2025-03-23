@@ -30,6 +30,7 @@ import re
 from collections.abc import Callable
 from collections.abc import Sequence
 from dataclasses import dataclass
+from typing import Protocol
 from typing import cast
 
 logger = logging.getLogger(__name__)
@@ -45,6 +46,8 @@ from sqlalchemy.orm import sessionmaker
 from sqlalchemy.orm import synonym as sa_synonym
 from sqlalchemy.orm.attributes import get_history
 from sqlalchemy.orm.exc import MultipleResultsFound
+from sqlalchemy.sql import Select
+from sqlalchemy.sql.elements import ColumnElement
 
 from bauble import btypes as types
 from bauble import error
@@ -182,9 +185,9 @@ class TopLevelCount:
     species: int
     accessions: int
     plants: int
-    living: int
     locations: int
     sources: int
+    living: int
 
     def __str__(self) -> str:
         return ", ".join(
@@ -200,6 +203,10 @@ class TopLevelCount:
                 _("Sources"): self.sources,
             }.items()
         )
+
+
+class Statement(Protocol):  # pylint: disable=too-few-public-methods
+    def where(self, binexp: ColumnElement) -> Select: ...
 
 
 class Domain(Base):
@@ -218,7 +225,48 @@ class Domain(Base):
         ids: list[int],
         exclude_inactive: bool = False,  # pylint: disable=unused-argument
     ) -> TopLevelCount | str:
-        return f"{cls.__name__.replace('y', 'ie')}s: {len(ids)}"
+        return f"{re.sub('y$', 'ie', cls.__name__)}s: {len(ids)}"
+
+    @classmethod
+    def _top_level_counter_helper(
+        cls,
+        base_ids_stmt: Statement,
+        base_count_stmt: Statement,
+        ids: Sequence[int],
+    ) -> tuple[int, int, int, int, int, int, int, int]:
+        """Generate arguments for TopLevelCount given 2 appropriate queries."""
+
+        final: list[set[int | None]] = [
+            set(),
+            set(),
+            set(),
+            set(),
+            set(),
+            set(),
+            set(),
+        ]
+        quantity = 0
+
+        with Session() as session:
+            for chunk in utils.chunks(ids, 2000):
+                stmt = base_ids_stmt.where(cls.id.in_(chunk))
+                result = session.execute(stmt)
+
+                stmt = base_count_stmt.where(cls.id.in_(chunk))
+                quantity += session.scalar(stmt) or 0
+
+                for s, r in zip(final, zip(*result)):
+                    s.update(r)
+
+        for s in final:
+            s.discard(None)
+
+        args = (*(len(s) for s in final), quantity)
+
+        if len(args) != 8:
+            raise error.BaubleError("tuple of wrong length: {len(args)}")
+
+        return args
 
     def search_view_markup_pair(self) -> tuple[str, str]:
         return utils.xml_safe(str(self)), type(self).__name__

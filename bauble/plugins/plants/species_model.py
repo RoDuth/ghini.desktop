@@ -1152,22 +1152,21 @@ class Species(db.Domain, db.WithNotes):
             )
             source_id = case(
                 [
-                    (Plant.id.is_(None), Source.source_detail_id),
-                    (Plant.quantity > 0, Source.source_detail_id),
+                    (Plant.id.is_(None), SourceDetail.id),
+                    (Plant.quantity > 0, SourceDetail.id),
                 ],
                 else_=None,
             )
 
-        stmt = (
+        base_ids_stmt = (
             select(
-                func.count(distinct(Family.id)),
-                func.count(distinct(Genus.id)),
-                func.count(distinct(Species.id)),
-                func.count(distinct(accession_id)),
-                func.count(distinct(plant_id)),
-                func.sum(Plant.quantity),
-                func.count(distinct(location_id)),
-                func.count(distinct(source_id)),
+                Family.id,
+                Genus.id,
+                cls.id,
+                accession_id,
+                plant_id,
+                location_id,
+                source_id,
             )
             .select_from(cls)
             .join(Genus)
@@ -1177,12 +1176,29 @@ class Species(db.Domain, db.WithNotes):
             .outerjoin(Location)
             .outerjoin(Source)
             .outerjoin(SourceDetail)
-            .where(cls.id.in_(ids))
         )
 
-        with db.Session() as session:
-            result = session.execute(stmt).one()
+        base_count_stmt = (
+            select(
+                func.sum(Plant.quantity),
+            )
+            .select_from(cls)
+            .outerjoin(Accession)
+            .outerjoin(Plant)
+        )
 
+        if exclude_inactive:
+            # pylint: disable=no-member
+            base_ids_stmt = base_ids_stmt.where(
+                cls.active.is_(True),  # type: ignore [attr-defined]
+            )
+            base_count_stmt = base_count_stmt.where(
+                cls.active.is_(True),  # type: ignore [attr-defined]
+            )
+
+        result = cls._top_level_counter_helper(
+            base_ids_stmt, base_count_stmt, ids
+        )
         return db.TopLevelCount(*result)
 
     def has_children(self):
@@ -1433,22 +1449,21 @@ class VernacularName(db.Domain):
             )
             source_id = case(
                 [
-                    (Plant.id.is_(None), Source.source_detail_id),
-                    (Plant.quantity > 0, Source.source_detail_id),
+                    (Plant.id.is_(None), SourceDetail.id),
+                    (Plant.quantity > 0, SourceDetail.id),
                 ],
                 else_=None,
             )
 
-        stmt = (
+        base_ids_stmt = (
             select(
-                func.count(distinct(Family.id)),
-                func.count(distinct(Genus.id)),
-                func.count(distinct(cls.id)),
-                func.count(distinct(accession_id)),
-                func.count(plant_id),
-                func.sum(Plant.quantity),
-                func.count(distinct(location_id)),
-                func.count(distinct(source_id)),
+                Family.id,
+                Genus.id,
+                Species.id,
+                accession_id,
+                plant_id,
+                location_id,
+                source_id,
             )
             .select_from(cls)
             .join(Species)
@@ -1459,12 +1474,39 @@ class VernacularName(db.Domain):
             .outerjoin(Location)
             .outerjoin(Source)
             .outerjoin(SourceDetail)
-            .where(cls.id.in_(ids))
         )
 
-        with db.Session() as session:
-            result = session.execute(stmt).one()
+        class Stmt:  # pylint: disable=too-few-public-methods
+            # Allows adding the where clause to the subquery
+            subquery = (
+                select(
+                    Plant,
+                )
+                .select_from(Species)
+                .join(VernacularName)
+                .join(Accession)
+                .join(Plant)
+                .group_by(Plant.id)
+            )
 
+            def where(self, condition):
+                subquery = self.subquery.where(condition).subquery()
+                return select(func.sum(subquery.c.quantity))
+
+        base_count_stmt = Stmt()
+
+        if exclude_inactive:
+            # pylint: disable=no-member,line-too-long
+            base_ids_stmt = base_ids_stmt.where(
+                cls.active.is_(True),  # type: ignore [attr-defined]
+            )
+            base_count_stmt.subquery = base_count_stmt.subquery.where(
+                cls.active.is_(True),  # type: ignore [attr-defined]
+            )
+
+        result = cls._top_level_counter_helper(
+            base_ids_stmt, base_count_stmt, ids
+        )
         return db.TopLevelCount(*result)
 
 

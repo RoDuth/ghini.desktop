@@ -39,6 +39,7 @@ from sqlalchemy import and_
 from sqlalchemy import case
 from sqlalchemy import event
 from sqlalchemy import exists
+from sqlalchemy import func
 from sqlalchemy import inspect as sa_inspect
 from sqlalchemy import literal
 from sqlalchemy import select
@@ -383,9 +384,6 @@ class Genus(db.Domain, db.WithNotes):
         exclude_inactive: bool = False,
     ) -> db.TopLevelCount:
 
-        from sqlalchemy import distinct
-        from sqlalchemy import func
-
         from ..garden import Accession
         from ..garden import Location
         from ..garden import Plant
@@ -427,16 +425,15 @@ class Genus(db.Domain, db.WithNotes):
                 else_=None,
             )
 
-        stmt = (
+        base_ids_stmt = (
             select(
-                func.count(distinct(Family.id)),
-                func.count(distinct(cls.id)),
-                func.count(distinct(species_id)),
-                func.count(distinct(accession_id)),
-                func.count(distinct(plant_id)),
-                func.sum(Plant.quantity),
-                func.count(distinct(location_id)),
-                func.count(distinct(source_id)),
+                Family.id,
+                cls.id,
+                species_id,
+                accession_id,
+                plant_id,
+                location_id,
+                source_id,
             )
             .select_from(cls)
             .join(Family)
@@ -446,12 +443,21 @@ class Genus(db.Domain, db.WithNotes):
             .outerjoin(Location)
             .outerjoin(Source)
             .outerjoin(SourceDetail)
-            .where(cls.id.in_(ids))
         )
 
-        with db.Session() as session:
-            result = session.execute(stmt).one()
+        base_count_stmt = (
+            select(
+                func.sum(Plant.quantity),
+            )
+            .select_from(cls)
+            .join(Species)
+            .join(Accession)
+            .join(Plant)
+        )
 
+        result = cls._top_level_counter_helper(
+            base_ids_stmt, base_count_stmt, ids
+        )
         return db.TopLevelCount(*result)
 
     def has_children(self) -> bool:
