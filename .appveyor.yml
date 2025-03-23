@@ -132,7 +132,7 @@ for:
     - bash -lc "pip install pytest"
     - bash -lc "pip install coverage"
     - bash -lc "pip install coveralls"
-    - bash -lc "BAUBLE_TEST_DB_URI='mssql://sa:Password12!@localhost:1433/master?driver=ODBC+Driver+17+for+SQL+Server' coverage run -m pytest -sv"
+    - bash -lc "BAUBLE_TEST_DB_URI='mssql://sa:Password12!@localhost:1433/master?driver=ODBC+Driver+17+for+SQL+Server&MARS_Connection=Yes' coverage run -m pytest -sv"
     - bash -lc "coverage combine"
     - bash -lc "coverage report"
     - bash -lc "coveralls"
