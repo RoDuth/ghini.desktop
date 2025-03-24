@@ -43,7 +43,7 @@ for:
     - pip install pyodbc
     - pip install pyobjc-framework-SystemConfiguration
     - pip install .
-    - pip install pyinstaller
+    - pip install pyinstaller<6.12
     - pyinstaller --clean --noconfirm scripts/ghini.spec
     - pip install dmgbuild==1.6.1
     - dmgbuild -s scripts/dmgbuild_settings.py "Ghini" Ghini.dmg   # NOTE: last 2 args are required but overidden in dmgbuild_settings.py
