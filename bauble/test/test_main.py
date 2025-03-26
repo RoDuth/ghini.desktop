@@ -267,6 +267,7 @@ class MethodTests(TestCase):
     def test_get_connection_open_conn_fails(
         self, mock_open, mock_connmgr, mock_dialog
     ):
+        db.engine = None
         mock_connmgr.return_value = "test", "test_uri"
         exc = bauble.error.DatabaseError()
         mock_open.side_effect = [

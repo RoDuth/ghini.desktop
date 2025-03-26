@@ -53,6 +53,26 @@ if os.environ.get("BAUBLE_TEST_DB_URI"):
 bauble.gui = None  # type: ignore[assignment]
 
 
+def run_app():
+    """Convenience function to start the application GUI in its current state.
+
+    Can be used to visually check the state of the test data when debuging
+    tests, e.g. add this at the point you wish to open the app::
+
+        from bauble.test import run_app; run_app()
+
+    NOTE: Most likely only want to use this one test at at time as do_shutdown
+    deletes TEMPDIR.
+    """
+    from bauble import ui
+    from bauble.main import Application
+
+    bauble.gui = ui.GUI()
+
+    app = Application()
+    app.run()
+
+
 def update_gui():
     """
     Flush any GTK Events.  Used for doing GUI testing.
