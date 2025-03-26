@@ -38,7 +38,6 @@ from sqlalchemy import ForeignKey
 from sqlalchemy import Integer
 from sqlalchemy import Unicode
 from sqlalchemy import UnicodeText
-from sqlalchemy import distinct
 from sqlalchemy import func
 from sqlalchemy import literal
 from sqlalchemy import select
@@ -1214,34 +1213,45 @@ class SourceDetail(db.Domain):
         from . import Location
         from . import Plant
 
-        stmt = (
+        base_ids_stmt = (
             select(
-                func.count(distinct(Family.id)),
-                func.count(distinct(Genus.id)),
-                func.count(distinct(Species.id)),
-                func.count(distinct(Accession.id)),
-                func.count(Plant.id),
-                func.sum(Plant.quantity),
-                func.count(distinct(Location.id)),
-                func.count(distinct(SourceDetail.id)),
+                Family.id,
+                Genus.id,
+                Species.id,
+                Accession.id,
+                Plant.top_level_count_id(exclude_inactive),
+                Location.id,
+                cls.id,
             )
             .select_from(cls)
-            .outerjoin(Source)
-            .outerjoin(Accession)
-            .outerjoin(Species)
-            .outerjoin(Genus)
-            .outerjoin(Family)
+            .join(Source)
+            .join(Accession)
             .outerjoin(Plant)
             .outerjoin(Location)
-            .where(cls.id.in_(ids))
+            .join(Species)
+            .join(Genus)
+            .join(Family)
+        )
+
+        base_count_stmt = (
+            select(
+                func.sum(Plant.quantity),
+            )
+            .select_from(cls)
+            .join(Source)
+            .join(Accession)
+            .join(Plant)
         )
 
         if exclude_inactive:
             # pylint: disable=no-member
-            stmt = stmt.where(Accession.active.is_(True))  # type: ignore [attr-defined] # noqa
+            base_ids_stmt = base_ids_stmt.where(
+                Accession.active.is_(True),  # type: ignore [attr-defined]
+            )
 
-        with db.Session() as session:
-            result = session.execute(stmt).one()
+        result = cls._top_level_counter_helper(
+            base_ids_stmt, base_count_stmt, ids
+        )
 
         return db.TopLevelCount(*result)
 

@@ -1082,6 +1082,46 @@ class FamilyTopLevelCountTests(BaubleTestCase):
 
         self.assertEqual(str(Family.top_level_count([1, 2])), expected)
 
+    def test_top_level_count_wo_species_in_genera(self):
+
+        gen = self.session.query(Genus).get(14)
+        for sp in gen.species:
+            self.session.delete(sp)
+        self.session.commit()
+
+        expected = (
+            "Families: 2, "
+            "Genera: 6, "
+            "Species: 24, "
+            "Accessions: 6, "
+            "Plantings: 5, "
+            "Living plants: 6, "
+            "Locations: 1, "
+            "Sources: 1"
+        )
+
+        self.assertEqual(str(Family.top_level_count([1, 2])), expected)
+
+    def test_top_level_count_wo_species_in_genera_exclude_inactive_set(self):
+
+        gen = self.session.query(Genus).get(14)
+        for sp in gen.species:
+            self.session.delete(sp)
+        self.session.commit()
+
+        expected = (
+            "Families: 2, "
+            "Genera: 5, "
+            "Species: 24, "
+            "Accessions: 5, "
+            "Plantings: 4, "
+            "Living plants: 6, "
+            "Locations: 1, "
+            "Sources: 1"
+        )
+
+        self.assertEqual(str(Family.top_level_count([1, 2], True)), expected)
+
     def test_top_level_count_wo_plant_qty(self):
         plt = self.session.query(Plant).get(1)
         self.session.delete(plt)
@@ -2829,6 +2869,7 @@ class SpeciesTopLevelCountTests(BaubleTestCase):
                 plt.quantity = 0
 
         self.session.commit()
+
         expected = (
             "Families: 1, "
             "Genera: 1, "

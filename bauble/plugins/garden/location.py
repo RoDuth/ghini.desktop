@@ -31,7 +31,7 @@ from gi.repository import Gtk
 from sqlalchemy import Column
 from sqlalchemy import Unicode
 from sqlalchemy import UnicodeText
-from sqlalchemy import distinct
+from sqlalchemy import case
 from sqlalchemy import func
 from sqlalchemy import literal
 from sqlalchemy import select
@@ -42,6 +42,7 @@ from sqlalchemy.orm import deferred
 from sqlalchemy.orm import relationship
 from sqlalchemy.orm import validates
 from sqlalchemy.orm.session import object_session
+from sqlalchemy.sql.expression import ColumnElement
 
 import bauble
 from bauble import btypes as types
@@ -280,8 +281,8 @@ class Location(db.Domain, db.WithNotes):
                 Genus.id,
                 Species.id,
                 Accession.id,
-                Plant.id,
-                Location.id,
+                Plant.top_level_count_id(exclude_inactive),
+                cls.id,
                 SourceDetail.id,
             )
             .select_from(cls)
@@ -299,16 +300,13 @@ class Location(db.Domain, db.WithNotes):
                 func.sum(Plant.quantity),
             )
             .select_from(cls)
-            .outerjoin(Plant)
+            .join(Plant)
         )
 
         if exclude_inactive:
             # pylint: disable=no-member
             base_ids_stmt = base_ids_stmt.where(
-                Plant.active.is_(True),  # type: ignore [attr-defined]
-            )
-            base_count_stmt = base_count_stmt.where(
-                Plant.active.is_(True),  # type: ignore [attr-defined]
+                Accession.active.is_(True),  # type: ignore [attr-defined]
             )
 
         args = cls._top_level_counter_helper(
@@ -326,6 +324,17 @@ class Location(db.Domain, db.WithNotes):
             .filter(exists().where(cls.location_id == self.id))
             .scalar()
         )
+
+    @classmethod
+    def top_level_count_id(cls, exclude_inactive: bool) -> ColumnElement:
+        from .plant import Plant
+
+        if exclude_inactive:
+            return case(
+                [(Plant.quantity > 0, cls.id)],
+                else_=None,
+            )
+        return cls.id
 
     def count_children(self):
         cls = self.__class__.plants.prop.mapper.class_

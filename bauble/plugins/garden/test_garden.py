@@ -257,6 +257,7 @@ geography_test_data = [
 
 source_detail_data = (
     {"id": 1, "name": "Jade Green", "source_type": "Individual"},
+    {"id": 2, "name": "Forrest Plant", "source_type": "Individual"},
 )
 
 source_test_data = (
@@ -1216,19 +1217,23 @@ class PlantTests(GardenTestCase):
         self.assertEqual(str(Plant.top_level_count([1, 2])), expected)
 
     def test_top_level_count_wo_plant_qty_exclude_inactive(self):
+        # NOTE should return the same as without exclude inactive as the
+        # supplied ids are expected to come from the search result, the search
+        # would need to be rerun to have an impact (and hence the inactive
+        # already excluded)
         plt = self.session.query(Plant).get(1)
         plt.quantity = 0
         self.session.commit()
 
         expected = (
             "Families: 1, "
-            "Genera: 1, "
-            "Species: 1, "
-            "Accessions: 1, "
-            "Plantings: 1, "
+            "Genera: 2, "
+            "Species: 2, "
+            "Accessions: 2, "
+            "Plantings: 2, "
             "Living plants: 1, "
             "Locations: 1, "
-            "Sources: 0"
+            "Sources: 1"
         )
 
         self.assertEqual(str(Plant.top_level_count([1, 2], True)), expected)
@@ -3093,19 +3098,19 @@ class AccessionTests(GardenTestCase):
         self.assertEqual(str(Accession.top_level_count([1, 2])), expected)
 
     def test_top_level_count_wo_plant_qty_exclude_inactive(self):
-        plt = self.session.query(Plant).get(1)
+        plt = self.session.query(Plant).get(2)
         plt.quantity = 0
         self.session.commit()
 
         expected = (
             "Families: 1, "
-            "Genera: 1, "
-            "Species: 1, "
-            "Accessions: 1, "
+            "Genera: 2, "
+            "Species: 2, "
+            "Accessions: 2, "
             "Plantings: 2, "
             "Living plants: 2, "
             "Locations: 1, "
-            "Sources: 0"
+            "Sources: 1"
         )
 
         self.assertEqual(
@@ -3133,6 +3138,30 @@ class AccessionTests(GardenTestCase):
     def test_top_level_count_wo_plant_exclude_inactive(self):
         plt = self.session.query(Plant).get(1)
         self.session.delete(plt)
+        plt = self.session.query(Plant).get(2)
+        plt.quantity = 0
+        self.session.commit()
+
+        expected = (
+            "Families: 1, "
+            "Genera: 2, "
+            "Species: 2, "
+            "Accessions: 2, "
+            "Plantings: 1, "
+            "Living plants: 1, "
+            "Locations: 1, "
+            "Sources: 1"
+        )
+
+        self.assertEqual(
+            str(Accession.top_level_count([1, 2], True)), expected
+        )
+
+    def test_top_level_count_wo_plant_2_locations_exclude_inactive(self):
+        plt = self.session.query(Plant).get(1)
+        loc = self.session.query(Location).get(2)
+        plt.location = loc
+        plt.quantity = 0
         plt = self.session.query(Plant).get(2)
         plt.quantity = 0
         self.session.commit()
@@ -4190,9 +4219,9 @@ class LocationTests(GardenTestCase):
         self.assertEqual(str(Location.top_level_count([1, 2], True)), expected)
 
     def test_top_level_count_wo_plant_wo_plant_qty_exclude_inactive(self):
-        plt = self.session.query(Plant).get(1)
-        self.session.delete(plt)
         plt = self.session.query(Plant).get(2)
+        self.session.delete(plt)
+        plt = self.session.query(Plant).get(1)
         plt.quantity = 0
         self.session.commit()
 
@@ -5234,6 +5263,97 @@ class SourceDetailTests(GardenTestCase):
         self.session.expunge(source)
         self.assertEqual(source.pictures, [])
 
+    def test_top_level_count_w_plant_qty(self):
+        expected = (
+            "Families: 2, "
+            "Genera: 3, "
+            "Species: 3, "
+            "Accessions: 3, "
+            "Plantings: 2, "
+            "Living plants: 1, "
+            "Locations: 1, "
+            "Sources: 1"
+        )
+
+        self.assertEqual(str(SourceDetail.top_level_count([1, 2])), expected)
+
+    def test_top_level_count_wo_plant_qty(self):
+        plt = self.session.query(Plant).get(1)
+        plt.quantity = 0
+        self.session.commit()
+
+        expected = (
+            "Families: 2, "
+            "Genera: 3, "
+            "Species: 3, "
+            "Accessions: 3, "
+            "Plantings: 2, "
+            "Living plants: 0, "
+            "Locations: 1, "
+            "Sources: 1"
+        )
+
+        self.assertEqual(str(SourceDetail.top_level_count([1, 2])), expected)
+
+    def test_top_level_count_wo_plant_qty_exclude_inactive(self):
+        plt = self.session.query(Plant).get(1)
+        plt.quantity = 0
+        self.session.commit()
+        expected = (
+            "Families: 1, "
+            "Genera: 1, "
+            "Species: 1, "
+            "Accessions: 1, "
+            "Plantings: 0, "
+            "Living plants: 0, "
+            "Locations: 0, "
+            "Sources: 1"
+        )
+
+        self.assertEqual(
+            str(SourceDetail.top_level_count([1, 2], True)), expected
+        )
+
+    def test_top_level_count_wo_plant(self):
+        plt = self.session.query(Plant).get(1)
+        self.session.delete(plt)
+        self.session.commit()
+
+        expected = (
+            "Families: 2, "
+            "Genera: 3, "
+            "Species: 3, "
+            "Accessions: 3, "
+            "Plantings: 1, "
+            "Living plants: 0, "
+            "Locations: 1, "
+            "Sources: 1"
+        )
+
+        self.assertEqual(str(SourceDetail.top_level_count([1, 2])), expected)
+
+    def test_top_level_count_wo_plant_exclude_inactive(self):
+        plt = self.session.query(Plant).get(4)  # makes acc 5 active
+        self.session.delete(plt)
+        plt = self.session.query(Plant).get(1)
+        plt.quantity = 0
+        self.session.commit()
+
+        expected = (
+            "Families: 2, "
+            "Genera: 2, "
+            "Species: 2, "
+            "Accessions: 2, "
+            "Plantings: 0, "
+            "Living plants: 0, "
+            "Locations: 0, "
+            "Sources: 1"
+        )
+
+        self.assertEqual(
+            str(SourceDetail.top_level_count([1, 2], True)), expected
+        )
+
 
 class SourceDetailPresenterTests(BaubleTestCase):
     def test_create_presenter_automatic_session(self):
@@ -5399,28 +5519,28 @@ class RetrieveTests(GardenTestCase):
         self.assertIsNone(plt)
 
     def test_contact_retreives(self):
-        contact1 = SourceDetail(name="name1", id=2)
-        contact2 = SourceDetail(name="name2", id=3)
+        contact1 = SourceDetail(name="name1", id=3)
+        contact2 = SourceDetail(name="name2", id=4)
         self.session.add_all([contact1, contact2])
         self.session.commit()
         keys = {
             "name": "name1",
         }
         contact = SourceDetail.retrieve(self.session, keys)
-        self.assertEqual(contact.id, 2)
+        self.assertEqual(contact.id, 3)
 
     def test_contact_retreives_id_only(self):
-        contact1 = SourceDetail(name="name1", id=2)
-        contact2 = SourceDetail(name="name2", id=3)
+        contact1 = SourceDetail(name="name1", id=3)
+        contact2 = SourceDetail(name="name2", id=4)
         self.session.add_all([contact1, contact2])
         self.session.commit()
-        keys = {"id": 3}
+        keys = {"id": 4}
         contact = SourceDetail.retrieve(self.session, keys)
         self.assertEqual(contact.name, "name2")
 
     def test_contact_doesnt_retreive_non_existent(self):
-        contact1 = SourceDetail(name="name1", id=2)
-        contact2 = SourceDetail(name="name2", id=3)
+        contact1 = SourceDetail(name="name1", id=3)
+        contact2 = SourceDetail(name="name2", id=4)
         self.session.add_all([contact1, contact2])
         self.session.commit()
         keys = {"name": "Nonexistent"}
@@ -5428,8 +5548,8 @@ class RetrieveTests(GardenTestCase):
         self.assertIsNone(contact)
 
     def test_contact_doesnt_retreive_wrong_keys(self):
-        contact1 = SourceDetail(name="name1", id=2)
-        contact2 = SourceDetail(name="name2", id=3)
+        contact1 = SourceDetail(name="name1", id=3)
+        contact2 = SourceDetail(name="name2", id=4)
         self.session.add_all([contact1, contact2])
         self.session.commit()
         keys = {

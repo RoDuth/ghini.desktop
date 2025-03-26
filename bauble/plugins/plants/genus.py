@@ -390,50 +390,15 @@ class Genus(db.Domain, db.WithNotes):
         from ..garden import Source
         from ..garden import SourceDetail
 
-        plant_id: ColumnElement = Plant.id
-        location_id: ColumnElement = Location.id
-        accession_id: ColumnElement = Accession.id
-        source_id: ColumnElement = SourceDetail.id
-        species_id: ColumnElement = Species.id
-
-        if exclude_inactive:
-            plant_id = case([(Plant.quantity > 0, Plant.id)], else_=None)
-            location_id = case(
-                [(Plant.quantity > 0, Plant.location_id)],
-                else_=None,
-            )
-            # pylint: disable=no-member,line-too-long
-            accession_id = case(
-                [
-                    (Plant.id.is_(None), Accession.id),
-                    (Plant.quantity > 0, Accession.id),
-                ],
-                else_=None,
-            )
-            source_id = case(
-                [
-                    (Plant.id.is_(None), Source.source_detail_id),
-                    (Plant.quantity > 0, Source.source_detail_id),
-                ],
-                else_=None,
-            )
-            species_id = case(
-                [
-                    (Plant.id.is_(None), Species.id),
-                    (Plant.quantity > 0, Species.id),
-                ],
-                else_=None,
-            )
-
         base_ids_stmt = (
             select(
                 Family.id,
                 cls.id,
-                species_id,
-                accession_id,
-                plant_id,
-                location_id,
-                source_id,
+                Species.id,
+                Accession.id,
+                Plant.id,
+                Location.id,
+                SourceDetail.id,
             )
             .select_from(cls)
             .join(Family)
@@ -454,6 +419,12 @@ class Genus(db.Domain, db.WithNotes):
             .join(Accession)
             .join(Plant)
         )
+
+        if exclude_inactive:
+            # pylint: disable=no-member
+            base_ids_stmt = base_ids_stmt.where(
+                Accession.active.is_(True),  # type: ignore [attr-defined]
+            )
 
         result = cls._top_level_counter_helper(
             base_ids_stmt, base_count_stmt, ids

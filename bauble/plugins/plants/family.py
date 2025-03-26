@@ -36,7 +36,6 @@ from sqlalchemy import String
 from sqlalchemy import Unicode
 from sqlalchemy import UniqueConstraint
 from sqlalchemy import case
-from sqlalchemy import distinct
 from sqlalchemy import func
 from sqlalchemy import literal
 from sqlalchemy import select
@@ -282,7 +281,7 @@ class Family(db.Domain, db.WithNotes):
         return " ".join([s for s in parts if s not in (None, "")])
 
     @classmethod
-    def top_level_count(  # pylint: disable=too-many-locals
+    def top_level_count(
         cls,
         ids: list[int],
         exclude_inactive: bool = False,
@@ -295,52 +294,18 @@ class Family(db.Domain, db.WithNotes):
         from ..garden import Source
         from ..garden import SourceDetail
 
-        plant_id: ColumnElement = Plant.id
-        location_id: ColumnElement = Location.id
-        accession_id: ColumnElement = Accession.id
-        source_id: ColumnElement = SourceDetail.id
-        species_id: ColumnElement = Species.id
-
-        if exclude_inactive:
-            plant_id = case([(Plant.quantity > 0, Plant.id)], else_=None)
-            location_id = case(
-                [(Plant.quantity > 0, Plant.location_id)],
-                else_=None,
-            )
-            accession_id = case(
-                [
-                    (Plant.id.is_(None), Accession.id),
-                    (Plant.quantity > 0, Accession.id),
-                ],
-                else_=None,
-            )
-            source_id = case(
-                [
-                    (Plant.id.is_(None), Source.source_detail_id),
-                    (Plant.quantity > 0, Source.source_detail_id),
-                ],
-                else_=None,
-            )
-            species_id = case(
-                [
-                    (Plant.id.is_(None), Species.id),
-                    (Plant.quantity > 0, Species.id),
-                ],
-                else_=None,
-            )
-
         base_ids_stmt = (
             select(
                 cls.id,
                 Genus.id,
-                species_id,
-                accession_id,
-                plant_id,
-                location_id,
-                source_id,
+                Species.id,
+                Accession.id,
+                Plant.top_level_count_id(exclude_inactive),
+                Location.id,
+                SourceDetail.id,
             )
             .select_from(cls)
-            .outerjoin(Genus)
+            .join(Genus)
             .outerjoin(Species)
             .outerjoin(Accession)
             .outerjoin(Plant)
@@ -359,6 +324,13 @@ class Family(db.Domain, db.WithNotes):
             .join(Accession)
             .join(Plant)
         )
+
+        if exclude_inactive:
+            # pylint: disable=no-member
+            base_ids_stmt = base_ids_stmt.where(
+                Accession.active.is_(True),  # type: ignore [attr-defined]
+            )
+            base_ids_stmt = base_ids_stmt.where(Species.id.is_not(None))
 
         result = cls._top_level_counter_helper(
             base_ids_stmt, base_count_stmt, ids

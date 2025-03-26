@@ -255,11 +255,11 @@ class Domain(Base):
                 stmt = base_count_stmt.where(cls.id.in_(chunk))
                 quantity += session.scalar(stmt) or 0
 
-                for s, r in zip(final, zip(*result)):
-                    s.update(r)
+                for set_, vals in zip(final, zip(*result)):
+                    set_.update(vals)
 
-        for s in final:
-            s.discard(None)
+        for set_ in final:
+            set_.discard(None)
 
         args = (*(len(s) for s in final), quantity)
 

@@ -56,7 +56,7 @@ from sqlalchemy import Unicode
 from sqlalchemy import UnicodeText
 from sqlalchemy import UniqueConstraint
 from sqlalchemy import and_
-from sqlalchemy import distinct
+from sqlalchemy import case
 from sqlalchemy import event
 from sqlalchemy import func
 from sqlalchemy import not_
@@ -80,6 +80,7 @@ from sqlalchemy.orm.session import object_session
 from sqlalchemy.sql import column
 from sqlalchemy.sql import exists
 from sqlalchemy.sql import values
+from sqlalchemy.sql.expression import ColumnElement
 
 from bauble import btypes as types
 from bauble import db
@@ -965,7 +966,6 @@ class Plant(db.Domain, db.WithNotes):
     @active.expression  # type: ignore [no-redef]
     def active(cls):
         # pylint: disable=no-self-argument
-        from sqlalchemy.sql.expression import case
         from sqlalchemy.sql.expression import cast
 
         return cast(case([(cls.quantity > 0, 1)], else_=0), types.Boolean)
@@ -1076,19 +1076,16 @@ class Plant(db.Domain, db.WithNotes):
             func.sum(Plant.quantity),
         ).select_from(cls)
 
-        if exclude_inactive:
-            # pylint: disable=no-member
-            base_ids_stmt = base_ids_stmt.where(
-                cls.active.is_(True),  # type: ignore [attr-defined]
-            )
-            base_count_stmt = base_count_stmt.where(
-                cls.active.is_(True),  # type: ignore [attr-defined]
-            )
-
         result = cls._top_level_counter_helper(
             base_ids_stmt, base_count_stmt, ids
         )
         return db.TopLevelCount(*result)
+
+    @classmethod
+    def top_level_count_id(cls, exclude_inactive: bool) -> ColumnElement:
+        if exclude_inactive:
+            return case([(cls.quantity > 0, cls.id)], else_=None)
+        return cls.id
 
 
 # ensure an appropriate change has been capture for all changes or insertions.

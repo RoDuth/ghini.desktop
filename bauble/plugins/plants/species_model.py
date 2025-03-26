@@ -37,7 +37,6 @@ from sqlalchemy import UniqueConstraint
 from sqlalchemy import and_
 from sqlalchemy import case
 from sqlalchemy import cast
-from sqlalchemy import distinct
 from sqlalchemy import event
 from sqlalchemy import func
 from sqlalchemy import literal
@@ -1067,7 +1066,9 @@ class Species(db.Domain, db.WithNotes):
             .filter(Species.id == self.id)
         )
         if prefs.prefs.get(prefs.exclude_inactive_pref):
-            plt_pics = plt_pics.filter(Plant.active.is_(True))  # type: ignore [attr-defined] # noqa
+            plt_pics = plt_pics.filter(
+                Plant.active.is_(True),  # type: ignore [attr-defined] # noqa
+            )
         return plt_pics.all() + self._pictures
 
     infrasp_attr = {
@@ -1117,7 +1118,7 @@ class Species(db.Domain, db.WithNotes):
         return DistributionMap([i.geography.id for i in self.distribution])
 
     @classmethod
-    def top_level_count(  # pylint: disable=too-many-locals
+    def top_level_count(
         cls,
         ids: list[int],
         exclude_inactive: bool = False,
@@ -1132,46 +1133,20 @@ class Species(db.Domain, db.WithNotes):
         from . import Family
         from . import Genus
 
-        plant_id: ColumnElement = Plant.id
-        location_id: ColumnElement = Location.id
-        accession_id: ColumnElement = Accession.id
-        source_id: ColumnElement = SourceDetail.id
-
-        if exclude_inactive:
-            plant_id = case([(Plant.quantity > 0, Plant.id)], else_=None)
-            location_id = case(
-                [(Plant.quantity > 0, Plant.location_id)],
-                else_=None,
-            )
-            accession_id = case(
-                [
-                    (Plant.id.is_(None), Accession.id),
-                    (Plant.quantity > 0, Accession.id),
-                ],
-                else_=None,
-            )
-            source_id = case(
-                [
-                    (Plant.id.is_(None), SourceDetail.id),
-                    (Plant.quantity > 0, SourceDetail.id),
-                ],
-                else_=None,
-            )
-
         base_ids_stmt = (
             select(
                 Family.id,
                 Genus.id,
                 cls.id,
-                accession_id,
-                plant_id,
-                location_id,
-                source_id,
+                Accession.id,
+                Plant.id,
+                Location.id,
+                SourceDetail.id,
             )
             .select_from(cls)
             .join(Genus)
             .join(Family)
-            .outerjoin(Accession)
+            .join(Accession)
             .outerjoin(Plant)
             .outerjoin(Location)
             .outerjoin(Source)
@@ -1190,10 +1165,7 @@ class Species(db.Domain, db.WithNotes):
         if exclude_inactive:
             # pylint: disable=no-member
             base_ids_stmt = base_ids_stmt.where(
-                cls.active.is_(True),  # type: ignore [attr-defined]
-            )
-            base_count_stmt = base_count_stmt.where(
-                cls.active.is_(True),  # type: ignore [attr-defined]
+                Accession.active.is_(True),  # type: ignore [attr-defined]
             )
 
         result = cls._top_level_counter_helper(
@@ -1414,7 +1386,7 @@ class VernacularName(db.Domain):
         return cast(case([(cls.id.in_(active), 1)], else_=0), types.Boolean)
 
     @classmethod
-    def top_level_count(  # pylint: disable=too-many-locals
+    def top_level_count(
         cls,
         ids: list[int],
         exclude_inactive: bool = False,
@@ -1429,64 +1401,44 @@ class VernacularName(db.Domain):
         from . import Family
         from . import Genus
 
-        plant_id: ColumnElement = Plant.id
-        location_id: ColumnElement = Location.id
-        accession_id: ColumnElement = Accession.id
-        source_id: ColumnElement = SourceDetail.id
-
-        if exclude_inactive:
-            plant_id = case([(Plant.quantity > 0, Plant.id)], else_=None)
-            location_id = case(
-                [(Plant.quantity > 0, Plant.location_id)],
-                else_=None,
-            )
-            accession_id = case(
-                [
-                    (Plant.id.is_(None), Accession.id),
-                    (Plant.quantity > 0, Accession.id),
-                ],
-                else_=None,
-            )
-            source_id = case(
-                [
-                    (Plant.id.is_(None), SourceDetail.id),
-                    (Plant.quantity > 0, SourceDetail.id),
-                ],
-                else_=None,
-            )
-
         base_ids_stmt = (
             select(
                 Family.id,
                 Genus.id,
                 Species.id,
-                accession_id,
-                plant_id,
-                location_id,
-                source_id,
+                Accession.id,
+                Plant.id,
+                Location.id,
+                SourceDetail.id,
             )
             .select_from(cls)
             .join(Species)
             .join(Genus)
             .join(Family)
-            .outerjoin(Accession)
+            .join(Accession)
             .outerjoin(Plant)
             .outerjoin(Location)
             .outerjoin(Source)
             .outerjoin(SourceDetail)
         )
 
+        if exclude_inactive:
+            # pylint: disable=no-member
+            base_ids_stmt = base_ids_stmt.where(
+                Accession.active.is_(True),  # type: ignore [attr-defined]
+            )
+
         class Stmt:  # pylint: disable=too-few-public-methods
             # Allows adding the where clause to the subquery
             subquery = (
                 select(
-                    Plant,
+                    Plant.quantity,
                 )
                 .select_from(Species)
                 .join(VernacularName)
                 .join(Accession)
                 .join(Plant)
-                .group_by(Plant.id)
+                .group_by(Plant.id, Plant.quantity)
             )
 
             def where(self, condition):
@@ -1494,15 +1446,6 @@ class VernacularName(db.Domain):
                 return select(func.sum(subquery.c.quantity))
 
         base_count_stmt = Stmt()
-
-        if exclude_inactive:
-            # pylint: disable=no-member,line-too-long
-            base_ids_stmt = base_ids_stmt.where(
-                cls.active.is_(True),  # type: ignore [attr-defined]
-            )
-            base_count_stmt.subquery = base_count_stmt.subquery.where(
-                cls.active.is_(True),  # type: ignore [attr-defined]
-            )
 
         result = cls._top_level_counter_helper(
             base_ids_stmt, base_count_stmt, ids

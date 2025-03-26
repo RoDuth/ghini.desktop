@@ -47,7 +47,6 @@ from sqlalchemy import Unicode
 from sqlalchemy import UnicodeText
 from sqlalchemy import case
 from sqlalchemy import cast
-from sqlalchemy import distinct
 from sqlalchemy import exists
 from sqlalchemy import func
 from sqlalchemy import literal
@@ -60,7 +59,6 @@ from sqlalchemy.orm import object_mapper
 from sqlalchemy.orm import relationship
 from sqlalchemy.orm import validates
 from sqlalchemy.orm.session import object_session
-from sqlalchemy.sql.expression import ColumnElement
 
 import bauble
 from bauble import btypes as types
@@ -956,25 +954,14 @@ class Accession(db.Domain, db.WithNotes):
         from ..plants import Family
         from ..plants import Genus
 
-        plant_id: ColumnElement = Plant.id
-        location_id: ColumnElement = Location.id
-
-        if exclude_inactive:
-            plant_id = case([(Plant.quantity > 0, Plant.id)], else_=None)
-
-            location_id = case(
-                [(Plant.quantity > 0, Plant.location_id)],
-                else_=None,
-            )
-
         base_ids_stmt = (
             select(
                 Family.id,
                 Genus.id,
                 Species.id,
                 cls.id,
-                plant_id,
-                location_id,
+                Plant.top_level_count_id(exclude_inactive),
+                Location.top_level_count_id(exclude_inactive),
                 SourceDetail.id,
             )
             .select_from(cls)
@@ -994,15 +981,6 @@ class Accession(db.Domain, db.WithNotes):
             .select_from(cls)
             .outerjoin(Plant)
         )
-
-        if exclude_inactive:
-            # pylint: disable=no-member
-            base_ids_stmt = base_ids_stmt.where(
-                cls.active.is_(True),  # type: ignore [attr-defined]
-            )
-            base_count_stmt = base_count_stmt.where(
-                cls.active.is_(True),  # type: ignore [attr-defined]
-            )
 
         args = cls._top_level_counter_helper(
             base_ids_stmt, base_count_stmt, ids
