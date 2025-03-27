@@ -38,15 +38,17 @@ for:
     - export _PY_VER=$(python -c "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')")
     - echo $_PY_VER
     - cp -rf "$(find /usr/local/Cellar/pygobject3 -type d -name site-packages | grep --color=never $_PY_VER)"/* "$(find $VIRTUAL_ENV -type d -name site-packages)"
+    - ls -la "$(find $VIRTUAL_ENV -type d -name site-packages)"
+    - ls -la /usr/local/lib/girepository-1.0 2>/dev/null || echo "/usr/local/lib/girepository-1.0 not found"
     - pip install --upgrade pip
     - pip install psycopg2-binary
     - pip install pyodbc
     - pip install pyobjc-framework-SystemConfiguration
     - pip install .
-    - pip install "pyinstaller<6.12"
-    - pyinstaller --clean --noconfirm scripts/ghini.spec
-    - pip install dmgbuild==1.6.1
-    - dmgbuild -s scripts/dmgbuild_settings.py "Ghini" Ghini.dmg   # NOTE: last 2 args are required but overidden in dmgbuild_settings.py
+    # - pip install pyinstaller
+    # - pyinstaller --clean --noconfirm scripts/ghini.spec
+    # - pip install dmgbuild==1.6.1
+    # - dmgbuild -s scripts/dmgbuild_settings.py "Ghini" Ghini.dmg   # NOTE: last 2 args are required but overidden in dmgbuild_settings.py
 
   artifacts:
     - path: dist/Ghini-*-installer.dmg
