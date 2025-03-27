@@ -735,7 +735,7 @@ class PlantsPlugin(pluginmgr.Plugin):
 
         mapper_search.add_meta(("family", "fam"), Family, ["family"])
         SearchView.row_meta[Family].set(
-            children="genera",
+            children=partial(db.get_active_children, "genera"),
             infobox=cls.family_infobox,
             context_menu=family_context_menu,
             activated_callback=family_edit_callback,

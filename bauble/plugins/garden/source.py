@@ -38,9 +38,13 @@ from sqlalchemy import ForeignKey
 from sqlalchemy import Integer
 from sqlalchemy import Unicode
 from sqlalchemy import UnicodeText
+from sqlalchemy import case
+from sqlalchemy import cast
 from sqlalchemy import func
 from sqlalchemy import literal
+from sqlalchemy import or_
 from sqlalchemy import select
+from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.orm import Session
 from sqlalchemy.orm import backref
 from sqlalchemy.orm import relationship
@@ -1198,6 +1202,35 @@ class SourceDetail(db.Domain):
         if prefs.prefs.get(prefs.exclude_inactive_pref):
             plt_pics = plt_pics.filter(Plant.active.is_(True))  # type: ignore [attr-defined] # noqa
         return plt_pics.all()
+
+    @hybrid_property
+    def active(self) -> bool:
+        """False when all accessions have been deaccessioned
+        (e.g. all plants have died)
+        """
+        if not self.sources:
+            return True
+        for source in self.sources:
+            if source.accession:
+                if source.accession.active:
+                    return True
+        return False
+
+    @active.expression  # type: ignore [no-redef]
+    def active(cls) -> types.Boolean:
+        # pylint: disable=no-self-argument,no-self-use,arguments-renamed
+        from . import Accession
+        from . import Plant
+
+        active = (
+            select([cls.id])
+            .outerjoin(Source)
+            .outerjoin(Accession)
+            .outerjoin(Plant)
+            .where(or_(Plant.id.is_(None), Plant.quantity > 0))
+            .scalar_subquery()
+        )
+        return cast(case([(cls.id.in_(active), 1)], else_=0), types.Boolean)
 
     @classmethod
     def top_level_count(

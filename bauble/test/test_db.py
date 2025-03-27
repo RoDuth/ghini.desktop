@@ -20,9 +20,13 @@
 from unittest import mock
 
 from dateutil import parser
+from sqlalchemy import Column
+from sqlalchemy import ForeignKey
+from sqlalchemy import Integer
 from sqlalchemy import Unicode
 from sqlalchemy import create_engine
 from sqlalchemy import func
+from sqlalchemy.orm import relationship
 
 from bauble import btypes
 from bauble import db
@@ -613,6 +617,8 @@ class GlobalFunctionsTests(BaubleTestCase):
         del mock_child3.active
 
         mock_parent = mock.Mock(kids=[mock_child1, mock_child2, mock_child3])
+        # don't use object_session
+        mock_parent._sa_instance_state.session = None
 
         prefs.prefs[prefs.exclude_inactive_pref] = True
 
@@ -627,6 +633,37 @@ class GlobalFunctionsTests(BaubleTestCase):
         self.assertEqual(
             db.get_active_children(kids_func, mock_parent),
             [mock_child1, mock_child3],
+        )
+
+    def test_get_active_children_excludes_inactive_if_pref_set_from_db(self):
+        class TestKid(db.Domain):
+            __tablename__ = "test_kid"
+
+            parent_id = Column(
+                Integer, ForeignKey("test_parent.id"), nullable=False
+            )
+            parent = relationship("TestParent", back_populates="kids")
+            active = Column(btypes.Boolean, default=False)
+
+        class TestParent(db.Domain):
+            __tablename__ = "test_parent"
+
+            kids = relationship(TestKid, back_populates="parent")
+
+        TestParent.__table__.create(bind=db.engine)
+        TestKid.__table__.create(bind=db.engine)
+        kid1 = TestKid(id=1, active=False)
+        kid2 = TestKid(id=2, active=True)
+        kid3 = TestKid(id=3, active=True)
+        parent = TestParent(kids=[kid1, kid2, kid3])
+        self.session.add(parent)
+        self.session.commit()
+
+        prefs.prefs[prefs.exclude_inactive_pref] = True
+
+        self.assertCountEqual(
+            db.get_active_children("kids", parent),
+            [kid2, kid3],
         )
 
     def test_get_active_children_includes_inactive_if_pref_not_set(self):

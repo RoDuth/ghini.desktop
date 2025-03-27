@@ -37,11 +37,13 @@ from sqlalchemy import Unicode
 from sqlalchemy import UniqueConstraint
 from sqlalchemy import and_
 from sqlalchemy import case
+from sqlalchemy import cast
 from sqlalchemy import event
 from sqlalchemy import exists
 from sqlalchemy import func
 from sqlalchemy import inspect as sa_inspect
 from sqlalchemy import literal
+from sqlalchemy import or_
 from sqlalchemy import select
 from sqlalchemy import update
 from sqlalchemy.exc import DBAPIError
@@ -55,7 +57,6 @@ from sqlalchemy.orm import relationship
 from sqlalchemy.orm import synonym as sa_synonym
 from sqlalchemy.orm.query import Query
 from sqlalchemy.orm.session import object_session
-from sqlalchemy.sql.expression import ColumnElement
 
 import bauble
 from bauble import btypes as types
@@ -376,6 +377,32 @@ class Genus(db.Domain, db.WithNotes):
                 author = '<span weight="light">' + author + "</span>"
             string += " " + author
         return string
+
+    @hybrid_property
+    def active(self) -> bool:
+        """False when all accessions have been deaccessioned
+        (e.g. all plants have died)
+        """
+        for spp in self.species:
+            if spp.active:
+                return True
+        return False
+
+    @active.expression  # type: ignore [no-redef]
+    def active(cls) -> types.Boolean:
+        # pylint: disable=no-self-argument,no-self-use,arguments-renamed
+        from ..garden import Accession
+        from ..garden import Plant
+
+        active = (
+            select([cls.id])
+            .join(Species)
+            .outerjoin(Accession)
+            .outerjoin(Plant)
+            .where(or_(Plant.id.is_(None), Plant.quantity > 0))
+            .scalar_subquery()
+        )
+        return cast(case([(cls.id.in_(active), 1)], else_=0), types.Boolean)
 
     @classmethod
     def top_level_count(

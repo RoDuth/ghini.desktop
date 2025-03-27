@@ -37,8 +37,13 @@ logger = logging.getLogger(__name__)
 
 import sqlalchemy as sa
 from gi.repository import Gtk
+from sqlalchemy import case
+from sqlalchemy import cast as sqlacast
 from sqlalchemy import event
+from sqlalchemy import literal
+from sqlalchemy import select
 from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.orm import Session as SASession
 from sqlalchemy.orm import declarative_base
 from sqlalchemy.orm import object_session
@@ -100,12 +105,28 @@ def get_active_children(
     """Return only active children of obj if the 'exclude_inactive' pref is
     set True else return all children.
     """
-    kids = children(obj) if callable(children) else getattr(obj, children)
     # avoid circular refs
     from bauble import prefs
 
-    if prefs.prefs.get(prefs.exclude_inactive_pref):
-        return [i for i in kids if getattr(i, "active", True)]
+    exclude_inactive = prefs.prefs.get(prefs.exclude_inactive_pref)
+
+    if isinstance(children, str) and (session := object_session(obj)):
+        if exclude_inactive:
+            obj_cls = type(obj)
+            kid_cls = getattr(obj_cls, children).prop.mapper.class_
+            search = session.scalars(
+                select(kid_cls)
+                .join(obj_cls)
+                .where(obj_cls.id == obj.id)
+                .where(kid_cls.active.is_(True))
+            )
+            return search.all()  # type: ignore [union-attr]
+
+    kids = children(obj) if callable(children) else getattr(obj, children)
+
+    if exclude_inactive:
+        kids = [i for i in kids if getattr(i, "active", True)]
+        return kids
     return kids
 
 
@@ -267,6 +288,18 @@ class Domain(Base):
             raise error.BaubleError("tuple of wrong length: {len(args)}")
 
         return args
+
+    @hybrid_property
+    def active(self) -> bool:  # pylint: disable=no-self-use
+        """Should return False when all accessions have been deaccessioned
+        (e.g. all plants have died)
+        """
+        return True
+
+    @active.expression  # type: ignore [no-redef]
+    def active(cls) -> types.Boolean:
+        # pylint: disable=no-self-argument,no-self-use
+        return sqlacast(literal(True), types.Boolean)
 
     def search_view_markup_pair(self) -> tuple[str, str]:
         return utils.xml_safe(str(self)), type(self).__name__

@@ -5354,6 +5354,61 @@ class SourceDetailTests(GardenTestCase):
             str(SourceDetail.top_level_count([1, 2], True)), expected
         )
 
+    def test_active_no_accession(self):
+        source = self.session.query(SourceDetail).get(2)
+        self.assertTrue(source.active)
+        # test the hybrid_property expression
+        # pylint: disable=no-member  # is_
+        source_active_in_db = self.session.query(SourceDetail).filter(
+            SourceDetail.active.is_(True)
+        )
+        self.assertIn(source, source_active_in_db)
+
+    def test_active_one_accession_w_no_plants(self):
+        contact = self.session.query(SourceDetail).get(2)
+        sp = self.session.query(Species).get(1)
+        acc = Accession(code="foo", species=sp)
+        source = Source(source_detail=contact)
+        acc.source = source
+        self.session.commit()
+
+        self.assertTrue(contact.active)
+        # test the hybrid_property expression
+        # pylint: disable=no-member  # is_
+        source_active_in_db = self.session.query(SourceDetail).filter(
+            SourceDetail.active.is_(True)
+        )
+        self.assertIn(contact, source_active_in_db)
+
+    def test_active_plants_w_qty(self):
+        source = self.session.query(SourceDetail).get(1)
+        self.assertTrue(source.active)
+        # test the hybrid_property expression
+        # pylint: disable=no-member  # is_
+        source_active_in_db = self.session.query(SourceDetail).filter(
+            SourceDetail.active.is_(True)
+        )
+        self.assertIn(source, source_active_in_db)
+
+    def test_active_plants_wo_qty(self):
+        contact = self.session.query(SourceDetail).get(2)
+        sp = self.session.query(Species).get(1)
+        loc = self.session.query(Location).get(1)
+        acc = Accession(code="foo", species=sp)
+        source = Source(source_detail=contact)
+        acc.source = source
+        plt = Plant(code="1", accession=acc, quantity=0, location=loc)
+        self.session.add(plt)
+        self.session.commit()
+
+        self.assertFalse(contact.active)
+        # test the hybrid_property expression
+        # pylint: disable=no-member  # is_
+        source_active_in_db = self.session.query(SourceDetail).filter(
+            SourceDetail.active.is_(True)
+        )
+        self.assertNotIn(contact, source_active_in_db)
+
 
 class SourceDetailPresenterTests(BaubleTestCase):
     def test_create_presenter_automatic_session(self):
@@ -5623,13 +5678,14 @@ class GlobalActionTests(BaubleTestCase):
 
         mock_variant.get_boolean.return_value = True
         GardenPlugin.on_inactive_toggled(mock_action, mock_variant)
-        # prefs_view.update.assert_called()
+
         self.assertTrue(prefs.prefs.get(prefs.exclude_inactive_pref))
 
         mock_gui.get_view.reset_mock()
         mock_variant.get_boolean.return_value = False
         GardenPlugin.on_inactive_toggled(mock_action, mock_variant)
         prefs_view.update.assert_called()
+
         self.assertFalse(prefs.prefs.get(prefs.exclude_inactive_pref))
         mock_map.populate_map_from_search_view.assert_called()
 

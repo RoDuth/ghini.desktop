@@ -38,6 +38,7 @@ from sqlalchemy import and_
 from sqlalchemy import case
 from sqlalchemy import cast
 from sqlalchemy import event
+from sqlalchemy import exists
 from sqlalchemy import func
 from sqlalchemy import literal
 from sqlalchemy import or_
@@ -51,7 +52,6 @@ from sqlalchemy.orm import backref
 from sqlalchemy.orm import object_session
 from sqlalchemy.orm import relationship
 from sqlalchemy.orm import synonym as sa_synonym
-from sqlalchemy.sql.expression import ColumnElement
 
 from bauble import btypes as types
 from bauble import db
@@ -1030,9 +1030,11 @@ class Species(db.Domain, db.WithNotes):
         """
         if not self.accessions:
             return True
+
         for acc in self.accessions:
             if acc.active:
                 return True
+
         return False
 
     @active.expression  # type: ignore [no-redef]
@@ -1175,9 +1177,22 @@ class Species(db.Domain, db.WithNotes):
 
     def has_children(self):
         cls = self.__class__.accessions.prop.mapper.class_
-        from sqlalchemy import exists
 
         session = object_session(self)
+
+        if prefs.prefs.get(prefs.exclude_inactive_pref):
+            return bool(
+                session.query(literal(True))
+                .filter(
+                    exists().where(
+                        and_(
+                            cls.species_id == self.id,
+                            cls.active.is_(True),
+                        )
+                    )
+                )
+                .scalar()
+            )
         return bool(
             session.query(literal(True))
             .filter(exists().where(cls.species_id == self.id))

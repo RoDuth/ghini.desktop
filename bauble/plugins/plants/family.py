@@ -36,18 +36,20 @@ from sqlalchemy import String
 from sqlalchemy import Unicode
 from sqlalchemy import UniqueConstraint
 from sqlalchemy import case
+from sqlalchemy import cast
 from sqlalchemy import func
 from sqlalchemy import literal
+from sqlalchemy import or_
 from sqlalchemy import select
 from sqlalchemy.exc import DBAPIError
 from sqlalchemy.ext.associationproxy import association_proxy
+from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.orm import Mapped
 from sqlalchemy.orm import Session
 from sqlalchemy.orm import relationship
 from sqlalchemy.orm import synonym as sa_synonym
 from sqlalchemy.orm import validates
 from sqlalchemy.orm.session import object_session
-from sqlalchemy.sql.expression import ColumnElement
 
 import bauble
 from bauble import btypes as types
@@ -280,6 +282,35 @@ class Family(db.Domain, db.WithNotes):
             parts.append(utils.xml_safe(family.author))
         return " ".join([s for s in parts if s not in (None, "")])
 
+    @hybrid_property
+    def active(self) -> bool:
+        """False when all accessions have been deaccessioned or no genera or
+        species attached.
+        """
+        if not self.genera:
+            return False
+        for genus in self.genera:
+            if genus.active:
+                return True
+        return False
+
+    @active.expression  # type: ignore [no-redef]
+    def active(cls) -> types.Boolean:
+        # pylint: disable=no-self-argument,no-self-use,arguments-renamed
+        from ..garden import Accession
+        from ..garden import Plant
+
+        active = (
+            select([cls.id])
+            .join(Genus)
+            .join(Species)
+            .outerjoin(Accession)
+            .outerjoin(Plant)
+            .where(or_(Plant.id.is_(None), Plant.quantity > 0))
+            .scalar_subquery()
+        )
+        return cast(case([(cls.id.in_(active), 1)], else_=0), types.Boolean)
+
     @classmethod
     def top_level_count(
         cls,
@@ -351,7 +382,10 @@ class Family(db.Domain, db.WithNotes):
     def count_children(self):
         cls = self.__class__.genera.prop.mapper.class_
         session = object_session(self)
-        return session.query(cls.id).filter(cls.family_id == self.id).count()
+        query = session.query(cls.id).filter(cls.family_id == self.id)
+        if prefs.prefs.get(prefs.exclude_inactive_pref):
+            query = query.filter(cls.active.is_(True))
+        return query.count()
 
 
 # defining the latin alias to the class.

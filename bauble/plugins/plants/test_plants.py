@@ -1060,6 +1060,132 @@ class FamilyTests(PlantTestCase):
                     f"<big>{fam}</big> {utils.xml_safe(str(fam.author))}",
                 )
 
+    def test_active_no_genera(self):
+        fam = self.session.query(Family).get(12)
+        self.assertFalse(fam.active)
+        # test the hybrid_property expression
+        # pylint: disable=no-member  # is_
+        fam_active_in_db = self.session.query(Family).filter(
+            Family.active.is_(True)
+        )
+        self.assertNotIn(fam, fam_active_in_db)
+
+    def test_active_no_species(self):
+        fam = self.session.query(Family).get(8)
+        self.assertFalse(fam.active)
+        # test the hybrid_property expression
+        # pylint: disable=no-member  # is_
+        fam_active_in_db = self.session.query(Family).filter(
+            Family.active.is_(True)
+        )
+        self.assertNotIn(fam, fam_active_in_db)
+
+    def test_active_no_accession(self):
+        fam = self.session.query(Family).get(1)
+        # check this is a family with no accession
+        self.assertEqual(
+            len(
+                [
+                    acc
+                    for gen in fam.genera
+                    for sp in gen.species
+                    for acc in sp.accessions
+                ]
+            ),
+            0,
+        )
+        self.assertTrue(fam.active)
+        # test the hybrid_property expression
+        # pylint: disable=no-member  # is_
+        fam_active_in_db = self.session.query(Family).filter(
+            Family.active.is_(True)
+        )
+        self.assertIn(fam, fam_active_in_db)
+
+    def test_active_no_plants(self):
+        from ..garden import Accession
+
+        sp = self.session.query(Species).get(26)
+        fam = sp.genus.family
+        # check this is a family with no plants
+        self.assertEqual(
+            len(
+                [
+                    plt
+                    for gen in fam.genera
+                    for sp in gen.species
+                    for acc in sp.accessions
+                    for plt in acc.plants
+                ]
+            ),
+            0,
+        )
+        acc = Accession(code="foo", species=sp)
+        self.session.add(acc)
+        self.session.commit()
+
+        self.assertTrue(fam.active)
+        # test the hybrid_property expression
+        # pylint: disable=no-member  # is_
+        fam_active_in_db = self.session.query(Family).filter(
+            Family.active.is_(True)
+        )
+        self.assertIn(fam, fam_active_in_db)
+
+    def test_active_one_plants_w_qty(self):
+        from ..garden import Accession
+        from ..garden import Location
+
+        sp = self.session.query(Species).get(26)
+        acc = Accession(code="foo", species=sp)
+        plt = Plant(
+            code="1", accession=acc, quantity=1, location=Location(code="bar")
+        )
+        self.session.add_all([acc, plt])
+        self.session.commit()
+        fam = sp.genus.family
+
+        self.assertTrue(fam.active)
+        # test the hybrid_property expression
+        # pylint: disable=no-member  # is_
+        fam_active_in_db = self.session.query(Family).filter(
+            Family.active.is_(True)
+        )
+        self.assertIn(fam, fam_active_in_db)
+
+    def test_active_one_plants_wo_qty(self):
+        from ..garden import Accession
+        from ..garden import Location
+
+        sp = self.session.query(Species).get(26)
+        fam = sp.genus.family
+        self.assertEqual(
+            len(
+                [
+                    plt
+                    for gen in fam.genera
+                    for sp in gen.species
+                    for acc in sp.accessions
+                    for plt in acc.plants
+                ]
+            ),
+            0,
+        )
+        acc = Accession(code="foo", species=sp)
+        plt = Plant(
+            code="1", accession=acc, quantity=0, location=Location(code="bar")
+        )
+        self.session.add_all([acc, plt])
+        self.session.commit()
+
+        self.assertFalse(fam.active)
+        # test the hybrid_property expression
+        # pylint: disable=no-member  # is_
+        fam_active_in_db = self.session.query(Family).filter(
+            Family.active.is_(True)
+        )
+        self.assertNotIn(fam, fam_active_in_db)
+
 
 class FamilyTopLevelCountTests(BaubleTestCase):
     def setUp(self):
@@ -1658,6 +1784,104 @@ class GenusTests(PlantTestCase):
         self.session.commit()
 
         self.assertFalse(gen.has_children())
+
+    def test_active_no_species(self):
+        gen = self.session.query(Genus).get(11)
+        # check genus has no species
+        self.assertEqual(len(gen.species), 0)
+        self.assertFalse(gen.active)
+        # test the hybrid_property expression
+        # pylint: disable=no-member  # is_
+        fam_active_in_db = self.session.query(Genus).filter(
+            Genus.active.is_(True)
+        )
+        self.assertNotIn(gen, fam_active_in_db)
+
+    def test_active_no_accession(self):
+        gen = self.session.query(Genus).get(9)
+        # check this is a family with no accession
+        self.assertEqual(
+            len([acc for sp in gen.species for acc in sp.accessions]),
+            0,
+        )
+        self.assertTrue(gen.active)
+        # test the hybrid_property expression
+        # pylint: disable=no-member  # is_
+        gen_active_in_db = self.session.query(Genus).filter(
+            Genus.active.is_(True)
+        )
+        self.assertIn(gen, gen_active_in_db)
+
+    def test_active_no_plants(self):
+        from ..garden import Accession
+
+        sp = self.session.query(Species).get(26)
+        gen = sp.genus
+        # check this is a family with no plants
+        self.assertEqual(
+            len(
+                [
+                    plt
+                    for sp in gen.species
+                    for acc in sp.accessions
+                    for plt in acc.plants
+                ]
+            ),
+            0,
+        )
+        acc = Accession(code="foo", species=sp)
+        self.session.add(acc)
+        self.session.commit()
+
+        self.assertTrue(gen.active)
+        # test the hybrid_property expression
+        # pylint: disable=no-member  # is_
+        gen_active_in_db = self.session.query(Genus).filter(
+            Genus.active.is_(True)
+        )
+        self.assertIn(gen, gen_active_in_db)
+
+    def test_active_one_plants_w_qty(self):
+        from ..garden import Accession
+        from ..garden import Location
+
+        sp = self.session.query(Species).get(26)
+        acc = Accession(code="foo", species=sp)
+        plt = Plant(
+            code="1", accession=acc, quantity=1, location=Location(code="bar")
+        )
+        self.session.add_all([acc, plt])
+        self.session.commit()
+        gen = sp.genus
+
+        self.assertTrue(gen.active)
+        # test the hybrid_property expression
+        # pylint: disable=no-member  # is_
+        gen_active_in_db = self.session.query(Genus).filter(
+            Genus.active.is_(True)
+        )
+        self.assertIn(gen, gen_active_in_db)
+
+    def test_active_one_plants_wo_qty(self):
+        from ..garden import Accession
+        from ..garden import Location
+
+        sp = self.session.query(Species).get(26)
+        gen = sp.genus
+        acc = Accession(code="foo", species=sp)
+        plt = Plant(
+            code="1", accession=acc, quantity=0, location=Location(code="bar")
+        )
+        self.session.add_all([acc, plt])
+        self.session.commit()
+
+        self.assertFalse(gen.active)
+        # test the hybrid_property expression
+        # pylint: disable=no-member  # is_
+        gen_active_in_db = self.session.query(Genus).filter(
+            Genus.active.is_(True)
+        )
+        self.assertNotIn(gen, gen_active_in_db)
 
 
 class GenusTopLevelCountTests(BaubleTestCase):
