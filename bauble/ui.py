@@ -428,24 +428,10 @@ class GUI:
                 self._cids.append(context_id)
 
         statusbar.connect("text-pushed", on_statusbar_push)
-
-        # remove label from frame
-        frame = statusbar.get_children()[0]
-        label = frame.get_children()[0]
-        frame.remove(label)
-
-        # replace label with hbox and put label and progress bar in hbox
-        hbox = Gtk.Box(homogeneous=False, spacing=5)
-        frame.add(hbox)
-        hbox.pack_start(label, True, True, 0)
-        vbox = Gtk.Box(
-            homogeneous=True, spacing=0, orientation=Gtk.Orientation.VERTICAL
-        )
-        hbox.pack_end(vbox, False, True, 15)
-        vbox.pack_start(self.progressbar, False, False, 0)
-        self.progressbar.set_size_request(-1, 10)
-        vbox.show()
-        hbox.show()
+        msg_area = statusbar.get_message_area()
+        label = msg_area.get_children()[0]
+        label.set_selectable(True)
+        msg_area.pack_end(self.progressbar, False, True, 15)
 
         combo.grab_focus()
 
