@@ -693,6 +693,12 @@ class TestSearchView(BaubleTestCase):
         mock_gui.remove_action.assert_called()
 
     @mock.patch("bauble.gui")
+    def test_add_meta_actions_to_context_menu_no_add_none_meta(self, mock_gui):
+        self.search_view._add_meta_actions_to_context_menu([])
+
+        self.assertNotIn(None, self.search_view.row_meta.keys())
+
+    @mock.patch("bauble.gui")
     def test_add_copy_selection_to_context_menu_adds_action(self, mock_gui):
         mock_gui.lookup_action.return_value = False
 

@@ -1189,14 +1189,16 @@ class SearchView(pluginmgr.View, Gtk.Box):
 
         selected_types = set(map(type, selected_values))
 
-        selected_type = None
+        # avoid accessing self.row_meta[None] as this will create a new
+        # ViewMeta entry for None
+        context_menu_actions: Sequence[Action] = []
         if len(selected_types) == 1:
             selected_type = selected_types.pop()
+            context_menu_actions = self.row_meta[selected_type].context_menu
 
         current_actions = set()
 
-        # if selected_type is None this should not return any actions
-        for action in self.row_meta[selected_type].context_menu:
+        for action in context_menu_actions:
             current_actions.add(action.name)
 
             if bauble.gui and not bauble.gui.lookup_action(action.name):
