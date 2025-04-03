@@ -1257,13 +1257,13 @@ class SourceDetail(db.Domain):
                 cls.id,
             )
             .select_from(cls)
-            .join(Source)
-            .join(Accession)
+            .outerjoin(Source)
+            .outerjoin(Accession)
             .outerjoin(Plant)
             .outerjoin(Location)
-            .join(Species)
-            .join(Genus)
-            .join(Family)
+            .outerjoin(Species)
+            .outerjoin(Genus)
+            .outerjoin(Family)
         )
 
         base_count_stmt = (

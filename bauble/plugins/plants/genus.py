@@ -429,7 +429,7 @@ class Genus(db.Domain, db.WithNotes):
             )
             .select_from(cls)
             .join(Family)
-            .join(Species)
+            .outerjoin(Species)
             .outerjoin(Accession)
             .outerjoin(Plant)
             .outerjoin(Location)

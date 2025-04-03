@@ -4174,7 +4174,7 @@ class LocationTests(GardenTestCase):
             "Accessions: 4, "
             "Plantings: 5, "
             "Living plants: 6, "
-            "Locations: 1, "
+            "Locations: 2, "
             "Sources: 1"
         )
 
@@ -4193,7 +4193,7 @@ class LocationTests(GardenTestCase):
             "Accessions: 4, "
             "Plantings: 5, "
             "Living plants: 4, "
-            "Locations: 1, "
+            "Locations: 2, "
             "Sources: 1"
         )
 
@@ -4212,7 +4212,7 @@ class LocationTests(GardenTestCase):
             "Accessions: 2, "
             "Plantings: 2, "
             "Living plants: 4, "
-            "Locations: 1, "
+            "Locations: 2, "
             "Sources: 0"
         )
 
@@ -4232,7 +4232,7 @@ class LocationTests(GardenTestCase):
             "Accessions: 2, "
             "Plantings: 2, "
             "Living plants: 4, "
-            "Locations: 1, "
+            "Locations: 2, "
             "Sources: 0"
         )
 
@@ -5272,7 +5272,7 @@ class SourceDetailTests(GardenTestCase):
             "Plantings: 2, "
             "Living plants: 1, "
             "Locations: 1, "
-            "Sources: 1"
+            "Sources: 2"
         )
 
         self.assertEqual(str(SourceDetail.top_level_count([1, 2])), expected)
@@ -5290,7 +5290,7 @@ class SourceDetailTests(GardenTestCase):
             "Plantings: 2, "
             "Living plants: 0, "
             "Locations: 1, "
-            "Sources: 1"
+            "Sources: 2"
         )
 
         self.assertEqual(str(SourceDetail.top_level_count([1, 2])), expected)
@@ -5307,7 +5307,7 @@ class SourceDetailTests(GardenTestCase):
             "Plantings: 0, "
             "Living plants: 0, "
             "Locations: 0, "
-            "Sources: 1"
+            "Sources: 2"
         )
 
         self.assertEqual(
@@ -5327,7 +5327,7 @@ class SourceDetailTests(GardenTestCase):
             "Plantings: 1, "
             "Living plants: 0, "
             "Locations: 1, "
-            "Sources: 1"
+            "Sources: 2"
         )
 
         self.assertEqual(str(SourceDetail.top_level_count([1, 2])), expected)
@@ -5347,7 +5347,7 @@ class SourceDetailTests(GardenTestCase):
             "Plantings: 0, "
             "Living plants: 0, "
             "Locations: 0, "
-            "Sources: 1"
+            "Sources: 2"
         )
 
         self.assertEqual(

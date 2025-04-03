@@ -336,7 +336,7 @@ class Family(db.Domain, db.WithNotes):
                 SourceDetail.id,
             )
             .select_from(cls)
-            .join(Genus)
+            .outerjoin(Genus)
             .outerjoin(Species)
             .outerjoin(Accession)
             .outerjoin(Plant)

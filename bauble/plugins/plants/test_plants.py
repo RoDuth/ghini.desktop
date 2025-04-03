@@ -1208,6 +1208,24 @@ class FamilyTopLevelCountTests(BaubleTestCase):
 
         self.assertEqual(str(Family.top_level_count([1, 2])), expected)
 
+    def test_top_level_count_wo_genera(self):
+        fam = Family(epithet="Welwitschiaceae")
+        self.session.add(fam)
+        self.session.commit()
+
+        expected = (
+            "Families: 2, "
+            "Genera: 5, "
+            "Species: 21, "
+            "Accessions: 4, "
+            "Plantings: 3, "
+            "Living plants: 3, "
+            "Locations: 1, "
+            "Sources: 1"
+        )
+
+        self.assertEqual(str(Family.top_level_count([1, fam.id])), expected)
+
     def test_top_level_count_wo_species_in_genera(self):
 
         gen = self.session.query(Genus).get(14)
@@ -1904,6 +1922,25 @@ class GenusTopLevelCountTests(BaubleTestCase):
         )
 
         self.assertEqual(str(Genus.top_level_count([1, 3])), expected)
+
+    def test_top_level_count_wo_species(self):
+        fam = Family(epithet="Welwitschiaceae")
+        gen = Genus(epithet="Welwitschia", family=fam)
+        self.session.add(gen)
+        self.session.commit()
+
+        expected = (
+            "Families: 2, "
+            "Genera: 2, "
+            "Species: 11, "
+            "Accessions: 2, "
+            "Plantings: 1, "
+            "Living plants: 1, "
+            "Locations: 1, "
+            "Sources: 1"
+        )
+
+        self.assertEqual(str(Genus.top_level_count([1, gen.id])), expected)
 
     def test_top_level_count_wo_plant_qty(self):
         plt = self.session.query(Plant).get(1)
@@ -3106,6 +3143,22 @@ class SpeciesTopLevelCountTests(BaubleTestCase):
         )
 
         self.assertEqual(str(Species.top_level_count([1, 3], True)), expected)
+
+    def test_top_level_count_sp_no_accessions(self):
+
+        expected = (
+            "Families: 2, "
+            "Genera: 2, "
+            "Species: 2, "
+            "Accessions: 2, "
+            "Plantings: 1, "
+            "Living plants: 1, "
+            "Locations: 1, "
+            "Sources: 1"
+        )
+
+        # 4 has no accessions
+        self.assertEqual(str(Species.top_level_count([1, 4])), expected)
 
 
 class VernacularNameTests(BaubleTestCase):
