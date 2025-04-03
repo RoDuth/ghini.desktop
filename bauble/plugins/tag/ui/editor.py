@@ -209,10 +209,6 @@ class TagItemsDialog(Gtk.Dialog):
         model.remove(tree_iter)
         menu_manager.reset()
 
-        view = bauble.gui.get_view()
-        if view:
-            view.update()
-
 
 def remove_callback(
     objs: Sequence[Tag],

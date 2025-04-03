@@ -114,7 +114,6 @@ class Tag(db.Domain):
             return
 
         for obj in objects:
-
             tagged = (
                 session.query(TaggedObj.id)
                 .filter(

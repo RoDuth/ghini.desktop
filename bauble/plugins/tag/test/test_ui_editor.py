@@ -305,9 +305,7 @@ class TagItemsDialogTests(BaubleTestCase):
         mock_yn_dialog = mock.Mock()
         mock_yn_dialog.return_value = True
 
-        with mock.patch("bauble.gui") as mock_gui:
-            dialog.on_delete_button_clicked(None, yn_dialog=mock_yn_dialog)
-            mock_gui.get_view().update.assert_called()
+        dialog.on_delete_button_clicked(None, yn_dialog=mock_yn_dialog)
 
         mock_yn_dialog.assert_called()
         self.assertEqual(len(self.session.query(Tag).all()), 0)

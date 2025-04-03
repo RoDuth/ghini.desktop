@@ -459,6 +459,7 @@ def search_tree_model(parent, data, cmp=lambda row, data: row[0] == data):
         if not parent.get_iter_first():  # model empty
             return []
         return search_tree_model(parent[parent.get_iter_first()], data, cmp)
+
     results = set()
 
     def func(model, _path, itr):
@@ -609,7 +610,9 @@ def set_widget_value(  # pylint: disable=too-many-statements,too-many-branches
 
     if value is None:  # set the value from the default
         if (
-            isinstance(widget, (Gtk.Label, Gtk.TextView, Gtk.Entry))
+            isinstance(
+                widget, (Gtk.Label, Gtk.TextView, Gtk.Entry, Gtk.TextBuffer)
+            )
             and default is None
         ):
             value = ""
