@@ -43,6 +43,7 @@ from bauble import utils
 from bauble.i18n import _
 from bauble.view import HistoryView
 from bauble.view import SearchView
+from bauble.view import get_search_view
 
 from .accession import BAUBLE_ACC_CODE_FORMAT
 from .accession import Accession
@@ -450,23 +451,20 @@ class GardenPlugin(pluginmgr.Plugin):
         if isinstance(view, (prefs.PrefsView, bauble.ui.DefaultView)):
             view.update()
 
-        if isinstance(view, SearchView):
-            view.update_statusbar(
-                [i[0] for i in view.results_view.get_model()]
-            )
-
-        from . import garden_map
-
-        if garden_map.map_presenter:
-            garden_map.map_presenter.populated = False
-            garden_map.map_presenter.populate_map_from_search_view()
+        get_search_view().rerun_last_search()
 
     @staticmethod
     def on_sort_toggled(action, value):
         action.set_state(value)
+
         prefs.prefs[SORT_BY_PREF] = value.get_boolean()
-        if isinstance(view := bauble.gui.get_view(), SearchView):
+
+        view = bauble.gui.get_view()
+
+        if isinstance(view, prefs.PrefsView):
             view.update()
+
+        get_search_view().rerun_last_search()
 
 
 def init_location_comboentry(presenter, combo, on_select):

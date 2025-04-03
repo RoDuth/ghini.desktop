@@ -33,6 +33,8 @@ from collections.abc import Callable
 from collections.abc import Generator
 from collections.abc import Iterable
 from collections.abc import Sequence
+from dataclasses import dataclass
+from dataclasses import field
 from datetime import datetime
 from datetime import timedelta
 from datetime import timezone
@@ -40,6 +42,7 @@ from pathlib import Path
 from textwrap import shorten
 from typing import Any
 from typing import Protocol
+from typing import Self
 from typing import cast
 
 logger = logging.getLogger(__name__)
@@ -833,6 +836,17 @@ class PicturesScroller(Gtk.ScrolledWindow):
                     self._select_child_obj(picture, kid, model, search_view)
 
 
+@dataclass
+class _Node:
+    type_: type[db.Domain]
+    id_: int
+    depth: int
+    children: list[Self] = field(default_factory=list)
+    expanded: bool = False
+    cursor: bool = False
+    selected: bool = False
+
+
 class ViewMeta(UserDict):
     """This class shouldn't need to be instantiated directly.  Access the
     meta for the SearchView with the :class:``bauble.view.SearchView``'s
@@ -1003,6 +1017,8 @@ class SearchView(pluginmgr.View, Gtk.Box):
 
         for widget_name, signal, handler in self.extra_signals:
             self.connect_signal(widget_name, signal, handler)
+
+        self.last_search: str = ""
 
     def connect_signal(
         self, widget_name: str, signal: str, handler: Callable
@@ -1351,6 +1367,7 @@ class SearchView(pluginmgr.View, Gtk.Box):
     def search(self, text: str) -> None:
         """search the database using :param text:"""
         logger.debug("SearchView.search(%s)", repr(text))
+        self.last_search = text
 
         self._reset()
 
@@ -1369,6 +1386,7 @@ class SearchView(pluginmgr.View, Gtk.Box):
             error_details_msg = utils.xml_safe(traceback.format_exc())
 
         if error_msg and bauble.gui:
+            self.last_search = ""
             bauble.gui.show_error_box(error_msg, error_details_msg)
             self.on_selection_changed(None)
             return
@@ -1426,6 +1444,146 @@ class SearchView(pluginmgr.View, Gtk.Box):
             sbcontext_id,
             _("size of non homogeneous result: %s") % len(results),
         )
+
+    def _get_expanded_tree(
+        self,
+        expanded_rows: list[Gtk.TreePath],
+        cursor_path: Gtk.TreePath,
+        selected_paths: list[Gtk.TreePath],
+    ) -> _Node:
+        """Creates a tree structure representing the nodes that are currently
+        expanded, selected or the current cursor path.
+
+        Maps the paths to their objects type and id, for use where the paths
+        can not be relied upon (i.e. a rerun search has potentially removed
+        or added objects).
+        """
+
+        all_rows = expanded_rows.copy()
+
+        for path in selected_paths:
+            if path in expanded_rows:
+                continue
+            all_rows.append(path)
+
+        all_rows.sort(key=str)
+
+        model = cast(Gtk.ListStore, self.results_view.get_model())
+        # for the sake of type annotations just use Domain for root node
+        root = _Node(db.Domain, 0, 0)
+
+        nodes = [root]
+
+        for path in all_rows:
+            depth = path.get_depth()
+            obj = model[path][0]
+
+            node = _Node(
+                type(obj),
+                obj.id,
+                depth,
+                expanded=path in expanded_rows,
+                cursor=path == cursor_path,
+                selected=path in selected_paths,
+            )
+
+            # keep track of where we are in the tree.
+            for __ in range(len(nodes)):
+                last = nodes[-1]
+                if depth > last.depth:
+                    nodes.append(node)
+                    last.children.append(node)
+                    break
+                nodes.pop()
+
+        return root
+
+    def expand_from_tree(
+        self,
+        tree_root: _Node,
+        selected: list[Gtk.TreePath] | None = None,
+    ) -> None:
+        """Expand rows, set the cursor and selects paths as described by the
+        provided tree of ``_Node``s.
+        """
+
+        model = self.results_view.get_model()
+
+        if model is None:
+            # used in test
+            logger.debug("no results_view model - bailing")
+            return
+
+        if selected is None:
+            # set selected on first call, reuse in further recursions
+            selected = []
+
+        def expand(
+            model: Gtk.ListStore,
+            path: Gtk.TreePath,
+            itr: Gtk.TreeIter,
+            node: _Node,
+            selected: list[Gtk.TreePath],
+        ) -> bool:
+            obj = model[itr][0]
+
+            if isinstance(obj, node.type_) and obj.id == node.id_:
+                if node.expanded:
+                    self.on_test_expand_row(self.results_view, itr, path)
+                    self.results_view.expand_to_path(path)
+                    self.expand_from_tree(node, selected)
+
+                if node.cursor:
+                    self.results_view.set_cursor(path)
+
+                if node.selected:
+                    selected.append(path)
+
+                return True
+
+            return False
+
+        for node in tree_root.children:
+
+            model.foreach(expand, node, selected)
+
+        if tree_root.depth == 0:
+            # run after all recursions have returned
+            for path in selected:
+                self.selection.select_path(path)
+
+        return
+
+    def rerun_last_search(self) -> None:
+        """Rerun the last search and restore view to previous position.
+
+        Intended for use after toggling exclude_inactive where the results may
+        differ.
+        """
+        if self.last_search:
+            cursor_path, _column = self.results_view.get_cursor()
+            expanded_rows = self.get_expanded_rows()
+            _model, selected_paths = self.selection.get_selected_rows()
+
+            # don't expand when too many
+            if len(selected_paths) < 20 and len(expanded_rows) < 20:
+                expanded_tree_root = self._get_expanded_tree(
+                    expanded_rows,
+                    cursor_path,
+                    selected_paths,
+                )
+
+                self.search(self.last_search)
+
+                self.expand_from_tree(expanded_tree_root)
+            else:
+                self.search(self.last_search)
+
+    def refresh_statusbar(self) -> None:
+        model = self.results_view.get_model()
+        if model:
+            objs = [i[0] for i in model]
+            self.update_statusbar(objs)
 
     def _notify_no_result(self, text: str) -> None:
         bold = "<b>%s</b>"
@@ -2387,6 +2545,7 @@ def select_in_search_results(obj):
         model.append(row_iter, ["-"])
         # NOTE used in test...
         logger.debug("%s added to search results", obj)
+        view.refresh_statusbar()
     view.results_view.set_cursor(model.get_path(row_iter))
     return row_iter
 

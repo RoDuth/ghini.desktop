@@ -63,6 +63,7 @@ from bauble.view import NotesBottomPage
 from bauble.view import PicturesScroller
 from bauble.view import PropertiesExpander
 from bauble.view import SearchView
+from bauble.view import _Node
 from bauble.view import get_search_view
 from bauble.view import get_search_view_selected
 from bauble.view import select_in_search_results
@@ -965,6 +966,399 @@ class TestSearchView(BaubleTestCase):
                 continue
             if obj.__class__.__name__ == "Accession":
                 self.assertTrue(expired, str(obj))
+
+    @mock.patch("bauble.gui")
+    def test_rerun_previous_search_basic(self, mock_gui):
+        mock_gui.window.get_size().width = 100
+
+        for func in get_setUp_data_funcs():
+            func()
+
+        search_view = self.search_view
+        search_string = "plant where id = 1"
+        search_view.search(search_string)
+
+        self.assertEqual(search_view.last_search, search_string)
+
+        selected = search_view.get_selected_values()
+        start_ids = [i.id for i in selected]
+        self.assertEqual(len(selected), 1)
+
+        search_view.rerun_last_search()
+
+        selected2 = search_view.get_selected_values()
+
+        # make sure we didn't just get back the actual same selection
+        self.assertNotEqual(selected2[0], selected[0])
+        self.assertEqual(len(selected2), 1)
+        self.assertCountEqual(start_ids, [i.id for i in selected2])
+
+    @mock.patch("bauble.gui")
+    def test_rerun_previous_search_basic_w_inactive(self, mock_gui):
+        mock_gui.window.get_size().width = 100
+
+        for func in get_setUp_data_funcs():
+            func()
+
+        from bauble.plugins.garden import Plant
+
+        plt1 = self.session.query(Plant).get(1)
+        plt1.quantity = 0
+        self.session.commit()
+
+        search_view = self.search_view
+        search_string = "plant where id = 1"
+        search_view.search(search_string)
+
+        self.assertEqual(search_view.last_search, search_string)
+
+        selected = search_view.get_selected_values()
+        start_ids = [i.id for i in selected]
+        self.assertEqual(len(selected), 1)
+
+        prefs.prefs[prefs.exclude_inactive_pref] = True
+
+        search_view.rerun_last_search()
+
+        selected2 = search_view.get_selected_values()
+        self.assertEqual(len(selected2), 0)
+
+        prefs.prefs[prefs.exclude_inactive_pref] = False
+
+        search_view.rerun_last_search()
+
+        selected3 = search_view.get_selected_values()
+        self.assertEqual(len(selected3), 1)
+        self.assertNotEqual(selected3[0], selected[0])
+        self.assertCountEqual(start_ids, [i.id for i in selected3])
+
+    @mock.patch("bauble.gui")
+    def test_rerun_previous_search_w_expanded_selected_cursor(self, mock_gui):
+
+        mock_gui.window.get_size().width = 100
+
+        for func in get_setUp_data_funcs():
+            func()
+
+        search_view = self.search_view
+        search_string = "family where id < 5"
+        search_view.search(search_string)
+
+        self.assertEqual(search_view.last_search, search_string)
+
+        # set cursor
+        model = search_view.results_view.get_model()
+        for p in ["0", "0:0", "0:0:1"]:
+            path = Gtk.TreePath.new_from_string(p)
+            search_view.on_test_expand_row(
+                search_view.results_view, model.get_iter(path), path
+            )
+            search_view.results_view.expand_to_path(path)
+        search_view.results_view.set_cursor(path)
+
+        # set selected (differs from cursor)
+        for i in range(1, 4):
+            path = Gtk.TreePath.new_from_string(f"{i}")
+            search_view.on_test_expand_row(
+                search_view.results_view, model.get_iter(path), path
+            )
+
+            search_view.results_view.expand_to_path(path)
+            path = Gtk.TreePath.new_from_string(f"{i}:0")
+            search_view.on_test_expand_row(
+                search_view.results_view, model.get_iter(path), path
+            )
+
+            search_view.results_view.expand_to_path(path)
+
+            search_view.selection.select_path(path)
+
+        # one extra expansion
+        path = Gtk.TreePath.new_from_string("2:0:0")
+        search_view.on_test_expand_row(
+            search_view.results_view, model.get_iter(path), path
+        )
+        search_view.results_view.expand_to_path(path)
+
+        selected = search_view.get_selected_values()
+        start_ids = [i.id for i in selected]
+        start_cursor = search_view.results_view.get_cursor()
+        self.assertEqual(len(selected), 4)
+
+        search_view.rerun_last_search()
+
+        selected2 = search_view.get_selected_values()
+
+        # make sure we didn't just get back the actual same selection
+        self.assertNotEqual(selected2[0], selected[0])
+        # equal
+        self.assertEqual(start_cursor, search_view.results_view.get_cursor())
+        # but not the same object
+        self.assertIsNot(start_cursor, search_view.results_view.get_cursor())
+        self.assertEqual(len(selected2), 4)
+        self.assertCountEqual(start_ids, [i.id for i in selected2])
+
+    @mock.patch("bauble.gui")
+    def test_rerun_previous_search_empty(self, mock_gui):
+
+        mock_gui.window.get_size().width = 100
+
+        for func in get_setUp_data_funcs():
+            func()
+
+        search_view = self.search_view
+        search_string = "plant where id = 50000"
+        search_view.search(search_string)
+        model = search_view.results_view.get_model()
+        self.assertEqual(len(model), 1)
+        self.assertTrue(
+            model[0][0].startswith("<b>Could not find anything for search")
+        )
+
+        search_view.rerun_last_search()
+
+        self.assertEqual(len(model), 1)
+        self.assertTrue(
+            model[0][0].startswith("<b>Could not find anything for search")
+        )
+
+    @mock.patch("bauble.gui")
+    def test_rerun_previous_search_previous_errored(self, mock_gui):
+        mock_gui.window.get_size().width = 100
+
+        for func in get_setUp_data_funcs():
+            func()
+
+        search_view = self.search_view
+        search_string = "accession where private = 3"
+        search_view.search(search_string)
+        model = search_view.results_view.get_model()
+        self.assertIsNone(model)
+
+        search_view.rerun_last_search()
+
+        search_view.search(search_string)
+        model = search_view.results_view.get_model()
+        self.assertIsNone(model)
+
+    @mock.patch("bauble.gui")
+    def test_get_expanded_tree(self, mock_gui):
+
+        mock_gui.window.get_size().width = 100
+
+        for func in get_setUp_data_funcs():
+            func()
+
+        search_view = self.search_view
+        search_string = "family where id < 5"
+        search_view.search(search_string)
+
+        self.assertEqual(search_view.last_search, search_string)
+
+        model = search_view.results_view.get_model()
+        selected_paths = []
+        # set selected (differs from cursor)
+        for i in range(1, 4):
+            path = Gtk.TreePath.new_from_string(f"{i}")
+            search_view.on_test_expand_row(
+                search_view.results_view, model.get_iter(path), path
+            )
+            search_view.results_view.expand_to_path(path)
+            path = Gtk.TreePath.new_from_string(f"{i}:0")
+            search_view.on_test_expand_row(
+                search_view.results_view, model.get_iter(path), path
+            )
+            search_view.results_view.expand_to_path(path)
+            selected_paths.append(path)
+            search_view.selection.select_path(path)
+
+        # one extra expansion
+        path = Gtk.TreePath.new_from_string("1:0:0")
+        search_view.on_test_expand_row(
+            search_view.results_view, model.get_iter(path), path
+        )
+        search_view.results_view.expand_to_path(path)
+        # set cursor
+        for p in ["0", "0:0"]:
+            path = Gtk.TreePath.new_from_string(p)
+            search_view.on_test_expand_row(
+                search_view.results_view, model.get_iter(path), path
+            )
+            search_view.results_view.expand_to_path(path)
+        cursor_path = Gtk.TreePath.new_from_string("0:0:1")
+        selected_paths.append(cursor_path)
+        search_view.results_view.set_cursor(cursor_path)
+
+        expanded_rows = search_view.get_expanded_rows()
+
+        root = search_view._get_expanded_tree(
+            expanded_rows, cursor_path, selected_paths
+        )
+        self.assertEqual(root.depth, 0)
+        self.assertEqual(root.id_, 0)
+        self.assertEqual(len(root.children), 4)
+        # first child is path to cursor
+        child = root.children[0]
+        self.assertEqual(len(child.children), 1)
+        self.assertEqual(child.depth, 1)
+        self.assertTrue(child.expanded)
+        self.assertFalse(child.cursor)
+        self.assertFalse(child.selected)
+        for child2 in child.children:
+            self.assertEqual(len(child2.children), 1)
+            self.assertEqual(child2.depth, 2)
+            self.assertTrue(child2.expanded)
+            self.assertFalse(child2.cursor)
+            for child3 in child2.children:
+                self.assertEqual(len(child3.children), 0)
+                self.assertEqual(child3.depth, 3)
+                self.assertFalse(child3.expanded)
+                self.assertTrue(child3.cursor)
+                self.assertTrue(child3.selected)
+        # others are paths to selected and expanded
+        for child in root.children[1:]:
+            self.assertEqual(len(child.children), 1)
+            self.assertEqual(child.depth, 1)
+            self.assertTrue(child.expanded)
+            self.assertFalse(child.cursor)
+            self.assertFalse(child.selected)
+            for child2 in child.children[1:]:
+                self.assertEqual(len(child2.children), 0)
+                self.assertEqual(child2.depth, 2)
+                self.assertTrue(child2.expanded)
+                self.assertTrue(child2.selected)
+                self.assertFalse(child2.cursor)
+        # except this one that is further expanded
+        child = root.children[1]
+        child2 = child.children[0]
+        self.assertEqual(len(child2.children), 1)
+        self.assertEqual(child2.depth, 2)
+        self.assertTrue(child2.expanded)
+        self.assertFalse(child2.cursor)
+        self.assertTrue(child2.selected)
+        child3 = child2.children[0]
+        self.assertEqual(child3.depth, 3)
+        self.assertTrue(child3.expanded)
+        self.assertFalse(child3.cursor)
+        self.assertFalse(child3.selected)
+
+    @mock.patch("bauble.gui")
+    def test_expand_from_tree_skips_if_unavailable(self, mock_gui):
+        mock_gui.window.get_size().width = 100
+
+        for func in get_setUp_data_funcs():
+            func()
+
+        search_view = self.search_view
+        search_string = "family where id < 5"
+        search_view.search(search_string)
+        start_selected = search_view.get_selected_values()
+
+        root = _Node(db.Domain, 0, 0)
+        root.children.append(
+            _Node(
+                Family, 10, depth=1, expanded=True, cursor=True, selected=True
+            )
+        )
+        search_view.expand_from_tree(root)
+
+        self.assertEqual(
+            [i.id for i in start_selected],
+            [i.id for i in search_view.get_selected_values()],
+        )
+
+    @mock.patch("bauble.gui")
+    def test_expand_from_tree_bails_if_no_model(self, mock_gui):
+        mock_gui.window.get_size().width = 100
+
+        for func in get_setUp_data_funcs():
+            func()
+
+        search_view = self.search_view
+        search_view.results_view.set_model(None)
+
+        root = _Node(db.Domain, 0, 0)
+        root.children.append(
+            _Node(
+                Family, 10, depth=1, expanded=True, cursor=True, selected=True
+            )
+        )
+        with self.assertLogs(level="DEBUG") as logs:
+            search_view.expand_from_tree(root)
+
+        self.assertTrue(
+            any("no results_view model - bailing" in i for i in logs.output)
+        )
+
+    @mock.patch("bauble.gui")
+    def test_expand_from_tree_no_root_children(self, mock_gui):
+        mock_gui.window.get_size().width = 100
+
+        for func in get_setUp_data_funcs():
+            func()
+
+        search_view = self.search_view
+        search_string = "family where id < 5"
+        search_view.search(search_string)
+        start_selected = search_view.get_selected_values()
+
+        root = _Node(db.Domain, 0, 0)
+        search_view.expand_from_tree(root)
+
+        self.assertEqual(
+            [i.id for i in start_selected],
+            [i.id for i in search_view.get_selected_values()],
+        )
+
+    @mock.patch("bauble.gui")
+    def test_expand_from_tree_selects_if_available(self, mock_gui):
+        # where all are available
+        mock_gui.window.get_size().width = 100
+
+        for func in get_setUp_data_funcs():
+            func()
+
+        search_view = self.search_view
+        search_string = "family where id < 5"
+        search_view.search(search_string)
+        start_selected = search_view.get_selected_values()
+
+        root = _Node(
+            db.Domain,
+            0,
+            0,
+            children=[
+                _Node(
+                    Family,
+                    3,
+                    depth=1,
+                    expanded=True,
+                    cursor=True,
+                    selected=True,
+                ),
+                _Node(
+                    Family,
+                    2,
+                    depth=1,
+                    expanded=False,
+                    cursor=False,
+                    selected=True,
+                ),
+            ],
+        )
+        search_view.expand_from_tree(root)
+
+        self.assertNotEqual(
+            [i.id for i in start_selected],
+            [i.id for i in search_view.get_selected_values()],
+        )
+        self.assertEqual(
+            [2, 3],
+            [i.id for i in search_view.get_selected_values()],
+        )
+        self.assertEqual(
+            [str(i) for i in search_view.get_expanded_rows()], ["2"]
+        )
 
     def test_on_view_button_press_not_3_returns_false(self):
         for func in get_setUp_data_funcs():
