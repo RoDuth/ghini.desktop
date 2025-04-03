@@ -225,7 +225,7 @@
                         <child>
                           <object class="GtkTreeViewColumn">
                             <child>
-                              <object class="GtkCellRendererToggle">
+                              <object class="GtkCellRendererToggle" id="toggle_renderer">
                                 <signal name="toggled" handler="on_tag_toggled" swapped="no"/>
                               </object>
                               <attributes>

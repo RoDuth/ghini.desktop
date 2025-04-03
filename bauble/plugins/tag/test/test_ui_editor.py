@@ -215,7 +215,7 @@ class TagItemsDialogTests(BaubleTestCase):
     def test_on_new_button_clicked_cancel_doesnt_append(self):
         fam = Family(epithet="Myrtaceae")
         dialog = TagItemsDialog([fam])
-        mock_editor = mock.Mock(return_value=Gtk.ResponseType.CANCEL)
+        mock_editor = mock.Mock(return_value=False)
 
         dialog.on_new_button_clicked(edit_func=mock_editor)
 
@@ -226,7 +226,7 @@ class TagItemsDialogTests(BaubleTestCase):
     def test_on_new_button_clicked_ok_appends(self):
         fam = Family(epithet="Myrtaceae")
         dialog = TagItemsDialog([fam])
-        mock_editor = mock.Mock(return_value=Gtk.ResponseType.OK)
+        mock_editor = mock.Mock(return_value=True)
 
         dialog.on_new_button_clicked(edit_func=mock_editor)
 
@@ -470,6 +470,9 @@ class GlobalFunctionsTests(BaubleTestCase):
             edit_callback([tag], dialog_cls=mock_dialog),
             True,
         )
+
+        self.session.expire(tag)
+
         self.assertEqual(tag.tag, "Bar")
 
     def test_edit_callback_cancel(self):
@@ -490,6 +493,9 @@ class GlobalFunctionsTests(BaubleTestCase):
             edit_callback([tag], dialog_cls=mock_dialog),
             False,
         )
+
+        self.session.expire(tag)
+
         self.assertEqual(tag.tag, "Foo")
 
     def test_edit_callback_no_session_raises(self):

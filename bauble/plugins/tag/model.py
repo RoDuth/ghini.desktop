@@ -51,7 +51,7 @@ from bauble import utils
 from bauble.i18n import _
 
 
-class TaggedObj(db.Base):
+class TaggedObj(db.Base):  # pylint: disable=too-few-public-methods
     """Joins tags to their objects."""
 
     __tablename__ = "tagged_obj"
@@ -114,6 +114,7 @@ class Tag(db.Domain):
             return
 
         for obj in objects:
+
             tagged = (
                 session.query(TaggedObj.id)
                 .filter(

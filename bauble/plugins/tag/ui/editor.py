@@ -87,6 +87,7 @@ class TagItemsDialog(Gtk.Dialog):
     tag_tree = cast(Gtk.TreeView, Gtk.Template.Child())
     items_data_label = cast(Gtk.Label, Gtk.Template.Child())
     delete_button = cast(Gtk.Button, Gtk.Template.Child())
+    toggle_renderer = cast(Gtk.CellRendererToggle, Gtk.Template.Child())
 
     def __init__(self, selected: Sequence[db.Domain]) -> None:
         super().__init__()
@@ -122,13 +123,16 @@ class TagItemsDialog(Gtk.Dialog):
             session.add(tag)
             response = editor_func([tag])
 
-        if response == Gtk.ResponseType.OK:
-            model = self.tag_tree.get_model()
+            if response:
+                model = self.tag_tree.get_model()
 
-            if isinstance(model, Gtk.ListStore):
-                model.append([False, False, tag.tag])
+                if isinstance(model, Gtk.ListStore):
+                    itr = model.append([False, False, tag.tag])
+                    path = model.get_path(itr)
+                    self.tag_tree.set_cursor(path)
+                    self.toggle_renderer.emit("toggled", str(path))
 
-            menu_manager.reset()
+                menu_manager.reset()
 
     @Gtk.Template.Callback()
     def on_tag_toggled(
@@ -198,7 +202,8 @@ class TagItemsDialog(Gtk.Dialog):
             return
 
         with db.Session() as session:
-            session.query(Tag).filter_by(tag=tag_name).delete()
+            tag = session.query(Tag).filter_by(tag=tag_name).one()
+            session.delete(tag)
             session.commit()
 
         model.remove(tree_iter)
@@ -283,7 +288,9 @@ def edit_callback(
         dialog = dialog_cls(tag)
         response = dialog.run()
 
-        if response != Gtk.ResponseType.OK:
+        if response == Gtk.ResponseType.OK:
+            session.commit()
+        else:
             session.rollback()
 
         dialog.destroy()
