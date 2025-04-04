@@ -29,6 +29,7 @@ from collections.abc import Callable
 from collections.abc import Sequence
 from dataclasses import astuple
 from dataclasses import dataclass
+from itertools import chain
 from math import hypot
 from pathlib import Path
 from typing import TypedDict
@@ -1054,15 +1055,24 @@ class SearchViewMapPresenter:
         """Cancel running threads on exit"""
         self.thread_event.set()
 
-    def _populate_worker(self, results: Sequence) -> None:
+    def _populate_worker(self, results: Sequence[db.Domain]) -> None:
         if len(results) == 1 and isinstance(results[0], str):
             return
 
+        # avoid cicular import
         from ..report import get_plants_pertinent_to
 
         # get_plants.. using separate session (none provided) avoids messing up
         # history on deferred geojson column
-        for plant in get_plants_pertinent_to(results):
+        # chunk for large searches, MSSQL will fail over ~2600
+        for plant in chain.from_iterable(
+            get_plants_pertinent_to(chunk)
+            for chunk in utils.chunks(results, 1000)
+        ):
+            if plant.id in self.plt_items:
+                # previously added
+                continue
+
             if self.thread_event.is_set():
                 glib_events.clear()
                 break
@@ -1083,9 +1093,10 @@ class SearchViewMapPresenter:
         logger.debug("populate_map: stopping threads")
         # stop threads and wait
         self.thread_event.set()
-        if self.populate_thread:
+        self.update_thread_event.set()
+        if self.populate_thread and self.populate_thread.is_alive():
             self.populate_thread.join()
-        if self.update_thread:
+        if self.update_thread and self.update_thread.is_alive():
             self.update_thread.join()
         # clear idle_add events  NOTE log used in test
         logger.debug("populate_map: clearing GLib events")

@@ -704,9 +704,17 @@ class TestSearchViewMapPresenter(BaubleTestCase):
                     break
                 sleep(0.2)
 
+        def dont_stop2():
+            sleep(0.3)
+            while True:
+                if presenter.update_thread_event.is_set():
+                    stopped.append(None)
+                    break
+                sleep(0.2)
+
         presenter.populate_thread = threading.Thread(target=dont_stop)
         presenter.populate_thread.start()
-        presenter.update_thread = threading.Thread(target=dont_stop)
+        presenter.update_thread = threading.Thread(target=dont_stop2)
         presenter.update_thread.start()
         results = self.session.query(Location).all()
         with self.assertLogs(level="DEBUG") as logs:
@@ -714,10 +722,33 @@ class TestSearchViewMapPresenter(BaubleTestCase):
             # run twice checks first cancels the other
             presenter.populate_map(results)
             presenter.populate_thread.join()
+            presenter.update_thread.join()
             update_gui()
+
         self.assertTrue(any("clearing GLib events" in i for i in logs.output))
         self.assertEqual(len(stopped), 2)
         map_.destroy()
+
+    def test_populate_worker_skips_doubleups(self):
+        for func in get_setUp_data_funcs():
+            func()
+        plt1 = self.session.query(Plant).get(1)
+        plt1.geojson = point
+        self.session.commit()
+        map_ = GardenMap(Map())
+        presenter = SearchViewMapPresenter(map_)
+        self.assertFalse(presenter.populated)
+        results = self.session.query(Plant).filter(Plant.id == 1).all()
+        print(results)
+        map_point = map_item_factory(results[0], colours["green"])
+        presenter.plt_items[1] = map_point
+
+        presenter._populate_worker(results)
+        update_gui()
+
+        self.assertEqual(len(presenter.plt_items), 1)
+        self.assertIs(presenter.plt_items[1], map_point)
+        self.assertTrue(presenter.populated)
 
     def test_populate_map_stops_glib_events(self):
         for func in get_setUp_data_funcs():
