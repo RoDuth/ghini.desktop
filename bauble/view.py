@@ -1953,26 +1953,20 @@ class SearchView(pluginmgr.View, Gtk.Box):
         menu.popup_at_pointer(event)
         return True
 
-    def update(self, *_args):
+    def update(self, *_args) -> None:
         """Expire all the children in the model, collapse everything, reexpand
         the rows to the previous state where possible.
 
         Infoboxes are updated in on_selection_changed which this should trigger
         """
-        # NOTE log used in tests
+        # used in tests
         logger.debug("SearchView::update")
         model, tree_paths = self.selection.get_selected_rows()
-        ref = None
-        try:
-            # try to get the reference to the selected object, if the
-            # object has been deleted then we won't try to reselect it later
-            ref = Gtk.TreeRowReference(model, tree_paths[0])
-        except IndexError as e:
-            logger.debug(
-                "unable to get ref to selected object: %s(%s)",
-                type(e).__name__,
-                e,
-            )
+        cursor_path, _column = self.results_view.get_cursor()
+
+        refs = []
+        for tree_path in tree_paths:
+            refs.append(Gtk.TreeRowReference(model, tree_path))
 
         self.session.expire_all()
         self.has_kids.clear_cache()  # pylint: disable=no-member
@@ -1985,14 +1979,22 @@ class SearchView(pluginmgr.View, Gtk.Box):
         self.selection.handler_unblock(self._selection_changed_sigid)
 
         # expand_to_all_rows will invalidate the ref so get the path first
-        if not ref:
+        if not refs:
             return
-        path = None
-        if ref.valid():
-            path = ref.get_path()
+
+        tree_paths = []
+        for ref in refs:
+            if ref.valid():
+                path = ref.get_path()
+                if path:
+                    tree_paths.append(path)
+
         self.expand_to_all_rows(expanded_rows)
-        if path is not None:
-            self.results_view.set_cursor(path)
+
+        if tree_paths:
+            self.results_view.set_cursor(cursor_path)
+            for path in tree_paths:
+                self.selection.select_path(path)
 
     @Gtk.Template.Callback()
     def on_view_row_activated(

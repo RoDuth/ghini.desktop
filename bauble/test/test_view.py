@@ -981,6 +981,30 @@ class TestSearchView(BaubleTestCase):
                 self.assertTrue(expired, str(obj))
 
     @mock.patch("bauble.gui")
+    def test_update_multiple_selection(self, mock_gui):
+        mock_gui.window.get_size().width = 100
+
+        for func in get_setUp_data_funcs():
+            func()
+
+        search_view = self.search_view
+        search_view.search("accession where id < 5")
+        # select first 3
+        for i in range(3):
+            search_view.selection.select_path(
+                Gtk.TreePath.new_from_string(str(i))
+            )
+        selected = search_view.get_selected_values()
+        self.assertEqual(len(selected), 3)
+        start_ids = [i.id for i in selected]
+
+        search_view.update()
+        selected = search_view.get_selected_values()
+
+        self.assertEqual(len(selected), 3)
+        self.assertCountEqual(start_ids, [i.id for i in selected])
+
+    @mock.patch("bauble.gui")
     def test_rerun_previous_search_basic(self, mock_gui):
         mock_gui.window.get_size().width = 100
 
