@@ -1183,7 +1183,10 @@ class GenericPresenter:
                 self.view: FooView
                 super().__init__(model, view)
 
-            view.bar.connect("changed", self.on_text_entry_changed)
+                view.bar.connect("changed", self.on_text_entry_changed)
+
+            def on_text_entry_changed(self, entry: Gtk.Entry) -> None:
+                super().on_text_entry_changed(entry)
 
         model = FooModel()
         view = FooView()
