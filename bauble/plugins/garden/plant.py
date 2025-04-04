@@ -59,6 +59,7 @@ from sqlalchemy import and_
 from sqlalchemy import case
 from sqlalchemy import event
 from sqlalchemy import func
+from sqlalchemy import inspect as sa_inspect
 from sqlalchemy import not_
 from sqlalchemy import or_
 from sqlalchemy import select
@@ -1294,7 +1295,6 @@ class PlantEditorView(GenericEditorView):
             value = model[treeiter][0]
             # when cancelling an insert sometimes the session gets lost and can
             # result in a long cycle of DetachedInstanceErrors. So check first
-            from sqlalchemy import inspect as sa_inspect
 
             if sa_inspect(value).persistent:
                 renderer.set_property("text", f"{value} ({value.species})")
@@ -2606,6 +2606,10 @@ def plant_to_string_matcher(plant: Plant, text: str) -> bool:
     :return: bool, True if the Plant matches the key
     """
     text = text.lower()
+
+    if not sa_inspect(plant).persistent:
+        return False
+
     species = plant.accession.species
     parts = text.split(" ", 1)
     plt_match = sp_match = False
