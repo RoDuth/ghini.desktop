@@ -1427,6 +1427,9 @@ class SearchView(pluginmgr.View, Gtk.Box):
         sbcontext_id = statusbar.get_context_id("searchview.nresults")
         statusbar.pop(sbcontext_id)
 
+        if not isinstance(results[0], db.Domain):
+            return
+
         if len(set(item.__class__ for item in results)) == 1:
             class_ = results[0].__class__
             sbcontext_id = statusbar.get_context_id("searchview.nresults")

@@ -641,13 +641,26 @@ class TestSearchView(BaubleTestCase):
     def test_update_statusbar_non_homogeneous_result(self):
         search_view = get_search_view()
         mock_status_bar = mock.Mock()
-        search_view.update_statusbar(
-            [1, "one", object()], statusbar=mock_status_bar
-        )
+
+        objects = []
+        for i in range(3):
+            objects.append(
+                type(f"type{i}", (db.Domain,), {"__tablename__": f"test{i}"})()
+            )
+
+        search_view.update_statusbar(objects, statusbar=mock_status_bar)
         self.assertIn(
             "size of non homogeneous result: 3",
             mock_status_bar.push.call_args[0],
         )
+
+    def test_update_statusbar_search_error(self):
+        search_view = get_search_view()
+        mock_status_bar = mock.Mock()
+
+        search_view.update_statusbar(["error msg"], statusbar=mock_status_bar)
+        mock_status_bar.pop.assert_called()
+        mock_status_bar.push.assert_not_called()
 
     @mock.patch("bauble.gui")
     def test_update_context_menus_all_domains(self, mock_gui):
