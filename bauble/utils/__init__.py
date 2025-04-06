@@ -886,15 +886,48 @@ def create_message_details_dialog(
     return dialog
 
 
+def truncate_message(
+    string: str,
+    max_lines: int = 100,
+    max_line_length: int = 400,
+) -> str:
+    final = []
+    for line in string.split("\n"):
+
+        if len(line) > max_line_length:
+            line = line[:max_line_length] + "  ..."
+
+        final.append(line)
+
+    if len(final) > max_lines:
+        final = final[:max_lines]
+        final.append("... message truncated ...")
+
+    return "\n".join(final)
+
+
 def message_details_dialog(
-    msg,
-    details,
-    typ=Gtk.MessageType.INFO,
-    buttons=Gtk.ButtonsType.OK,
-    parent=None,
-):
-    """Create and run a message dialog with a details expander."""
-    dialog = create_message_details_dialog(msg, details, typ, buttons, parent)
+    message: str,
+    details: str,
+    type_: Gtk.MessageType = Gtk.MessageType.INFO,
+    buttons: Gtk.ButtonsType = Gtk.ButtonsType.OK,
+    parent: Gtk.Window | None = None,
+) -> Gtk.ResponseType:
+    """Create and run a message dialog with a details expander.
+
+    If the message or details message provided is so long that it could cause
+    dislay issues then they will be truncated.
+    """
+    message = truncate_message(message)
+    details = truncate_message(details, max_lines=300)
+
+    dialog = create_message_details_dialog(
+        message,
+        details,
+        type_,
+        buttons,
+        parent,
+    )
     response = dialog.run()
     dialog.destroy()
     return response

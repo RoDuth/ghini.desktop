@@ -131,7 +131,7 @@ def remove_callback(objs, **kwargs):
     except Exception as e:  # pylint: disable=broad-except
         msg = _("Could not delete.\n\n%s") % utils.xml_safe(e)
         utils.message_details_dialog(
-            msg, traceback.format_exc(), typ=Gtk.MessageType.ERROR
+            msg, traceback.format_exc(), Gtk.MessageType.ERROR
         )
         session.rollback()
     return True

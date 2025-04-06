@@ -107,7 +107,7 @@ class UtilsTest(TestCase):
 
     def test_create_message_dialog(self):
         msg = "test message"
-        # msg = ' this is a longer message to test that the dialog width is correct.....but what if it keeps going'
+
         dlog = utils.create_message_dialog(msg)
         self.assertTrue(isinstance(dlog, Gtk.MessageDialog))
         msg_label = dlog.get_message_area().get_children()[0]
@@ -117,6 +117,39 @@ class UtilsTest(TestCase):
         # should just be message_area and button_box  (no details area)
         self.assertEqual(len(contents), 2)
         dlog.destroy()
+
+    def test_truncate_message(self):
+        line = "#" * 500
+        lines_in = "\n".join(line for _ in range(200))
+        expected = "\n".join(line[:100] + "  ..." for _ in range(50))
+        expected += "\n... message truncated ..."
+
+        self.assertEqual(utils.truncate_message(lines_in, 50, 100), expected)
+
+    def test_message_details_dialog_truncates(self):
+        line = "#" * 500
+        lines_in = "\n".join(line for _ in range(200))
+        expected_message = "\n".join(line[:400] + "  ..." for _ in range(100))
+        expected_message += "\n... message truncated ..."
+
+        detail = "*" * 500
+        details_in = "\n".join(detail for _ in range(500))
+        expected_details = "\n".join(
+            detail[:400] + "  ..." for _ in range(300)
+        )
+        expected_details += "\n... message truncated ..."
+
+        with mock.patch(
+            "bauble.utils.create_message_details_dialog"
+        ) as mockdd:
+            utils.message_details_dialog(lines_in, details_in)
+            mockdd.assert_called_with(
+                expected_message,
+                expected_details,
+                Gtk.MessageType.INFO,
+                Gtk.ButtonsType.OK,
+                None,
+            )
 
     def test_search_tree_model(self):
         """

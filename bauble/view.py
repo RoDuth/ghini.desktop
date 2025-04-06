@@ -1322,7 +1322,7 @@ class SearchView(pluginmgr.View, Gtk.Box):
                 "\n\n%s"
             ) % utils.xml_safe(str(e))
             utils.message_details_dialog(
-                msg, traceback.format_exc(), typ=Gtk.MessageType.ERROR
+                msg, traceback.format_exc(), Gtk.MessageType.ERROR
             )
 
         string = "\n".join(out)

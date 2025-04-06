@@ -137,7 +137,7 @@ def load(path=None):
         utils.message_details_dialog(
             "Could not load plugin: \n\n<i>%s</i>\n\n%s" % (name, exc_str),
             tb_str,
-            typ=Gtk.MessageType.ERROR,
+            Gtk.MessageType.ERROR,
         )
 
     if len(found) == 0:
