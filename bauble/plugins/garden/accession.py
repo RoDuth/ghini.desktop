@@ -834,7 +834,7 @@ class Accession(db.Domain, db.WithNotes):
 
     @active.expression  # type: ignore [no-redef]
     def active(cls):
-        # pylint: disable=no-self-argument
+        # pylint: disable=no-self-argument,arguments-renamed
         inactive = (
             select([cls.id])
             .outerjoin(Plant)

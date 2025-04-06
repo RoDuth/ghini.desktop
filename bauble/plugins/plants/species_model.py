@@ -1386,7 +1386,7 @@ class VernacularName(db.Domain):
 
     @active.expression  # type: ignore [no-redef]
     def active(cls):
-        # pylint: disable=no-self-argument
+        # pylint: disable=no-self-argument,arguments-renamed
         sp_cls = cls.species.prop.mapper.class_
         acc_cls = sp_cls.accessions.prop.mapper.class_
         plt_cls = acc_cls.plants.prop.mapper.class_

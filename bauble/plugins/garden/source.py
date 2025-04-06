@@ -38,8 +38,10 @@ from sqlalchemy import ForeignKey
 from sqlalchemy import Integer
 from sqlalchemy import Unicode
 from sqlalchemy import UnicodeText
+from sqlalchemy import and_
 from sqlalchemy import case
 from sqlalchemy import cast
+from sqlalchemy import exists
 from sqlalchemy import func
 from sqlalchemy import literal
 from sqlalchemy import or_
@@ -392,6 +394,98 @@ class Collection(db.Domain):
     def count_children(self):
         # more expensive than other models (loads full accession query)
         return self.source.accession.count_children()
+
+    @property
+    def pictures(self) -> list[Picture]:
+        if not isinstance(object_session(self), Session):
+            return []
+
+        return self.source.accession.pictures
+
+    @hybrid_property
+    def active(self) -> bool:
+        """False when all accessions have been deaccessioned
+        (e.g. all plants have died)
+        """
+        return self.source.accession.active
+
+    @active.expression  # type: ignore [no-redef]
+    def active(cls) -> types.Boolean:
+        # pylint: disable=no-self-argument,arguments-renamed
+
+        from . import Accession
+        from . import Plant
+
+        inactive = (
+            select([cls.id])
+            .join(Source)
+            .join(Accession)
+            .outerjoin(Plant)
+            .where(Plant.id.is_not(None))
+            .group_by(cls.id)
+            .having(func.sum(Plant.quantity) == 0)
+            .scalar_subquery()
+        )
+        return cast(case([(cls.id.in_(inactive), 0)], else_=1), types.Boolean)
+
+    @classmethod
+    def top_level_count(
+        cls,
+        ids: list[int],
+        exclude_inactive: bool = False,
+    ) -> db.TopLevelCount:
+
+        from ..plants import Family
+        from ..plants import Genus
+        from ..plants import Species
+        from . import Accession
+        from . import Location
+        from . import Plant
+
+        base_ids_stmt = (
+            select(
+                Family.id,
+                Genus.id,
+                Species.id,
+                Accession.id,
+                Plant.top_level_count_id(exclude_inactive),
+                Location.top_level_count_id(exclude_inactive),
+                SourceDetail.id,
+            )
+            .select_from(Accession)
+            .outerjoin(Source)
+            .outerjoin(SourceDetail)
+            .outerjoin(cls)
+            .outerjoin(Species)
+            .outerjoin(Genus)
+            .outerjoin(Family)
+            .outerjoin(Plant)
+            .outerjoin(Location)
+        )
+
+        class Stmt:  # pylint: disable=too-few-public-methods
+            # Allows adding the where clause to the subquery
+            subquery = (
+                select(
+                    Plant.quantity,
+                )
+                .select_from(cls)
+                .join(Source)
+                .join(Accession)
+                .join(Plant)
+                .group_by(Plant.id, Plant.quantity)
+            )
+
+            def where(self, condition):
+                subquery = self.subquery.where(condition).subquery()
+                return select(func.sum(subquery.c.quantity))
+
+        base_count_stmt = Stmt()
+
+        result = cls._top_level_counter_helper(
+            base_ids_stmt, base_count_stmt, ids
+        )
+        return db.TopLevelCount(*result)
 
 
 class CollectionPresenter(editor.ChildPresenter):

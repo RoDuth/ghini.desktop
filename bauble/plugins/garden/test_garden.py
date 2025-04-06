@@ -4443,6 +4443,149 @@ class CollectionTests(GardenTestCase):
             ["Someone", "Someone Else", "me"],
         )
 
+    def test_pictures(self):
+        collection = self.session.query(Collection).first()
+        self.assertEqual(collection.pictures, [])
+        plt = collection.source.accession.plants[0]
+        pic = PlantPicture(picture="test1.jpg", plant=plt)
+        self.session.commit()
+
+        self.assertEqual(collection.pictures, [pic])
+
+        plt.quantity = 0
+        self.session.commit()
+        # exclude inactive
+        prefs.prefs[prefs.exclude_inactive_pref] = True
+
+        self.assertEqual(collection.pictures, [])
+
+        # detached returns empty
+        prefs.prefs[prefs.exclude_inactive_pref] = False
+        self.session.expunge(collection)
+        self.assertEqual(collection.pictures, [])
+
+    def test_active_no_plants(self):
+        collection = self.session.query(Collection).get(3)
+
+        self.assertTrue(collection.active)
+
+        # pylint: disable=no-member
+        collection_active_in_db = self.session.query(Collection).filter(
+            Collection.active.is_(True)
+        )
+
+        self.assertIn(collection, collection_active_in_db)
+
+    def test_active_plants_w_qty(self):
+        collection = self.session.query(Collection).get(2)
+
+        self.assertTrue(collection.active)
+
+        # pylint: disable=no-member
+        collection_active_in_db = self.session.query(Collection).filter(
+            Collection.active.is_(True)
+        )
+
+        self.assertIn(collection, collection_active_in_db)
+
+    def test_active_plants_wo_qty(self):
+        collection = self.session.query(Collection).get(1)
+        for plt in collection.source.accession.plants:
+            plt.quantity = 0
+        self.session.commit()
+
+        self.assertFalse(collection.active)
+
+        # pylint: disable=no-member
+        collection_active_in_db = self.session.query(Collection).filter(
+            Collection.active.is_(True)
+        )
+
+        self.assertNotIn(collection, collection_active_in_db)
+
+    def test_top_level_count_w_plant_qty(self):
+        expected = (
+            "Families: 1, "
+            "Genera: 2, "
+            "Species: 2, "
+            "Accessions: 2, "
+            "Plantings: 3, "
+            "Living plants: 3, "
+            "Locations: 1, "
+            "Sources: 1"
+        )
+
+        self.assertEqual(str(Collection.top_level_count([1, 3])), expected)
+
+    def test_top_level_count_wo_plant_qty(self):
+        collection = self.session.query(Collection).get(1)
+        for plt in collection.source.accession.plants:
+            plt.quantity = 0
+        self.session.commit()
+
+        expected = (
+            "Families: 1, "
+            "Genera: 2, "
+            "Species: 2, "
+            "Accessions: 2, "
+            "Plantings: 3, "
+            "Living plants: 1, "
+            "Locations: 1, "
+            "Sources: 1"
+        )
+
+        self.assertEqual(str(Collection.top_level_count([1, 3])), expected)
+
+    def test_top_level_count_wo_plant_qty_exclude_inactive(self):
+        collection = self.session.query(Collection).get(1)
+        collection.source.accession.plants[0].quantity = 0
+        self.session.commit()
+
+        expected = (
+            "Families: 1, "
+            "Genera: 2, "
+            "Species: 2, "
+            "Accessions: 2, "
+            "Plantings: 2, "
+            "Living plants: 2, "
+            "Locations: 1, "
+            "Sources: 1"
+        )
+
+        self.assertEqual(
+            str(Collection.top_level_count([1, 3], True)), expected
+        )
+
+    def test_top_level_count_wo_plant(self):
+        expected = (
+            "Families: 1, "
+            "Genera: 2, "
+            "Species: 2, "
+            "Accessions: 2, "
+            "Plantings: 2, "
+            "Living plants: 2, "
+            "Locations: 1, "
+            "Sources: 0"
+        )
+
+        self.assertEqual(str(Collection.top_level_count([1, 2])), expected)
+
+    def test_top_level_count_wo_plant_exclude_inactive(self):
+        expected = (
+            "Families: 1, "
+            "Genera: 2, "
+            "Species: 2, "
+            "Accessions: 2, "
+            "Plantings: 2, "
+            "Living plants: 2, "
+            "Locations: 1, "
+            "Sources: 0"
+        )
+
+        self.assertEqual(
+            str(Collection.top_level_count([1, 2], True)), expected
+        )
+
 
 class InstitutionTests(GardenTestCase):
     def test_init_13_props(self):

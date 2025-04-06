@@ -470,7 +470,10 @@ class Genus(db.Domain, db.WithNotes):
             # pylint: disable=no-member,line-too-long
             query = query.filter(
                 exists().where(
-                    and_(Species.genus_id == self.id, Species.active.is_(True))  # type: ignore [attr-defined] # noqa
+                    and_(
+                        Species.genus_id == self.id,
+                        Species.active.is_(True),  # type: ignore [attr-defined] # noqa
+                    )
                 )
             )
         else:

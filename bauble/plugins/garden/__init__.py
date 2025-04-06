@@ -249,6 +249,15 @@ class GardenPlugin(pluginmgr.Plugin):
             children=partial(db.get_active_children, coll_kids),
             infobox=cls.accession_infobox,
             context_menu=collection_context_menu,
+            sorter=lambda obj: (
+                (
+                    obj.source.accession.species.full_sci_name or "",
+                    str(obj),
+                    obj.id,
+                )
+                if prefs.prefs.get(SORT_BY_PREF)
+                else (str(obj), obj.id)
+            ),
             activated_callback=collection_edit_callback,
         )
 
