@@ -3061,6 +3061,49 @@ class AccessionTests(GardenTestCase):
 
         self.assertEqual(acc.count_children(), 0)
 
+    def test_has_children(self):
+        acc = self.create(Accession, species=self.species, code="1")
+        plant = self.create(
+            Plant,
+            accession=acc,
+            quantity=0,
+            location=Location(name="site", code="STE"),
+            code="1",
+        )
+        self.session.commit()
+
+        prefs.prefs[prefs.exclude_inactive_pref] = True
+
+        # plant qty 0 exclude inactive true
+        self.assertEqual(acc.has_children(), False)
+
+        prefs.prefs[prefs.exclude_inactive_pref] = False
+
+        # plant qty 0 exclude inactive false
+        self.assertEqual(acc.has_children(), True)
+
+        plant.quantity = 1
+        self.session.commit()
+
+        # plant qty 1 exclude inactive false
+        self.assertEqual(acc.has_children(), True)
+
+        prefs.prefs[prefs.exclude_inactive_pref] = False
+
+        # plant qty 1 exclude inactive true
+        self.assertEqual(acc.has_children(), True)
+
+        self.session.delete(plant)
+        self.session.commit()
+
+        # no plant exclude inactive false
+        self.assertEqual(acc.has_children(), False)
+
+        prefs.prefs[prefs.exclude_inactive_pref] = True
+
+        # no plant exclude inactive True
+        self.assertEqual(acc.has_children(), False)
+
     def test_top_level_count_w_plant_qty(self):
         expected = (
             "Families: 1, "
@@ -5330,6 +5373,51 @@ class SourceDetailTests(GardenTestCase):
             contact.search_view_markup_pair(),
             ("ANBG", "Botanic Garden or Arboretum"),
         )
+
+    def test_has_children(self):
+        source_detail = self.create(SourceDetail, name="Forrest Gardner")
+        acc = self.create(Accession, species=self.species, code="1")
+        Source(accession=acc, source_detail=source_detail)
+        plant = self.create(
+            Plant,
+            accession=acc,
+            quantity=0,
+            location=Location(name="site", code="STE"),
+            code="1",
+        )
+        self.session.commit()
+
+        prefs.prefs[prefs.exclude_inactive_pref] = True
+
+        # plant qty 0 exclude inactive true
+        self.assertEqual(source_detail.has_children(), False)
+
+        prefs.prefs[prefs.exclude_inactive_pref] = False
+
+        # plant qty 0 exclude inactive false
+        self.assertEqual(source_detail.has_children(), True)
+
+        plant.quantity = 1
+        self.session.commit()
+
+        # plant qty 1 exclude inactive false
+        self.assertEqual(source_detail.has_children(), True)
+
+        prefs.prefs[prefs.exclude_inactive_pref] = True
+
+        # plant qty 1 exclude inactive true
+        self.assertEqual(source_detail.has_children(), True)
+
+        self.session.delete(plant)
+        self.session.commit()
+
+        # no plant exclude inactive true
+        self.assertEqual(source_detail.has_children(), True)
+
+        prefs.prefs[prefs.exclude_inactive_pref] = False
+
+        # no plant exclude inactive false
+        self.assertEqual(source_detail.has_children(), True)
 
     def test_count_children_wo_plants(self):
         source = self.create(SourceDetail, name="name")

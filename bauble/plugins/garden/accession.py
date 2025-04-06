@@ -45,6 +45,7 @@ from sqlalchemy import ForeignKey
 from sqlalchemy import Integer
 from sqlalchemy import Unicode
 from sqlalchemy import UnicodeText
+from sqlalchemy import and_
 from sqlalchemy import case
 from sqlalchemy import cast
 from sqlalchemy import exists
@@ -990,6 +991,22 @@ class Accession(db.Domain, db.WithNotes):
     def has_children(self):
         cls = self.__class__.plants.prop.mapper.class_
         session = object_session(self)
+
+        if prefs.prefs.get(prefs.exclude_inactive_pref):
+            # probably not much point for searchview as would be exluded anyway
+            # but for consistency and possible other uses (reports)
+            return bool(
+                session.query(literal(True))
+                .filter(
+                    exists().where(
+                        and_(
+                            cls.accession_id == self.id,
+                            cls.active.is_(True),
+                        )
+                    )
+                )
+                .scalar()
+            )
         return bool(
             session.query(literal(True))
             .filter(exists().where(cls.accession_id == self.id))

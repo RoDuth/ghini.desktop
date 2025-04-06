@@ -35,8 +35,10 @@ from sqlalchemy import Integer
 from sqlalchemy import String
 from sqlalchemy import Unicode
 from sqlalchemy import UniqueConstraint
+from sqlalchemy import and_
 from sqlalchemy import case
 from sqlalchemy import cast
+from sqlalchemy import exists
 from sqlalchemy import func
 from sqlalchemy import literal
 from sqlalchemy import or_
@@ -370,9 +372,23 @@ class Family(db.Domain, db.WithNotes):
 
     def has_children(self):
         cls = self.__class__.genera.prop.mapper.class_
-        from sqlalchemy import exists
 
         session = object_session(self)
+
+        if prefs.prefs.get(prefs.exclude_inactive_pref):
+            # probably not much point for searchview as would be exluded anyway
+            return bool(
+                session.query(literal(True))
+                .filter(
+                    exists().where(
+                        and_(
+                            cls.family_id == self.id,
+                            cls.active.is_(True),
+                        )
+                    )
+                )
+                .scalar()
+            )
         return bool(
             session.query(literal(True))
             .filter(exists().where(cls.family_id == self.id))

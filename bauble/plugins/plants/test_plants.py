@@ -1186,6 +1186,56 @@ class FamilyTests(PlantTestCase):
         )
         self.assertNotIn(fam, fam_active_in_db)
 
+    def test_has_children(self):
+        from ..garden import Accession
+        from ..garden import Location
+
+        fam = Family(epithet="Welwitschiaceae")
+        gen = Genus(epithet="Welwitschia", family=fam)
+        sp = Species(epithet="mirablis", genus=gen)
+        acc = Accession(species=sp, code="1")
+        loc = Location(code="LOC10")
+        plant = Plant(
+            accession=acc,
+            quantity=0,
+            location=loc,
+            code="1",
+        )
+        self.session.add(plant)
+        self.session.commit()
+
+        prefs.prefs[prefs.exclude_inactive_pref] = True
+
+        # plant qty 0 exclude inactive true
+        self.assertEqual(fam.has_children(), False)
+
+        prefs.prefs[prefs.exclude_inactive_pref] = False
+
+        # plant qty 0 exclude inactive false
+        self.assertEqual(fam.has_children(), True)
+
+        plant.quantity = 1
+        self.session.commit()
+
+        # plant qty 1 exclude inactive false
+        self.assertEqual(fam.has_children(), True)
+
+        prefs.prefs[prefs.exclude_inactive_pref] = True
+
+        # plant qty 1 exclude inactive true
+        self.assertEqual(fam.has_children(), True)
+
+        self.session.delete(plant)
+        self.session.commit()
+
+        # no plant exclude inactive true
+        self.assertEqual(fam.has_children(), True)
+
+        prefs.prefs[prefs.exclude_inactive_pref] = False
+
+        # no plant exclude inactive false
+        self.assertEqual(fam.has_children(), True)
+
 
 class FamilyTopLevelCountTests(BaubleTestCase):
     def setUp(self):

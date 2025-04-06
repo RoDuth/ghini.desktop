@@ -1258,9 +1258,25 @@ class SourceDetail(db.Domain):
         )
 
     def has_children(self):
-        from sqlalchemy import exists
+        cls = Source.accession.prop.mapper.class_
 
         session = object_session(self)
+
+        if prefs.prefs.get(prefs.exclude_inactive_pref):
+            # probably not much point for searchview as would be exluded anyway
+            return bool(
+                session.query(literal(True))
+                .filter(
+                    exists().where(
+                        and_(
+                            Source.source_detail_id == self.id,
+                            cls.id == Source.accession_id,
+                            cls.active.is_(True),
+                        )
+                    )
+                )
+                .scalar()
+            )
         return bool(
             session.query(literal(True))
             .filter(exists().where(Source.source_detail_id == self.id))
