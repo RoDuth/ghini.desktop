@@ -1991,8 +1991,10 @@ class SearchView(pluginmgr.View, Gtk.Box):
 
         self.expand_to_all_rows(expanded_rows)
 
-        if tree_paths:
+        if cursor_path:
             self.results_view.set_cursor(cursor_path)
+
+        if tree_paths:
             for path in tree_paths:
                 self.selection.select_path(path)
 
