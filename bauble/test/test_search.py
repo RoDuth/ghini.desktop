@@ -2376,6 +2376,15 @@ class FilterThenMatchTests(BaubleTestCase):
         results = []
         for i in mapper_search.search(s, self.session):
             results.extend(i)
+
+        self.assertEqual(results, [self.genus4])
+
+        # IS
+        s = "genus where notes is Empty"
+        results = []
+        for i in mapper_search.search(s, self.session):
+            results.extend(i)
+
         self.assertEqual(results, [self.genus4])
 
     def test_can_find_non_empty_set(self):
@@ -2388,6 +2397,15 @@ class FilterThenMatchTests(BaubleTestCase):
         results = []
         for i in mapper_search.search(s, self.session):
             results.extend(i)
+
+        self.assertCountEqual(results, [self.genus1, self.genus2, self.genus3])
+
+        # NOT
+        s = "genus where notes not Empty"
+        results = []
+        for i in mapper_search.search(s, self.session):
+            results.extend(i)
+
         self.assertCountEqual(results, [self.genus1, self.genus2, self.genus3])
 
     def test_can_match_list_of_values(self):

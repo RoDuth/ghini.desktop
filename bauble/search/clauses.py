@@ -112,10 +112,10 @@ class BinaryClause(ClauseAction):
 
         if self.operands[1].express(handler) == set():
             # check against the empty set
-            if self.oper in ("is", "=", "=="):
+            if self.oper.lower() in ("is", "=", "=="):
                 handler.query = handler.query.filter(~attr.any())
                 return handler.query
-            if self.oper in ("not", "<>", "!="):
+            if self.oper.lower() in ("not", "<>", "!="):
                 handler.query = handler.query.filter(attr.any())
                 return handler.query
 
