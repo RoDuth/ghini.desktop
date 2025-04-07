@@ -68,6 +68,7 @@ from pyparsing import printables
 from pyparsing import quoted_string
 from pyparsing import remove_quotes
 from sqlalchemy import and_
+from sqlalchemy import inspect
 from sqlalchemy.orm import Query
 from sqlalchemy.orm import Session
 from sqlalchemy.orm import object_session
@@ -787,9 +788,11 @@ class PicturesScroller(Gtk.ScrolledWindow):
             search_view := bauble.gui.get_view(), SearchView
         ):
             model = search_view.results_view.get_model()
+
             if not model:
                 logger.debug("no model")
                 return
+
             selected = cast(list, search_view.get_selected_values())
 
             if selected == [picture.owner]:
@@ -1953,6 +1956,17 @@ class SearchView(pluginmgr.View, Gtk.Box):
         menu.popup_at_pointer(event)
         return True
 
+    def remove_non_persistent_results_view_roots(self) -> None:
+        """Removes any tree roots that are no longer persistent (deleted)."""
+
+        model = cast(Gtk.TreeStore, self.results_view.get_model())
+
+        for row in model:
+            state = inspect(row[0])
+
+            if not state.persistent:
+                model.remove(row.iter)
+
     def update(self, *_args) -> None:
         """Expire all the children in the model, collapse everything, reexpand
         the rows to the previous state where possible.
@@ -1961,7 +1975,13 @@ class SearchView(pluginmgr.View, Gtk.Box):
         """
         # used in tests
         logger.debug("SearchView::update")
+
+        # remove root nodes that have been deleted first. Nodes on the branches
+        # are dealt with later by collapsing and re-expanding.
+        self.remove_non_persistent_results_view_roots()
+
         model, tree_paths = self.selection.get_selected_rows()
+
         cursor_path, _column = self.results_view.get_cursor()
 
         refs = []
@@ -1979,9 +1999,6 @@ class SearchView(pluginmgr.View, Gtk.Box):
         self.selection.handler_unblock(self._selection_changed_sigid)
 
         # expand_to_all_rows will invalidate the ref so get the path first
-        if not refs:
-            return
-
         tree_paths = []
         for ref in refs:
             if ref.valid():

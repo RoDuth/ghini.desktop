@@ -250,7 +250,6 @@ def remove_callback(
     for tag in tags:
         try:
             session.delete(tag)
-            utils.remove_from_results_view(tags)
             session.commit()
         except Exception as e:  # pylint: disable=broad-except
             msg = _("Could not delete.\n\n%s") % utils.xml_safe(e)

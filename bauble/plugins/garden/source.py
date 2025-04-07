@@ -1166,7 +1166,6 @@ def source_detail_remove_callback(objs, **kwargs):
     for detail in objs:
         session.delete(detail)
     try:
-        utils.remove_from_results_view(objs)
         session.commit()
     except Exception as e:  # pylint: disable=broad-except
         msg = _("Could not delete.\n\n%s") % utils.xml_safe(e)

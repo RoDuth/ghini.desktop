@@ -116,7 +116,6 @@ def remove_callback(objs, **kwargs):
     for family in families:
         session.delete(family)
     try:
-        utils.remove_from_results_view(families)
         session.commit()
     except Exception as e:
         msg = _("Could not delete.\n\n%s") % utils.xml_safe(e)

@@ -126,7 +126,6 @@ def remove_callback(objs, **kwargs):
     for genus in genera:
         session.delete(genus)
     try:
-        utils.remove_from_results_view(genera)
         session.commit()
     except Exception as e:  # pylint: disable=broad-except
         msg = _("Could not delete.\n\n%s") % utils.xml_safe(e)

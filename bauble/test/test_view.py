@@ -28,6 +28,7 @@ from gi.repository import Gdk
 from gi.repository import Gio
 from gi.repository import Gtk
 from sqlalchemy.exc import InvalidRequestError
+from sqlalchemy.orm import object_session
 
 from bauble import db
 from bauble import error
@@ -1003,6 +1004,42 @@ class TestSearchView(BaubleTestCase):
 
         self.assertEqual(len(selected), 3)
         self.assertCountEqual(start_ids, [i.id for i in selected])
+
+    @mock.patch("bauble.gui")
+    def test_update_removes_deleted(self, mock_gui):
+        mock_gui.window.get_size().width = 100
+
+        for func in get_setUp_data_funcs():
+            func()
+
+        search_view = self.search_view
+        search_view.search("accession where id < 5")
+        model = search_view.results_view.get_model()
+        # get the first accession with no plants and select the row
+        acc = None
+        for row in model:
+            if not row[0].plants:
+                acc = row[0]
+                search_view.results_view.set_cursor(row.path)
+        start_id = acc.id
+        selected = search_view.get_selected_values()
+        # confirm its selected
+        self.assertIs(selected[0], acc)
+        self.assertEqual(len(selected), 1)
+        session = object_session(acc)
+        # delete it
+        session.delete(acc)
+        session.commit()
+        # update
+        search_view.update()
+        selected = search_view.get_selected_values()
+
+        # confirm its no longer there
+        self.assertEqual(len(selected), 1)
+        self.assertNotEqual(selected[0].id, start_id)
+        for row in model:
+            acc = row[0]
+            self.assertNotEqual(acc.id, start_id)
 
     @mock.patch("bauble.gui")
     def test_rerun_previous_search_basic(self, mock_gui):

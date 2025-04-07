@@ -233,7 +233,6 @@ def remove_callback(objs, **kwargs):
     for acc in accessions:
         session.delete(acc)
     try:
-        utils.remove_from_results_view(accessions)
         session.commit()
     except Exception as e:  # pylint: disable=broad-except
         msg = _("Could not delete.\n\n%s") % utils.xml_safe(str(e))

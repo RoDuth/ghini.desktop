@@ -107,7 +107,6 @@ def remove_callback(objs, **kwargs):
     for loc in locations:
         session.delete(loc)
     try:
-        utils.remove_from_results_view(locations)
         session.commit()
     except Exception as e:  # pylint: disable=broad-except
         msg = _("Could not delete.\n\n%s") % utils.xml_safe(e)
