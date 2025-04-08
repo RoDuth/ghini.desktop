@@ -56,6 +56,7 @@ from bauble.view import SEARCH_CACHE_SIZE_PREF
 from bauble.view import SEARCH_POLL_SECS_PREF
 from bauble.view import SEARCH_REFRESH_PREF
 from bauble.view import BaubleLinkButton
+from bauble.view import DefaultCommandHandler
 from bauble.view import HistoryView
 from bauble.view import InfoBox
 from bauble.view import InfoBoxPage
@@ -439,6 +440,24 @@ class TestSearchView(BaubleTestCase):
         with mock.patch.object(search_view, "populate_callbacks", []):
             search_view.populate_results(range(4000))
         mock_task.queue.assert_called()
+
+    def test_populate_worker_doesnt_add_twice(self):
+        search_view = self.search_view
+        fam = Family(epithet="Myrtaceae")
+        list(search_view._populate_worker([fam, fam, fam]))
+        model = search_view.results_view.get_model()
+
+        self.assertEqual(len(model), 1)
+
+    def test_populate_worker_prepends_children_mark_if_refresh_false(self):
+        search_view = self.search_view
+        search_view.refresh = False
+        fam = Family(epithet="Myrtaceae")
+        list(search_view._populate_worker([fam]))
+        model = search_view.results_view.get_model()
+        itr = model.get_iter(Gtk.TreePath.new_from_string("0:0"))
+
+        self.assertEqual(model.get_value(itr, 0), "-")
 
     def test_on_action_activate_supplies_selected_updates(self):
         for func in get_setUp_data_funcs():
@@ -952,6 +971,33 @@ class TestSearchView(BaubleTestCase):
         end = model.iter_n_children(tree_iter)
         self.assertEqual(start + 1, end)
 
+    def test_cell_data_func_random_error_logs_raises(self):
+        # as if another user had added an item
+        for func in get_setUp_data_funcs():
+            func()
+        search_view = self.search_view
+        search_view.search("genus where id = 1")
+        results_view = search_view.results_view
+        mock_renderer = mock.Mock()
+        mock_renderer.set_property.side_effect = ValueError("boom")
+        model = results_view.get_model()
+        path = Gtk.TreePath.new_first()
+        tree_iter = model.get_iter(path)
+
+        with self.assertLogs(level="ERROR") as logs:
+            self.assertRaises(
+                ValueError,
+                search_view.cell_data_func,
+                results_view.get_column(0),
+                mock_renderer,
+                model,
+                tree_iter,
+                None,
+            )
+        self.assertTrue(
+            any("cell_data_func: ValueError(boom)" in i for i in logs.output)
+        )
+
     @mock.patch("bauble.gui")
     def test_update_expires_all_and_triggers_selection_change(self, mock_gui):
         mock_gui.window.get_size().width = 100
@@ -1006,6 +1052,33 @@ class TestSearchView(BaubleTestCase):
         self.assertCountEqual(start_ids, [i.id for i in selected])
 
     @mock.patch("bauble.gui")
+    def test_update_expands_rows(self, mock_gui):
+        mock_gui.window.get_size().width = 100
+
+        for func in get_setUp_data_funcs():
+            func()
+
+        search_view = self.search_view
+        search_view.search("species where accessions not Empty")
+        model = search_view.results_view.get_model()
+        # expand 2
+        for p in ["0", "0:0"]:
+            path = Gtk.TreePath.new_from_string(p)
+            search_view.on_test_expand_row(
+                search_view.results_view, model.get_iter(path), path
+            )
+            search_view.results_view.expand_to_path(path)
+        path = Gtk.TreePath.new_from_string("1")
+        search_view.on_test_expand_row(
+            search_view.results_view, model.get_iter(path), path
+        )
+        search_view.results_view.expand_to_path(path)
+        search_view.update()
+        path_strings = [str(i) for i in search_view.get_expanded_rows()]
+
+        self.assertEqual(path_strings, ["0", "0:0", "1"])
+
+    @mock.patch("bauble.gui")
     def test_update_removes_deleted(self, mock_gui):
         mock_gui.window.get_size().width = 100
 
@@ -1042,7 +1115,24 @@ class TestSearchView(BaubleTestCase):
             self.assertNotEqual(acc.id, start_id)
 
     @mock.patch("bauble.gui")
-    def test_rerun_previous_search_basic(self, mock_gui):
+    def test_update_error(self, _mock_gui):
+        search_view = self.search_view
+        search_string = "accession where private = 3"
+        search_view.search(search_string)
+
+        with self.assertLogs(level="DEBUG") as logs:
+            search_view.update()
+
+        self.assertTrue(
+            any("results_view has no model" in i for i in logs.output)
+        )
+
+        model = search_view.results_view.get_model()
+
+        self.assertIsNone(model)
+
+    @mock.patch("bauble.gui")
+    def test_rerun_last_search_basic(self, mock_gui):
         mock_gui.window.get_size().width = 100
 
         for func in get_setUp_data_funcs():
@@ -1068,7 +1158,7 @@ class TestSearchView(BaubleTestCase):
         self.assertCountEqual(start_ids, [i.id for i in selected2])
 
     @mock.patch("bauble.gui")
-    def test_rerun_previous_search_basic_w_inactive(self, mock_gui):
+    def test_rerun_last_search_basic_w_inactive(self, mock_gui):
         mock_gui.window.get_size().width = 100
 
         for func in get_setUp_data_funcs():
@@ -1107,7 +1197,7 @@ class TestSearchView(BaubleTestCase):
         self.assertCountEqual(start_ids, [i.id for i in selected3])
 
     @mock.patch("bauble.gui")
-    def test_rerun_previous_search_w_expanded_selected_cursor(self, mock_gui):
+    def test_rerun_last_search_w_expanded_selected_cursor(self, mock_gui):
 
         mock_gui.window.get_size().width = 100
 
@@ -1173,7 +1263,7 @@ class TestSearchView(BaubleTestCase):
         self.assertCountEqual(start_ids, [i.id for i in selected2])
 
     @mock.patch("bauble.gui")
-    def test_rerun_previous_search_empty(self, mock_gui):
+    def test_rerun_last_search_empty(self, mock_gui):
 
         mock_gui.window.get_size().width = 100
 
@@ -1197,7 +1287,7 @@ class TestSearchView(BaubleTestCase):
         )
 
     @mock.patch("bauble.gui")
-    def test_rerun_previous_search_previous_errored(self, mock_gui):
+    def test_rerun_last_search_previous_errored(self, mock_gui):
         mock_gui.window.get_size().width = 100
 
         for func in get_setUp_data_funcs():
@@ -1214,6 +1304,26 @@ class TestSearchView(BaubleTestCase):
         search_view.search(search_string)
         model = search_view.results_view.get_model()
         self.assertIsNone(model)
+
+    @mock.patch("bauble.gui")
+    def test_rerun_last_search_too_many_paths(self, mock_gui):
+        mock_gui.window.get_size().width = 100
+
+        for func in get_setUp_data_funcs():
+            func()
+
+        search_view = self.search_view
+        search_string = "species where id != 0"
+        search_view.search(search_string)
+        # select all
+        model = search_view.results_view.get_model()
+        for row in model:
+            search_view.selection.select_path(row.path)
+        self.assertGreater(len(search_view.get_selected_values()), 20)
+
+        search_view.rerun_last_search()
+
+        self.assertEqual(len(search_view.get_selected_values()), 1)
 
     @mock.patch("bauble.gui")
     def test_get_expanded_tree(self, mock_gui):
@@ -1500,6 +1610,29 @@ class TestSearchView(BaubleTestCase):
 
         self.assertTrue(any("view button 3 press" in i for i in logs.output))
 
+    def test_on_view_button_press_3_not_selected_returns_false(self):
+        for func in get_setUp_data_funcs():
+            func()
+        search_view = self.search_view
+        search_view.search("genus where id = 1")
+
+        event = Gdk.EventButton()
+        event.type = Gdk.EventType.BUTTON_PRESS
+        event.button = 3
+        event.x = 1.0
+        event.y = 1.0
+
+        mock_view = mock.Mock()
+        mock_view.get_path_at_pos.return_value = (0, 0, 0, 0)
+        mock_view.get_selection().path_is_selected.return_value = False
+
+        with self.assertLogs(level="DEBUG") as logs:
+            self.assertFalse(
+                search_view.on_view_button_press(mock_view, event)
+            )
+
+        self.assertTrue(any("view button 3 press" in i for i in logs.output))
+
     def test_on_view_button_release_not_3_returns_false(self):
         for func in get_setUp_data_funcs():
             func()
@@ -1555,6 +1688,60 @@ class TestSearchView(BaubleTestCase):
         mock_callback.assert_called()
         mock_popup.assert_called()
 
+    @mock.patch("bauble.view.Gtk.Menu.popup_at_pointer")
+    def test_on_view_button_release_long_press_returns_true(self, mock_popup):
+        for func in get_setUp_data_funcs():
+            func()
+        search_view = self.search_view
+        search_view.search("genus where id = 1")
+        search_view.btn_1_timer = (4000, 1, 1)
+
+        results_view = search_view.results_view
+        mock_callback = mock.Mock()
+        mock_callback.return_value = Gio.Menu()
+
+        search_view.context_menu_callbacks = set([mock_callback])
+
+        event = Gdk.EventButton()
+        event.type = Gdk.EventType.BUTTON_RELEASE
+        event.time = 6000
+        event.x = 1
+        event.y = 1
+        event.button = 1
+
+        self.assertTrue(
+            search_view.on_view_button_release(results_view, event)
+        )
+        mock_callback.assert_called()
+        mock_popup.assert_called()
+
+    @mock.patch("bauble.view.Gtk.Menu.popup_at_pointer")
+    def test_on_view_button_release_3_not_selected_returns_true(
+        self, mock_popup
+    ):
+        for func in get_setUp_data_funcs():
+            func()
+        search_view = self.search_view
+        search_view.search("genus where id = 1")
+
+        results_view = search_view.results_view
+        mock_callback = mock.Mock()
+        mock_callback.return_value = Gio.Menu()
+
+        search_view.context_menu_callbacks = set([mock_callback])
+
+        event = Gdk.EventButton()
+        event.type = Gdk.EventType.BUTTON_RELEASE
+        event.button = 3
+
+        with mock.patch.object(search_view, "get_selected_values") as mock_gsv:
+            mock_gsv.return_value = None
+            self.assertTrue(
+                search_view.on_view_button_release(results_view, event)
+            )
+        mock_callback.assert_not_called()
+        mock_popup.assert_not_called()
+
     def test_on_view_row_activated(self):
         for func in get_setUp_data_funcs():
             func()
@@ -1571,6 +1758,18 @@ class TestSearchView(BaubleTestCase):
         mock_tree_view = mock.Mock()
         search_view.on_view_row_activated(mock_tree_view, "test_path", None)
         mock_tree_view.expand_row.assert_called_with("test_path", False)
+
+        prefs.prefs[EXPAND_ON_ACTIVATE_PREF] = False
+        mock_editor.reset_mock()
+        mock_tree_view.reset_mock()
+        with mock.patch.object(search_view, "get_selected_values") as mock_gsv:
+            mock_gsv.return_value = None
+            search_view.on_view_row_activated(
+                mock_tree_view, "test_path", None
+            )
+
+        mock_tree_view.expand_row.assert_not_called()
+        mock_editor.assert_not_called()
 
     def test_info_box_not_tabbed_add_expander(self):
         prop_exp = PropertiesExpander()
@@ -2930,6 +3129,20 @@ class NotesBottomPageTests(BaubleTestCase):
 
 
 class GlobalFunctionsTests(BaubleTestCase):
+    def test_default_command_handler_call_calls_search(self):
+        search_view = get_search_view()
+        with mock.patch.object(search_view, "search") as mock_search:
+            DefaultCommandHandler()(None, "fam = *")
+        mock_search.assert_called_with("fam = *")
+
+    def test_select_in_search_results_not_search_view_returns(self):
+        mock_view = mock.Mock()
+
+        with mock.patch("bauble.gui") as mock_gui:
+            mock_gui.get_view.return_value = mock_view
+            select_in_search_results(object())
+        mock_view.results_view.get_model.assert_not_called()
+
     def test_select_in_search_results_selects_existing(self):
         for func in get_setUp_data_funcs():
             func()
@@ -2945,20 +3158,6 @@ class GlobalFunctionsTests(BaubleTestCase):
         self.assertNotEqual(start, end)
         self.assertEqual(end[0].id, obj.id)
         search_view.cancel_threads()
-
-    @mock.patch("bauble.gui")
-    def test_get_search_view_selected(self, mock_gui):
-        for func in get_setUp_data_funcs():
-            func()
-        search_view = get_search_view()
-        search_view.search("plant=*")
-        self.assertTrue(search_view.get_selected_values())
-
-        mock_gui.get_view.return_value = search_view
-
-        self.assertEqual(
-            get_search_view_selected(), search_view.get_selected_values()
-        )
 
     def test_select_in_search_results_adds_not_existing(self):
         for func in get_setUp_data_funcs():
@@ -2980,3 +3179,17 @@ class GlobalFunctionsTests(BaubleTestCase):
         self.assertEqual(end[0].id, obj.id)
         update_gui()
         search_view.cancel_threads()
+
+    @mock.patch("bauble.gui")
+    def test_get_search_view_selected(self, mock_gui):
+        for func in get_setUp_data_funcs():
+            func()
+        search_view = get_search_view()
+        search_view.search("plant=*")
+        self.assertTrue(search_view.get_selected_values())
+
+        mock_gui.get_view.return_value = search_view
+
+        self.assertEqual(
+            get_search_view_selected(), search_view.get_selected_values()
+        )

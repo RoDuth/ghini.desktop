@@ -1607,7 +1607,7 @@ class SearchView(pluginmgr.View, Gtk.Box):
         self.results_view.set_model(model)
 
     @staticmethod
-    def remove_children(model, parent):
+    def remove_children(model: Gtk.TreeStore, parent: Gtk.TreeIter) -> None:
         """Remove all children of some parent in the model.
 
         Reverse iterate through them so you don't invalidate the iter.
@@ -1616,7 +1616,8 @@ class SearchView(pluginmgr.View, Gtk.Box):
         while model.iter_has_child(parent):
             nkids = model.iter_n_children(parent)
             child = model.iter_nth_child(parent, nkids - 1)
-            model.remove(child)
+            if child:
+                model.remove(child)
 
     @Gtk.Template.Callback()
     def on_test_expand_row(
@@ -1704,6 +1705,12 @@ class SearchView(pluginmgr.View, Gtk.Box):
         added = set()
         for obj in self._group_sort_results(results):
 
+            if steps_so_far % five_percent == 0:
+                percent = float(steps_so_far) / float(len_results)
+                if 0 < percent < 1.0:
+                    bauble.gui.progressbar.set_fraction(percent)
+                yield
+
             if obj in added:  # only add unique object
                 continue
 
@@ -1717,12 +1724,6 @@ class SearchView(pluginmgr.View, Gtk.Box):
                 and self.row_meta[type(obj)].children is not None
             ):
                 model.prepend(parent, ["-"])
-
-            if steps_so_far % five_percent == 0:
-                percent = float(steps_so_far) / float(len_results)
-                if 0 < percent < 1.0:
-                    bauble.gui.progressbar.set_fraction(percent)
-                yield
 
         # avoid triggering on_selection_changed
         self.selection.handler_block(self._selection_changed_sigid)
@@ -1819,6 +1820,8 @@ class SearchView(pluginmgr.View, Gtk.Box):
         treeiter: Gtk.TreeIter,
         _data,
     ) -> None:
+        model = cast(Gtk.TreeStore, model)
+
         obj = model[treeiter][0]
 
         # could not find anything message.
@@ -1842,7 +1845,7 @@ class SearchView(pluginmgr.View, Gtk.Box):
                             )
                             self.results_view.expand_to_path(path)
                     elif not model.iter_has_child(treeiter):
-                        cast(Gtk.TreeStore, model).prepend(treeiter, ["-"])
+                        model.prepend(treeiter, ["-"])
                 else:
                     self.remove_children(model, treeiter)
 
@@ -1859,11 +1862,11 @@ class SearchView(pluginmgr.View, Gtk.Box):
             GLib.idle_add(self.remove_row, obj)
 
         except Exception as e:
-            logger.error("cell_data_func: (%s)%s", type(e).__name__, e)
+            logger.error("cell_data_func: %s(%s)", type(e).__name__, e)
             raise
 
-    def get_expanded_rows(self):
-        """Get the TreePath to all the rows in the model that are expanded."""
+    def get_expanded_rows(self) -> list[Gtk.TreePath]:
+        """Get the TreePaths to all the rows in the model that are expanded."""
         expanded_rows = []
 
         self.results_view.map_expanded_rows(
@@ -1872,15 +1875,15 @@ class SearchView(pluginmgr.View, Gtk.Box):
 
         return expanded_rows
 
-    def expand_to_all_rows(self, expanded_rows):
-        """
-        :param expanded_rows: a list of TreePaths to expand to
-        """
+    def expand_to_all_rows(self, expanded_rows: list[Gtk.TreePath]) -> None:
+        """Expand results_view to all supplied paths."""
         for path in expanded_rows:
             self.results_view.expand_to_path(path)
 
     @Gtk.Template.Callback()
-    def on_view_button_press(self, view, event):
+    def on_view_button_press(
+        self, view: Gtk.TreeView, event: Gdk.EventButton
+    ) -> bool:
         """Ignore the mouse right-click event.
 
         This makes sure that we don't remove the multiple selection on a
@@ -1903,8 +1906,10 @@ class SearchView(pluginmgr.View, Gtk.Box):
             # occasionally pos will return None and can't be unpacked
             if not pos:
                 return False
-            path, __, __, __ = pos
-            if not view.get_selection().path_is_selected(path):
+
+            path, _column, _x, _y = pos
+
+            if path is None or not view.get_selection().path_is_selected(path):
                 return False
             # emulate 'cursor-changed' signal
             self.on_selection_changed(None)
@@ -1912,7 +1917,9 @@ class SearchView(pluginmgr.View, Gtk.Box):
         return False
 
     @Gtk.Template.Callback()
-    def on_view_button_release(self, view, event):
+    def on_view_button_release(
+        self, view: Gtk.TreeView, event: Gdk.EventButton
+    ) -> bool:
         """right-mouse-button release.
 
         Popup a context menu on the selected row.
@@ -1959,7 +1966,11 @@ class SearchView(pluginmgr.View, Gtk.Box):
     def remove_non_persistent_results_view_roots(self) -> None:
         """Removes any tree roots that are no longer persistent (deleted)."""
 
-        model = cast(Gtk.TreeStore, self.results_view.get_model())
+        model = self.results_view.get_model()
+
+        if not isinstance(model, Gtk.TreeStore):
+            logger.warning("results_view has no model")
+            return
 
         for row in model:
             state = inspect(row[0])
@@ -2037,7 +2048,8 @@ class SearchView(pluginmgr.View, Gtk.Box):
         if not selected or isinstance(selected[0], str):
             return
 
-        if call_back := self.row_meta[type(selected[0])].activated_callback:
+        call_back = self.row_meta[type(selected[0])].activated_callback
+        if call_back:
             call_back(selected)
 
 
@@ -2552,8 +2564,10 @@ def select_in_search_results(obj):
     """
     check(obj is not None, "select_in_search_results: arg is None")
     view = bauble.gui.get_view()
+
     if not isinstance(view, SearchView):
         return None
+
     logger.debug(
         "select_in_search_results %s is in session %s",
         obj,
@@ -2570,7 +2584,9 @@ def select_in_search_results(obj):
         # NOTE used in test...
         logger.debug("%s added to search results", obj)
         view.refresh_statusbar()
+
     view.results_view.set_cursor(model.get_path(row_iter))
+
     return row_iter
 
 
