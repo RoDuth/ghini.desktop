@@ -435,6 +435,9 @@ class GUI:
 
         combo.grab_focus()
 
+    def destroy(self) -> None:
+        self.window.destroy()
+
     def add_action(
         self,
         name: str,

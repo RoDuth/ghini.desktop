@@ -46,6 +46,7 @@ class TagEditorDialogTests(BaubleTestCase):
 
     def tearDown(self):
         super().tearDown()
+        bauble.gui.destroy()
         bauble.gui = None
 
     def test_can_create_dialog(self):
@@ -150,6 +151,7 @@ class TagItemsDialogTests(BaubleTestCase):
 
     def tearDown(self):
         super().tearDown()
+        bauble.gui.destroy()
         bauble.gui = None
 
     def test_can_create_dialog(self):

@@ -49,6 +49,7 @@ class TagMenuTests(BaubleTestCase):
 
     def tearDown(self):
         super().tearDown()
+        bauble.gui.destroy()
         bauble.gui = None
 
     def test_build_menu_no_tags(self):

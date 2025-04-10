@@ -122,14 +122,14 @@ class DefaultViewTests(BaubleTestCase):
         def_view.update()
         mock_widget.update.assert_called()
 
-    @mock.patch("bauble.ui.DefaultView", spec=DefaultView)
-    def test_splashcommandhandler(self, mock_default):
+    @mock.patch("bauble.ui.DefaultView.update")
+    def test_splashcommandhandler(self, mock_update):
         splash = SplashCommandHandler()
         self.assertIsNone(splash.view)
         self.assertIsInstance(splash.get_view(), DefaultView)
         self.assertIsInstance(splash.view, DefaultView)
         splash(None, None)
-        mock_default.assert_called_once()
+        mock_update.assert_called()
 
 
 class GUITests(BaubleTestCase):
@@ -141,6 +141,7 @@ class GUITests(BaubleTestCase):
         self.assertIsNotNone(gui.lookup_action("test"))
         gui.remove_action("test")
         self.assertIsNone(gui.lookup_action("test"))
+        gui.destroy()
 
     def test_message_box(self):
         gui = GUI()
@@ -163,6 +164,7 @@ class GUITests(BaubleTestCase):
 
         gui.close_message_box()
         self.assertFalse(gui.widgets.msg_box_parent.get_children())
+        gui.destroy()
 
     def test_history_sizes(self):
         gui = GUI()
@@ -173,6 +175,7 @@ class GUITests(BaubleTestCase):
         prefs.prefs[gui.history_pins_size_pref] = 1
         self.assertEqual(gui.history_size, 2)
         self.assertEqual(gui.history_pins_size, 1)
+        gui.destroy()
 
     def test_send_command(self):
         gui = GUI()
@@ -186,6 +189,7 @@ class GUITests(BaubleTestCase):
         gui.send_command("test command")
         mock_entry.set_text.assert_called_once()
         mock_entry.set_text.assert_called_with("test command")
+        gui.destroy()
 
     def test_om_main_combo_changed(self):
         # with text not in history_pins
@@ -212,12 +216,14 @@ class GUITests(BaubleTestCase):
         mock_entry.set_icon_from_icon_name.assert_called_with(
             Gtk.EntryIconPosition.SECONDARY, None
         )
+        gui.destroy()
 
     def test_on_main_entry_activated(self):
         gui = GUI()
         mock_btn = mock.Mock()
         gui.widgets.go_button = mock_btn
         gui.on_main_entry_activate(None)
+        gui.destroy()
         mock_btn.emit.assert_called_with("clicked")
 
     @mock.patch("bauble.ui.bauble.command_handler")
@@ -225,6 +231,7 @@ class GUITests(BaubleTestCase):
         gui = GUI()
         gui.on_home_clicked()
         mock_handler.assert_called_with("home", None)
+        gui.destroy()
 
     def test_on_prev_view_clicked(self):
         gui = GUI()
@@ -237,6 +244,7 @@ class GUITests(BaubleTestCase):
         gui.on_prev_view_clicked()
         mock_entry.set_text.assert_called_with("")
         gui.set_view.assert_called_with("previous")
+        gui.destroy()
 
     def test_on_next_view_clicked(self):
         gui = GUI()
@@ -249,6 +257,7 @@ class GUITests(BaubleTestCase):
         gui.on_next_view_clicked()
         mock_entry.set_text.assert_called_with("")
         gui.set_view.assert_called_with("next")
+        gui.destroy()
 
     @mock.patch("bauble.ui.bauble.command_handler")
     def test_on_go_button_clicked(self, mock_handler):
@@ -302,6 +311,7 @@ class GUITests(BaubleTestCase):
         self.assertEqual(
             history, ["domain where expression", ":cmd=args", ":cmd"]
         )
+        gui.destroy()
 
     @mock.patch("bauble.ui.QueryBuilder")
     def test_on_query_button_clicked(self, mock_builder):
@@ -322,6 +332,7 @@ class GUITests(BaubleTestCase):
         mock_entry.set_text.assert_called_with("sp = sp.")
         mock_btn.emit.assert_called_with("clicked")
         mock_builder().destroy.assert_called_once()
+        gui.destroy()
 
     def test_on_history_pinned_clicked(self):
         gui = GUI()
@@ -367,6 +378,7 @@ class GUITests(BaubleTestCase):
         pins = prefs.prefs.get(gui.entry_history_pins_pref, [])
         self.assertEqual(history, [])
         self.assertEqual(pins, [":cmd"])
+        gui.destroy()
 
     def test_add_to_history(self):
         gui = GUI()
@@ -405,6 +417,7 @@ class GUITests(BaubleTestCase):
         pins = prefs.prefs.get(gui.entry_history_pins_pref, [])
         self.assertEqual(history, [])
         self.assertEqual(pins, ["test1"])
+        gui.destroy()
 
     def test_populate_main_entry(self):
         gui = GUI()
@@ -424,6 +437,7 @@ class GUITests(BaubleTestCase):
         self.assertEqual(
             [v[0] for v in model], ["test2", "--separator--", "test1"]
         )
+        gui.destroy()
 
     def test_on_main_entry_changed(self):
         gui = GUI()
@@ -451,6 +465,7 @@ class GUITests(BaubleTestCase):
         self.assertEqual(
             [v[0] for v in comp_model], ["test1", "test2", "test3", "test4"]
         )
+        gui.destroy()
 
     def test_main_entry_match_func(self):
         values = [
@@ -540,6 +555,7 @@ class GUITests(BaubleTestCase):
 
         bauble.conn_name = orig_conn
         bauble.version = orig_version
+        gui.destroy()
 
     def test_set_busy(self):
         gui = GUI()
@@ -547,6 +563,7 @@ class GUITests(BaubleTestCase):
         self.assertTrue(gui.widgets.main_box.get_sensitive())
         gui.set_busy(True)
         self.assertFalse(gui.widgets.main_box.get_sensitive())
+        gui.destroy()
 
     def test_set_get_view(self):
         gui = GUI()
@@ -602,6 +619,7 @@ class GUITests(BaubleTestCase):
 
         # teardown
         search_view.get_parent().remove(search_view)
+        gui.destroy()
 
     def test_add_remove_menu(self):
         gui = GUI()
@@ -614,6 +632,7 @@ class GUITests(BaubleTestCase):
         self.assertEqual(gui.menubar.get_n_items(), start - 1)
         gui.add_menu("test", Gio.Menu())
         self.assertEqual(gui.menubar.get_n_items(), start)
+        gui.destroy()
 
     def test_add_to_insert_menu(self):
         gui = GUI()
@@ -621,6 +640,7 @@ class GUITests(BaubleTestCase):
         mock_editor = mock.Mock()
         gui.add_to_insert_menu(mock_editor, "test")
         self.assertEqual(gui.insert_menu.get_n_items(), 1)
+        gui.destroy()
 
     def test_build_tools_menu(self):
         gui = GUI()
@@ -636,12 +656,14 @@ class GUITests(BaubleTestCase):
         for plugin in list(pluginmgr.plugins.values()):
             tool_count += len({t.category for t in plugin.tools})
         self.assertEqual(gui.tools_menu.get_n_items(), tool_count)
+        gui.destroy()
 
     def test_on_tools_menu_item_activate(self):
         gui = GUI()
         mock_tool = mock.Mock()
         gui.on_tools_menu_item_activate(None, None, mock_tool)
         mock_tool.start.assert_called_once()
+        gui.destroy()
 
     @mock.patch("bauble.ui.utils.gc_objects_by_type")
     def test_on_insert_menu_item_activate(self, mock_gc_objects):
@@ -677,6 +699,7 @@ class GUITests(BaubleTestCase):
 
         # teardown
         search_view.get_parent().remove(search_view)
+        gui.destroy()
 
     def test_cut_copy_paste(self):
         gui = GUI()
@@ -694,6 +717,7 @@ class GUITests(BaubleTestCase):
         # paste
         gui.on_edit_menu_paste(None, None)
         mock_entry.paste_clipboard.assert_called_once()
+        gui.destroy()
 
     @mock.patch("bauble.ui.bauble.command_handler")
     def test_edit_menu_prefs_hist(self, mock_handler):
@@ -704,6 +728,7 @@ class GUITests(BaubleTestCase):
 
         gui.on_edit_menu_preferences(None, None)
         mock_handler.assert_called_with("prefs", None)
+        gui.destroy()
 
     @mock.patch("bauble.ui.db.create")
     @mock.patch("bauble.ui.utils.yes_no_dialog")
@@ -721,6 +746,7 @@ class GUITests(BaubleTestCase):
         gui.on_file_menu_new(None, None)
         mock_handler.assert_called()
         mock_create.assert_called()
+        gui.destroy()
 
     @mock.patch("bauble.connmgr.start_connection_manager")
     @mock.patch("bauble.ui.db.open_conn")
@@ -740,6 +766,7 @@ class GUITests(BaubleTestCase):
         gui.on_file_menu_open(None, None)
         mock_handler.assert_called()
         mock_open.assert_called()
+        gui.destroy()
 
     @mock.patch("bauble.ui.Gtk.AboutDialog")
     @mock.patch("bauble.ui.desktop.open")
@@ -764,6 +791,7 @@ class GUITests(BaubleTestCase):
         mock_about().run.assert_called_once()
         mock_about().destroy.assert_called_once()
         self.assertTrue(gui.lic_path.exists())
+        gui.destroy()
 
     @mock.patch("bauble.ui.bauble.utils.yes_no_dialog")
     @mock.patch("bauble.ui.bauble.task.running")
@@ -786,6 +814,7 @@ class GUITests(BaubleTestCase):
         mock_dialog.assert_called()
         # have to use getattr to avoid name mangling
         self.assertTrue(getattr(task, "__kill"))
+        gui.destroy()
 
     def test_on_destroy(self):
         gui = GUI()
@@ -795,6 +824,7 @@ class GUITests(BaubleTestCase):
         mock_view.cancel_threads.assert_called_once()
         self.assertTrue(mock_view.prevent_threads)
         self.assertTrue(getattr(task, "__kill"))
+        gui.destroy()
 
     def test_on_resize(self):
         gui = GUI()
@@ -804,9 +834,11 @@ class GUITests(BaubleTestCase):
         gui.window.get_size.return_value = mock_rect
         gui.on_resize(None, None)
         self.assertEqual(prefs.prefs.get(gui.window_geometry_pref), (20, 10))
+        gui.destroy()
 
     def test_on_quit(self):
         gui = GUI()
         gui.window = mock.Mock()
         gui.on_quit(None, None)
         gui.window.destroy.assert_called_once()
+        gui.destroy()
