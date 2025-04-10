@@ -48,8 +48,8 @@ from bauble.test import update_gui
 from bauble.test import wait_on_threads
 from bauble.utils.web import PACFile
 from bauble.utils.web import get_net_sess
-from bauble.view import DefaultCommandHandler
 from bauble.view import SearchView
+from bauble.view import get_search_view
 
 from ..plants.species import SpeciesEditor
 from . import GardenPlugin
@@ -71,7 +71,6 @@ from .garden_map import colours
 from .garden_map import expunge_garden_map
 from .garden_map import get_locations_polys
 from .garden_map import get_map_tile_proxy
-from .garden_map import get_search_view
 from .garden_map import glib_events
 from .garden_map import map_item_factory
 from .garden_map import setup_garden_map
@@ -1026,7 +1025,7 @@ class TestSearchViewMapPresenter(BaubleTestCase):
         map_ = GardenMap(Map())
         presenter = SearchViewMapPresenter(map_)
         presenter.is_visible = lambda: True
-        search_view = DefaultCommandHandler().get_view()
+        search_view = get_search_view()
         search_view.search("plant=*")
         presenter.populate_map_from_search_view(view=search_view)
         # update for populate_map_from_search_view
@@ -1351,7 +1350,7 @@ class TestSearchViewMapPresenter(BaubleTestCase):
         map_ = Map()
         gmap = GardenMap(map_)
         presenter = SearchViewMapPresenter(gmap)
-        search_view = DefaultCommandHandler().get_view()
+        search_view = get_search_view()
         # plant is in view
         search_view.search("plant where id in 1, 2")
         mock_gui.widgets.view_box.get_children.return_value = [search_view]
@@ -1778,7 +1777,7 @@ class GlobalFunctionsTest(BaubleTestCase):
         # test setup_garden_map
         SearchView.pic_pane_notebook_pages.clear()
         garden_map.map_presenter = None
-        search_view = DefaultCommandHandler().get_view()
+        search_view = get_search_view()
         self.assertEqual(search_view.pic_pane_notebook.get_n_pages(), 1)
 
         self.assertFalse(SearchViewMapPresenter.is_visible())
@@ -1875,10 +1874,6 @@ class GlobalFunctionsTest(BaubleTestCase):
         net_sess.pac_file = PACFile(pac_js)
         self.assertIsNone(get_map_tile_proxy())
         net_sess.pac_file = None
-
-    @mock.patch("bauble.view.DefaultCommandHandler.view")
-    def test_get_search_view_returns_search_view_only(self, mock_search_view):
-        self.assertEqual(get_search_view(), mock_search_view)
 
     def test_expunge_garden_map(self):
         setup_garden_map()

@@ -3199,3 +3199,7 @@ class GlobalFunctionsTests(BaubleTestCase):
         self.assertEqual(
             get_search_view_selected(), search_view.get_selected_values()
         )
+
+    @mock.patch("bauble.view.DefaultCommandHandler.view")
+    def test_get_search_view_returns_search_view_only(self, mock_search_view):
+        self.assertEqual(get_search_view(), mock_search_view)
