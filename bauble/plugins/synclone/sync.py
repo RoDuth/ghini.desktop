@@ -785,10 +785,11 @@ class ResolveCommandHandler(pluginmgr.CommandHandler):
     command = "resolve"
     view: pluginmgr.View | None = None
 
-    def get_view(self) -> pluginmgr.View:
-        if self.__class__.view is None:
-            self.__class__.view = ResolutionCentreView()
-        return self.__class__.view
+    @classmethod
+    def get_view(cls) -> pluginmgr.View:
+        if cls.view is None:
+            cls.view = ResolutionCentreView()
+        return cls.view
 
     def __call__(self, cmd, arg) -> None:
         if self.view:

@@ -261,18 +261,17 @@ class SplashCommandHandler(pluginmgr.CommandHandler):
     command = ["home", "splash"]
     view = None
 
-    def __init__(self):
-        super().__init__()
-        if self.view is None:
-            logger.warning("SplashCommandHandler.view is None, expect trouble")
+    @classmethod
+    def get_view(cls) -> DefaultView:
+        if cls.view is None:
+            cls.view = DefaultView()
+        return cls.view
 
-    def get_view(self):
-        if self.view is None:
-            self.view = DefaultView()
-        return self.view
+    def __call__(self, cmd: str, arg: str | None) -> None:
+        self.get_view().update()
 
-    def __call__(self, cmd, arg):
-        self.view.update()
+
+pluginmgr.register_command(SplashCommandHandler)
 
 
 class SimpleActionHandler(Protocol):
@@ -775,11 +774,11 @@ class GUI:
 
     def set_default_view(self):
         main_entry = self.widgets.main_comboentry.get_child()
+
         if main_entry is not None:
             main_entry.set_text("")
-        SplashCommandHandler.view = DefaultView()
-        self.set_view(SplashCommandHandler.view)
-        pluginmgr.register_command(SplashCommandHandler)
+
+        self.set_view(SplashCommandHandler.get_view())
 
     def set_view(
         self, view: pluginmgr.Viewable | Literal["previous", "next"]

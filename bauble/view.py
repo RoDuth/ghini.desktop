@@ -2552,14 +2552,14 @@ class HistoryCommandHandler(pluginmgr.CommandHandler):
     command = "history"
     view: HistoryView | None = None
 
-    def get_view(self) -> HistoryView:
-        if not self.__class__.view:
-            self.__class__.view = HistoryView()
-        return self.__class__.view
+    @classmethod
+    def get_view(cls) -> HistoryView:
+        if not cls.view:
+            cls.view = HistoryView()
+        return cls.view
 
     def __call__(self, cmd: str, arg: str | None) -> None:
-        if self.view:
-            self.view.update(arg)
+        self.get_view().update(arg)
 
 
 pluginmgr.register_command(HistoryCommandHandler)
@@ -2604,17 +2604,18 @@ class DefaultCommandHandler(pluginmgr.CommandHandler):
     command = [None]
     view: SearchView | None = None
 
-    def get_view(self):
-        if self.__class__.view is None:
-            self.__class__.view = SearchView()
-        return self.__class__.view
+    @classmethod
+    def get_view(cls) -> SearchView:
+        if cls.view is None:
+            cls.view = SearchView()
+        return cls.view
 
-    def __call__(self, cmd, arg):
-        self.view.search(arg)
+    def __call__(self, cmd: str, arg: str | None) -> None:
+        self.get_view().search(arg or "")
 
 
 def get_search_view() -> SearchView:
     """A convenience function that, regardless of the current view, returns the
     global SearchView instance.
     """
-    return DefaultCommandHandler().get_view()
+    return DefaultCommandHandler.get_view()

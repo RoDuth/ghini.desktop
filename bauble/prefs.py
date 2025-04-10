@@ -858,14 +858,14 @@ class PrefsCommandHandler(pluginmgr.CommandHandler):
     command = ("prefs", "config")
     view = None
 
-    def __call__(self, cmd, arg):
-        pass
+    @classmethod
+    def get_view(cls) -> PrefsView:
+        if cls.view is None:
+            cls.view = PrefsView()
+        return cls.view
 
-    def get_view(self):
-        if self.view is None:
-            self.__class__.view = PrefsView()
-        self.view.update()
-        return self.view
+    def __call__(self, cmd: str, arg: str | None) -> None:
+        self.get_view().update()
 
 
 pluginmgr.register_command(PrefsCommandHandler)

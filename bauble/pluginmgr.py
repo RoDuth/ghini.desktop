@@ -547,7 +547,8 @@ class Viewable(Protocol):
 class CommandHandler(ABC):
     command: str | Iterable[str | None]
 
-    def get_view(self) -> View | None:
+    @classmethod
+    def get_view(cls) -> View | None:
         """return the view for this command handler"""
         return None
 
