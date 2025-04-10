@@ -3141,13 +3141,26 @@ class GlobalFunctionsTests(BaubleTestCase):
             DefaultCommandHandler()(None, "fam = *")
         mock_search.assert_called_with("fam = *")
 
-    def test_select_in_search_results_not_search_view_returns(self):
+    def test_select_in_search_results_not_search_view_raises(self):
         mock_view = mock.Mock()
 
         with mock.patch("bauble.gui") as mock_gui:
             mock_gui.get_view.return_value = mock_view
-            select_in_search_results(object())
-        mock_view.results_view.get_model.assert_not_called()
+            self.assertRaises(
+                error.BaubleError, select_in_search_results, mock.Mock()
+            )
+
+    def test_select_in_search_results_no_model_raises(self):
+        search_view = get_search_view()
+        with (
+            mock.patch.object(search_view, "results_view") as mock_rv,
+            mock.patch("bauble.gui") as mock_gui,
+        ):
+            mock_rv.get_model.return_value = None
+            mock_gui.get_view.return_value = search_view
+            self.assertRaises(
+                error.BaubleError, select_in_search_results, mock.Mock()
+            )
 
     def test_select_in_search_results_selects_existing(self):
         for func in get_setUp_data_funcs():

@@ -83,6 +83,7 @@ from bauble import prefs
 from bauble import search
 from bauble import task
 from bauble import utils
+from bauble.error import BaubleError
 from bauble.error import check
 from bauble.i18n import _
 from bauble.meta import BaubleMeta
@@ -2569,7 +2570,7 @@ class HistoryCommandHandler(pluginmgr.CommandHandler):
 pluginmgr.register_command(HistoryCommandHandler)
 
 
-def select_in_search_results(obj):
+def select_in_search_results(obj) -> Gtk.TreeIter:
     """Search the tree model for obj if it exists then select it if not
     then add it and select it.
 
@@ -2580,7 +2581,11 @@ def select_in_search_results(obj):
     view = bauble.gui.get_view()
 
     if not isinstance(view, SearchView):
-        return None
+        logger.warning("current view is not SearchView")
+        raise BaubleError(
+            "select_in_search_results called when current view is not "
+            "SearchView."
+        )
 
     logger.debug(
         "select_in_search_results %s is in session %s",
@@ -2588,8 +2593,16 @@ def select_in_search_results(obj):
         obj in view.session,
     )
     model = view.results_view.get_model()
+
+    if not isinstance(model, Gtk.TreeStore):
+        logger.warning("results_view is not Treestore")
+        raise BaubleError(
+            "select_in_search_results called when results_view is None."
+        )
+
     found = utils.search_tree_model(model, obj)
     row_iter = None
+
     if len(found) > 0:
         row_iter = found[0]
     else:
