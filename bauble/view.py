@@ -524,6 +524,7 @@ class Picture(Protocol):  # pylint: disable=too-few-public-methods
 
 
 class PicturesScroller(Gtk.ScrolledWindow):
+    # pylint: disable=too-many-instance-attributes
     """Shows pictures corresponding to selection.
 
     PicturesScroller object will ask each object in the selection to return
@@ -662,7 +663,8 @@ class PicturesScroller(Gtk.ScrolledWindow):
         self.all_pics = self._get_pictures(selection or [])
         self.add_rows()
 
-    def _get_pictures(self, selection: list[db.Domain]) -> list[Picture]:
+    @staticmethod
+    def _get_pictures(selection: list[db.Domain]) -> list[Picture]:
         all_pics_set: set[Picture] = set()
         for obj in selection:
             if pics := getattr(obj, "pictures", None):
@@ -870,7 +872,7 @@ class ViewMeta(UserDict):
             self.sorter: Callable = utils.natsort_key
             self.activated_callback: Callable | None = None
 
-        def set(
+        def set(  # pylint: disable=too-many-arguments
             self,
             children: Callable[[db.Domain], Sequence[db.Domain]] | None = None,
             infobox: InfoBox | None = None,
@@ -986,7 +988,7 @@ class SearchView(pluginmgr.View, Gtk.Box):
         renderer = cast(Gtk.CellRendererText, column.get_cells()[0])
         column.set_cell_data_func(renderer, self.cell_data_func)
 
-        self.selection = self.results_view.get_selection()
+        self.selection: Gtk.TreeSelection = self.results_view.get_selection()
         self._selection_changed_sigid = self.selection.connect(
             "changed", self.on_selection_changed
         )
@@ -2071,7 +2073,7 @@ def get_search_view_selected() -> list[db.Domain] | None:
     return selected
 
 
-class Note(Protocol):
+class Note(Protocol):  # pylint: disable=too-few-public-methods
     date: datetime
     user: str
     category: str
@@ -2479,7 +2481,8 @@ class HistoryView(pluginmgr.View, Gtk.Box):
 
         return filters
 
-    def get_on_timestamp_filter(self, part: ParseResults) -> ColumnElement:
+    @staticmethod
+    def get_on_timestamp_filter(part: ParseResults) -> ColumnElement:
         """sqlalchemy query `filter()` statement specific to timestamp `on`
         searches
         """
@@ -2536,14 +2539,15 @@ class HistoryView(pluginmgr.View, Gtk.Box):
                 self.last_row_in_tree = id_
                 self.offset += self.STEP
                 logger.debug("offset = %s", self.offset)
-        except Exception as e:
+        except Exception as e:  # pylint: disable=broad-except
             logger.debug("%s(%s)", type(e).__name__, e)
             msg = utils.xml_safe(e)
             details = utils.xml_safe(traceback.format_exc())
             if bauble.gui:
                 self.show_error_box(msg, details)
 
-    def show_error_box(self, msg: str, details: str) -> None:
+    @staticmethod
+    def show_error_box(msg: str, details: str) -> None:
         if bauble.gui:
             bauble.gui.show_error_box(msg, details)
 

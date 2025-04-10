@@ -149,7 +149,8 @@ class SchemaMenu(Gtk.Menu):
                 submenu.append(item)
         submenu.show_all()
 
-    def _get_column_and_relation_properties(self, mapper: Mapper) -> tuple[
+    @staticmethod
+    def _get_column_and_relation_properties(mapper: Mapper) -> tuple[
         dict[str, InspectionAttr],
         dict[str, InspectionAttr],
     ]:
@@ -681,9 +682,8 @@ class ExpressionRow:  # pylint: disable=too-many-instance-attributes
         return result
 
 
-# pylint: disable=too-few-public-methods
 @dataclass
-class Clause:
+class Clause:  # pylint: disable=too-few-public-methods
     not__: bool = False
     connector: str | None = None
     field: str | None = None

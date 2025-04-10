@@ -922,12 +922,11 @@ class SearchViewMapPresenter:
         """
         logger.debug("looking for plant id_ = %s", id_)
         search_view = get_search_view()
-        if not search_view or not bauble.gui:
-            return
 
         session = search_view.session
         plant = session.query(Plant).get(id_)
         model = search_view.results_view.get_model()
+
         if not model or plant is None:
             return
 
