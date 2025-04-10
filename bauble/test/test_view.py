@@ -509,6 +509,12 @@ class TestSearchView(BaubleTestCase):
         # no infobox
         self.assertIsNone(search_view.infobox)
 
+        with mock.patch.object(search_view, "_get_expanded_tree") as mock_tree:
+            search_view.rerun_last_search()
+
+            # does not attempt to re expand
+            mock_tree.assert_not_called()
+
     @mock.patch("bauble.gui")
     def test_search_w_error(self, mock_gui):
         search_view = self.search_view
@@ -1124,7 +1130,7 @@ class TestSearchView(BaubleTestCase):
             search_view.update()
 
         self.assertTrue(
-            any("results_view has no model" in i for i in logs.output)
+            any("results_view is not Treestore" in i for i in logs.output)
         )
 
         model = search_view.results_view.get_model()

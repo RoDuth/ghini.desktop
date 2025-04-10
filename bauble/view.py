@@ -918,6 +918,7 @@ class ViewMeta(UserDict):
 
 @Gtk.Template(filename=str(Path(paths.lib_dir(), "search_view.ui")))
 class SearchView(pluginmgr.View, Gtk.Box):
+    # pylint: disable=too-many-public-methods,too-many-instance-attributes
     """The SearchView is the main view for Ghini.
 
     Manages the search results returned when search strings are entered into
@@ -1022,6 +1023,7 @@ class SearchView(pluginmgr.View, Gtk.Box):
             self.connect_signal(widget_name, signal, handler)
 
         self.last_search: str = ""
+        self.no_result = True
 
     def connect_signal(
         self, widget_name: str, signal: str, handler: Callable
@@ -1371,6 +1373,7 @@ class SearchView(pluginmgr.View, Gtk.Box):
         """search the database using :param text:"""
         logger.debug("SearchView.search(%s)", repr(text))
         self.last_search = text
+        self.no_result = False
 
         self._reset()
 
@@ -1571,8 +1574,12 @@ class SearchView(pluginmgr.View, Gtk.Box):
             expanded_rows = self.get_expanded_rows()
             _model, selected_paths = self.selection.get_selected_rows()
 
-            # don't expand when too many
-            if len(selected_paths) < 20 and len(expanded_rows) < 20:
+            # don't expand when too many or no result
+            if (
+                self.no_result is False
+                and len(selected_paths) < 20
+                and len(expanded_rows) < 20
+            ):
                 expanded_tree_root = self._get_expanded_tree(
                     expanded_rows,
                     cursor_path,
@@ -1592,18 +1599,19 @@ class SearchView(pluginmgr.View, Gtk.Box):
             self.update_statusbar(objs)
 
     def _notify_no_result(self, text: str) -> None:
+        self.no_result = True
         bold = "<b>%s</b>"
-        model = Gtk.ListStore(str)
+        model = Gtk.TreeStore(str)
         msg = bold % html.escape(
             _('Could not find anything for search: "%s"') % text
         )
-        model.append([msg])
+        model.append(None, [msg])
         if prefs.prefs.get(prefs.exclude_inactive_pref):
             msg = bold % _(
                 "CONSIDER: uncheck 'Exclude Inactive' in options menu and "
                 "search again."
             )
-            model.append([msg])
+            model.append(None, [msg])
         self.results_view.set_model(model)
 
     @staticmethod
@@ -1779,7 +1787,8 @@ class SearchView(pluginmgr.View, Gtk.Box):
         # NOTE used in testing...
         logger.info("remove_row called")
 
-        model = cast(Gtk.ListStore, self.results_view.get_model())
+        model = cast(Gtk.TreeStore, self.results_view.get_model())
+
         for found in utils.search_tree_model(model, obj):
             model.remove(found)
 
@@ -1969,7 +1978,8 @@ class SearchView(pluginmgr.View, Gtk.Box):
         model = self.results_view.get_model()
 
         if not isinstance(model, Gtk.TreeStore):
-            logger.warning("results_view has no model")
+            # used in test
+            logger.warning("results_view is not Treestore")
             return
 
         for row in model:
