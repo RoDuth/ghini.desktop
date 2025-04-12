@@ -156,11 +156,6 @@ class Application(Gtk.Application):
         # chance to crash
         prefs.prefs.save()
 
-        # set the default command handler
-        from bauble.view import DefaultCommandHandler
-
-        pluginmgr.register_command(DefaultCommandHandler)
-
     @staticmethod
     def _post_loop(open_exc):
         logger.debug("entering _post_loop")

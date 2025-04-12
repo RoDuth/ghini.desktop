@@ -2636,3 +2636,6 @@ def get_search_view() -> SearchView:
     global SearchView instance.
     """
     return DefaultCommandHandler.get_view()
+
+
+pluginmgr.register_command(DefaultCommandHandler)
