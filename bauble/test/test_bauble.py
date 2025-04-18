@@ -569,10 +569,18 @@ class GlobalFunctionsTests(BaubleTestCase):
     def test_command_handler(self, mock_gui):
         bauble.command_handler("history", None)
         mock_gui.get_view.assert_called()
+
         from bauble.view import HistoryView
+        from bauble.view import SearchView
 
         mock_gui.set_view.assert_called()
         self.assertIsInstance(mock_gui.set_view.call_args[0][0], HistoryView)
+        mock_gui.reset_mock()
+
+        # switch to default
+        bauble.command_handler(None, None)
+        mock_gui.set_view.assert_called()
+        self.assertIsInstance(mock_gui.set_view.call_args[0][0], SearchView)
         mock_gui.reset_mock()
 
         from bauble.prefs import PrefsView
@@ -581,6 +589,11 @@ class GlobalFunctionsTests(BaubleTestCase):
         # switch
         mock_gui.set_view.assert_called()
         self.assertIsInstance(mock_gui.set_view.call_args[0][0], PrefsView)
+
+        # test key errors
+        from bauble import pluginmgr
+
+        del pluginmgr.commands[None]
 
         with mock.patch("bauble.utils.message_dialog") as mock_dialog:
             bauble.command_handler(None, None)

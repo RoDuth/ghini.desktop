@@ -66,7 +66,6 @@ from bauble.view import Action
 from bauble.view import InfoBox
 from bauble.view import InfoExpander
 from bauble.view import LinksExpander
-from bauble.view import Picture
 from bauble.view import PropertiesExpander
 from bauble.view import select_in_search_results
 
@@ -234,7 +233,7 @@ class Family(db.Domain, db.WithNotes):
     retrieve_cols = ["id", "epithet", "family"]
 
     @property
-    def pictures(self) -> list[Picture]:
+    def pictures(self) -> list[db.Picture]:
         session = object_session(self)
         if not isinstance(session, Session):
             return []

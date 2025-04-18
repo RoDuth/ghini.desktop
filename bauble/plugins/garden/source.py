@@ -64,7 +64,6 @@ from bauble.utils.geo import KMLMapCallbackFunctor
 from bauble.view import Action
 from bauble.view import InfoBox
 from bauble.view import InfoExpander
-from bauble.view import Picture
 from bauble.view import PropertiesExpander
 
 from ..plants.geography import Geography
@@ -396,7 +395,7 @@ class Collection(db.Domain):
         return self.source.accession.count_children()
 
     @property
-    def pictures(self) -> list[Picture]:
+    def pictures(self) -> list[db.Picture]:
         if not isinstance(object_session(self), Session):
             return []
 
@@ -1293,7 +1292,7 @@ class SourceDetail(db.Domain):
         return query.count()
 
     @property
-    def pictures(self) -> list[Picture]:
+    def pictures(self) -> list[db.Picture]:
         """Return pictures from any attached plants."""
         session = object_session(self)
         if not isinstance(session, Session):

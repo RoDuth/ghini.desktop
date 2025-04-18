@@ -1980,6 +1980,55 @@ class TestSearchView(BaubleTestCase):
         self.assertEqual(len(links_exp.link_box.get_children()), 1)
         self.assertTrue(links_exp.get_visible())
 
+    @mock.patch("bauble.gui")
+    def test_select_object(self, mock_gui):
+        for func in get_setUp_data_funcs():
+            func()
+        from bauble.plugins.garden import Plant
+        from bauble.plugins.garden import PlantPicture
+
+        plt1 = self.session.query(Plant).get(1)
+        plt2 = self.session.query(Plant).get(2)
+        pic1 = PlantPicture(picture="test1.jpg")
+        plt2.pictures.append(pic1)
+        self.session.add(pic1)
+        self.session.commit()
+        box = Gtk.Box()
+        notebook = Gtk.Notebook()
+        pics_box = Gtk.Paned()
+        pic_pane = Gtk.Paned()  # the parent pane, notebook is within
+        notebook.append_page(pics_box, Gtk.Label(label="test"))
+        box2 = Gtk.Box()
+        pic_pane.pack1(box2)
+        pic_pane.pack2(notebook)
+        box.pack_start(pic_pane, True, True, 1)
+        # species selected should traverse
+        search_view = get_search_view()
+        search_view.history_action = mock.Mock()
+        search_view.populate_results([plt2.accession.species])
+        search_view.results_view.set_cursor(Gtk.TreePath.new_first())
+        mock_gui.get_view.return_value = search_view
+        self.assertEqual(
+            search_view.get_selected_values(), [plt2.accession.species]
+        )
+        search_view.select_from_picture(search_view.pictures_scroller, pic1)
+        self.assertEqual(search_view.get_selected_values(), [plt2])
+        mock_gui.get_view.assert_called()
+        # plant selected should do nothing
+        search_view.populate_results([plt1, plt2])
+        search_view.results_view.set_cursor(Gtk.TreePath.new_from_indices([1]))
+        self.assertEqual(search_view.get_selected_values(), [plt2])
+        search_view.select_from_picture(search_view.pictures_scroller, pic1)
+        self.assertEqual(search_view.get_selected_values(), [plt2])
+        # both selected selects owner
+        search_view.results_view.get_selection().select_all()
+        self.assertEqual(search_view.get_selected_values(), [plt1, plt2])
+        search_view.select_from_picture(search_view.pictures_scroller, pic1)
+        self.assertEqual(search_view.get_selected_values(), [plt2])
+        # just for coverage...
+        search_view.results_view.set_model(None)
+        search_view.select_from_picture(search_view.pictures_scroller, pic1)
+
 
 class TestHistoryView(BaubleTestCase):
     def test_populates_listore(self):
@@ -2972,58 +3021,6 @@ class TestPicturesScroller(BaubleTestCase):
         wait_on_threads()
         update_gui()
         mock_gui.get_view.assert_called()
-
-    @mock.patch("bauble.gui")
-    def test_select_object(self, mock_gui):
-        for func in get_setUp_data_funcs():
-            func()
-        from bauble.plugins.garden import Plant
-        from bauble.plugins.garden import PlantPicture
-
-        plt1 = self.session.query(Plant).get(1)
-        plt2 = self.session.query(Plant).get(2)
-        pic1 = PlantPicture(picture="test1.jpg")
-        plt2.pictures.append(pic1)
-        self.session.add(pic1)
-        self.session.commit()
-        box = Gtk.Box()
-        notebook = Gtk.Notebook()
-        pics_box = Gtk.Paned()
-        pic_pane = Gtk.Paned()  # the parent pane, notebook is within
-        notebook.append_page(pics_box, Gtk.Label(label="test"))
-        box2 = Gtk.Box()
-        pic_pane.pack1(box2)
-        pic_pane.pack2(notebook)
-        box.pack_start(pic_pane, True, True, 1)
-        picture_scroller = PicturesScroller(parent=pics_box, pic_pane=pic_pane)
-        picture_scroller.set_selection = mock.Mock()
-        # species selected should traverse
-        search_view = get_search_view()
-        search_view.pictures_scroller = picture_scroller
-        search_view.history_action = mock.Mock()
-        search_view.populate_results([plt2.accession.species])
-        search_view.results_view.set_cursor(Gtk.TreePath.new_first())
-        mock_gui.get_view.return_value = search_view
-        self.assertEqual(
-            search_view.get_selected_values(), [plt2.accession.species]
-        )
-        picture_scroller.select_object(pic1)
-        self.assertEqual(search_view.get_selected_values(), [plt2])
-        mock_gui.get_view.assert_called()
-        # plant selected should do nothing
-        search_view.populate_results([plt1, plt2])
-        search_view.results_view.set_cursor(Gtk.TreePath.new_from_indices([1]))
-        self.assertEqual(search_view.get_selected_values(), [plt2])
-        picture_scroller.select_object(pic1)
-        self.assertEqual(search_view.get_selected_values(), [plt2])
-        # both selected selects owner
-        search_view.results_view.get_selection().select_all()
-        self.assertEqual(search_view.get_selected_values(), [plt1, plt2])
-        picture_scroller.select_object(pic1)
-        self.assertEqual(search_view.get_selected_values(), [plt2])
-        # just for coverage...
-        search_view.results_view.set_model(None)
-        picture_scroller.select_object(pic1)
 
     @mock.patch("bauble.gui", GUI())
     def test_hide_restore_pic_pane(self):

@@ -37,7 +37,6 @@ logger = logging.getLogger(__name__)
 
 import sqlalchemy as sa
 from gi.repository import Gtk
-from sqlalchemy import case
 from sqlalchemy import cast as sqlacast
 from sqlalchemy import event
 from sqlalchemy import literal
@@ -230,6 +229,14 @@ class Statement(Protocol):  # pylint: disable=too-few-public-methods
     def where(self, binexp: ColumnElement) -> Select: ...
 
 
+class Picture(Protocol):  # pylint: disable=too-few-public-methods
+    id: int
+    category: str
+    picture: str
+    _last_updated: datetime.datetime
+    owner: "Domain"
+
+
 class Domain(Base):
     """Domains are a subset of tables that contain extra functionality as
     expected for SearchView etc..
@@ -309,6 +316,10 @@ class Domain(Base):
 
     def count_children(self) -> int:
         raise NotImplementedError
+
+    @property
+    def pictures(self) -> list[Picture]:
+        return []
 
 
 @event.listens_for(Base, "before_update", propagate=True)
@@ -784,8 +795,6 @@ def verify_connection(new_engine, show_error_dialogs=False):
     if not sa.inspect(new_engine).has_table(meta.BaubleMeta.__tablename__):
         raise error.MetaTableError()
 
-    from sqlalchemy.orm import sessionmaker
-
     # if we don't close this session before raising an exception then we
     # will probably get deadlocks....i'm not really sure why
     session = sessionmaker(bind=new_engine)()
@@ -905,7 +914,7 @@ class WithNotes:
                         note.note,
                     )
                     return note.note
-        if result == []:
+        if not result:
             # if nothing was found, do not break the proxy.
             raise AttributeError(name)
         if is_dict:

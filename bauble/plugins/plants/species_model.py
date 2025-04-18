@@ -58,7 +58,6 @@ from bauble import db
 from bauble import prefs
 from bauble import utils
 from bauble.i18n import _
-from bauble.view import Picture
 
 from .geography import DistributionMap
 from .geography import Geography
@@ -1052,7 +1051,7 @@ class Species(db.Domain, db.WithNotes):
         return cast(case([(cls.id.in_(active), 1)], else_=0), types.Boolean)
 
     @property
-    def pictures(self) -> list[Picture]:
+    def pictures(self) -> list[db.Picture]:
         """Return pictures from any attached plants and any in _pictures."""
         session = object_session(self)
         if not isinstance(session, Session):

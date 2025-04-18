@@ -51,6 +51,7 @@ import sqlalchemy.exc as saexc
 from gi.repository import Gdk
 from gi.repository import Gio
 from gi.repository import GLib
+from gi.repository import GObject
 from gi.repository import Gtk
 from mako.template import Template  # type: ignore [import-untyped]
 from pyparsing import CaselessLiteral
@@ -516,14 +517,6 @@ class LinksExpander(InfoExpander):
             utils.hide_widgets(widgets)
 
 
-class Picture(Protocol):  # pylint: disable=too-few-public-methods
-    id: int
-    category: str
-    picture: str
-    _last_updated: datetime
-    owner: db.Domain
-
-
 class PicturesScroller(Gtk.ScrolledWindow):
     # pylint: disable=too-many-instance-attributes
     """Shows pictures corresponding to selection.
@@ -531,6 +524,14 @@ class PicturesScroller(Gtk.ScrolledWindow):
     PicturesScroller object will ask each object in the selection to return
     pictures to display.
     """
+
+    __gsignals__ = {
+        "picture-selected": (
+            GObject.SignalFlags.RUN_FIRST,
+            None,
+            (object,),
+        ),
+    }
 
     PAGE_SIZE = 6
 
@@ -556,7 +557,7 @@ class PicturesScroller(Gtk.ScrolledWindow):
         self.single_button_press_timer: threading.Timer | None = None
         self.get_vadjustment().connect("value-changed", self.on_scrolled)
         self.max_allocated_height = 0
-        self.all_pics: list[Picture] | None = None
+        self.all_pics: list[db.Picture] | None = None
         self.count = 0
         self.waiting_on_realise = 0
         self.selection: list[db.Domain] = []
@@ -665,8 +666,8 @@ class PicturesScroller(Gtk.ScrolledWindow):
         self.add_rows()
 
     @staticmethod
-    def _get_pictures(selection: list[db.Domain]) -> list[Picture]:
-        all_pics_set: set[Picture] = set()
+    def _get_pictures(selection: list[db.Domain]) -> list[db.Picture]:
+        all_pics_set: set[db.Picture] = set()
         for obj in selection:
             if pics := getattr(obj, "pictures", None):
                 all_pics_set.update(pics)
@@ -747,7 +748,7 @@ class PicturesScroller(Gtk.ScrolledWindow):
                 notebook.set_current_page(selected)
 
     def on_button_press(
-        self, _view, event: Gdk.EventButton, picture: Picture
+        self, _view, event: Gdk.EventButton, picture: db.Picture
     ) -> None:
         """On double click open the image in the default viewer. On single
         click select the item in the search view, if its already selected check
@@ -776,70 +777,9 @@ class PicturesScroller(Gtk.ScrolledWindow):
                 )
                 self.single_button_press_timer.start()
 
-    def _on_single_button_press(self, picture: Picture) -> None:
+    def _on_single_button_press(self, picture: db.Picture) -> None:
         self.single_button_press_timer = None
-        GLib.idle_add(self.select_object, picture)
-
-    def select_object(self, picture: Picture) -> None:
-        """Select the object in the SearchView,
-
-        If the object is already the one selected check if it has a child that
-        owns the picture and if so select the child instead.
-        """
-        logger.debug("selecting object %s", picture.owner)
-        if bauble.gui and isinstance(
-            search_view := bauble.gui.get_view(), SearchView
-        ):
-            model = search_view.results_view.get_model()
-
-            if not model:
-                logger.debug("no model")
-                return
-
-            selected = cast(list, search_view.get_selected_values())
-
-            if selected == [picture.owner]:
-                logger.debug("already selected")
-                return
-
-            if selected is not None and picture.owner in selected:
-                # make sure we select the object if multiple selected
-                select_in_search_results(picture.owner)
-                logger.debug("reducing to selected")
-                return
-
-            for obj in selected:
-                if picture in obj.pictures:
-                    self._select_child_obj(picture, obj, model, search_view)
-
-    def _select_child_obj(
-        self,
-        picture: Picture,
-        obj: db.Domain,
-        model: Gtk.TreeModel,
-        search_view: "SearchView",
-    ) -> None:
-        logger.debug("object = %s(%s)", type(obj).__name__, obj)
-        kids = search_view.row_meta[type(obj)].get_children(obj)
-        for kid in kids:
-
-            if hasattr(kid, "pictures") and picture in kid.pictures:
-                itr = utils.search_tree_model(model, obj)[0]
-                path = model.get_path(itr)
-                # expand (on_test_expand_row needed for test)
-                search_view.on_test_expand_row(
-                    search_view.results_view, itr, path
-                )
-                search_view.results_view.expand_to_path(path)
-                if kid is picture.owner:
-                    itr = select_in_search_results(kid)
-                    path = model.get_path(itr)
-                    search_view.results_view.scroll_to_cell(
-                        path, None, True, 0.5, 0.0
-                    )
-                else:
-                    # traverse to source
-                    self._select_child_obj(picture, kid, model, search_view)
+        GLib.idle_add(self.emit, "picture-selected", picture)
 
 
 @dataclass
@@ -999,6 +939,11 @@ class SearchView(pluginmgr.View, Gtk.Box):
         self.pictures_scroller = PicturesScroller(
             parent=self.pics_box, pic_pane=self.pic_pane
         )
+
+        self.pictures_scroller.connect(
+            "picture-selected", self.select_from_picture
+        )
+
         self.infobox: InfoBox | None = None
         self.history_action: Gio.SimpleAction | None = None
 
@@ -2064,6 +2009,63 @@ class SearchView(pluginmgr.View, Gtk.Box):
         call_back = self.row_meta[type(selected[0])].activated_callback
         if call_back:
             call_back(selected)
+
+    def select_from_picture(
+        self, pic_scroller: PicturesScroller, picture: db.Picture
+    ) -> None:
+        """Select the ownere of the picture in the SearchView,
+
+        If the object is already the one selected check if it has a child that
+        owns the picture and if so select the child instead.
+        """
+        logger.debug("selecting object %s", picture.owner)
+        model = self.results_view.get_model()
+
+        if not model:
+            logger.debug("no model")
+            return
+
+        selected = self.get_selected_values()
+
+        if selected == [picture.owner]:
+            logger.debug("already selected")
+            return
+
+        if selected is not None and picture.owner in selected:
+            # make sure we select the object if multiple selected
+            select_in_search_results(picture.owner)
+            logger.debug("reducing to selected")
+            return
+
+        for obj in selected:
+            if picture in obj.pictures:
+                self._select_child_from_picture(picture, obj, model)
+
+    def _select_child_from_picture(
+        self,
+        picture: db.Picture,
+        obj: db.Domain,
+        model: Gtk.TreeModel,
+    ) -> None:
+        logger.debug("object = %s(%s)", type(obj).__name__, obj)
+        kids = self.row_meta[type(obj)].get_children(obj)
+        for kid in kids:
+
+            if picture in kid.pictures:
+                itr = utils.search_tree_model(model, obj)[0]
+                path = model.get_path(itr)
+                # expand (on_test_expand_row needed for test)
+                self.on_test_expand_row(self.results_view, itr, path)
+                self.results_view.expand_to_path(path)
+                if kid is picture.owner:
+                    itr = select_in_search_results(kid)
+                    path = model.get_path(itr)
+                    self.results_view.scroll_to_cell(
+                        path, None, True, 0.5, 0.0
+                    )
+                else:
+                    # traverse to source
+                    self._select_child_from_picture(picture, kid, model)
 
 
 def get_search_view_selected() -> list[db.Domain] | None:

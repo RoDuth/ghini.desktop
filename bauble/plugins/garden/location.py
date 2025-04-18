@@ -60,7 +60,6 @@ from bauble.editor import StringOrNoneValidator
 from bauble.i18n import _
 from bauble.utils.geo import KMLMapCallbackFunctor
 from bauble.view import Action
-from bauble.view import Picture
 
 if TYPE_CHECKING:
     from .accession import IntendedLocation
@@ -213,7 +212,7 @@ class Location(db.Domain, db.WithNotes):
     retrieve_cols = ["id", "code"]
 
     @property
-    def pictures(self) -> list[Picture]:
+    def pictures(self) -> list[db.Picture]:
         """Return pictures from any attached plants and any in _pictures."""
         session = object_session(self)
         if not isinstance(session, Session):
