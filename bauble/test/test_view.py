@@ -2029,6 +2029,128 @@ class TestSearchView(BaubleTestCase):
         search_view.results_view.set_model(None)
         search_view.select_from_picture(search_view.pictures_scroller, pic1)
 
+    def test_on_destroy_records_width_and_selected_page(self):
+        # setup
+        self.search_view._remove_bottom_pages()
+
+        search_view = SearchView()
+        self.assertIsNone(prefs.prefs.get(PIC_PANE_WIDTH_PREF))
+        search_view.pic_pane.set_position(100)
+        box = Gtk.Box()
+        search_view.pic_pane_notebook.append_page(
+            box, Gtk.Label(label="test2")
+        )
+        search_view.pic_pane_notebook.show_all()
+        # NOTE can't set current page until after show_all
+        search_view.pic_pane_notebook.set_current_page(1)
+        search_view.destroy()
+
+        self.assertEqual(prefs.prefs.get(PIC_PANE_WIDTH_PREF), 100)
+        self.assertEqual(prefs.prefs.get(PIC_PANE_PAGE_PREF), 1)
+
+        # teardown
+        self.search_view._remove_bottom_pages()
+        self.search_view._add_bottom_pages()
+
+    @mock.patch("bauble.gui")
+    def test_set_width_and_notebook_page(self, mock_gui):
+        mock_gui.window.get_size().width = 1000
+        # setup
+        self.search_view._remove_bottom_pages()
+
+        prefs.prefs[PIC_PANE_PAGE_PREF] = 1
+        window = Gtk.Window()
+        window.resize(500, 500)
+        box = Gtk.Box()
+        search_view = SearchView()
+        search_view.pic_pane_notebook.append_page(
+            box, Gtk.Label(label="test2")
+        )
+        search_view.pic_pane_notebook.show_all()
+        # NOTE can't set current page until after show_all
+        search_view.pic_pane_notebook.set_current_page(1)
+        search_view.set_width_and_notebook_page()
+        # default position if not set
+        self.assertEqual(
+            search_view.pic_pane.get_position(), 1000 - 300 - 300 - 6
+        )
+        # as set in prefs
+        self.assertEqual(search_view.pic_pane_notebook.get_current_page(), 1)
+
+        # teardown
+        self.search_view._remove_bottom_pages()
+        self.search_view._add_bottom_pages()
+        search_view.pic_pane_notebook.remove_page(1)
+
+    @mock.patch("bauble.gui", GUI())
+    def test_hide_restore_pic_pane(self):
+        self.search_view.restore_position = -1
+        # no result
+        self.search_view.restore_pic_pane = False
+        self.search_view.last_result_succeed = False
+        self.search_view._hide_restore_pic_pane([])
+        self.assertTrue(self.search_view.restore_pic_pane)
+        rectangle = Gdk.Rectangle()
+        rectangle.height = 10
+        rectangle.width = 10
+        rectangle.x = 10
+        rectangle.y = 10
+
+        self.search_view.pic_pane_notebook.emit("size-allocate", rectangle)
+
+        self.assertFalse(self.search_view.restore_pic_pane)
+        self.assertEqual(self.search_view.restore_position, -1)
+        self.assertFalse(self.search_view.last_result_succeed)
+        # error
+        self.search_view._hide_restore_pic_pane([])
+        self.search_view.pic_pane_notebook.emit("size-allocate", rectangle)
+
+        self.assertEqual(self.search_view.restore_position, -1)
+        self.assertFalse(self.search_view.last_result_succeed)
+        # success (but last result was a fail)
+        restore_pos = self.search_view.restore_position
+        self.assertFalse(self.search_view.restore_pic_pane)
+
+        self.search_view._hide_restore_pic_pane([1])
+        self.assertTrue(self.search_view.restore_pic_pane)
+        self.search_view.pic_pane_notebook.emit("size-allocate", rectangle)
+        self.assertFalse(self.search_view.restore_pic_pane)
+        self.assertTrue(self.search_view.last_result_succeed)
+        # no result (yet records restore position because prev was successful)
+        self.search_view._hide_restore_pic_pane([])
+        self.search_view.pic_pane_notebook.emit("size-allocate", rectangle)
+        self.assertFalse(self.search_view.last_result_succeed)
+        restore_pos2 = self.search_view.restore_position
+        self.assertIsNotNone(restore_pos2)
+        self.assertNotEqual(restore_pos2, restore_pos)
+        # succeed and change position then succeed again should store new value
+        self.search_view._hide_restore_pic_pane([1])
+        self.search_view.pic_pane_notebook.emit("size-allocate", rectangle)
+        self.search_view.pic_pane.set_position(100)
+        self.assertTrue(self.search_view.last_result_succeed)
+        self.search_view._hide_restore_pic_pane([1])
+        self.search_view.pic_pane_notebook.emit("size-allocate", rectangle)
+        self.assertEqual(self.search_view.restore_position, 100)
+        self.assertTrue(self.search_view.last_result_succeed)
+        # change position then fail multiple time, captures and uses last
+        # successful position
+        self.search_view.pic_pane.set_position(50)
+        self.search_view._hide_restore_pic_pane(None)
+        self.search_view.pic_pane_notebook.emit("size-allocate", rectangle)
+        self.assertFalse(self.search_view.last_result_succeed)
+        self.search_view._hide_restore_pic_pane(None)
+        self.search_view.pic_pane_notebook.emit("size-allocate", rectangle)
+        self.assertFalse(self.search_view.last_result_succeed)
+        self.search_view._hide_restore_pic_pane([])
+        self.search_view.pic_pane_notebook.emit("size-allocate", rectangle)
+        self.assertFalse(self.search_view.last_result_succeed)
+        self.assertEqual(self.search_view.restore_position, 50)
+        self.search_view._hide_restore_pic_pane([1])
+        self.search_view.pic_pane_notebook.emit("size-allocate", rectangle)
+        self.assertTrue(self.search_view.last_result_succeed)
+        self.assertEqual(self.search_view.restore_position, 50)
+        self.assertEqual(self.search_view.pic_pane.get_position(), 50)
+
 
 class TestHistoryView(BaubleTestCase):
     def test_populates_listore(self):
@@ -2776,85 +2898,10 @@ class TestHistoryView(BaubleTestCase):
 
 
 class TestPicturesScroller(BaubleTestCase):
-    def test_on_destroy_records_width_and_selected_page(self):
-        window = Gtk.Window()
-        window.resize(300, 300)
-        box = Gtk.Box()
-        notebook = Gtk.Notebook()
-        pics_box = Gtk.Paned()
-        pic_pane = Gtk.Paned()  # the parent pane, notebook is within
-        notebook.append_page(pics_box, Gtk.Label(label="test"))
-        box2 = Gtk.Box()
-        pic_pane.pack1(box2)
-        pic_pane.pack2(notebook)
-        box.pack_start(pic_pane, True, True, 1)
-        window.add(box)
-        PicturesScroller(parent=pics_box, pic_pane=pic_pane)
-        self.assertIsNone(prefs.prefs.get(PIC_PANE_WIDTH_PREF))
-        pic_pane.set_position(100)
-        box3 = Gtk.Box()
-        notebook.append_page(box3, Gtk.Label(label="test2"))
-        notebook.show_all()
-        # NOTE can't set current page until after show_all
-        notebook.set_current_page(1)
-        window.show_all()
-        window.destroy()
-        self.assertEqual(prefs.prefs.get(PIC_PANE_WIDTH_PREF), 100)
-        self.assertEqual(prefs.prefs.get(PIC_PANE_PAGE_PREF), 1)
-
-    def test_set_width_and_notebook_page(self):
-        prefs.prefs[PIC_PANE_PAGE_PREF] = 1
-        window = Gtk.Window()
-        window.resize(500, 500)
-        box = Gtk.Box()
-        notebook = Gtk.Notebook()
-        pics_box = Gtk.Paned()
-        pic_pane = Gtk.Paned()  # the parent pane, notebook is within
-        notebook.append_page(pics_box, Gtk.Label(label="test"))
-        box2 = Gtk.Box()
-        pic_pane.pack1(box2)
-        pic_pane.pack2(notebook)
-        box.pack_start(pic_pane, True, True, 1)
-        window.add(box)
-        pic_pane.set_position(100)
-        box3 = Gtk.Box()
-        notebook.append_page(box3, Gtk.Label(label="test2"))
-        notebook.show_all()
-        # NOTE can't set current page until after show_all
-        notebook.set_current_page(1)
-        PicturesScroller(
-            parent=pics_box, pic_pane=pic_pane
-        ).set_width_and_notebook_page()
-        # default position if not set
-        self.assertEqual(pic_pane.get_position(), 1000 - 300 - 300 - 6)
-        # as set in prefs
-        self.assertEqual(notebook.get_current_page(), 1)
-
-        # no search results
-        with mock.patch("bauble.gui") as mock_gui:
-            mock_gui.window.get_size().width = 1000
-            search_view = get_search_view()
-            search_view.infobox = None
-            mock_gui.get_view.return_value = search_view
-            PicturesScroller(
-                parent=pics_box, pic_pane=pic_pane
-            ).set_width_and_notebook_page()
-            self.assertEqual(pic_pane.get_position(), 1000 - 0 - 300 - 6)
-
-    def test_populate_from_selection_adds_children(self):
-        box = Gtk.Box()
-        notebook = Gtk.Notebook()
-        pics_box = Gtk.Paned()
-        pic_pane = Gtk.Paned()  # the parent pane, notebook is within
-        notebook.append_page(pics_box, Gtk.Label(label="test"))
-        box2 = Gtk.Box()
-        pic_pane.pack1(box2)
-        pic_pane.pack2(notebook)
-        box.pack_start(pic_pane, True, True, 1)
-        picture_scroller = PicturesScroller(parent=pics_box, pic_pane=pic_pane)
-        self.assertFalse(picture_scroller.pictures_box.get_children())
+    def test_update_adds_children(self):
+        picture_scroller = PicturesScroller()
         # single
-        picture_scroller.populate_from_selection(
+        picture_scroller.update(
             [
                 mock.Mock(
                     pictures=[mock.Mock(picture="test.jpg", category="test")]
@@ -2864,25 +2911,15 @@ class TestPicturesScroller(BaubleTestCase):
         self.assertEqual(len(picture_scroller.pictures_box.get_children()), 1)
         # test doesn't add twice
         mock_pic = mock.Mock(picture="test.jpg", category="test")
-        picture_scroller.populate_from_selection(
+        picture_scroller.update(
             [mock.Mock(pictures=[mock_pic]), mock.Mock(pictures=[mock_pic])]
         )
         self.assertEqual(len(picture_scroller.pictures_box.get_children()), 1)
 
     def test_add_rows(self):
-        box = Gtk.Box()
-        notebook = Gtk.Notebook()
-        pics_box = Gtk.Paned()
-        pic_pane = Gtk.Paned()  # the parent pane, notebook is within
-        notebook.append_page(pics_box, Gtk.Label(label="test"))
-        box2 = Gtk.Box()
-        pic_pane.pack1(box2)
-        pic_pane.pack2(notebook)
-        box.pack_start(pic_pane, True, True, 1)
-
         path = os.path.join(paths.lib_dir(), "images", "bauble_logo.png")
         mock_pic = mock.Mock(category="test", picture=path)
-        picture_scroller = PicturesScroller(parent=pics_box, pic_pane=pic_pane)
+        picture_scroller = PicturesScroller()
         picture_scroller.count = 0
         picture_scroller.all_pics = [mock_pic]
         self.assertEqual(len(picture_scroller.pictures_box.get_children()), 0)
@@ -2892,16 +2929,7 @@ class TestPicturesScroller(BaubleTestCase):
         self.assertEqual(len(picture_scroller.pictures_box.get_children()), 1)
 
     def test_add_rows_bails_early_if_populated_or_no_pics(self):
-        box = Gtk.Box()
-        notebook = Gtk.Notebook()
-        pics_box = Gtk.Paned()
-        pic_pane = Gtk.Paned()  # the parent pane, notebook is within
-        notebook.append_page(pics_box, Gtk.Label(label="test"))
-        box2 = Gtk.Box()
-        pic_pane.pack1(box2)
-        pic_pane.pack2(notebook)
-        box.pack_start(pic_pane, True, True, 1)
-        picture_scroller = PicturesScroller(parent=pics_box, pic_pane=pic_pane)
+        picture_scroller = PicturesScroller()
         picture_scroller.count = 2
         picture_scroller.all_pics = [1, 2]
         picture_scroller.max_allocated_height = 100
@@ -2971,16 +2999,7 @@ class TestPicturesScroller(BaubleTestCase):
 
     @mock.patch("bauble.utils.desktop.open")
     def test_on_button_press_double_click_opens_picture(self, mock_open):
-        box = Gtk.Box()
-        notebook = Gtk.Notebook()
-        pics_box = Gtk.Paned()
-        pic_pane = Gtk.Paned()  # the parent pane, notebook is within
-        notebook.append_page(pics_box, Gtk.Label(label="test"))
-        box2 = Gtk.Box()
-        pic_pane.pack1(box2)
-        pic_pane.pack2(notebook)
-        box.pack_start(pic_pane, True, True, 1)
-        picture_scroller = PicturesScroller(parent=pics_box, pic_pane=pic_pane)
+        picture_scroller = PicturesScroller()
         mock_event = mock.Mock(button=1, type=Gdk.EventType._2BUTTON_PRESS)
         picture_scroller.on_button_press(
             None, mock_event, mock.Mock(picture="test.jpg")
@@ -3001,101 +3020,16 @@ class TestPicturesScroller(BaubleTestCase):
             mock_open.assert_called_with(Path("pictures/test.jpg"))
             mock_gui.assert_not_called()
 
-    @mock.patch("bauble.gui")
-    def test_on_button_press_single_click_selects_obj(self, mock_gui):
-        box = Gtk.Box()
-        notebook = Gtk.Notebook()
-        pics_box = Gtk.Paned()
-        pic_pane = Gtk.Paned()  # the parent pane, notebook is within
-        notebook.append_page(pics_box, Gtk.Label(label="test"))
-        box2 = Gtk.Box()
-        pic_pane.pack1(box2)
-        pic_pane.pack2(notebook)
-        box.pack_start(pic_pane, True, True, 1)
-        picture_scroller = PicturesScroller(parent=pics_box, pic_pane=pic_pane)
-        mock_gui.get_view.return_value = None
+    def test_on_button_press_single_click_emits_picture_selected(self):
+        picture_scroller = PicturesScroller()
+        mock_handler = mock.Mock()
+        picture_scroller.connect("picture-selected", mock_handler)
         mock_event = mock.Mock(button=1, type=Gdk.EventType.BUTTON_PRESS)
-        picture_scroller.on_button_press(
-            None, mock_event, mock.Mock(picture="test.jpg")
-        )
+        mock_pic = mock.Mock(picture="test.jpg")
+        picture_scroller.on_button_press(None, mock_event, mock_pic)
         wait_on_threads()
         update_gui()
-        mock_gui.get_view.assert_called()
-
-    @mock.patch("bauble.gui", GUI())
-    def test_hide_restore_pic_pane(self):
-        box = Gtk.Box()
-        notebook = Gtk.Notebook()
-        pics_box = Gtk.Paned()
-        pic_pane = Gtk.Paned()  # the parent pane, notebook is within
-        notebook.append_page(pics_box, Gtk.Label(label="test"))
-        box2 = Gtk.Box()
-        pic_pane.pack1(box2)
-        pic_pane.pack2(notebook)
-        box.pack_start(pic_pane, True, True, 1)
-        picture_scroller = PicturesScroller(parent=pics_box, pic_pane=pic_pane)
-        self.assertEqual(picture_scroller.restore_position, -1)
-        # no result
-        self.assertFalse(picture_scroller.restore_pic_pane)
-        picture_scroller._hide_restore_pic_pane([])
-        self.assertTrue(picture_scroller.restore_pic_pane)
-        rectangle = Gdk.Rectangle()
-        rectangle.height = 10
-        rectangle.width = 10
-        rectangle.x = 10
-        rectangle.y = 10
-
-        notebook.emit("size-allocate", rectangle)
-        self.assertFalse(picture_scroller.restore_pic_pane)
-        self.assertEqual(picture_scroller.restore_position, -1)
-        self.assertFalse(picture_scroller.last_result_succeed)
-        # error
-        picture_scroller._hide_restore_pic_pane(None)
-        notebook.emit("size-allocate", rectangle)
-        self.assertEqual(picture_scroller.restore_position, -1)
-        self.assertFalse(picture_scroller.last_result_succeed)
-        # success (but last result was a fail - idle_add pic_pane set_position)
-        restore_pos = picture_scroller.restore_position
-        self.assertFalse(picture_scroller.restore_pic_pane)
-        picture_scroller._hide_restore_pic_pane([1])
-        self.assertTrue(picture_scroller.restore_pic_pane)
-        notebook.emit("size-allocate", rectangle)
-        self.assertFalse(picture_scroller.restore_pic_pane)
-        self.assertTrue(picture_scroller.last_result_succeed)
-        # no result (yet records restore position because prev was successful)
-        picture_scroller._hide_restore_pic_pane([])
-        notebook.emit("size-allocate", rectangle)
-        self.assertFalse(picture_scroller.last_result_succeed)
-        restore_pos2 = picture_scroller.restore_position
-        self.assertIsNotNone(restore_pos2)
-        self.assertNotEqual(restore_pos2, restore_pos)
-        # succeed and change position then succeed again should store new value
-        picture_scroller._hide_restore_pic_pane([1])
-        notebook.emit("size-allocate", rectangle)
-        picture_scroller.pic_pane.set_position(100)
-        self.assertTrue(picture_scroller.last_result_succeed)
-        picture_scroller._hide_restore_pic_pane([1])
-        notebook.emit("size-allocate", rectangle)
-        self.assertEqual(picture_scroller.restore_position, 100)
-        self.assertTrue(picture_scroller.last_result_succeed)
-        # change position then fail multiple time, captures and uses last
-        # successful position
-        picture_scroller.pic_pane.set_position(50)
-        picture_scroller._hide_restore_pic_pane(None)
-        notebook.emit("size-allocate", rectangle)
-        self.assertFalse(picture_scroller.last_result_succeed)
-        picture_scroller._hide_restore_pic_pane(None)
-        notebook.emit("size-allocate", rectangle)
-        self.assertFalse(picture_scroller.last_result_succeed)
-        picture_scroller._hide_restore_pic_pane([])
-        notebook.emit("size-allocate", rectangle)
-        self.assertFalse(picture_scroller.last_result_succeed)
-        self.assertEqual(picture_scroller.restore_position, 50)
-        picture_scroller._hide_restore_pic_pane([1])
-        notebook.emit("size-allocate", rectangle)
-        self.assertTrue(picture_scroller.last_result_succeed)
-        self.assertEqual(picture_scroller.restore_position, 50)
-        self.assertEqual(picture_scroller.pic_pane.get_position(), 50)
+        mock_handler.assert_called_with(picture_scroller, mock_pic)
 
 
 class NotesBottomPageTests(BaubleTestCase):

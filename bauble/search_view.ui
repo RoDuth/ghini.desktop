@@ -88,6 +88,7 @@
               <object class="GtkNotebook" id="pic_pane_notebook">
                 <property name="visible">True</property>
                 <property name="can-focus">True</property>
+                <signal name="size-allocate" handler="on_pic_pane_notebook_size_allocation" swapped="no"/>
                 <child>
                   <object class="GtkPaned" id="pics_box">
                     <property name="visible">True</property>

@@ -535,25 +535,13 @@ class PicturesScroller(Gtk.ScrolledWindow):
 
     PAGE_SIZE = 6
 
-    def __init__(self, parent: Gtk.Paned, pic_pane: Gtk.Paned) -> None:
-        logger.debug("entering PicturesScroller.__init__(parent=%s)", parent)
+    def __init__(self) -> None:
+        logger.debug("entering PicturesScroller.__init__")
         super().__init__()
-        parent.add(self)
-        self.parent = parent
-        self.pic_pane = pic_pane
-        self.set_width_and_notebook_page()
-        self.restore_position: int = prefs.prefs.get(PIC_PANE_WIDTH_PREF, -1)
-        self.restore_pic_pane = False
-        pic_pane.show_all()
-        self.pic_pane.set_position(self.restore_position)
         self.pictures_box = Gtk.FlowBox()
         self.pictures_box.set_selection_mode(Gtk.SelectionMode.NONE)
         self.add(self.pictures_box)
-        self.last_result_succeed = False
         self.show()
-        # connect to the grandparent to capture parent's values first
-        if pic_parent := self.pic_pane.get_parent():
-            pic_parent.connect("destroy", self.on_destroy)
         self.single_button_press_timer: threading.Timer | None = None
         self.get_vadjustment().connect("value-changed", self.on_scrolled)
         self.max_allocated_height = 0
@@ -561,10 +549,6 @@ class PicturesScroller(Gtk.ScrolledWindow):
         self.count = 0
         self.waiting_on_realise = 0
         self.selection: list[db.Domain] = []
-        # fires considerably less than child1 or pic_pane itself.
-        cast(Gtk.Widget, pic_pane.get_child2()).connect(
-            "size-allocate", self.on_pic_pane_size_allocation
-        )
 
     def on_scrolled(self, adjustment: Gtk.Adjustment) -> None:
         """On scrolling add more pictures as needed.
@@ -602,52 +586,9 @@ class PicturesScroller(Gtk.ScrolledWindow):
         if self.waiting_on_realise <= 0:
             GLib.idle_add(self.on_scrolled, self.get_vadjustment())
 
-    def on_destroy(self, _widget) -> None:
-        width = self.pic_pane.get_position()
-        logger.debug("setting PIC_PANE_WIDTH_PREF to %s", width)
-        prefs.prefs[PIC_PANE_WIDTH_PREF] = width
-        if pic_pane_notebook := cast(Gtk.Notebook, self.parent.get_parent()):
-            selected = pic_pane_notebook.get_current_page()
-            logger.debug("setting PIC_PANE_PAGE_PREF to %s", selected)
-            prefs.prefs[PIC_PANE_PAGE_PREF] = selected
+    def update(self, selection: list[db.Domain] | None) -> None:
+        logger.debug("PicturesScroller.update(%s)", selection)
 
-    def _hide_restore_pic_pane(
-        self, selection: list[db.Domain] | None
-    ) -> None:
-        # restore once
-        self.restore_pic_pane = True
-        if self.last_result_succeed:
-            self.restore_position = self.pic_pane.get_position()
-            logger.debug(
-                "_hide_restore_pic_pane succeeded with %s",
-                self.restore_position,
-            )
-        if not selection:
-            # No result or error
-            if bauble.gui:
-                width = bauble.gui.window.get_size().width
-                self.pic_pane.set_position(width - 6)
-            self.last_result_succeed = False
-        else:
-            self.last_result_succeed = True
-
-    def on_pic_pane_size_allocation(
-        self, _pic_pane: Gtk.Paned, _allocation: Gdk.Rectangle
-    ) -> None:
-        if (
-            self.restore_pic_pane
-            and self.last_result_succeed
-            and self.restore_position
-        ):
-            self.pic_pane.set_position(self.restore_position)
-        self.restore_pic_pane = False
-
-    def populate_from_selection(
-        self, selection: list[db.Domain] | None
-    ) -> None:
-        logger.debug("PicturesScroller.populate_from_selection(%s)", selection)
-
-        self._hide_restore_pic_pane(selection)
         # bail early if nothing has changed
         if self.selection == selection:
             return
@@ -721,31 +662,6 @@ class PicturesScroller(Gtk.ScrolledWindow):
             self.count += 1
 
         self.pictures_box.show_all()
-
-    def set_width_and_notebook_page(self) -> None:
-        # for tests when no gui
-        width = 1000
-        if bauble.gui:
-            width = bauble.gui.window.get_size().width
-        pics_width = prefs.prefs.get(PIC_PANE_WIDTH_PREF, 300)
-
-        info_width = prefs.prefs.get(INFOBOXPAGE_WIDTH_PREF, 300)
-        # no search results == no infobox
-        if (
-            bauble.gui
-            and isinstance(search_view := bauble.gui.get_view(), SearchView)
-            and search_view.infobox is None
-        ):
-            info_width = 0
-
-        pane_pos = width - info_width - pics_width - 6
-        logger.debug("setting pic_pane position to %s", pane_pos)
-        self.pic_pane.set_position(pane_pos)
-        selected = prefs.prefs.get(PIC_PANE_PAGE_PREF)
-        if selected is not None:
-            notebook = cast(Gtk.Notebook, self.parent.get_parent())
-            if notebook:
-                notebook.set_current_page(selected)
 
     def on_button_press(
         self, _view, event: Gdk.EventButton, picture: db.Picture
@@ -936,15 +852,20 @@ class SearchView(pluginmgr.View, Gtk.Box):
 
         self.add_pic_pane_notebook_pages()
 
-        self.pictures_scroller = PicturesScroller(
-            parent=self.pics_box, pic_pane=self.pic_pane
-        )
+        self.pictures_scroller = PicturesScroller()
+        self.pics_box.add(self.pictures_scroller)
+        self.pics_box.show_all()
+        self.restore_position: int = prefs.prefs.get(PIC_PANE_WIDTH_PREF, -1)
+        self.pic_pane.set_position(self.restore_position)
+        self.restore_pic_pane = False
+        self.last_result_succeed = False
+        self.infobox: InfoBox | None = None
+        self.set_width_and_notebook_page()
 
         self.pictures_scroller.connect(
             "picture-selected", self.select_from_picture
         )
-
-        self.infobox: InfoBox | None = None
+        self.info_pane.connect("destroy", self.on_destroy)
         self.history_action: Gio.SimpleAction | None = None
 
         # keep all the search results in the same session, this should
@@ -1125,7 +1046,8 @@ class SearchView(pluginmgr.View, Gtk.Box):
         # update all backward-looking info boxes
         self.update_bottom_notebook(selected_values)
 
-        self.pictures_scroller.populate_from_selection(selected_values)
+        self._hide_restore_pic_pane(selected_values)
+        self.pictures_scroller.update(selected_values)
 
         self.update_context_menus(selected_values)
 
@@ -2066,6 +1988,71 @@ class SearchView(pluginmgr.View, Gtk.Box):
                 else:
                     # traverse to source
                     self._select_child_from_picture(picture, kid, model)
+
+    def on_destroy(self, _info_pane) -> None:
+        """Save pic_pane size and selected page state."""
+
+        width = self.pic_pane.get_position()
+        logger.debug("setting PIC_PANE_WIDTH_PREF to %s", width)
+        prefs.prefs[PIC_PANE_WIDTH_PREF] = width
+
+        selected = self.pic_pane_notebook.get_current_page()
+        logger.debug("setting PIC_PANE_PAGE_PREF to %s", selected)
+        prefs.prefs[PIC_PANE_PAGE_PREF] = selected
+
+    @Gtk.Template.Callback()
+    def on_pic_pane_notebook_size_allocation(
+        self, _pic_pane_notebook, _allocation
+    ) -> None:
+        # fires considerably less than pic_pane itself.
+        if (
+            self.restore_pic_pane
+            and self.last_result_succeed
+            and self.restore_position
+        ):
+            self.pic_pane.set_position(self.restore_position)
+
+        self.restore_pic_pane = False
+
+    def _hide_restore_pic_pane(
+        self, selected_values: list[db.Domain] | None
+    ) -> None:
+        # restore once
+        self.restore_pic_pane = True
+
+        if self.last_result_succeed:
+            self.restore_position = self.pic_pane.get_position()
+            logger.debug(
+                "_hide_restore_pic_pane succeeded with %s",
+                self.restore_position,
+            )
+
+        if selected_values:
+            self.last_result_succeed = True
+        else:
+            # No result or error
+            if bauble.gui:
+                width = bauble.gui.window.get_size().width
+                self.pic_pane.set_position(width - 6)
+            self.last_result_succeed = False
+
+    def set_width_and_notebook_page(self) -> None:
+        # for tests when no gui
+        width = 1000
+        if bauble.gui:
+            width = bauble.gui.window.get_size().width
+
+        pics_width = prefs.prefs.get(PIC_PANE_WIDTH_PREF, 300)
+
+        info_width = prefs.prefs.get(INFOBOXPAGE_WIDTH_PREF, 300)
+
+        pane_pos = width - info_width - pics_width - 6
+        logger.debug("setting pic_pane position to %s", pane_pos)
+        self.pic_pane.set_position(pane_pos)
+
+        selected = prefs.prefs.get(PIC_PANE_PAGE_PREF)
+        if selected is not None:
+            self.pic_pane_notebook.set_current_page(selected)
 
 
 def get_search_view_selected() -> list[db.Domain] | None:
