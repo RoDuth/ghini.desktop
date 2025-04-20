@@ -21,7 +21,6 @@
 Description: the default view
 """
 
-import html
 import itertools
 import json
 import logging
@@ -802,6 +801,8 @@ class SearchView(pluginmgr.View, Gtk.Box):
     pic_pane = cast(Gtk.Paned, Gtk.Template.Child())
     pic_pane_notebook = cast(Gtk.Notebook, Gtk.Template.Child())
     pics_box = cast(Gtk.Paned, Gtk.Template.Child())
+    error_box = cast(Gtk.Box, Gtk.Template.Child())
+    error_label = cast(Gtk.Label, Gtk.Template.Child())
 
     row_meta = ViewMeta()
 
@@ -853,18 +854,17 @@ class SearchView(pluginmgr.View, Gtk.Box):
         self.add_pic_pane_notebook_pages()
 
         self.pictures_scroller = PicturesScroller()
+        self.pictures_scroller.connect(
+            "picture-selected", self.select_from_picture
+        )
         self.pics_box.add(self.pictures_scroller)
         self.pics_box.show_all()
         self.restore_position: int = prefs.prefs.get(PIC_PANE_WIDTH_PREF, -1)
         self.pic_pane.set_position(self.restore_position)
-        self.restore_pic_pane = False
-        self.last_result_succeed = False
-        self.infobox: InfoBox | None = None
-        self.set_width_and_notebook_page()
-
-        self.pictures_scroller.connect(
-            "picture-selected", self.select_from_picture
+        self.pic_pane_notebook.set_current_page(
+            prefs.prefs.get(PIC_PANE_PAGE_PREF, 0)
         )
+        self.infobox: InfoBox | None = None
         self.info_pane.connect("destroy", self.on_destroy)
         self.history_action: Gio.SimpleAction | None = None
 
@@ -1037,16 +1037,11 @@ class SearchView(pluginmgr.View, Gtk.Box):
         logger.debug("SearchView::on_selection_changed")
         # grab values once
         selected_values = self.get_selected_values()
-        # bail early if failed search
-        if selected_values and isinstance(selected_values[0], str):
-            logger.debug("cannot update from str object")
-            return
         # update all forward-looking info boxes
         self.update_infobox(selected_values)
         # update all backward-looking info boxes
         self.update_bottom_notebook(selected_values)
 
-        self._hide_restore_pic_pane(selected_values)
         self.pictures_scroller.update(selected_values)
 
         self.update_context_menus(selected_values)
@@ -1264,6 +1259,8 @@ class SearchView(pluginmgr.View, Gtk.Box):
         if error_msg and bauble.gui:
             self.last_search = ""
             bauble.gui.show_error_box(error_msg, error_details_msg)
+            self.show_error(True)
+            self.update_statusbar([])
             self.on_selection_changed(None)
             return
 
@@ -1276,16 +1273,41 @@ class SearchView(pluginmgr.View, Gtk.Box):
             if not utils.yes_no_dialog(msg):
                 return
 
-        # not error
+        # no result (not error)
         if len(results) == 0:
-            self._notify_no_result(text)
+            self.show_error(True, text)
+            self.update_statusbar(results)
         else:
+            self.show_error(False)
+            self.error_box.set_visible(False)
             self.populate_results(results)
             self.update_statusbar(results)
             self.results_view.set_cursor(Gtk.TreePath.new_first())
             self.results_view.scroll_to_cell(
                 Gtk.TreePath.new_first(), None, True, 0.5, 0.0
             )
+
+    def show_error(self, active: bool, search_text: str = "") -> None:
+        self.no_result = active
+        if search_text:
+            msg = _('Could not find anything for search: "%s"') % search_text
+
+            if prefs.prefs.get(prefs.exclude_inactive_pref):
+                msg += "\n\n\n"
+                msg += _(
+                    "CONSIDER: uncheck 'Exclude Inactive' in options menu"
+                )
+
+            self.error_label.set_text(msg)
+        else:
+            self.error_label.set_text("")
+
+        if active:
+            self.info_pane.set_visible(False)
+            self.error_box.set_visible(True)
+        else:
+            self.info_pane.set_visible(True)
+            self.error_box.set_visible(False)
 
     @staticmethod
     def update_statusbar(
@@ -1303,12 +1325,11 @@ class SearchView(pluginmgr.View, Gtk.Box):
         sbcontext_id = statusbar.get_context_id("searchview.nresults")
         statusbar.pop(sbcontext_id)
 
-        if not isinstance(results[0], db.Domain):
+        if len(results) == 0 or not isinstance(results[0], db.Domain):
             return
 
         if len(set(item.__class__ for item in results)) == 1:
             class_ = results[0].__class__
-            sbcontext_id = statusbar.get_context_id("searchview.nresults")
             statusbar.pop(sbcontext_id)
             statusbar.push(
                 sbcontext_id,
@@ -1467,22 +1488,6 @@ class SearchView(pluginmgr.View, Gtk.Box):
         if model:
             objs = [i[0] for i in model]
             self.update_statusbar(objs)
-
-    def _notify_no_result(self, text: str) -> None:
-        self.no_result = True
-        bold = "<b>%s</b>"
-        model = Gtk.TreeStore(str)
-        msg = bold % html.escape(
-            _('Could not find anything for search: "%s"') % text
-        )
-        model.append(None, [msg])
-        if prefs.prefs.get(prefs.exclude_inactive_pref):
-            msg = bold % _(
-                "CONSIDER: uncheck 'Exclude Inactive' in options menu and "
-                "search again."
-            )
-            model.append(None, [msg])
-        self.results_view.set_model(model)
 
     @staticmethod
     def remove_children(model: Gtk.TreeStore, parent: Gtk.TreeIter) -> None:
@@ -1703,11 +1708,6 @@ class SearchView(pluginmgr.View, Gtk.Box):
 
         obj = model[treeiter][0]
 
-        # could not find anything message.
-        if isinstance(obj, str):
-            cell.set_property("markup", obj)
-            return
-
         try:
             if self.refresh:
                 row_meta = self.row_meta[type(obj)]
@@ -1825,7 +1825,7 @@ class SearchView(pluginmgr.View, Gtk.Box):
             return False
 
         selected = self.get_selected_values()
-        if not selected or isinstance(selected[0], str):
+        if not selected:
             return True
 
         menu_model = Gio.Menu()
@@ -1925,7 +1925,7 @@ class SearchView(pluginmgr.View, Gtk.Box):
             return
 
         selected = self.get_selected_values()
-        if not selected or isinstance(selected[0], str):
+        if not selected:
             return
 
         call_back = self.row_meta[type(selected[0])].activated_callback
@@ -1933,9 +1933,9 @@ class SearchView(pluginmgr.View, Gtk.Box):
             call_back(selected)
 
     def select_from_picture(
-        self, pic_scroller: PicturesScroller, picture: db.Picture
+        self, _pic_scroller: PicturesScroller, picture: db.Picture
     ) -> None:
-        """Select the ownere of the picture in the SearchView,
+        """Select the owner of the picture in the SearchView,
 
         If the object is already the one selected check if it has a child that
         owns the picture and if so select the child instead.
@@ -1999,60 +1999,6 @@ class SearchView(pluginmgr.View, Gtk.Box):
         selected = self.pic_pane_notebook.get_current_page()
         logger.debug("setting PIC_PANE_PAGE_PREF to %s", selected)
         prefs.prefs[PIC_PANE_PAGE_PREF] = selected
-
-    @Gtk.Template.Callback()
-    def on_pic_pane_notebook_size_allocation(
-        self, _pic_pane_notebook, _allocation
-    ) -> None:
-        # fires considerably less than pic_pane itself.
-        if (
-            self.restore_pic_pane
-            and self.last_result_succeed
-            and self.restore_position
-        ):
-            self.pic_pane.set_position(self.restore_position)
-
-        self.restore_pic_pane = False
-
-    def _hide_restore_pic_pane(
-        self, selected_values: list[db.Domain] | None
-    ) -> None:
-        # restore once
-        self.restore_pic_pane = True
-
-        if self.last_result_succeed:
-            self.restore_position = self.pic_pane.get_position()
-            logger.debug(
-                "_hide_restore_pic_pane succeeded with %s",
-                self.restore_position,
-            )
-
-        if selected_values:
-            self.last_result_succeed = True
-        else:
-            # No result or error
-            if bauble.gui:
-                width = bauble.gui.window.get_size().width
-                self.pic_pane.set_position(width - 6)
-            self.last_result_succeed = False
-
-    def set_width_and_notebook_page(self) -> None:
-        # for tests when no gui
-        width = 1000
-        if bauble.gui:
-            width = bauble.gui.window.get_size().width
-
-        pics_width = prefs.prefs.get(PIC_PANE_WIDTH_PREF, 300)
-
-        info_width = prefs.prefs.get(INFOBOXPAGE_WIDTH_PREF, 300)
-
-        pane_pos = width - info_width - pics_width - 6
-        logger.debug("setting pic_pane position to %s", pane_pos)
-        self.pic_pane.set_position(pane_pos)
-
-        selected = prefs.prefs.get(PIC_PANE_PAGE_PREF)
-        if selected is not None:
-            self.pic_pane_notebook.set_current_page(selected)
 
 
 def get_search_view_selected() -> list[db.Domain] | None:

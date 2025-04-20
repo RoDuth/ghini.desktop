@@ -45,7 +45,6 @@ from bauble.test import BaubleTestCase
 from bauble.test import get_setUp_data_funcs
 from bauble.test import update_gui
 from bauble.test import wait_on_threads
-from bauble.ui import GUI
 from bauble.view import _MAINSTR_TMPL
 from bauble.view import _SUBSTR_TMPL
 from bauble.view import EXPAND_ON_ACTIVATE_PREF
@@ -167,19 +166,6 @@ class TestSearchView(BaubleTestCase):
                 Exception, self.search_view.update_infobox, [genus]
             )
         self.assertIsNone(self.search_view.info_pane.get_child2())
-
-    def test_on_selection_changed_str_bails(self):
-        with (
-            mock.patch.object(
-                self.search_view, "get_selected_values"
-            ) as mock_selected,
-            mock.patch.object(
-                self.search_view, "update_infobox"
-            ) as mock_update,
-        ):
-            mock_selected.return_value = ["Foo"]
-            self.search_view.on_selection_changed(None)
-            mock_update.assert_not_called()
 
     def test_all_domains_w_children_sorter(self):
         prefs.prefs["bauble.search.sort_by_taxon"] = True
@@ -496,18 +482,26 @@ class TestSearchView(BaubleTestCase):
         search_view.search("genus where epithet = None")
         model = search_view.results_view.get_model()
 
-        self.assertIn("Could not find anything for search", model[0][0])
-        self.assertEqual(len(model), 1)
+        self.assertIsNone(model)
+        self.assertFalse(search_view.info_pane.get_visible())
+        self.assertTrue(search_view.error_box.get_visible())
+        self.assertEqual(
+            search_view.error_label.get_text(),
+            'Could not find anything for search: "genus where epithet = None"',
+        )
 
         # with exclude inactive warns
         prefs.prefs[prefs.exclude_inactive_pref] = True
         search_view.search("genus where epithet = None")
-        model = search_view.results_view.get_model()
 
-        self.assertIn("Could not find anything for search", model[0][0])
-        self.assertIn("CONSIDER: uncheck 'Exclude Inactive'", model[1][0])
-        # no infobox
-        self.assertIsNone(search_view.infobox)
+        self.assertFalse(search_view.info_pane.get_visible())
+        self.assertTrue(search_view.error_box.get_visible())
+        self.assertEqual(
+            search_view.error_label.get_text(),
+            'Could not find anything for search: "genus where epithet = None"'
+            "\n\n\n"
+            "CONSIDER: uncheck 'Exclude Inactive' in options menu",
+        )
 
         with mock.patch.object(search_view, "_get_expanded_tree") as mock_tree:
             search_view.rerun_last_search()
@@ -865,24 +859,6 @@ class TestSearchView(BaubleTestCase):
         mock_renderer.set_property.assert_called()
         main, substr = selected2.search_view_markup_pair()
         markup = f"{_MAINSTR_TMPL % main}\n{_SUBSTR_TMPL % substr}"
-        mock_renderer.set_property.assert_called_with("markup", markup)
-
-    def test_cell_data_func_no_result(self):
-        search_view = self.search_view
-        search_view.search("genus where epithet = None")
-
-        mock_renderer = mock.Mock()
-        results_view = search_view.results_view
-        model = results_view.get_model()
-        tree_iter = model.get_iter(Gtk.TreePath.new_first())
-        search_view.cell_data_func(
-            results_view.get_column(0), mock_renderer, model, tree_iter, None
-        )
-        mock_renderer.set_property.assert_called()
-        markup = (
-            "<b>Could not find anything for search: &quot;genus where epithet "
-            "= None&quot;</b>"
-        )
         mock_renderer.set_property.assert_called_with("markup", markup)
 
     def test_cell_data_func_no_kids(self):
@@ -1280,16 +1256,19 @@ class TestSearchView(BaubleTestCase):
         search_string = "plant where id = 50000"
         search_view.search(search_string)
         model = search_view.results_view.get_model()
-        self.assertEqual(len(model), 1)
-        self.assertTrue(
-            model[0][0].startswith("<b>Could not find anything for search")
+
+        self.assertIsNone(model)
+        self.assertEqual(
+            search_view.error_label.get_text(),
+            f'Could not find anything for search: "{search_string}"',
         )
 
         search_view.rerun_last_search()
 
-        self.assertEqual(len(model), 1)
-        self.assertTrue(
-            model[0][0].startswith("<b>Could not find anything for search")
+        self.assertIsNone(model)
+        self.assertEqual(
+            search_view.error_label.get_text(),
+            f'Could not find anything for search: "{search_string}"',
         )
 
     @mock.patch("bauble.gui")
@@ -2051,105 +2030,6 @@ class TestSearchView(BaubleTestCase):
         # teardown
         self.search_view._remove_bottom_pages()
         self.search_view._add_bottom_pages()
-
-    @mock.patch("bauble.gui")
-    def test_set_width_and_notebook_page(self, mock_gui):
-        mock_gui.window.get_size().width = 1000
-        # setup
-        self.search_view._remove_bottom_pages()
-
-        prefs.prefs[PIC_PANE_PAGE_PREF] = 1
-        window = Gtk.Window()
-        window.resize(500, 500)
-        box = Gtk.Box()
-        search_view = SearchView()
-        search_view.pic_pane_notebook.append_page(
-            box, Gtk.Label(label="test2")
-        )
-        search_view.pic_pane_notebook.show_all()
-        # NOTE can't set current page until after show_all
-        search_view.pic_pane_notebook.set_current_page(1)
-        search_view.set_width_and_notebook_page()
-        # default position if not set
-        self.assertEqual(
-            search_view.pic_pane.get_position(), 1000 - 300 - 300 - 6
-        )
-        # as set in prefs
-        self.assertEqual(search_view.pic_pane_notebook.get_current_page(), 1)
-
-        # teardown
-        self.search_view._remove_bottom_pages()
-        self.search_view._add_bottom_pages()
-        search_view.pic_pane_notebook.remove_page(1)
-
-    @mock.patch("bauble.gui", GUI())
-    def test_hide_restore_pic_pane(self):
-        self.search_view.restore_position = -1
-        # no result
-        self.search_view.restore_pic_pane = False
-        self.search_view.last_result_succeed = False
-        self.search_view._hide_restore_pic_pane([])
-        self.assertTrue(self.search_view.restore_pic_pane)
-        rectangle = Gdk.Rectangle()
-        rectangle.height = 10
-        rectangle.width = 10
-        rectangle.x = 10
-        rectangle.y = 10
-
-        self.search_view.pic_pane_notebook.emit("size-allocate", rectangle)
-
-        self.assertFalse(self.search_view.restore_pic_pane)
-        self.assertEqual(self.search_view.restore_position, -1)
-        self.assertFalse(self.search_view.last_result_succeed)
-        # error
-        self.search_view._hide_restore_pic_pane([])
-        self.search_view.pic_pane_notebook.emit("size-allocate", rectangle)
-
-        self.assertEqual(self.search_view.restore_position, -1)
-        self.assertFalse(self.search_view.last_result_succeed)
-        # success (but last result was a fail)
-        restore_pos = self.search_view.restore_position
-        self.assertFalse(self.search_view.restore_pic_pane)
-
-        self.search_view._hide_restore_pic_pane([1])
-        self.assertTrue(self.search_view.restore_pic_pane)
-        self.search_view.pic_pane_notebook.emit("size-allocate", rectangle)
-        self.assertFalse(self.search_view.restore_pic_pane)
-        self.assertTrue(self.search_view.last_result_succeed)
-        # no result (yet records restore position because prev was successful)
-        self.search_view._hide_restore_pic_pane([])
-        self.search_view.pic_pane_notebook.emit("size-allocate", rectangle)
-        self.assertFalse(self.search_view.last_result_succeed)
-        restore_pos2 = self.search_view.restore_position
-        self.assertIsNotNone(restore_pos2)
-        self.assertNotEqual(restore_pos2, restore_pos)
-        # succeed and change position then succeed again should store new value
-        self.search_view._hide_restore_pic_pane([1])
-        self.search_view.pic_pane_notebook.emit("size-allocate", rectangle)
-        self.search_view.pic_pane.set_position(100)
-        self.assertTrue(self.search_view.last_result_succeed)
-        self.search_view._hide_restore_pic_pane([1])
-        self.search_view.pic_pane_notebook.emit("size-allocate", rectangle)
-        self.assertEqual(self.search_view.restore_position, 100)
-        self.assertTrue(self.search_view.last_result_succeed)
-        # change position then fail multiple time, captures and uses last
-        # successful position
-        self.search_view.pic_pane.set_position(50)
-        self.search_view._hide_restore_pic_pane(None)
-        self.search_view.pic_pane_notebook.emit("size-allocate", rectangle)
-        self.assertFalse(self.search_view.last_result_succeed)
-        self.search_view._hide_restore_pic_pane(None)
-        self.search_view.pic_pane_notebook.emit("size-allocate", rectangle)
-        self.assertFalse(self.search_view.last_result_succeed)
-        self.search_view._hide_restore_pic_pane([])
-        self.search_view.pic_pane_notebook.emit("size-allocate", rectangle)
-        self.assertFalse(self.search_view.last_result_succeed)
-        self.assertEqual(self.search_view.restore_position, 50)
-        self.search_view._hide_restore_pic_pane([1])
-        self.search_view.pic_pane_notebook.emit("size-allocate", rectangle)
-        self.assertTrue(self.search_view.last_result_succeed)
-        self.assertEqual(self.search_view.restore_position, 50)
-        self.assertEqual(self.search_view.pic_pane.get_position(), 50)
 
 
 class TestHistoryView(BaubleTestCase):

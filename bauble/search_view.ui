@@ -88,7 +88,6 @@
               <object class="GtkNotebook" id="pic_pane_notebook">
                 <property name="visible">True</property>
                 <property name="can-focus">True</property>
-                <signal name="size-allocate" handler="on_pic_pane_notebook_size_allocation" swapped="no"/>
                 <child>
                   <object class="GtkPaned" id="pics_box">
                     <property name="visible">True</property>
@@ -134,6 +133,31 @@
         <property name="expand">True</property>
         <property name="fill">True</property>
         <property name="position">0</property>
+      </packing>
+    </child>
+    <child>
+      <object class="GtkBox" id="error_box">
+        <property name="can-focus">False</property>
+        <property name="orientation">vertical</property>
+        <property name="visible">False</property>
+        <child>
+          <object class="GtkLabel" id="error_label">
+            <property name="can-focus">False</property>
+            <attributes>
+              <attribute name="weight" value="bold"/>
+            </attributes>
+          </object>
+          <packing>
+            <property name="expand">False</property>
+            <property name="fill">True</property>
+            <property name="position">0</property>
+          </packing>
+        </child>
+      </object>
+      <packing>
+        <property name="expand">False</property>
+        <property name="fill">True</property>
+        <property name="position">1</property>
       </packing>
     </child>
   </template>
