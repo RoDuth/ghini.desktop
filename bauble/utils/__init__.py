@@ -38,8 +38,10 @@ from collections.abc import Iterable
 from functools import wraps
 from pathlib import Path
 from typing import Any
+from typing import Literal
 from typing import Union
 from typing import cast
+from typing import overload
 from xml.sax import saxutils
 
 logger = logging.getLogger(__name__)
@@ -1700,27 +1702,42 @@ class YesNoMessageBox(GenericMessageBox):
             self.label.set_markup("")
 
 
-MESSAGE_BOX_INFO = 1
-MESSAGE_BOX_ERROR = 2
-MESSAGE_BOX_YESNO = 3
+MESSAGE_BOX_INFO: Literal[1] = 1
+MESSAGE_BOX_ERROR: Literal[2] = 2
+MESSAGE_BOX_YESNO: Literal[3] = 3
 
 
-def add_message_box(parent, typ=MESSAGE_BOX_INFO) -> GenericMessageBox:
+@overload
+def add_message_box(parent: Gtk.Box, type_: Literal[1]) -> MessageBox: ...
+
+
+@overload
+def add_message_box(parent: Gtk.Box, type_: Literal[2]) -> MessageBox: ...
+
+
+@overload
+def add_message_box(parent: Gtk.Box, type_: Literal[3]) -> YesNoMessageBox: ...
+
+
+def add_message_box(
+    parent: Gtk.Box,
+    type_: Literal[1, 2, 3] = MESSAGE_BOX_INFO,
+) -> GenericMessageBox:
     """
     :param parent: the parent :class:`Gtk.Box` width to add the
       message box to
-    :param typ: one of MESSAGE_BOX_INFO, MESSAGE_BOX_ERROR or
+    :param type_: one of MESSAGE_BOX_INFO, MESSAGE_BOX_ERROR or
       MESSAGE_BOX_YESNO
     """
     msg_box: Gtk.EventBox
-    if typ == MESSAGE_BOX_INFO:
+    if type_ == MESSAGE_BOX_INFO:
         msg_box = MessageBox()
-    elif typ == MESSAGE_BOX_ERROR:
+    elif type_ == MESSAGE_BOX_ERROR:
         msg_box = MessageBox()  # check this
-    elif typ == MESSAGE_BOX_YESNO:
+    elif type_ == MESSAGE_BOX_YESNO:
         msg_box = YesNoMessageBox()
     else:
-        raise ValueError(f"unknown message box type: {typ}")
+        raise ValueError(f"unknown message box type: {type_}")
     parent.pack_start(msg_box, True, True, 0)
     return msg_box
 

@@ -925,9 +925,10 @@ class DistMapInfoExpanderMixin:
         if not self.distribution_map:
             return
         image = self.distribution_map.as_image()
-        if bauble.gui:
+        pixbuf = image.get_pixbuf()
+        if bauble.gui and pixbuf:
             logger.debug("copying pixbuf")
-            bauble.gui.get_display_clipboard().set_image(image.get_pixbuf())
+            bauble.gui.get_display_clipboard().set_image(pixbuf)
 
     def on_dist_map_zoom(self, _action, _param) -> None:
         """Zoom the map to the maximum zoom level that displays the areas."""

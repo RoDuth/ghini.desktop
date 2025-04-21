@@ -494,7 +494,7 @@ class Plugin:
 class Tool:  # pylint: disable=too-few-public-methods
     category: str | None = None
     label: str
-    enabled = True
+    # enabled = True  UNUSED
 
     @classmethod
     def start(cls):
@@ -536,6 +536,8 @@ class View:
 
 class Viewable(Protocol):
     """Describes a View subclass, which is likely to also subclass Gtk.Box."""
+
+    prevent_threads: bool
 
     def cancel_threads(self) -> None: ...
     def start_thread(self, thread: ViewThread) -> ViewThread: ...

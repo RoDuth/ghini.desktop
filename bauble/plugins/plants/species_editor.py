@@ -1630,13 +1630,13 @@ class DistributionPresenter(editor.GenericEditorPresenter):
     def on_paste_append(self, *_args) -> None:
         if bauble.gui:
             text = bauble.gui.get_display_clipboard().wait_for_text()
-            self.append_dists_from_text(text)
+            self.append_dists_from_text(text or "")
 
     def on_paste_replace(self, *_args) -> None:
         self.model.distribution = []
         if bauble.gui:
             text = bauble.gui.get_display_clipboard().wait_for_text()
-            self.append_dists_from_text(text)
+            self.append_dists_from_text(text or "")
 
     def on_copy(self, *_args) -> None:
         if bauble.gui:

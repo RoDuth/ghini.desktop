@@ -748,7 +748,7 @@ class GUITests(BaubleTestCase):
         mock_create.assert_called()
         gui.destroy()
 
-    @mock.patch("bauble.connmgr.start_connection_manager")
+    @mock.patch("bauble.ui.start_connection_manager")
     @mock.patch("bauble.ui.db.open_conn")
     @mock.patch("bauble.ui.bauble.command_handler")
     def test_on_file_menu_open(self, mock_handler, mock_open, mock_start):
