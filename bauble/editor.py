@@ -599,23 +599,18 @@ class GenericEditorView:
         widget = self.__get_widget(widget)
         return utils.get_widget_value(widget)
 
-    def widget_set_value(
-        self, widget, value, markup=False, default=None, index=0
-    ):
+    def widget_set_value(self, widget, value, markup=False, index=0):
         """This method calls bauble.utils.set_widget_value()
 
         :param widget: a widget or name of a widget in self.widgets
         :param value: the value to put in the widgets
         :param markup: whether the data in value uses pango markup
-        :param default: the default value to put in the widget if value is None
         :param index: the row index to use for those widgets who use a model
         """
         if isinstance(widget, Gtk.Widget):
-            utils.set_widget_value(widget, value, markup, default, index)
+            utils.set_widget_value(widget, value, markup, index)
         else:
-            utils.set_widget_value(
-                self.widgets[widget], value, markup, default, index
-            )
+            utils.set_widget_value(self.widgets[widget], value, markup, index)
 
     def on_dialog_response(self, dialog, response, *_args):
         """Called if self.get_window() is a Gtk.Dialog and it receives the

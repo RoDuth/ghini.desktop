@@ -190,11 +190,9 @@ class InfoExpander(Gtk.Expander):
             prefs.prefs[self.EXPANDED_PREF] = expander.get_expanded()
             prefs.prefs.save()
 
-    def widget_set_value(self, widget_name, value, markup=False, default=None):
+    def widget_set_value(self, widget_name, value, markup=False):
         """A shorthand for `bauble.utils.set_widget_value()`"""
-        utils.set_widget_value(
-            self.widgets[widget_name], value, markup, default
-        )
+        utils.set_widget_value(self.widgets[widget_name], value, markup)
 
     def unhide_widgets(self):
         utils.unhide_widgets(self.display_widgets)

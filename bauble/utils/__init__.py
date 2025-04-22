@@ -35,6 +35,7 @@ import time
 from collections import UserDict
 from collections.abc import Callable
 from collections.abc import Iterable
+from functools import singledispatch
 from functools import wraps
 from pathlib import Path
 from typing import Any
@@ -533,50 +534,72 @@ def combo_get_value_iter(combo, value, cmp=lambda row, value: row[0] == value):
     return matches[0]
 
 
-def get_widget_value(widget):
-    """
+@singledispatch
+def get_widget_value(widget: GObject.Object) -> str | None | bool:
+    """Get the value of a widget.
+
     :param widget: an instance of Gtk.Widget
-    :param index: the row index to use for those widgets who use a model
+
+    :raises TypeError: if widget type is not recognised.
 
     .. note:: any values passed in for widgets that expect a string will call
       the values __str__ method
     """
 
-    if isinstance(widget, Gtk.Label):
-        return nstr(widget.get_text())
-    if isinstance(widget, Gtk.TextView):
-        textbuffer = widget.get_buffer()
-        return nstr(textbuffer.get_text(*textbuffer.get_bounds(), False))
-    if isinstance(widget, Gtk.Entry):
-        return nstr(widget.get_text())
-    if isinstance(widget, Gtk.ComboBox):
-        if widget.get_has_entry():
-            return nstr(widget.get_child().props.text)
-        # handle combobox without entry, assumes first item is value to return.
-        model = widget.get_model()
-        itr = widget.get_active_iter()
-        if model is None or itr is None:
-            return None
-        value = model[itr][0]
-        return value
-    if isinstance(
-        widget, (Gtk.ToggleButton, Gtk.CheckButton, Gtk.RadioButton)
-    ):
-        return widget.get_active()
-    if isinstance(widget, Gtk.Button):
-        return nstr(widget.props.label)
-
     raise TypeError(
-        "utils.get_widget_value(): Don't know how to handle "
-        f"the widget type {type(widget)} with name {widget.name}"
+        "utils.get_widget_value(): Don't know how to handle the widget "
+        f"{widget}"
     )
 
 
+@get_widget_value.register
+def _get_label_value(widget: Gtk.Label) -> str | None:
+    return nstr(widget.get_text())
+
+
+@get_widget_value.register
+def _get_entry_value(widget: Gtk.Entry) -> str | None:
+    return nstr(widget.get_text())
+
+
+@get_widget_value.register
+def _get_textview_value(widget: Gtk.TextView) -> str | None:
+    textbuffer = widget.get_buffer()
+    return nstr(textbuffer.get_text(*textbuffer.get_bounds(), False))
+
+
+@get_widget_value.register
+def _get_combo_value(widget: Gtk.ComboBox) -> str | None:
+    if widget.get_has_entry():
+        return nstr(cast(Gtk.Entry, widget.get_child()).get_text())
+    # handle combobox without entry, assumes first item is value to return.
+    model = widget.get_model()
+    itr = widget.get_active_iter()
+    if model is None or itr is None:
+        return None
+    value = model[itr][0]
+    return value
+
+
+@get_widget_value.register
+def _get_tglbutton_value(
+    widget: Gtk.ToggleButton | Gtk.CheckButton | Gtk.RadioButton,
+) -> bool:
+    return widget.get_active()
+
+
+@get_widget_value.register
+def _get_button_value(
+    widget: Gtk.Button,
+) -> str:
+    return widget.get_label()
+
+
+@singledispatch
 def set_widget_value(  # pylint: disable=too-many-statements,too-many-branches
     widget: GObject.Object,
     value: Any,
     markup: bool = False,
-    default: Any = None,
     index: int = 0,
 ) -> None:
     """Set the value of the widget.
@@ -584,23 +607,22 @@ def set_widget_value(  # pylint: disable=too-many-statements,too-many-branches
     :param widget: an instance of Gtk.Widget
     :param value: the value to put in the widget
     :param markup: whether or not value is markup
-    :param default: the default value to put in the widget if the value is None
     :param index: the row index to use for those widgets who use a model
+
+    :raises TypeError: if widget type is not recognised.
 
     .. note:: any values passed in for widgets that expect a string will call
       the values __str__ method
     """
 
-    if value is None:  # set the value from the default
-        if (
-            isinstance(
-                widget, (Gtk.Label, Gtk.TextView, Gtk.Entry, Gtk.TextBuffer)
-            )
-            and default is None
-        ):
-            value = ""
-        else:
-            value = default
+    raise TypeError(
+        "utils.set_widget_value(): Don't know how to handle "
+        f"widget {widget}"
+    )
+
+
+def _string(value: Any) -> str:
+    value = "" if value is None else value
 
     if isinstance(value, datetime.date):
         # assume that if value is a date then we want to display it with
@@ -608,64 +630,121 @@ def set_widget_value(  # pylint: disable=too-many-statements,too-many-branches
         from bauble import prefs
 
         date_format = prefs.prefs[prefs.date_format_pref]
-        value = value.strftime(date_format)
+        return value.strftime(date_format)
+    return str(value)
 
-    if isinstance(widget, Gtk.Label):
-        if markup:
-            widget.set_markup(str(value))
-        else:
-            widget.set_text(str(value))
-    elif isinstance(widget, Gtk.TextView):
-        widget.get_buffer().set_text(str(value))
-    elif isinstance(widget, Gtk.TextBuffer):
-        widget.set_text(str(value))
-    elif isinstance(widget, Gtk.SpinButton):
-        if value:
-            widget.set_value(float(value or 0))
-    elif isinstance(widget, Gtk.Entry):
-        widget.set_text(str(value))
-    elif isinstance(widget, Gtk.ComboBox):
-        # ComboBox.with_entry
-        if widget.get_has_entry():
-            value = "" if value is None else value
-            cast(Gtk.Entry, widget.get_child()).set_text(str(value))
-            return
-        treeiter = None
-        if not widget.get_model():
-            logger.warning(
-                "utils.set_widget_value(): combo doesn't have a model: %s",
-                Gtk.Buildable.get_name(widget),
-            )
-        else:
-            treeiter = combo_get_value_iter(
-                widget, value, cmp=lambda row, value: row[index] == value
-            )
-            if treeiter:
-                widget.set_active_iter(treeiter)
-            else:
-                widget.set_active(-1)
-    elif isinstance(
-        widget, (Gtk.ToggleButton, Gtk.CheckButton, Gtk.RadioButton)
-    ):
-        if isinstance(widget, Gtk.CheckButton) and isinstance(value, str):
-            value = value == Gtk.Buildable.get_name(widget)
-        if value is True:
-            widget.set_inconsistent(False)
-            widget.set_active(True)
-        elif value is False:  # why do we need unset `inconsistent` for False?
-            widget.set_inconsistent(False)
-            widget.set_active(False)
-        else:  # treat None as False, we do not handle inconsistent cases.
-            widget.set_inconsistent(False)
-            widget.set_active(False)
-    elif isinstance(widget, Gtk.Button):
-        widget.set_label(str(value or ""))
 
+@set_widget_value.register
+def _set_label_value(
+    widget: Gtk.Label,
+    value: Any,
+    markup: bool = False,
+    index: int = 0,
+) -> None:
+    if markup:
+        widget.set_markup(_string(value))
     else:
-        raise TypeError(
-            "utils.set_widget_value(): Don't know how to handle "
-            f"widget {widget}"
+        widget.set_text(_string(value))
+
+
+@set_widget_value.register
+def _set_textview_value(
+    widget: Gtk.TextView,
+    value: Any,
+    markup: bool = False,
+    index: int = 0,
+) -> None:
+    widget.get_buffer().set_text(_string(value))
+
+
+@set_widget_value.register
+def _set_textbuffer_value(
+    widget: Gtk.TextBuffer,
+    value: Any,
+    markup: bool = False,
+    index: int = 0,
+) -> None:
+    widget.set_text(_string(value))
+
+
+@set_widget_value.register
+def _set_spinbutton_value(
+    widget: Gtk.SpinButton,
+    value: Any,
+    markup: bool = False,
+    index: int = 0,
+) -> None:
+    widget.set_value(float(value or 0))
+
+
+@set_widget_value.register
+def _set_entry_value(
+    widget: Gtk.Entry,
+    value: Any,
+    markup: bool = False,
+    index: int = 0,
+) -> None:
+    widget.set_text(_string(value))
+
+
+@set_widget_value.register
+def _set_combo_value(
+    widget: Gtk.ComboBox,
+    value: Any,
+    markup: bool = False,
+    index: int = 0,
+) -> None:
+    # ComboBox.with_entry
+    if widget.get_has_entry():
+        cast(Gtk.Entry, widget.get_child()).set_text(_string(value))
+        return
+
+    treeiter = None
+    if not widget.get_model():
+        logger.warning(
+            "utils.set_widget_value(): combo doesn't have a model: %s",
+            Gtk.Buildable.get_name(widget),
         )
+    else:
+        treeiter = combo_get_value_iter(
+            widget, value, cmp=lambda row, value: row[index] == value
+        )
+        if treeiter:
+            widget.set_active_iter(treeiter)
+        else:
+            widget.set_active(-1)
+
+
+@set_widget_value.register
+def _set_tglbutton_value(
+    widget: Gtk.ToggleButton | Gtk.CheckButton | Gtk.RadioButton,
+    value: Any,
+    markup: bool = False,
+    index: int = 0,
+) -> None:
+
+    if isinstance(widget, Gtk.CheckButton) and isinstance(value, str):
+        value = value == Gtk.Buildable.get_name(widget)
+    if value is True:
+        widget.set_inconsistent(False)
+        widget.set_active(True)
+    elif value is False:  # why do we need unset `inconsistent` for False?
+        widget.set_inconsistent(False)
+        widget.set_active(False)
+    else:  # treat None as False, we do not handle inconsistent cases.
+        widget.set_inconsistent(False)
+        widget.set_active(False)
+
+
+@set_widget_value.register
+def _set_button_value(
+    widget: Gtk.Button,
+    value: Any,
+    markup: bool = False,
+    index: int = 0,
+) -> None:
+
+    widget.set_label(_string(value))
 
 
 def create_message_dialog(

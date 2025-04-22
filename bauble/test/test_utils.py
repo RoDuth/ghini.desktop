@@ -1067,3 +1067,182 @@ class ImageLoaderTests(BaubleTestCase):
         mock_size_alloc.assert_called()
         self.assertIsInstance(mock_size_alloc.call_args.args[0], Gtk.Label)
         win.destroy()
+
+
+class UIUtilsTests(BaubleTestCase):
+    def test_get_widget_value_label(self):
+        label = Gtk.Label(label="Foo")
+        self.assertEqual(utils.get_widget_value(label), "Foo")
+
+    def test_get_widget_value_entry(self):
+        entry = Gtk.Entry()
+        entry.set_text("Bar")
+        self.assertEqual(utils.get_widget_value(entry), "Bar")
+
+    def test_get_widget_value_textview(self):
+        entry = Gtk.TextView()
+        entry.get_buffer().set_text("Baz")
+        self.assertEqual(utils.get_widget_value(entry), "Baz")
+
+    def test_get_widget_value_comboboxtext_w_entry(self):
+        combo = Gtk.ComboBoxText.new_with_entry()
+        combo.append_text("foo")
+        combo.append_text("baz")
+        combo.get_child().set_text("bar")
+        self.assertEqual(utils.get_widget_value(combo), "bar")
+
+    def test_get_widget_value_comboboxtext_wo_entry(self):
+        combo = Gtk.ComboBoxText()
+        combo.append_text("foo")
+        combo.append_text("bar")
+        combo.append_text("baz")
+        combo.set_active(1)
+        self.assertEqual(utils.get_widget_value(combo), "bar")
+
+    def test_get_widget_value_combobox_w_entry(self):
+        combo = Gtk.ComboBox.new_with_entry()
+        model = Gtk.ListStore(str)
+        model.append(("foo",))
+        model.append(("baz",))
+        combo.set_model(model)
+        combo.get_child().set_text("bar")
+        self.assertEqual(utils.get_widget_value(combo), "bar")
+
+    def test_get_widget_value_combobox_wo_entry(self):
+        combo = Gtk.ComboBox()
+        model = Gtk.ListStore(str)
+        model.append(("foo",))
+        model.append(("bar",))
+        model.append(("baz",))
+        combo.set_model(model)
+        combo.set_active(1)
+        self.assertEqual(utils.get_widget_value(combo), "bar")
+
+    def test_get_widget_value_togglebutton(self):
+        button = Gtk.ToggleButton.new_with_label(label="FOO")
+        self.assertFalse(utils.get_widget_value(button))
+        button.set_active(True)
+        self.assertTrue(utils.get_widget_value(button))
+
+    def test_get_widget_value_checkbutton(self):
+        button = Gtk.CheckButton.new_with_label(label="FOO")
+        self.assertFalse(utils.get_widget_value(button))
+        button.set_active(True)
+        self.assertTrue(utils.get_widget_value(button))
+
+    def test_get_widget_value_radiobutton(self):
+        button1 = Gtk.RadioButton.new_with_label(None, "FOO")
+        button2 = Gtk.RadioButton.new_with_label_from_widget(button1, "BAR")
+        self.assertFalse(utils.get_widget_value(button2))
+        button2.set_active(True)
+        self.assertTrue(utils.get_widget_value(button2))
+        self.assertFalse(utils.get_widget_value(button1))
+
+    def test_get_widget_value_button(self):
+        button = Gtk.Button(label="BAZ")
+        self.assertEqual(utils.get_widget_value(button), "BAZ")
+
+    def test_get_widget_value_unknown_raises(self):
+        self.assertRaises(TypeError, utils.get_widget_value, mock.Mock())
+
+    def test_set_widget_value_label(self):
+        label = Gtk.Label(label="Foo")
+        utils.set_widget_value(label, "Bar")
+        self.assertEqual(label.get_text(), "Bar")
+
+    def test_set_widget_value_label_w_markup(self):
+        label = Gtk.Label(label="Foo")
+        utils.set_widget_value(label, "<b>Bar</b>", markup=True)
+        self.assertEqual(label.get_text(), "Bar")
+        self.assertTrue(label.get_use_markup())
+
+    def test_set_widget_value_textview(self):
+        entry = Gtk.TextView()
+        buffer = entry.get_buffer()
+        buffer.set_text("Baz")
+        utils.set_widget_value(entry, "Bar")
+        self.assertEqual(
+            entry.get_buffer().get_text(*buffer.get_bounds(), False), "Bar"
+        )
+
+    def test_set_widget_value_textbuffer(self):
+        buffer = Gtk.TextBuffer()
+        buffer.set_text("Baz")
+        utils.set_widget_value(buffer, "Bar")
+        self.assertEqual(buffer.get_text(*buffer.get_bounds(), False), "Bar")
+
+    def test_set_widget_value_spinbutton(self):
+        adj = Gtk.Adjustment(
+            lower=-10, upper=10, step_increment=0.1, page_increment=1
+        )
+        spin = Gtk.SpinButton(adjustment=adj, numeric=True)
+        spin.set_value(-5)
+        utils.set_widget_value(spin, 5)
+        self.assertEqual(spin.get_value(), 5)
+
+    def test_set_widget_value_entry(self):
+        entry = Gtk.Entry()
+        utils.set_widget_value(entry, "Bar")
+        self.assertEqual(entry.get_text(), "Bar")
+
+    def test_set_widget_value_comboboxtext_w_entry(self):
+        combo = Gtk.ComboBoxText.new_with_entry()
+        combo.append_text("foo")
+        combo.append_text("baz")
+        utils.set_widget_value(combo, "bar")
+        self.assertEqual(combo.get_child().get_text(), "bar")
+
+    def test_set_widget_value_comboboxtext_wo_entry(self):
+        combo = Gtk.ComboBoxText()
+        combo.append_text("foo")
+        combo.append_text("bar")
+        combo.append_text("baz")
+        utils.set_widget_value(combo, "bar")
+        self.assertEqual(combo.get_active(), 1)
+
+    def test_set_widget_value_combobox_w_entry(self):
+        combo = Gtk.ComboBox.new_with_entry()
+        model = Gtk.ListStore(str)
+        model.append(("foo",))
+        model.append(("baz",))
+        combo.set_model(model)
+        utils.set_widget_value(combo, "bar")
+        self.assertEqual(combo.get_child().get_text(), "bar")
+
+    def test_set_widget_value_combobox_wo_entry(self):
+        combo = Gtk.ComboBox()
+        model = Gtk.ListStore(str)
+        model.append(("foo",))
+        model.append(("bar",))
+        model.append(("baz",))
+        combo.set_model(model)
+        utils.set_widget_value(combo, "bar")
+        self.assertEqual(combo.get_active(), 1)
+
+    def test_set_widget_value_togglebutton(self):
+        button = Gtk.ToggleButton.new_with_label(label="FOO")
+        self.assertFalse(button.get_active())
+        utils.set_widget_value(button, True)
+        self.assertTrue(button.get_active())
+
+    def test_set_widget_value_checkbutton(self):
+        button = Gtk.CheckButton.new_with_label(label="FOO")
+        self.assertFalse(button.get_active())
+        utils.set_widget_value(button, True)
+        self.assertTrue(button.get_active())
+
+    def test_set_widget_value_radiobutton(self):
+        button1 = Gtk.RadioButton.new_with_label(None, "FOO")
+        button2 = Gtk.RadioButton.new_with_label_from_widget(button1, "BAR")
+        self.assertFalse(button2.get_active())
+        utils.set_widget_value(button2, True)
+        self.assertTrue(button2.get_active())
+        self.assertFalse(button1.get_active())
+
+    def test_set_widget_value_button(self):
+        button = Gtk.Button(label="BAZ")
+        utils.set_widget_value(button, "FOO")
+        self.assertEqual(button.get_label(), "FOO")
+
+    def test_set_widget_value_unknown_raises(self):
+        self.assertRaises(TypeError, utils.set_widget_value, mock.Mock())
