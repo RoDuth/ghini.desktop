@@ -19,6 +19,7 @@
 #
 # test_search.py
 #
+import datetime
 import logging
 import unittest
 from unittest.mock import patch
@@ -901,7 +902,6 @@ class SearchTests(BaubleTestCase):
         self.assertEqual(results, [genus21])
 
     def test_search_by_datestring_query(self):
-        import datetime
 
         Family = self.Family
         Genus = self.Genus
@@ -1097,7 +1097,6 @@ class SearchTests(BaubleTestCase):
         self.assertEqual(results, [])
 
     def test_search_by_datestring_query_tz_limits(self):
-        import datetime
 
         Family = self.Family
         Genus = self.Genus
@@ -1849,6 +1848,63 @@ class SearchTests2(BaubleTestCase):
         results = search.search(string, self.session)
 
         self.assertCountEqual([i.id for i in results], [2])
+
+    def test_all_domains_search(self):
+
+        from bauble.plugins.garden.location import LocationPicture
+        from bauble.plugins.garden.plant import PlantPicture
+        from bauble.plugins.plants.species_model import SpeciesPicture
+
+        loc_pic = LocationPicture(
+            picture="test.jpg",
+            user="Jade Green",
+            date=datetime.datetime.today(),
+            location_id=1,
+        )
+        plt_pic = PlantPicture(
+            picture="test.jpg",
+            user="Jade Green",
+            date=datetime.datetime.today(),
+            plant_id=1,
+        )
+        sp_pic = SpeciesPicture(
+            picture="test.jpg",
+            user="Forrest Gardener",
+            date=datetime.datetime.today(),
+            species_id=1,
+        )
+        self.session.add_all([loc_pic, plt_pic, sp_pic])
+        self.session.commit()
+        prefs.prefs[prefs.return_accepted_pref] = False
+
+        string = "domains where id = 1"
+        results = search.search(string, self.session)
+
+        self.assertCountEqual(
+            {type(i) for i in results},
+            search.strategies.MapperSearch.get_domain_classes().values(),
+        )
+
+        string = "domains where _pictures[date=Today].picture = test.jpg"
+        results = search.search(string, self.session)
+
+        self.assertCountEqual(
+            {(type(i).__tablename__, i.id) for i in results},
+            [("species", 1), ("plant", 1), ("location", 1)],
+        )
+
+        string = "domains where _pictures[user='Jade Green'].date = Today"
+        results = search.search(string, self.session)
+
+        self.assertCountEqual(
+            {(type(i).__tablename__, i.id) for i in results},
+            [("plant", 1), ("location", 1)],
+        )
+
+        # test the error
+        string = "domains where foo = bar"
+
+        self.assertRaises(AttributeError, search.search, string, self.session)
 
 
 class SubQueryTests(BaubleClassTestCase):

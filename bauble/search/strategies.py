@@ -121,8 +121,10 @@ class SearchStrategy(ABC):
             _("default_columns argument cannot be empty"),
         )
         self.domains[domain[0]] = cls, properties
+
         for dom in domain[1:]:
             self.shorthand[dom] = domain[0]
+
         self.properties[cls] = properties
 
     @classmethod
@@ -137,6 +139,7 @@ class SearchStrategy(ABC):
         for domain, item in cls.domains.items():
             if item[0] not in domains.values():
                 domains.setdefault(domain, item[0])
+
         return domains
 
     @staticmethod
@@ -183,9 +186,43 @@ class MapperSearch(SearchStrategy):
         """Returns list of queries for the text search string."""
         super().search(text, session)
         self.session = session
+
+        if text.startswith("domains"):
+            return self.all_domains_search(text)
+
         result = parser.parse_string(text).query
         logger.debug("result : %s(%s)", type(result), result)
         queries = result.invoke(self)
+
+        return queries
+
+    def all_domains_search(self, text: str) -> list[Query]:
+        """Returns list of queries for the text search string."""
+        text = text.removeprefix("domains")
+
+        queries: list[Query] = []
+
+        all_errored = True
+        last_error = ""
+
+        for domain_str in self.get_domain_classes():
+            # only the first occorance
+
+            domain_text = domain_str + text
+            logger.debug("trying search: %s", domain_text)
+            try:
+                result = parser.parse_string(domain_text).query
+                logger.debug("result : %s(%s)", type(result), result)
+                queries.extend(result.invoke(self))
+                all_errored = False
+            except AttributeError as e:
+                logger.debug("%s(%s)", type(e).__name__, e)
+                last_error = str(e)
+
+        if all_errored:
+            raise AttributeError(
+                f"search failed for all domains, last error: {last_error}"
+            )
 
         return queries
 

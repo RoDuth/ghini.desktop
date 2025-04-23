@@ -75,6 +75,7 @@ from sqlalchemy.orm import backref
 from sqlalchemy.orm import deferred
 from sqlalchemy.orm import object_mapper
 from sqlalchemy.orm import relationship
+from sqlalchemy.orm import synonym as sa_synonym
 from sqlalchemy.orm import validates
 from sqlalchemy.orm.attributes import get_history
 from sqlalchemy.orm.session import object_session
@@ -839,6 +840,8 @@ class Plant(db.Domain, db.WithNotes):
         uselist=True,
         backref=backref("plant", uselist=False),
     )
+
+    _pictures: db.Base = sa_synonym("pictures")
 
     # provide a way to search and use the change that recorded either a death
     # or a planting date directly.  This is not fool proof but close enough.

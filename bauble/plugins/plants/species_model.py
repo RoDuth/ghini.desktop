@@ -368,7 +368,7 @@ class Species(db.Domain, db.WithNotes):
     subseries = Column(Unicode(64))
 
     sp = Column(Unicode(128), index=True)
-    epithet: "str" = sa_synonym("sp")
+    epithet: str = sa_synonym("sp")
     sp_author = Column(Unicode(128))
     hybrid = Column(types.Enum(values=["×", "+", None]), default=None)
     sp_qual = Column(
