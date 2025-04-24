@@ -1,4 +1,5 @@
 # pylint: disable=no-self-use,protected-access,too-many-public-methods
+# pylint: disable=too-few-public-methods,too-many-lines
 # Copyright (c) 2022-2025 Ross Demuth <rossdemuth123@gmail.com>
 #
 # This file is part of ghini.desktop.
@@ -19,16 +20,29 @@
 view tests
 """
 
+import json
 import os
+import threading
 from datetime import datetime
+from datetime import timedelta
+from datetime import timezone
 from pathlib import Path
+from time import sleep
+from unittest import TestCase
 from unittest import mock
 
 from gi.repository import Gdk
 from gi.repository import Gio
 from gi.repository import Gtk
+from sqlalchemy import Column
+from sqlalchemy import ForeignKey
+from sqlalchemy import Integer
+from sqlalchemy import String
+from sqlalchemy import and_
+from sqlalchemy import inspect
 from sqlalchemy.exc import InvalidRequestError
 from sqlalchemy.orm import object_session
+from sqlalchemy.orm import relationship
 
 from bauble import db
 from bauble import error
@@ -56,20 +70,66 @@ from bauble.view import SEARCH_POLL_SECS_PREF
 from bauble.view import SEARCH_REFRESH_PREF
 from bauble.view import BaubleLinkButton
 from bauble.view import DefaultCommandHandler
+from bauble.view import DefaultView
 from bauble.view import HistoryView
 from bauble.view import InfoBox
 from bauble.view import InfoBoxPage
 from bauble.view import LinksExpander
 from bauble.view import NotesBottomPage
 from bauble.view import PicturesScroller
+from bauble.view import PrefsView
 from bauble.view import PropertiesExpander
 from bauble.view import SearchView
+from bauble.view import SimpleSearchBox
+from bauble.view import SplashCommandHandler
+from bauble.view import View
 from bauble.view import _Node
 from bauble.view import get_search_view
 from bauble.view import get_search_view_selected
 from bauble.view import select_in_search_results
 
-# pylint: disable=too-few-public-methods
+
+class DontStop(threading.Thread):
+    def __init__(self):
+        super().__init__()
+        self.stop = False
+
+    def run(self):
+        while not self.stop:
+            print(".")
+            sleep(0.1)
+
+    def cancel(self):
+        self.stop = True
+
+
+class TestView(TestCase):
+
+    def test_start_cancel_threads(self):
+        view = View()
+
+        view.start_thread(DontStop())
+
+        self.assertEqual(len(view.running_threads), 1)
+
+        view.cancel_threads()
+        wait_on_threads()
+
+        self.assertEqual(len(view.running_threads), 0)
+
+    def test_prevent_threads(self):
+        view = View()
+        view.start_thread(DontStop())
+
+        self.assertEqual(len(view.running_threads), 1)
+
+        view.prevent_threads = True
+
+        view.start_thread(DontStop())
+
+        wait_on_threads()
+
+        self.assertEqual(len(view.running_threads), 0)
 
 
 class TestSearchView(BaubleTestCase):
@@ -246,12 +306,6 @@ class TestSearchView(BaubleTestCase):
                 )
 
     def test_row_meta_get_children(self):
-        from sqlalchemy import Column
-        from sqlalchemy import ForeignKey
-        from sqlalchemy import Integer
-        from sqlalchemy import String
-        from sqlalchemy.orm import relationship
-
         class Parent(db.Base):
             __tablename__ = "parent"
             name = Column("name", String(10))
@@ -727,7 +781,7 @@ class TestSearchView(BaubleTestCase):
         mock_gui.remove_action.assert_called()
 
     @mock.patch("bauble.gui")
-    def test_add_meta_actions_to_context_menu_no_add_none_meta(self, mock_gui):
+    def test_add_meta_actions_to_context_menu_no_add_none_meta(self, _mck_gui):
         self.search_view._add_meta_actions_to_context_menu([])
 
         self.assertNotIn(None, self.search_view.row_meta.keys())
@@ -773,7 +827,7 @@ class TestSearchView(BaubleTestCase):
 
         mock_get_selected.return_value = [mock_data]
         with mock.patch("bauble.gui") as mock_gui:
-            self.search_view.on_get_history(None, None),
+            self.search_view.on_get_history(None, None)
             mock_gui.send_command.assert_called_with(search_str)
 
     @mock.patch("bauble.view.SearchView.get_selected_values")
@@ -998,7 +1052,6 @@ class TestSearchView(BaubleTestCase):
         )
         # check all accessions are expired. (except the currently selected obj
         # as it has already been accessed)
-        from sqlalchemy import inspect
 
         selected = search_view.get_selected_values()[0]
         for obj in search_view.session:
@@ -1312,6 +1365,7 @@ class TestSearchView(BaubleTestCase):
 
     @mock.patch("bauble.gui")
     def test_get_expanded_tree(self, mock_gui):
+        # pylint: disable=too-many-locals,too-many-statements
 
         mock_gui.window.get_size().width = 100
 
@@ -2451,7 +2505,6 @@ class TestHistoryView(BaubleTestCase):
         mock_get_selected.return_value = mock_hist_item
 
         hist_view = HistoryView()
-        import json
 
         hist_view.on_copy_values(None, None)
         mock_gui.get_display_clipboard().set_text.assert_called_with(
@@ -2500,7 +2553,6 @@ class TestHistoryView(BaubleTestCase):
         mock_get_selected.return_value = mock_hist_item
 
         hist_view = HistoryView()
-        import json
 
         hist_view.on_copy_geojson(None, None)
         mock_gui.get_display_clipboard().set_text.assert_called_with(
@@ -2630,10 +2682,6 @@ class TestHistoryView(BaubleTestCase):
         )
 
     def test_basic_search_query_filters_on_timestamp(self):
-        from datetime import timedelta
-        from datetime import timezone
-
-        from sqlalchemy import and_
 
         string = "timestamp on 10/8/23"
         date_val = search.clauses.get_datetime("10/8/23")
@@ -2775,6 +2823,313 @@ class TestHistoryView(BaubleTestCase):
         values = "test msg", "test_details"
         hist_view.show_error_box(*values)
         mock_gui.show_error_box.assert_called_with(*values)
+
+
+class PrefsViewTests(BaubleTestCase):
+    def test_prefs_view_starts_updates(self):
+        prefs_view = PrefsView()
+        self.assertIsNone(prefs_view.button_press_sid)
+        prefs_view.update()
+        self.assertTrue(len(prefs_view.prefs_ls) > 8)
+
+    def test_on_button_press_event_popup_only_button3(self):
+
+        prefs_view = PrefsView()
+        prefs_view.update()
+
+        prefs_tv = prefs_view.prefs_tv
+        mock_event = mock.Mock(button=3, time=datetime.now().timestamp())
+
+        with mock.patch(
+            "bauble.prefs.Gtk.Menu.popup_at_pointer"
+        ) as mock_popup:
+            prefs_view.on_button_press_event(prefs_tv, mock_event)
+
+            mock_popup.assert_called()
+
+        selection = Gtk.TreePath.new_first()
+        prefs_tv.get_selection().select_path(selection)
+
+        mock_event = mock.Mock(button=1, time=datetime.now().timestamp())
+
+        with mock.patch(
+            "bauble.prefs.Gtk.Menu.popup_at_pointer"
+        ) as mock_popup:
+            prefs_view.on_button_press_event(prefs_tv, mock_event)
+
+            mock_popup.assert_not_called()
+
+    @mock.patch(
+        "bauble.prefs.Gtk.MessageDialog.run", return_value=Gtk.ResponseType.OK
+    )
+    def test_on_prefs_insert_activated_starts_dialog(self, mock_dialog):
+        prefs_view = PrefsView()
+        prefs_view.update()
+
+        prefs_tv = prefs_view.prefs_tv
+        selection = Gtk.TreePath.new_first()
+        prefs_tv.get_selection().select_path(selection)
+        prefs_view.on_prefs_insert_activate(None, None)
+        mock_dialog.assert_called()
+
+    @mock.patch("bauble.utils.yes_no_dialog")
+    def test_on_prefs_edit_toggled(self, mock_dialog):
+
+        prefs_view = PrefsView()
+
+        # starts without editing
+        self.assertFalse(prefs_view.prefs_data_renderer.props.editable)
+        self.assertIsNone(prefs_view.button_press_sid)
+
+        # toggle editing to True with yes to dialog
+        mock_dialog.return_value = True
+        prefs_edit_chkbx = Gtk.CheckButton(label="enable edit")
+        prefs_edit_chkbx.set_active(True)
+        prefs_view.on_prefs_edit_toggled(prefs_edit_chkbx)
+
+        self.assertTrue(prefs_view.prefs_data_renderer.props.editable)
+        self.assertIsNotNone(prefs_view.button_press_sid)
+
+        # toggle editing to False
+        prefs_edit_chkbx.set_active(False)
+        prefs_view.on_prefs_edit_toggled(prefs_edit_chkbx)
+
+        self.assertFalse(prefs_view.prefs_data_renderer.props.editable)
+        self.assertIsNone(prefs_view.button_press_sid)
+
+        # toggle editing to True with no to dialog
+        mock_dialog.return_value = False
+        prefs_edit_chkbx.set_active(True)
+        prefs_view.on_prefs_edit_toggled(prefs_edit_chkbx)
+
+        self.assertFalse(prefs_view.prefs_data_renderer.props.editable)
+        self.assertIsNone(prefs_view.button_press_sid)
+
+    @mock.patch("bauble.utils.yes_no_dialog")
+    def test_on_prefs_edited(self, mock_dialog):
+        # pylint: disable=not-an-iterable
+        key = "bauble.keys"
+        prefs.prefs[key] = True
+        prefs_view = PrefsView()
+        prefs_view.update()
+        path = [i.path for i in prefs_view.prefs_ls if i[0] == key][0]
+        self.assertTrue(prefs.prefs[key])
+
+        # wrong type
+        prefs_view.on_prefs_edited(None, path, "xyz")
+        self.assertTrue(prefs.prefs[key])
+
+        # correct type
+        prefs_view.on_prefs_edited(None, path, "False")
+        self.assertFalse(prefs.prefs[key])
+
+        # root directory does not accept non existing path
+        key = prefs.root_directory_pref
+        orig = prefs.prefs[key]
+        path = [i.path for i in prefs_view.prefs_ls if i[0] == key][0]
+        prefs_view.on_prefs_edited(None, path, "xxrandomstringxx")
+        self.assertEqual(prefs.prefs[key], orig)
+
+        # add new entry
+        key = "bauble.test.option"
+        self.assertIsNone(prefs.prefs[key])
+        tree_iter = prefs_view.prefs_ls.get_iter(path)
+        prefs_view.prefs_ls.insert_after(tree_iter, row=[key, "", None])
+        path = [i.path for i in prefs_view.prefs_ls if i[0] == key][0]
+        prefs_view.on_prefs_edited(None, path, '{"this": "that"}')
+        self.assertEqual(prefs.prefs[key], {"this": "that"})
+
+        # delete option
+        mock_dialog.return_value = True
+        prefs_view.on_prefs_edited(None, path, "")
+        self.assertIsNone(prefs.prefs[key])
+
+    @mock.patch(
+        "bauble.prefs.Gtk.MessageDialog.run", return_value=Gtk.ResponseType.OK
+    )
+    def test_add_new(self, mock_dialog):
+        prefs_view = PrefsView()
+        prefs_view.update()
+        path = Gtk.TreePath.new_first()
+        key = "bauble.test.option"
+        with self.assertLogs(level="DEBUG") as logs:
+            new_iter = prefs_view.add_new(prefs_view.prefs_ls, path, text=key)
+        mock_dialog.assert_called()
+        self.assertIsNotNone(new_iter)
+        string = f"adding new pref option {key}"
+        self.assertTrue(any(string in i for i in logs.output))
+
+    @mock.patch("bauble.prefs.utils.message_dialog")
+    def test_on_prefs_backup_restore(self, mock_dialog):
+        prefs.prefs.save(force=True)
+        prefs_view = PrefsView()
+        prefs_view.update()
+        # restore no backup
+        prefs_view.on_prefs_restore_clicked(None)
+        mock_dialog.assert_called()
+        mock_dialog.assert_called_with("No backup found")
+        # create backup and check they are the same
+        prefs_view.on_prefs_backup_clicked(None)
+        with open(self.temp, "r", encoding="utf-8") as f:
+            start = f.read()
+        with open(self.temp + "BAK", encoding="utf-8") as f:
+            backup = f.read()
+        self.assertEqual(start, backup)
+        # save a change and check they differ
+        self.assertIsNone(prefs.prefs["bauble.test.option"])
+        prefs.prefs["bauble.test.option"] = "test"
+        self.assertIsNotNone(prefs.prefs["bauble.test.option"])
+        prefs.prefs.save(force=True)
+        with open(self.temp, "r", encoding="utf-8") as f:
+            start = f.read()
+        with open(self.temp + "BAK", encoding="utf-8") as f:
+            backup = f.read()
+        self.assertNotEqual(start, backup)
+        # restore
+        prefs_view.on_prefs_restore_clicked(None)
+        self.assertIsNone(prefs.prefs["bauble.test.option"])
+
+
+class DefaultViewTests(BaubleTestCase):
+    @mock.patch("bauble.gui")
+    def test_update(self, mock_gui):
+        mock_send = mock.Mock()
+        mock_gui.send_command = mock_send
+        def_view = DefaultView()
+        self.assertFalse(list(def_view.search_box.domain_combo.get_model()))
+        self.assertFalse(def_view.infobox)
+        def_view.update()
+        # SplashInfoBox threads
+        wait_on_threads()
+        self.assertTrue(list(def_view.search_box.domain_combo.get_model()))
+        # set in PlantsPlugin.init
+        self.assertTrue(def_view.infoboxclass)
+        self.assertTrue(def_view.infobox)
+        # default, no widget set.
+        self.assertIsInstance(def_view._main_widget, Gtk.Image)
+
+        # main_widget
+        mock_widget = Gtk.Box()
+        mock_widget.update = mock.Mock()
+        def_view.main_widget = mock_widget
+        def_view.update()
+        mock_widget.update.assert_called()
+
+    @mock.patch.object(DefaultView, "update")
+    def test_splashcommandhandler(self, mock_update):
+        splash = SplashCommandHandler()
+        self.assertIsInstance(splash.get_view(), DefaultView)
+        self.assertIsInstance(splash.view, DefaultView)
+        splash(None, None)
+        mock_update.assert_called()
+
+
+class SimpleSearchBoxTest(BaubleTestCase):
+    def setUp(self):
+        super().setUp()
+        self.simplesearch = SimpleSearchBox()
+
+    def test_on_domain_combo_changed(self):
+        mapper_search = search.strategies.get_strategy("MapperSearch")
+        mock_combo = mock.Mock()
+        mock_combo.get_active_text.return_value = "species_full_name"
+
+        self.simplesearch.on_domain_combo_changed(mock_combo)
+
+        self.assertEqual(
+            self.simplesearch.domain, mapper_search.domains["species"][0]
+        )
+        self.assertEqual(self.simplesearch.columns, ["full_name"])
+        self.assertEqual(self.simplesearch.short_domain, "taxon")
+        self.assertEqual(self.simplesearch.completion_getter, None)
+
+        # bails early if no mappersearch
+        mock_combo.reset_mock()
+        with mock.patch.object(search.strategies, "get_strategy") as mock_get:
+            mock_get.return_value = None
+
+            self.simplesearch.on_domain_combo_changed(mock_combo)
+
+        mock_combo.get_active_text.assert_not_called()
+
+    def test_on_entry_changed(self):
+        for func in get_setUp_data_funcs():
+            func()
+        mapper_search = search.strategies.get_strategy("MapperSearch")
+        # pylint: disable=invalid-name
+        Species = mapper_search.domains["species"][0]
+        sp = Species(genus_id=1, sp="grandiosa")
+        self.session.add(sp)
+        self.session.commit()
+        self.simplesearch.domain = Species
+        self.simplesearch.columns = ["sp"]
+        self.simplesearch.short_domain = "sp"
+        mock_entry = mock.Mock()
+        mock_entry.get_text.return_value = str(sp.sp)[:4]
+        completion = Gtk.EntryCompletion()
+        mock_entry.get_completion.return_value = completion
+
+        self.simplesearch.on_entry_changed(mock_entry)
+        update_gui()
+
+        self.assertTrue(utils.tree_model_has(completion.get_model(), sp.sp))
+
+        # too short bails
+        mock_completion = mock.Mock()
+        mock_completion.get_minimum_key_length.return_value = 5
+        mock_entry.get_completion.return_value = mock_completion
+        mock_entry.get_text.return_value = str(sp.sp)[:4]
+
+        self.simplesearch.on_entry_changed(mock_entry)
+        update_gui()
+
+        mock_completion.set_model.assert_called_once_with(None)
+
+        # uses completion_getter if available
+        mock_completion = mock.Mock()
+        mock_completion.get_minimum_key_length.return_value = 2
+        mock_entry.get_completion.return_value = mock_completion
+        mock_entry.get_text.return_value = str(sp.sp)[:4]
+
+        with mock.patch.object(
+            self.simplesearch, "completion_getter"
+        ) as mock_getter:
+            mock_getter.return_value = ["foo"]
+            self.simplesearch.on_entry_changed(mock_entry)
+            update_gui()
+            mock_getter.assert_called_once()
+
+        mock_completion.set_model.assert_called()
+        liststore = mock_completion.set_model.call_args[0][0]
+        self.assertTrue(utils.tree_model_has(liststore, "foo"))
+
+    def test_update(self):
+        self.assertFalse(list(self.simplesearch.domain_combo.get_model()))
+        # bails early if no mappersearch
+        with mock.patch.object(search.strategies, "get_strategy") as mock_get:
+            mock_get.return_value = None
+
+            self.simplesearch.update()
+
+        self.assertFalse(list(self.simplesearch.domain_combo.get_model()))
+
+        self.simplesearch.update()
+
+        self.assertTrue(list(self.simplesearch.domain_combo.get_model()))
+        self.assertFalse(self.simplesearch.entry.get_text())
+        self.assertFalse(self.simplesearch.domain_combo.get_active())
+        self.assertFalse(self.simplesearch.cond_combo.get_active())
+
+    @mock.patch("bauble.gui")
+    def test_on_entry_activated(self, mock_gui):
+        mock_send = mock.Mock()
+        mock_gui.send_command = mock_send
+        self.simplesearch.update()
+        mock_entry = mock.Mock()
+        mock_entry.get_text.return_value = "test"
+        self.simplesearch.on_entry_activated(mock_entry)
+        mock_send.assert_called()
+        mock_send.assert_called_with("acc = 'test'")
 
 
 class TestPicturesScroller(BaubleTestCase):

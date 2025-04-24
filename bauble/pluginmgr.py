@@ -1,7 +1,7 @@
 # Copyright 2008-2010 Brett Adams
 # Copyright 2012-2015 Mario Frasca <mario@anche.no>.
 # Copyright 2017 Jardín Botánico de Quito
-# Copyright 2021-2024 Ross Demuth <rossdemuth123@gmail.com>
+# Copyright 2021-2025 Ross Demuth <rossdemuth123@gmail.com>
 #
 # This file is part of ghini.desktop.
 #
@@ -507,33 +507,6 @@ class ViewThread(Protocol):
     def start(self): ...
 
 
-class View:
-    def __init__(self, *args, **kwargs) -> None:
-        """If a class extends this View it will most likely also inherit from
-        Gtk.Box and should call this __init__.
-        """
-        super().__init__(*args, **kwargs)
-        self.running_threads: list[ViewThread] = []
-        self.prevent_threads = False
-
-    def cancel_threads(self) -> None:
-        for thread in self.running_threads:
-            thread.cancel()
-        for thread in self.running_threads:
-            thread.join()
-        self.running_threads = []
-
-    def start_thread(self, thread: ViewThread) -> ViewThread:
-        self.running_threads.append(thread)
-        thread.start()
-        if self.prevent_threads:
-            self.cancel_threads()
-        return thread
-
-    def update(self, *args: str | None) -> None:
-        raise NotImplementedError
-
-
 class Viewable(Protocol):
     """Describes a View subclass, which is likely to also subclass Gtk.Box."""
 
@@ -550,7 +523,7 @@ class CommandHandler(ABC):
     command: str | Iterable[str | None]
 
     @classmethod
-    def get_view(cls) -> View | None:
+    def get_view(cls) -> Viewable | None:
         """return the view for this command handler"""
         return None
 

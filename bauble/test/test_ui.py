@@ -1,4 +1,4 @@
-# pylint: disable=too-many-public-methods
+# pylint: disable=no-self-use,protected-access,too-many-public-methods
 # Copyright 2023-2025 Ross Demuth <rossdemuth123@gmail.com>
 #
 # This file is part of ghini.desktop.
@@ -23,113 +23,14 @@ from unittest import mock
 from gi.repository import Gio
 from gi.repository import Gtk
 
+from bauble import pluginmgr
 from bauble import prefs
-from bauble import search
 from bauble import task
-from bauble import utils
 from bauble import view
 from bauble.test import BaubleTestCase
-from bauble.test import get_setUp_data_funcs
-from bauble.test import update_gui
-from bauble.test import wait_on_threads
 from bauble.ui import GUI
-from bauble.ui import DefaultView
-from bauble.ui import SimpleSearchBox
-from bauble.ui import SplashCommandHandler
+from bauble.view import DefaultView
 from bauble.view import HistoryView
-
-
-class SimpleSearchBoxTest(BaubleTestCase):
-    def setUp(self):
-        super().setUp()
-        self.simplesearch = SimpleSearchBox()
-
-    def test_on_domain_combo_changed(self):
-        mapper_search = search.strategies.get_strategy("MapperSearch")
-        mock_combo = mock.Mock()
-        mock_combo.get_active_text.return_value = "species_full_name"
-        self.simplesearch.on_domain_combo_changed(mock_combo)
-        self.assertEqual(
-            self.simplesearch.domain, mapper_search.domains["species"][0]
-        )
-        self.assertEqual(self.simplesearch.columns, ["full_name"])
-        self.assertEqual(self.simplesearch.short_domain, "taxon")
-        self.assertEqual(self.simplesearch.completion_getter, None)
-
-    def test_on_entry_changed(self):
-        for func in get_setUp_data_funcs():
-            func()
-        mapper_search = search.strategies.get_strategy("MapperSearch")
-        Species = mapper_search.domains["species"][
-            0
-        ]  # pylint: disable=invalid-name
-        sp = Species(genus_id=1, sp="grandiosa")
-        self.session.add(sp)
-        self.session.commit()
-        self.simplesearch.domain = Species
-        self.simplesearch.columns = ["sp"]
-        self.simplesearch.short_domain = "sp"
-        mock_entry = mock.Mock()
-        mock_entry.get_text.return_value = str(sp.sp)[:4]
-        completion = Gtk.EntryCompletion()
-        mock_entry.get_completion.return_value = completion
-        self.simplesearch.on_entry_changed(mock_entry)
-        update_gui()
-        self.assertTrue(utils.tree_model_has(completion.get_model(), sp.sp))
-
-    def test_update(self):
-        self.assertFalse(list(self.simplesearch.domain_combo.get_model()))
-        self.simplesearch.update()
-        self.assertTrue(list(self.simplesearch.domain_combo.get_model()))
-        self.assertFalse(self.simplesearch.entry.get_text())
-        self.assertFalse(self.simplesearch.domain_combo.get_active())
-        self.assertFalse(self.simplesearch.cond_combo.get_active())
-
-    @mock.patch("bauble.gui")
-    def test_on_entry_activated(self, mock_gui):
-        mock_send = mock.Mock()
-        mock_gui.send_command = mock_send
-        self.simplesearch.update()
-        mock_entry = mock.Mock()
-        mock_entry.get_text.return_value = "test"
-        self.simplesearch.on_entry_activated(mock_entry)
-        mock_send.assert_called()
-        mock_send.assert_called_with("acc = 'test'")
-
-
-class DefaultViewTests(BaubleTestCase):
-    @mock.patch("bauble.gui")
-    def test_update(self, mock_gui):
-        mock_send = mock.Mock()
-        mock_gui.send_command = mock_send
-        def_view = DefaultView()
-        self.assertFalse(list(def_view.search_box.domain_combo.get_model()))
-        self.assertFalse(def_view.infobox)
-        def_view.update()
-        # SplashInfoBox threads
-        wait_on_threads()
-        self.assertTrue(list(def_view.search_box.domain_combo.get_model()))
-        # set in PlantsPlugin.init
-        self.assertTrue(def_view.infoboxclass)
-        self.assertTrue(def_view.infobox)
-        # default, no widget set.
-        self.assertIsInstance(def_view._main_widget, Gtk.Image)
-
-        # main_widget
-        mock_widget = Gtk.Box()
-        mock_widget.update = mock.Mock()
-        def_view.main_widget = mock_widget
-        def_view.update()
-        mock_widget.update.assert_called()
-
-    @mock.patch("bauble.ui.DefaultView.update")
-    def test_splashcommandhandler(self, mock_update):
-        splash = SplashCommandHandler()
-        self.assertIsNone(splash.view)
-        self.assertIsInstance(splash.get_view(), DefaultView)
-        self.assertIsInstance(splash.view, DefaultView)
-        splash(None, None)
-        mock_update.assert_called()
 
 
 class GUITests(BaubleTestCase):
@@ -645,7 +546,6 @@ class GUITests(BaubleTestCase):
     def test_build_tools_menu(self):
         gui = GUI()
         self.assertEqual(gui.tools_menu.get_n_items(), 0)
-        from bauble import pluginmgr
 
         pluginmgr.init()
         gui.build_tools_menu()

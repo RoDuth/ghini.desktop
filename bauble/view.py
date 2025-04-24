@@ -27,6 +27,7 @@ import logging
 import textwrap
 import threading
 import traceback
+from ast import literal_eval
 from collections import UserDict
 from collections.abc import Callable
 from collections.abc import Generator
@@ -38,6 +39,7 @@ from datetime import datetime
 from datetime import timedelta
 from datetime import timezone
 from pathlib import Path
+from shutil import copy2
 from textwrap import shorten
 from typing import Any
 from typing import Protocol
@@ -116,6 +118,44 @@ regularly
 
 EXPAND_ON_ACTIVATE_PREF = "bauble.search.expand_on_activate"
 """Preference key, should search view expand the item on double click"""
+
+
+class ViewThread(Protocol):
+    def cancel(self): ...
+    def join(self): ...
+    def start(self): ...
+
+
+class View:
+    """If a class extends this View it will most likely also inherit from
+    Gtk.Box and should call this __init__.
+    """
+
+    def __init__(self, *args, **kwargs) -> None:
+        super().__init__(*args, **kwargs)
+        self.running_threads: list[ViewThread] = []
+        self.prevent_threads = False
+
+    def cancel_threads(self) -> None:
+        for thread in self.running_threads:
+            thread.cancel()
+
+        for thread in self.running_threads:
+            thread.join()
+
+        self.running_threads = []
+
+    def start_thread(self, thread: ViewThread) -> ViewThread:
+        self.running_threads.append(thread)
+        thread.start()
+
+        if self.prevent_threads:
+            self.cancel_threads()
+
+        return thread
+
+    def update(self, *args: str | None) -> None:
+        raise NotImplementedError
 
 
 class ActionCallback[T: db.Domain](Protocol):
@@ -218,6 +258,9 @@ class Updateable(Protocol):  # pylint: disable=too-few-public-methods
 
     def update(self, row: db.Domain): ...
 
+
+# best solution I could come up with for the MetaClass conflict between
+# Protocol and GObject
 
 PMeta: type = type(Protocol)
 
@@ -773,7 +816,7 @@ class ViewMeta(UserDict):
 
 
 @Gtk.Template(filename=str(Path(paths.lib_dir(), "search_view.ui")))
-class SearchView(pluginmgr.View, Gtk.Box):
+class SearchView(View, Gtk.Box):
     # pylint: disable=too-many-public-methods,too-many-instance-attributes
     """The SearchView is the main view for Ghini.
 
@@ -2086,7 +2129,7 @@ SearchView.bottom_pages.add((notes_bottom_page, notes_bottom_page.label))
 
 
 @Gtk.Template(filename=str(Path(paths.lib_dir(), "history_view.ui")))
-class HistoryView(pluginmgr.View, Gtk.Box):
+class HistoryView(View, Gtk.Box):
     """Show the tables row in the order they were last updated."""
 
     __gtype_name__ = "HistoryView"
@@ -2572,3 +2615,435 @@ def get_search_view() -> SearchView:
 
 
 pluginmgr.register_command(DefaultCommandHandler)
+
+
+@Gtk.Template(filename=str(Path(paths.lib_dir(), "prefs_view.ui")))
+class PrefsView(View, Gtk.Box):
+    """The PrefsView displays the values in the plugin registry and displays
+    and allows limited editing of preferences, only after warning users of
+    possible dangers.
+    """
+
+    __gtype_name__ = "PrefsView"
+
+    prefs_ls = cast(Gtk.ListStore, Gtk.Template.Child())
+    plugins_ls = cast(Gtk.ListStore, Gtk.Template.Child())
+    prefs_tv = cast(Gtk.TreeView, Gtk.Template.Child())
+    prefs_data_renderer = cast(Gtk.CellRendererText, Gtk.Template.Child())
+
+    def __init__(self) -> None:
+        logger.debug("PrefsView::__init__")
+        super().__init__()
+        self.init_menu()
+        self.button_press_sid: None | int = None
+
+    def init_menu(self) -> None:
+        action_group_name = "prefs_view"
+        action_group = Gio.SimpleActionGroup()
+        action = Gio.SimpleAction.new("insert", None)
+        action.connect("activate", self.on_prefs_insert_activate)
+        action_group.add_action(action)
+        item = Gio.MenuItem.new(_("_Insert"), f"{action_group_name}.insert")
+        menu_model = Gio.Menu()
+        menu_model.append_item(item)
+        self.context_menu = Gtk.Menu.new_from_model(menu_model)
+        self.context_menu.attach_to_widget(self.prefs_tv)
+        self.prefs_tv.insert_action_group(action_group_name, action_group)
+
+    def on_button_press_event(self, _widget, event: Gdk.EventButton) -> None:
+        logger.debug("event.button %s", event.button)
+        if event.button == 3:
+            self.context_menu.popup_at_pointer(event)
+
+    def on_prefs_insert_activate(self, _action, _param) -> None:
+        selection = self.prefs_tv.get_selection()
+        model, tree_paths = selection.get_selected_rows()
+        logger.debug("model: %s tree_paths: %s", model, tree_paths)
+
+        self.add_new(cast(Gtk.ListStore, model), tree_paths)
+
+    @staticmethod
+    def add_new(
+        model: Gtk.ListStore,
+        tree_paths: list[Gtk.TreePath],
+        text: str | None = None,
+    ) -> Gtk.TreeIter | None:
+        msg = _("New option name")
+        selected = [model[row][0] for row in tree_paths][0]
+        section = selected.rsplit(".", 1)[0]
+        logger.debug("start a dialog for new section %s", section)
+        dialog = utils.create_message_dialog(msg=msg)
+        message_area = dialog.get_message_area()
+        box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
+        option_entry = Gtk.Entry()
+
+        if not text:
+            text = f"{section}."
+
+        option_entry.set_text(text)
+        box.add(option_entry)
+        message_area.add(box)
+        dialog.resize(1, 1)
+        dialog.show_all()
+        new_iter = None
+
+        if dialog.run() == Gtk.ResponseType.OK:
+            tree_iter = model.get_iter(tree_paths[0])
+            option = option_entry.get_text()
+            new_iter = model.insert_after(tree_iter, row=[option, "", None])
+            logger.debug("adding new pref option %s", option)
+
+        dialog.destroy()
+        return new_iter
+
+    @Gtk.Template.Callback()
+    def on_prefs_edit_toggled(self, widget):
+        state = widget.get_active()
+        logger.debug("edit state %s", state)
+        msg = _(
+            "\n\n<b>CAUTION! Making incorrect changes to your preferences "
+            "could be detrimental.\n\nDO YOU WISH TO PROCEED?</b>\n\nSome "
+            "changes will not take effect until restarted."
+        )
+        parent = bauble.gui.window if bauble.gui else None
+        if state and utils.yes_no_dialog(msg, parent=parent):
+            logger.debug("enable editing prefs")
+            self.prefs_data_renderer.set_property("editable", state)
+            self.button_press_sid = self.prefs_tv.connect(
+                "button-press-event", self.on_button_press_event
+            )
+
+        else:
+            logger.debug("disable editing prefs")
+            widget.set_active(False)
+            self.prefs_data_renderer.set_property("editable", False)
+            if self.button_press_sid:
+                self.prefs_tv.disconnect(self.button_press_sid)
+                self.button_press_sid = None
+
+    @Gtk.Template.Callback()
+    def on_prefs_edited(self, _renderer, path, new_text):
+        # pylint: disable=unsubscriptable-object
+        key, repr_str, type_str = self.prefs_ls[path]
+        if new_text == "":
+            msg = _("Delete the %s preference key?") % key
+            parent = bauble.gui.window if bauble.gui else None
+            if utils.yes_no_dialog(msg, parent=parent):
+                del prefs.prefs[key]
+                prefs.prefs.save()
+                self.refresh_view()
+                logger.debug("deleting: %s", key)
+                self.prefs_ls.remove(
+                    self.prefs_ls.get_iter_from_string(str(path))
+                )
+                return
+
+        try:
+            new_val = literal_eval(new_text)
+        except (ValueError, SyntaxError):
+            new_val = new_text
+
+        if isinstance(new_val, str):
+            if key.endswith("root_directory") and not Path(new_val).exists():
+                new_val = ""
+
+        new_val_type = type(new_val).__name__
+
+        if type_str and (new_val == "" or new_val_type != type_str):
+            self.prefs_ls[path][1] = repr_str
+            return
+
+        prefs.prefs[key] = new_val
+        self.prefs_ls[path][1] = str(new_val)
+        self.prefs_ls[path][2] = new_val_type
+        prefs.prefs.save()
+        self.refresh_view()
+
+    @Gtk.Template.Callback()
+    @staticmethod
+    def on_prefs_backup_clicked(_widget):
+        copy2(prefs.default_prefs_file, prefs.default_prefs_file + "BAK")
+
+    @Gtk.Template.Callback()
+    def on_prefs_restore_clicked(self, _widget):
+        if Path(prefs.default_prefs_file + "BAK").exists():
+            copy2(prefs.default_prefs_file + "BAK", prefs.default_prefs_file)
+            prefs.prefs.reload()
+            self.update()
+        else:
+            utils.message_dialog(_("No backup found"))
+
+    def update(self, *_args):
+        self.prefs_ls.clear()
+        for key, value in sorted(prefs.prefs.iteritems()):
+            logger.debug(
+                "update prefs: %s, %s, %s",
+                key,
+                value,
+                prefs.prefs[key].__class__.__name__,
+            )
+            self.prefs_ls.append(
+                (key, value, prefs.prefs[key].__class__.__name__)
+            )
+
+        self.plugins_ls.clear()
+
+        session = db.Session()
+        plugins = session.query(
+            pluginmgr.PluginRegistry.name, pluginmgr.PluginRegistry.version
+        )
+        for item in plugins:
+            self.plugins_ls.append(item)
+        session.close()
+        self.refresh_view()
+
+    @staticmethod
+    def refresh_view():
+        if bauble.gui is not None:
+            # may be more to do here yet...
+            bauble.gui.populate_main_entry()
+
+
+class PrefsCommandHandler(pluginmgr.CommandHandler):
+    command = ("prefs", "config")
+    view: PrefsView | None = None
+
+    @classmethod
+    def get_view(cls) -> PrefsView:
+        if cls.view is None:
+            cls.view = PrefsView()
+        return cls.view
+
+    def __call__(self, cmd: str, arg: str | None) -> None:
+        self.get_view().update()
+
+
+pluginmgr.register_command(PrefsCommandHandler)
+
+
+class SimpleSearchBox(Gtk.Frame):
+    """Provides a simple search for the splash screen."""
+
+    def __init__(self) -> None:
+        super().__init__(label=_("Simple Search"))
+        tooltip = _(
+            "Simple search provides a quick way to access basic expression "
+            "searches with the convenience of auto-completion. For more "
+            "advanced searches the query builder provides a better starting "
+            "point.\n\nTo return all of a domain use = *"
+        )
+        self.set_tooltip_text(tooltip)
+        self.domain: type[db.Domain] | None = None
+        self.columns: list[str] = []
+        self.short_domain: str = ""
+        box = Gtk.Box(margin=10)
+        self.add(box)
+        self.domain_combo = Gtk.ComboBoxText()
+        self.domain_combo.connect("changed", self.on_domain_combo_changed)
+        box.add(self.domain_combo)
+        self.cond_combo = Gtk.ComboBoxText()
+
+        for cond in ["=", "contains", "like"]:
+            self.cond_combo.append_text(cond)
+
+        self.cond_combo.set_active(0)
+        box.add(self.cond_combo)
+        self.entry = Gtk.Entry()
+        liststore = Gtk.ListStore(str)
+        completion = Gtk.EntryCompletion()
+        completion.set_model(liststore)
+        completion.set_text_column(0)
+        completion.set_minimum_key_length(2)
+        completion.set_popup_completion(True)
+        self.entry.set_completion(completion)
+        self.entry.connect("activate", self.on_entry_activated)
+        self.entry.connect("changed", self.on_entry_changed)
+        box.pack_start(self.entry, True, True, 0)
+        self.completion_getter: Callable | None = None
+
+    def on_entry_activated(self, entry: Gtk.Entry) -> None:
+        condition = self.cond_combo.get_active_text()
+        text = entry.get_text()
+        if text != "*":
+            text = repr(text)
+        search_str = f"{self.short_domain} {condition} {text}"
+        if bauble.gui:
+            bauble.gui.send_command(search_str)
+
+    def on_domain_combo_changed(self, combo: Gtk.ComboBoxText) -> None:
+
+        mapper_search = search.strategies.get_strategy("MapperSearch")
+
+        if not mapper_search:
+            return
+
+        domain = combo.get_active_text()
+        # domain is None when resetting
+        if domain:
+            self.domain, self.columns = mapper_search.domains[domain]
+            self.short_domain = min(
+                (
+                    min((k, v), key=len)
+                    for k, v in mapper_search.shorthand.items()
+                    if v == domain
+                ),
+                key=len,
+            )
+            self.completion_getter = mapper_search.completion_funcs.get(domain)
+
+    def on_entry_changed(self, entry: Gtk.Entry) -> None:
+        text = entry.get_text()
+        completion = entry.get_completion()
+        key_length = completion.get_minimum_key_length()
+        utils.clear_model(completion)
+
+        if len(text) < key_length:
+            return
+
+        completion_model = Gtk.ListStore(str)
+
+        with db.Session() as session:
+            if self.completion_getter:
+                for val in self.completion_getter(session, text):
+                    completion_model.append([val])
+            else:
+                for column in self.columns:
+                    vals = (
+                        session.query(getattr(self.domain, column))
+                        .filter(
+                            utils.ilike(
+                                getattr(self.domain, column), f"{text}%%"
+                            )
+                        )
+                        .distinct()
+                        .limit(10)
+                    )
+                    for val in vals:
+                        completion_model.append([str(val[0])])
+
+        completion.set_model(completion_model)
+
+    def update(self) -> None:
+
+        mapper_search = search.strategies.get_strategy("MapperSearch")
+
+        if not mapper_search:
+            return
+
+        self.domain_combo.remove_all()
+
+        for domain in sorted(mapper_search.domains.keys()):
+            self.domain_combo.append_text(domain)
+
+        self.domain_combo.set_active(0)
+        self.cond_combo.set_active(0)
+        self.entry.set_text("")
+
+
+class UpdateableNoArgs(Protocol):  # pylint: disable=too-few-public-methods
+    def update(self): ...
+
+
+WMeta: type = type(Gtk.Widget)
+
+
+class _UWMeta(PMeta, WMeta):
+    pass
+
+
+class UpdateableWidget(Gtk.Widget, UpdateableNoArgs, metaclass=_UWMeta):
+    pass
+
+
+class DefaultView(View, Gtk.Box):
+    """consider DefaultView a splash screen.
+
+    It is displayed at program start and when home is selected.  it's the core
+    of the "what do I do now" screen.
+
+    DefaultView is related to the SplashCommandHandler, not to the
+    view.DefaultCommandHandler
+    """
+
+    infoboxclass: type[UpdateableWidget] | None = None
+    main_widget: UpdateableWidget | Gtk.Widget | None = None
+
+    def __init__(self) -> None:
+        super().__init__()
+
+        # splash window contains a hbox: left half is for the proper splash,
+        # right half for infobox, only one infobox is allowed.
+
+        self.hbox = Gtk.Box()
+        self.pack_start(self.hbox, True, True, 0)
+
+        self.vbox = Gtk.Box(spacing=0, orientation=Gtk.Orientation.VERTICAL)
+        self.search_box = SimpleSearchBox()
+        self.search_box.set_valign(Gtk.Align.START)
+        self.search_box.set_vexpand(False)
+        self.vbox.pack_start(self.search_box, False, True, 5)
+
+        self.hbox.pack_start(self.vbox, True, True, 0)
+
+        self.infobox: UpdateableWidget | None = None
+        self._main_widget: UpdateableWidget | Gtk.Widget | None = None
+
+    def update(self, *_args) -> None:
+        logger.debug("DefaultView::update")
+
+        self.search_box.update()
+
+        if self.infoboxclass and not self.infobox:
+            logger.debug("DefaultView::update - creating infobox")
+            self.infobox = self.infoboxclass()  # pylint: disable=not-callable
+            self.hbox.pack_end(self.infobox, False, False, 8)
+            self.infobox.set_vexpand(False)
+            self.infobox.set_hexpand(False)
+            self.infobox.show()
+        if self.infobox:
+            logger.debug("DefaultView::update - updating infobox")
+            self.infobox.update()
+        self.set_main_widget()
+        # pylint: disable=no-member
+        if (
+            self._main_widget
+            and hasattr(self._main_widget, "update")
+            and callable(self._main_widget.update)
+        ):
+            self._main_widget.update()
+
+    def set_main_widget(self) -> None:
+        # update after db change
+        if self._main_widget and self._main_widget is not self.main_widget:
+            self.vbox.remove(self._main_widget)
+            self._main_widget = None
+
+        if not self._main_widget:
+            if self.main_widget:
+                self._main_widget = self.main_widget
+            else:
+                self._main_widget = Gtk.Image()
+                self._main_widget.set_from_file(
+                    str(Path(paths.lib_dir(), "images", "bauble_logo.png"))
+                )
+                self._main_widget.set_valign(Gtk.Align.START)
+                self.main_widget = self._main_widget
+            self.vbox.pack_start(self._main_widget, True, True, 10)
+            self.vbox.show_all()
+
+
+class SplashCommandHandler(pluginmgr.CommandHandler):
+    command = ["home", "splash"]
+    view: DefaultView | None = None
+
+    @classmethod
+    def get_view(cls) -> DefaultView:
+        if cls.view is None:
+            cls.view = DefaultView()
+        return cls.view
+
+    def __call__(self, cmd: str, arg: str | None) -> None:
+        self.get_view().update()
+
+
+pluginmgr.register_command(SplashCommandHandler)

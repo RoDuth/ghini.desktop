@@ -1,6 +1,6 @@
 # Copyright (c) 2005,2006,2007,2008,2009 Brett Adams <brett@belizebotanic.org>
 # Copyright (c) 2012-2015 Mario Frasca <mario@anche.no>
-# Copyright (c) 2021 Ross Demuth <rossdemuth123@gmail.com>
+# Copyright (c) 2021-2025 Ross Demuth <rossdemuth123@gmail.com>
 #
 # This file is part of ghini.desktop.
 #
@@ -571,6 +571,7 @@ class GlobalFunctionsTests(BaubleTestCase):
         mock_gui.get_view.assert_called()
 
         from bauble.view import HistoryView
+        from bauble.view import PrefsView
         from bauble.view import SearchView
 
         mock_gui.set_view.assert_called()
@@ -583,10 +584,8 @@ class GlobalFunctionsTests(BaubleTestCase):
         self.assertIsInstance(mock_gui.set_view.call_args[0][0], SearchView)
         mock_gui.reset_mock()
 
-        from bauble.prefs import PrefsView
-
+        # switch to prefs
         bauble.command_handler("prefs", None)
-        # switch
         mock_gui.set_view.assert_called()
         self.assertIsInstance(mock_gui.set_view.call_args[0][0], PrefsView)
 

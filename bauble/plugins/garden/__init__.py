@@ -41,7 +41,9 @@ from bauble import prefs
 from bauble import search
 from bauble import utils
 from bauble.i18n import _
+from bauble.view import DefaultView
 from bauble.view import HistoryView
+from bauble.view import PrefsView
 from bauble.view import SearchView
 from bauble.view import get_search_view
 
@@ -445,9 +447,9 @@ class GardenPlugin(pluginmgr.Plugin):
                 setup_garden_map()
                 loc_map = LocationSearchMap()
                 loc_map.clear_locations()
-                bauble.ui.DefaultView.main_widget = loc_map
+                DefaultView.main_widget = loc_map
             else:
-                bauble.ui.DefaultView.main_widget = None
+                DefaultView.main_widget = None
 
     @staticmethod
     def on_inactive_toggled(action, value):
@@ -457,7 +459,7 @@ class GardenPlugin(pluginmgr.Plugin):
 
         view = bauble.gui.get_view()
 
-        if isinstance(view, (prefs.PrefsView, bauble.ui.DefaultView)):
+        if isinstance(view, (PrefsView, DefaultView)):
             view.update()
 
         get_search_view().rerun_last_search()
@@ -470,7 +472,7 @@ class GardenPlugin(pluginmgr.Plugin):
 
         view = bauble.gui.get_view()
 
-        if isinstance(view, prefs.PrefsView):
+        if isinstance(view, PrefsView):
             view.update()
 
         get_search_view().rerun_last_search()

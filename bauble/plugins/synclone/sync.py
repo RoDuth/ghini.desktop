@@ -63,6 +63,7 @@ from bauble import task
 from bauble import utils
 from bauble.connmgr import start_connection_manager
 from bauble.i18n import _
+from bauble.view import View
 
 from ..tag.ui import menu_manager
 from .clone import DBCloner
@@ -474,7 +475,7 @@ class DBSyncroniser:
 @Gtk.Template(
     filename=str(Path(__file__).resolve().parent / "resolution_centre_view.ui")
 )
-class ResolutionCentreView(pluginmgr.View, Gtk.Box):
+class ResolutionCentreView(View, Gtk.Box):
     """Show all the ToSync table rows for the user to attempt to sync them."""
 
     __gtype_name__ = "ResolutionView"
@@ -783,10 +784,10 @@ class ResolutionCentreView(pluginmgr.View, Gtk.Box):
 
 class ResolveCommandHandler(pluginmgr.CommandHandler):
     command = "resolve"
-    view: pluginmgr.View | None = None
+    view: ResolutionCentreView | None = None
 
     @classmethod
-    def get_view(cls) -> pluginmgr.View:
+    def get_view(cls) -> ResolutionCentreView:
         if cls.view is None:
             cls.view = ResolutionCentreView()
         return cls.view

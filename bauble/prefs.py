@@ -39,7 +39,6 @@ from collections import UserDict
 from configparser import ConfigParser
 from configparser import Error
 from datetime import datetime
-from pathlib import Path
 from shutil import copy2
 
 from filelock import FileLock
@@ -50,10 +49,8 @@ from gi.repository import Gio
 from gi.repository import Gtk
 
 import bauble
-from bauble import db
 from bauble import meta
 from bauble import paths
-from bauble import pluginmgr
 from bauble import utils
 from bauble.error import DatabaseError
 from bauble.i18n import _
@@ -669,207 +666,6 @@ def post_gui():
     bauble.gui.options_menu.append_item(item)
 
 
-@Gtk.Template(filename=str(Path(paths.lib_dir(), "prefs_view.ui")))
-class PrefsView(pluginmgr.View, Gtk.Box):
-    """The PrefsView displays the values in the plugin registry and displays
-    and allows limited editing of preferences, only after warning users of
-    possible dangers.
-    """
-
-    __gtype_name__ = "PrefsView"
-
-    prefs_ls = Gtk.Template.Child()
-    plugins_ls = Gtk.Template.Child()
-    prefs_tv = Gtk.Template.Child()
-    prefs_data_renderer = Gtk.Template.Child()
-    prefs_edit_chkbx = Gtk.Template.Child()
-
-    def __init__(self):
-        logger.debug("PrefsView::__init__")
-        super().__init__()
-        self.button_press_id = None
-        self.init_menu()
-
-    def init_menu(self):
-        action_group_name = "prefs_view"
-        action_group = Gio.SimpleActionGroup()
-        action = Gio.SimpleAction.new("insert", None)
-        action.connect("activate", self.on_prefs_insert_activate)
-        action_group.add_action(action)
-        item = Gio.MenuItem.new(_("_Insert"), f"{action_group_name}.insert")
-        menu_model = Gio.Menu()
-        menu_model.append_item(item)
-        self.context_menu = Gtk.Menu.new_from_model(menu_model)
-        self.context_menu.attach_to_widget(self.prefs_tv)
-        self.prefs_tv.insert_action_group(action_group_name, action_group)
-
-    def on_button_press_event(self, _widget, event):
-        logger.debug("event.button %s", event.button)
-        if event.button == 3:
-            self.context_menu.popup_at_pointer(event)
-
-    def on_prefs_insert_activate(self, _action, _param):
-        try:
-            (
-                model,
-                tree_path,
-            ) = self.prefs_tv.get_selection().get_selected_rows()
-            logger.debug("model: %s tree_path: %s", model, tree_path)
-            if not model or not tree_path:
-                logger.debug("no model or tree_path")
-                return
-            self.add_new(model, tree_path)
-        except Exception as e:  # pylint: disable=broad-except
-            msg = utils.xml_safe(str(e))
-            logger.warning(msg)
-
-    @staticmethod
-    def add_new(model, tree_path, text=None):
-        msg = _("New option name")
-        selected = [model[row][0] for row in tree_path][0]
-        section = selected.rsplit(".", 1)[0]
-        logger.debug("start a dialog for new section %s", section)
-        dialog = utils.create_message_dialog(msg=msg)
-        message_area = dialog.get_message_area()
-        box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
-        option_entry = Gtk.Entry()
-        if not text:
-            text = f"{section}."
-        option_entry.set_text(text)
-        box.add(option_entry)
-        message_area.add(box)
-        dialog.resize(1, 1)
-        dialog.show_all()
-        new_iter = None
-        if dialog.run() == Gtk.ResponseType.OK:
-            tree_iter = model.get_iter(tree_path)
-            option = option_entry.get_text()
-            new_iter = model.insert_after(tree_iter, row=[option, "", None])
-            logger.debug("adding new pref option %s", option)
-        dialog.destroy()
-        return new_iter
-
-    @Gtk.Template.Callback()
-    def on_prefs_edit_toggled(self, widget):
-        state = widget.get_active()
-        logger.debug("edit state %s", state)
-        msg = _(
-            "\n\n<b>CAUTION! Making incorrect changes to your preferences "
-            "could be detrimental.\n\nDO YOU WISH TO PROCEED?</b>\n\nSome "
-            "changes will not take effect until restarted."
-        )
-        parent = bauble.gui.window if bauble.gui else None
-        if state and utils.yes_no_dialog(msg, parent=parent):
-            logger.debug("enable editing prefs")
-            self.prefs_data_renderer.set_property("editable", state)
-            self.button_press_id = self.prefs_tv.connect(
-                "button-press-event", self.on_button_press_event
-            )
-
-        else:
-            logger.debug("disable editing prefs")
-            widget.set_active(False)
-            self.prefs_data_renderer.set_property("editable", False)
-            if self.button_press_id:
-                self.prefs_tv.disconnect(self.button_press_id)
-                self.button_press_id = None
-
-    @Gtk.Template.Callback()
-    def on_prefs_edited(self, _renderer, path, new_text):
-        key, repr_str, type_str = self.prefs_ls[path]
-        if new_text == "":
-            msg = _("Delete the %s preference key?") % key
-            parent = bauble.gui.window if bauble.gui else None
-            if utils.yes_no_dialog(msg, parent=parent):
-                del prefs[key]
-                prefs.save()
-                self.refresh_view()
-                logger.debug("deleting: %s", key)
-                self.prefs_ls.remove(
-                    self.prefs_ls.get_iter_from_string(str(path))
-                )
-                return
-
-        try:
-            new_val = literal_eval(new_text)
-        except (ValueError, SyntaxError):
-            new_val = new_text
-
-        if isinstance(new_val, str):
-            if key.endswith("root_directory") and not Path(new_val).exists():
-                new_val = ""
-
-        new_val_type = type(new_val).__name__
-
-        if type_str and (new_val == "" or new_val_type != type_str):
-            self.prefs_ls[path][1] = repr_str
-            return
-
-        prefs[key] = new_val
-        self.prefs_ls[path][1] = str(new_val)
-        self.prefs_ls[path][2] = new_val_type
-        prefs.save()
-        self.refresh_view()
-
-    @Gtk.Template.Callback()
-    @staticmethod
-    def on_prefs_backup_clicked(_widget):
-        copy2(default_prefs_file, default_prefs_file + "BAK")
-
-    @Gtk.Template.Callback()
-    def on_prefs_restore_clicked(self, _widget):
-        # pylint: disable=using-constant-test
-        if Path(default_prefs_file + "BAK").exists():
-            copy2(default_prefs_file + "BAK", default_prefs_file)
-            prefs.reload()
-            self.update()
-        else:
-            utils.message_dialog(_("No backup found"))
-
-    def update(self, *_args):
-        self.prefs_ls.clear()
-        for key, value in sorted(prefs.iteritems()):
-            logger.debug(
-                "update prefs: %s, %s, %s",
-                key,
-                value,
-                prefs[key].__class__.__name__,
-            )
-            self.prefs_ls.append((key, value, prefs[key].__class__.__name__))
-
-        self.plugins_ls.clear()
-        from bauble.pluginmgr import PluginRegistry
-
-        session = db.Session()
-        plugins = session.query(PluginRegistry.name, PluginRegistry.version)
-        for item in plugins:
-            self.plugins_ls.append(item)
-        session.close()
-        self.refresh_view()
-
-    @staticmethod
-    def refresh_view():
-        if bauble.gui is not None:
-            # may be more to do here yet...
-            bauble.gui.populate_main_entry()
-
-
-class PrefsCommandHandler(pluginmgr.CommandHandler):
-    command = ("prefs", "config")
-    view = None
-
-    @classmethod
-    def get_view(cls) -> PrefsView:
-        if cls.view is None:
-            cls.view = PrefsView()
-        return cls.view
-
-    def __call__(self, cmd: str, arg: str | None) -> None:
-        self.get_view().update()
-
-
-pluginmgr.register_command(PrefsCommandHandler)
-
 # NOTE mainly for the sake of testing and using a temp pref file its best to
 # avoid importing prefs directly
 
@@ -879,5 +675,5 @@ prefs = _prefs()
 Do not import this directly. Instead use:
 
     from bauble import prefs
-    pref.pref.get('key')
+    prefs.prefs.get('key')
 """

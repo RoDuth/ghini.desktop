@@ -25,22 +25,22 @@
     <property name="can-focus">True</property>
     <property name="orientation">vertical</property>
     <child>
-      <object class="GtkNotebook" id="prefs_view">
+      <object class="GtkNotebook">
         <property name="visible">True</property>
         <property name="can-focus">True</property>
         <property name="hexpand">True</property>
         <property name="vexpand">True</property>
         <child>
-          <object class="GtkBox" id="prefs_box">
+          <object class="GtkBox">
             <property name="visible">True</property>
             <property name="can-focus">True</property>
             <property name="orientation">vertical</property>
             <child>
-              <object class="GtkBox" id="edit_box">
+              <object class="GtkBox">
                 <property name="visible">True</property>
                 <property name="can-focus">True</property>
                 <child>
-                  <object class="GtkCheckButton" id="prefs_edit_chkbx">
+                  <object class="GtkCheckButton">
                     <property name="label" translatable="yes">Enable Editing - CAUTION!</property>
                     <property name="visible">True</property>
                     <property name="can-focus">True</property>
@@ -57,7 +57,7 @@
                   </packing>
                 </child>
                 <child>
-                  <object class="GtkButton" id="prefs_backup_btn">
+                  <object class="GtkButton">
                     <property name="label" translatable="yes">Backup</property>
                     <property name="visible">True</property>
                     <property name="can-focus">True</property>
@@ -74,7 +74,7 @@
                   </packing>
                 </child>
                 <child>
-                  <object class="GtkButton" id="prefs_restore_btn">
+                  <object class="GtkButton">
                     <property name="label" translatable="yes">Restore</property>
                     <property name="visible">True</property>
                     <property name="can-focus">True</property>
@@ -98,7 +98,7 @@
               </packing>
             </child>
             <child>
-              <object class="GtkScrolledWindow" id="prefs_prefs_sv">
+              <object class="GtkScrolledWindow">
                 <property name="visible">True</property>
                 <property name="can-focus">True</property>
                 <property name="hscrollbar-policy">never</property>
@@ -174,11 +174,11 @@
           </packing>
         </child>
         <child>
-          <object class="GtkScrolledWindow" id="prefs_plugins_sv">
+          <object class="GtkScrolledWindow">
             <property name="visible">True</property>
             <property name="can-focus">True</property>
             <child>
-              <object class="GtkTreeView" id="prefs_plugins_tv">
+              <object class="GtkTreeView">
                 <property name="visible">True</property>
                 <property name="can-focus">True</property>
                 <property name="model">plugins_ls</property>

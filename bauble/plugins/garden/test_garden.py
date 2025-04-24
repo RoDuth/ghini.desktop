@@ -42,6 +42,7 @@ from bauble.test import BaubleTestCase
 from bauble.test import check_dupids
 from bauble.test import mockfunc
 from bauble.test import update_gui
+from bauble.view import PrefsView
 from bauble.view import get_search_view
 
 from ..plants import test_plants as plants_test
@@ -5901,7 +5902,7 @@ class GlobalActionTests(BaubleTestCase):
     @unittest.mock.patch("bauble.gui")
     def test_on_inactive_toggled(self, mock_gui):
         search_view = get_search_view()
-        prefs_view = prefs.PrefsView()
+        prefs_view = PrefsView()
         prefs_view.update = unittest.mock.Mock()
         mock_gui.get_view.return_value = prefs_view
         mock_action = unittest.mock.Mock()

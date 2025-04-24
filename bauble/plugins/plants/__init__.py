@@ -47,9 +47,11 @@ from bauble import utils
 from bauble.i18n import _
 from bauble.paths import lib_dir
 from bauble.search.query_builder import ExpressionRow
-from bauble.ui import DefaultView
+from bauble.view import DefaultView
 from bauble.view import HistoryView
+from bauble.view import PrefsView
 from bauble.view import SearchView
+from bauble.view import View
 
 from .family import Familia
 from .family import Family
@@ -281,7 +283,7 @@ class LabelUpdater(Thread):
 
 
 @Gtk.Template(filename=str(Path(__file__).resolve().parent / "splash_info.ui"))
-class SplashInfoBox(pluginmgr.View, Gtk.Box):
+class SplashInfoBox(View, Gtk.Box):
     """info box shown in the initial splash screen."""
 
     __gtype_name__ = "SplashInfoBox"
@@ -686,7 +688,7 @@ class PlantsPlugin(pluginmgr.Plugin):
                     )
 
             def on_view_box_added(_container, obj):
-                if isinstance(obj, prefs.PrefsView):
+                if isinstance(obj, PrefsView):
                     if cls.prefs_change_handler:
                         obj.prefs_ls.disconnect(cls.prefs_change_handler)
                     cls.prefs_change_handler = obj.prefs_ls.connect(
@@ -909,7 +911,7 @@ class PlantsPlugin(pluginmgr.Plugin):
         action.set_state(value)
 
         prefs.prefs[prefs.return_accepted_pref] = value.get_boolean()
-        if isinstance(view := bauble.gui.get_view(), prefs.PrefsView):
+        if isinstance(view := bauble.gui.get_view(), PrefsView):
             view.update()
 
     @classmethod
