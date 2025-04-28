@@ -1,6 +1,9 @@
+# pylint: disable=no-self-use,protected-access,too-many-public-methods
 # Copyright (c) 2005,2006,2007,2008,2009 Brett Adams <brett@belizebotanic.org>
 # Copyright (c) 2012-2015 Mario Frasca <mario@anche.no>
 # Copyright 2017 Jardín Botánico de Quito
+# Copyright (c) 2025 Ross Demuth <rossdemuth123@gmail.com>
+#
 #
 # This file is part of ghini.desktop.
 #
@@ -16,35 +19,48 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with ghini.desktop. If not, see <http://www.gnu.org/licenses/>.
-#
-# test_pluginmgr.py
-#
+"""
+test plugin manager
+"""
+
 import logging
 import os
-import unittest
+from pathlib import Path
+from tempfile import mkdtemp
+from types import SimpleNamespace
+from unittest import TestCase
+from unittest import mock
 
 logger = logging.getLogger(__name__)
 
-import bauble
-import bauble.pluginmgr as pluginmgr
-import bauble.utils as utils
+from gi.repository import Gtk
+
 from bauble import db
+from bauble import paths
+from bauble import pluginmgr
 from bauble.error import BaubleError
-from bauble.pluginmgr import PluginRegistry
 from bauble.test import BaubleTestCase
 from bauble.test import uri
+
+
+class DumbHandler(pluginmgr.CommandHandler):
+    command = ["dumb"]
+
+    def __call__(self, cmd, arg) -> None:
+        return
 
 
 class A(pluginmgr.Plugin):
     initialized = False
     installed = False
+    commands = [DumbHandler]
 
     @classmethod
     def init(cls):
         cls.initialized = True
 
     @classmethod
-    def install(cls, *args, **kwargs):
+    def install(cls, import_defaults=True):
         cls.installed = True
 
 
@@ -58,7 +74,7 @@ class B(pluginmgr.Plugin):
         cls.initialized = True
 
     @classmethod
-    def install(cls, *args, **kwargs):
+    def install(cls, import_defaults=True):
         cls.installed = True
 
 
@@ -73,7 +89,7 @@ class C(pluginmgr.Plugin):
         cls.initialized = True
 
     @classmethod
-    def install(cls, *args, **kwargs):
+    def install(cls, import_defaults=True):
         cls.installed = True
 
 
@@ -87,7 +103,7 @@ class FailingInitPlugin(pluginmgr.Plugin):
         raise BaubleError("can't init")
 
     @classmethod
-    def install(cls, *args, **kwargs):
+    def install(cls, import_defaults=True):
         cls.installed = True
 
 
@@ -101,7 +117,7 @@ class DependsOnFailingInitPlugin(pluginmgr.Plugin):
         cls.initialized = True
 
     @classmethod
-    def install(cls, *args, **kwargs):
+    def install(cls, import_defaults=True):
         cls.installed = True
 
 
@@ -114,7 +130,7 @@ class FailingInstallPlugin(pluginmgr.Plugin):
         cls.initialized = True
 
     @classmethod
-    def install(cls, *args, **kwargs):
+    def install(cls, import_defaults=True):
         cls.installed = True
         raise BaubleError("can't install")
 
@@ -129,7 +145,7 @@ class DependsOnFailingInstallPlugin(pluginmgr.Plugin):
         cls.initialized = True
 
     @classmethod
-    def install(cls, *args, **kwargs):
+    def install(cls, import_defaults=True):
         cls.installed = True
 
 
@@ -147,7 +163,6 @@ class PluginMgrTests(BaubleTestCase):
 
             @classmethod
             def install(cls, import_defaults=True):
-                import bauble.paths as paths
 
                 if not import_defaults:
                     return
@@ -171,134 +186,293 @@ class PluginMgrTests(BaubleTestCase):
         pluginmgr.install([Dummy])
 
 
-class LocalFunctions(unittest.TestCase):
+class GlobalFunctionsTests(TestCase):
     def setUp(self):
         A.initialized = A.installed = False
         B.initialized = B.installed = False
         C.initialized = C.installed = False
-        bauble.pluginmgr.plugins = {}
+        pluginmgr.plugins = {}
 
     def tearDown(self):
-        bauble.pluginmgr.plugins = {}
+        pluginmgr.plugins = {}
 
     def test_create_dependency_pairs(self):
-        a, b, c = A(), B(), C()
-        a.__name__ = "A"
-        b.__name__ = "B"
-        c.__name__ = "C"
-        bauble.pluginmgr.plugins[C.__name__] = c
-        bauble.pluginmgr.plugins[B.__name__] = b
-        bauble.pluginmgr.plugins[A.__name__] = a
-        dep, unmet = bauble.pluginmgr._create_dependency_pairs([a, b, c])
-        self.assertEqual(dep, [(a, b), (b, c)])
+        plug_a = A()
+        plug_b = B()
+        plug_c = C()
+        pluginmgr.plugins[C.__name__] = plug_c
+        pluginmgr.plugins[B.__name__] = plug_b
+        pluginmgr.plugins[A.__name__] = plug_a
+        dep, unmet = pluginmgr._create_dependency_pairs(
+            [plug_a, plug_b, plug_c]
+        )
+        self.assertEqual(dep, [(plug_a, plug_b), (plug_b, plug_c)])
         self.assertEqual(unmet, {})
 
     def test_create_dependency_pairs_missing_base(self):
-        a, b, c = A(), B(), C()
-        a.__name__ = "A"
-        b.__name__ = "B"
-        c.__name__ = "C"
-        bauble.pluginmgr.plugins[C.__name__] = c
-        bauble.pluginmgr.plugins[B.__name__] = b
-        dep, unmet = bauble.pluginmgr._create_dependency_pairs([b, c])
-        self.assertEqual(dep, [(b, c)])
+        plug_b = B()
+        plug_c = C()
+        pluginmgr.plugins[C.__name__] = plug_c
+        pluginmgr.plugins[B.__name__] = plug_b
+        dep, unmet = pluginmgr._create_dependency_pairs([plug_b, plug_c])
+        self.assertEqual(dep, [(plug_b, plug_c)])
         self.assertEqual(unmet, {"B": ["A"]})
 
+    def test_find_plugins_no_plugins(self):
+        plugins, errors = pluginmgr._find_plugins("foo/bar")
 
-class StandalonePluginMgrTests(unittest.TestCase):
+        self.assertEqual(plugins, [])
+        self.assertEqual(errors, {})
+
+    def test_find_plugins_error(self):
+        directory = mkdtemp()
+        path = Path(directory, "test")
+        path.mkdir()
+        init = path / "__init__.py"
+        init.touch()
+        plugins, errors = pluginmgr._find_plugins(directory)
+
+        self.assertEqual(plugins, [])
+        self.assertEqual(
+            {k: str(v) for k, v in errors.items()},
+            {
+                "bauble.plugins.test": str(
+                    ModuleNotFoundError(
+                        "No module named 'bauble.plugins.test'"
+                    )
+                )
+            },
+        )
+
+    @mock.patch("bauble.pluginmgr.import_module")
+    def test_find_plugins_not_a_plugin_warns(self, mock_import):
+        mock_import.return_value = SimpleNamespace(
+            plugin=object, __name__="FOO"
+        )
+        path = Path(paths.lib_dir(), "plugins")
+
+        with self.assertLogs(level="WARNING") as logs:
+            plugins, errors = pluginmgr._find_plugins(str(path))
+
+        self.assertIn(
+            "FOO.plugin is not an instance of pluginmgr.Plugin", logs.output[0]
+        )
+        self.assertEqual(plugins, [])
+        self.assertEqual(errors, {})
+
+    @mock.patch("bauble.pluginmgr.utils.message_details_dialog")
+    def test_load_w_error_notifies(self, mock_dialog):
+        directory = mkdtemp()
+        path = Path(directory, "test")
+        path.mkdir()
+        init = path / "__init__.py"
+        init.touch()
+
+        with self.assertLogs(level="DEBUG") as logs:
+            pluginmgr.load(directory)
+
+        self.assertTrue(
+            any(
+                f"No plugins found at path: {directory}" in i
+                for i in logs.output
+            )
+        )
+        mock_dialog.assert_called()
+        self.assertIn("Could not load", mock_dialog.call_args[0][0])
+
+    def test_get_registered_unregistered_all_unregistered(self):
+        db.open_conn(uri, verify=False)
+        db.metadata.drop_all(db.engine, checkfirst=True)
+        db.metadata.create_all(db.engine)
+        plug_a = A()
+        plug_b = B()
+        plug_c = C()
+        pluginmgr.PluginRegistry.add(plug_a)
+        pluginmgr.PluginRegistry.add(plug_b)
+        pluginmgr.PluginRegistry.add(plug_c)
+        reg, unreg = pluginmgr._get_registered_unregistered()
+
+        self.assertEqual([], reg)
+        self.assertCountEqual(
+            [type(i).__name__ for i in [plug_a, plug_b, plug_c]], unreg
+        )
+
+    def test_get_registered_unregistered_all_registered(self):
+        db.open_conn(uri, verify=False)
+        db.metadata.drop_all(db.engine, checkfirst=True)
+        db.metadata.create_all(db.engine)
+        plug_a = A()
+        plug_b = B()
+        plug_c = C()
+        pluginmgr.plugins[C.__name__] = plug_c
+        pluginmgr.plugins[B.__name__] = plug_b
+        pluginmgr.plugins[A.__name__] = plug_a
+        pluginmgr.PluginRegistry.add(plug_a)
+        pluginmgr.PluginRegistry.add(plug_b)
+        pluginmgr.PluginRegistry.add(plug_c)
+        reg, unreg = pluginmgr._get_registered_unregistered()
+
+        self.assertCountEqual([plug_c, plug_b, plug_a], reg)
+        self.assertEqual([], unreg)
+
+    def test_get_registered_unregistered_removes_not_in_plugins(self):
+        db.open_conn(uri, verify=False)
+        db.metadata.drop_all(db.engine, checkfirst=True)
+        db.metadata.create_all(db.engine)
+        plug_a = A()
+        plug_b = B()
+        plug_c = C()
+        pluginmgr.plugins[C.__name__] = plug_c
+        pluginmgr.plugins[B.__name__] = plug_b
+        pluginmgr.PluginRegistry.add(plug_a)
+        pluginmgr.PluginRegistry.add(plug_b)
+        pluginmgr.PluginRegistry.add(plug_c)
+        reg, unreg = pluginmgr._get_registered_unregistered()
+
+        self.assertCountEqual([plug_c, plug_b], reg)
+        self.assertEqual([type(plug_a).__name__], unreg)
+        self.assertFalse(pluginmgr.PluginRegistry.exists(plug_a))
+
+    @mock.patch("bauble.pluginmgr.register_command")
+    @mock.patch("bauble.pluginmgr.utils.message_dialog")
+    def test_register_commands_exception(self, mock_dialog, mock_reg):
+        mock_reg.side_effect = ValueError("Boom")
+        plug_a = A()
+        plug_b = B()
+        plug_c = C()
+        pluginmgr._register_commands([plug_a, plug_b, plug_c])
+
+        mock_dialog.assert_called_with(
+            "Error: Could not register command handler.\n\n" f"{DumbHandler}",
+            Gtk.MessageType.ERROR,
+        )
+
+
+class StandalonePluginMgrTests(TestCase):
     def setUp(self):
         A.initialized = A.installed = False
         B.initialized = B.installed = False
         C.initialized = C.installed = False
-        bauble.pluginmgr.plugins = {}
+        pluginmgr.plugins = {}
+        pluginmgr.commands = {}
 
     def tearDown(self):
         for z in [A, B, C]:
             z.initialized = z.installed = False
 
-    def test_command_handler(self):
-        """
-        Test that the command handlers get properly registered...this
-        could probably just be included in test_init()
-        """
-        pass
-
-    def test_successfulinit(self):
-        "bauble.pluginmgr.init() should be successful"
+    def test_successful_init(self):
+        "pluginmgr.init() should be successful"
 
         db.open_conn(uri, verify=False)
         db.create(False)
-        bauble.pluginmgr.plugins[C.__name__] = C()
-        bauble.pluginmgr.plugins[B.__name__] = B()
-        bauble.pluginmgr.plugins[A.__name__] = A()
-        bauble.pluginmgr.init(force=True)
+        pluginmgr.plugins[C.__name__] = C()
+        pluginmgr.plugins[B.__name__] = B()
+        pluginmgr.plugins[A.__name__] = A()
+        pluginmgr.init(force=True)
+
         self.assertTrue(A.initialized)
         self.assertTrue(B.initialized)
         self.assertTrue(C.initialized)
 
+        # Test that the command handlers get properly registered...
+        self.assertEqual(pluginmgr.commands, {"dumb": DumbHandler})
+
+        # and re-registering doesn't change
+        pluginmgr.register_command(DumbHandler)
+
+        self.assertEqual(pluginmgr.commands, {"dumb": DumbHandler})
+
+        # just for the coverage
+        self.assertIsNone(DumbHandler.get_view())
+
+    @mock.patch("bauble.pluginmgr.utils.message_dialog")
+    @mock.patch("bauble.pluginmgr._get_registered_unregistered")
+    def test_init_unregistered(self, mock_unreg, mock_dialog):
+        db.open_conn(uri, verify=False)
+        db.create(False)
+        plug_a = A()
+        mock_unreg.return_value = ([plug_a], ["foo"])
+        pluginmgr.plugins[A.__name__] = plug_a
+
+        pluginmgr.init(force=True)
+
+        mock_dialog.assert_called_with(
+            "The following plugins are in the registry but could not "
+            "be loaded:\n\nfoo",
+            typ=Gtk.MessageType.WARNING,
+        )
+
+    @mock.patch("bauble.pluginmgr._create_dependency_pairs")
+    @mock.patch("bauble.pluginmgr._get_registered_unregistered")
+    def test_init_no_registered_bails(self, mock_unreg, mock_deps):
+        db.open_conn(uri, verify=False)
+        db.metadata.drop_all(db.engine, checkfirst=True)
+        db.metadata.create_all(db.engine)
+        mock_unreg.return_value = ([], [])
+        mock_deps.return_value = ([], {})
+        plug_a = A()
+        pluginmgr.plugins[A.__name__] = plug_a
+
+        with self.assertLogs(level="WARNING") as logs:
+            pluginmgr.init(force=True)
+
+        self.assertIn("no plugins to initialise", logs.output[0])
+        mock_deps.assert_called_once()
+
     def test_init_with_problem(self):
-        "bauble.pluginmgr.init() using plugin which can't initialize"
-
-        old_dialog = utils.message_details_dialog
-        self.invoked = False
-
-        def fake_dialog(a, b, c):
-            "trap dialog box invocation"
-            self.invoked = True
-
-        utils.message_details_dialog = fake_dialog
+        """pluginmgr.init() using plugin which can't initialize"""
 
         db.open_conn(uri, verify=False)
         db.create(False)
-        bauble.pluginmgr.plugins[
-            FailingInitPlugin.__name__
-        ] = FailingInitPlugin()
-        bauble.pluginmgr.plugins[
-            DependsOnFailingInitPlugin.__name__
-        ] = DependsOnFailingInitPlugin()
-        bauble.pluginmgr.init(force=True)
-        self.assertTrue(self.invoked)
+        pluginmgr.plugins[FailingInitPlugin.__name__] = FailingInitPlugin()
+        pluginmgr.plugins[DependsOnFailingInitPlugin.__name__] = (
+            DependsOnFailingInitPlugin()
+        )
+        with mock.patch("bauble.utils.message_details_dialog") as mock_dialog:
+            pluginmgr.init(force=True)
+
+            mock_dialog.assert_called()
+
         self.assertFalse(DependsOnFailingInitPlugin.initialized)
-        utils.message_details_dialog = old_dialog
 
-    def test_install_with_problem(self):
-        "bauble.pluginmgr.init() using plugin which can't install"
+    def test_init_with_dependancy_problem_raises(self):
+        "pluginmgr.init() using plugin which can't install"
 
         db.open_conn(uri, verify=False)
         db.create(False)
-        bauble.pluginmgr.plugins[
-            FailingInstallPlugin.__name__
-        ] = FailingInstallPlugin()
-        bauble.pluginmgr.plugins[
-            DependsOnFailingInstallPlugin.__name__
-        ] = DependsOnFailingInstallPlugin()
-        self.assertRaises(BaubleError, bauble.pluginmgr.init, force=True)
+        pluginmgr.plugins[FailingInstallPlugin.__name__] = (
+            FailingInstallPlugin()
+        )
+        pluginmgr.plugins[DependsOnFailingInstallPlugin.__name__] = (
+            DependsOnFailingInstallPlugin()
+        )
+
+        self.assertRaises(BaubleError, pluginmgr.init, force=True)
 
     def test_install(self):
-        """
-        Test bauble.pluginmgr.install()
-        """
+        """Test pluginmgr.install()"""
 
-        pA = A()
-        pB = B()
-        pC = C()
-        bauble.pluginmgr.plugins[C.__name__] = pC
-        bauble.pluginmgr.plugins[B.__name__] = pB
-        bauble.pluginmgr.plugins[A.__name__] = pA
+        plug_a = A()
+        plug_b = B()
+        plug_c = C()
+        pluginmgr.plugins[C.__name__] = plug_c
+        pluginmgr.plugins[B.__name__] = plug_b
+        pluginmgr.plugins[A.__name__] = plug_a
         db.open_conn(uri, verify=False)
         db.create(False)
-        bauble.pluginmgr.install((pA, pB, pC), force=True)
+        pluginmgr.install((plug_a, plug_b, plug_c))
+
         self.assertTrue(A.installed and B.installed and C.installed)
 
-    def test_dependencies_BA(self):
-        "test that loading B will also load A but not C"
+    def test_install_dependencies_b_a(self):
+        """test that loading B will also load A but not C"""
 
-        pA = A()
-        pB = B()
-        pC = C()
-        bauble.pluginmgr.plugins[B.__name__] = pB
-        bauble.pluginmgr.plugins[A.__name__] = pA
-        bauble.pluginmgr.plugins[C.__name__] = pC
+        plug_a = A()
+        plug_b = B()
+        plug_c = C()
+        pluginmgr.plugins[B.__name__] = plug_b
+        pluginmgr.plugins[A.__name__] = plug_a
+        pluginmgr.plugins[C.__name__] = plug_c
         self.assertFalse(C.installed)
         self.assertFalse(B.installed)
         self.assertFalse(A.installed)
@@ -307,21 +481,23 @@ class StandalonePluginMgrTests(unittest.TestCase):
         # the creation of the database installed all plugins, so we manually
         # reset everything, just to make sure we really test the logic
         C.installed = B.installed = A.installed = False
-        ## should try to load the A plugin
-        bauble.pluginmgr.install((pB,), force=True)
+        # should try to load the A plugin
+        pluginmgr.install((plug_b,))
+
         self.assertTrue(B.installed)
         self.assertTrue(A.installed)
+        # TODO is this correct?
         # self.assertFalse(C.installed)
 
-    def test_dependencies_CBA(self):
-        "test that loading C will load B and consequently A"
+    def test_install_dependencies_c_b_a(self):
+        """test that loading C will load B and consequently A"""
 
-        pA = A()
-        pB = B()
-        pC = C()
-        bauble.pluginmgr.plugins[B.__name__] = pB
-        bauble.pluginmgr.plugins[A.__name__] = pA
-        bauble.pluginmgr.plugins[C.__name__] = pC
+        plug_a = A()
+        plug_b = B()
+        plug_c = C()
+        pluginmgr.plugins[B.__name__] = plug_b
+        pluginmgr.plugins[A.__name__] = plug_a
+        pluginmgr.plugins[C.__name__] = plug_c
         self.assertFalse(C.installed)
         self.assertFalse(B.installed)
         self.assertFalse(A.installed)
@@ -330,31 +506,58 @@ class StandalonePluginMgrTests(unittest.TestCase):
         # the creation of the database installed all plugins, so we manually
         # reset everything, just to make sure we really test the logic
         C.installed = B.installed = A.installed = False
-        ## should try to load the A plugin
-        bauble.pluginmgr.install((pC,), force=True)
+        # should try to load the A plugin
+        pluginmgr.install((plug_c,))
+
         self.assertTrue(C.installed)
         self.assertTrue(B.installed)
         self.assertTrue(A.installed)
 
+    def test_install_bad_str_raise(self):
+        self.assertRaises(ValueError, pluginmgr.install, "any")
+
+    @mock.patch("bauble.pluginmgr._create_dependency_pairs")
+    def test_install_unmet_raise(self, mock_dep_pairs):
+
+        plug_a = A()
+        plug_b = B()
+        plug_c = C()
+        pluginmgr.plugins[C.__name__] = plug_c
+        pluginmgr.plugins[B.__name__] = plug_b
+        pluginmgr.plugins[A.__name__] = plug_a
+        deps = [(plug_b, plug_c), (plug_a, plug_b)]
+        mock_dep_pairs.return_value = (deps, {"a": ["d", "e"]})
+
+        with self.assertRaises(BaubleError) as cm:
+            pluginmgr.install((plug_a, plug_b, plug_c))
+        self.assertIn("unmet dependencies", str(cm.exception))
+
+    @mock.patch("bauble.pluginmgr.utils.topological_sort")
+    def test_install_no_to_install_raise(self, mock_sort):
+        plug_a = A()
+        plug_b = B()
+        plug_c = C()
+        pluginmgr.plugins[C.__name__] = plug_c
+        pluginmgr.plugins[B.__name__] = plug_b
+        pluginmgr.plugins[A.__name__] = plug_a
+        mock_sort.return_value = []
+
+        with self.assertRaises(BaubleError) as cm:
+            pluginmgr.install((plug_a, plug_b, plug_c))
+        self.assertIn("contain a dependency loop", str(cm.exception))
+
 
 class PluginRegistryTests(BaubleTestCase):
     def test_registry(self):
-        """
-        Test bauble.pluginmgr.PluginRegistry
-        """
+        """Test pluginmgr.PluginRegistry"""
 
         # this is the plugin object
-        p = A()
+        plugin = A()
 
         # test that adding works
-        PluginRegistry.add(p)
-        self.assertTrue(PluginRegistry.exists(p))
-        # test all
-        self.assertIn(
-            p.__class__.__name__,
-            [p.name for p in PluginRegistry.all(self.session)],
-        )
+        pluginmgr.PluginRegistry.add(plugin)
+        self.assertTrue(pluginmgr.PluginRegistry.exists(plugin))
 
         # test that removing works
-        PluginRegistry.remove(p)
-        self.assertTrue(not PluginRegistry.exists(p))
+        pluginmgr.PluginRegistry.remove(plugin)
+        self.assertTrue(not pluginmgr.PluginRegistry.exists(plugin))

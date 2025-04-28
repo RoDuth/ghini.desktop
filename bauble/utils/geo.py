@@ -166,8 +166,7 @@ def install_default_prjs():
     from bauble.paths import lib_dir
     from bauble.plugins.imex.csv_ import CSVRestore
 
-    # prj_crs.drop(bind=db.engine, checkfirst=True)
-    prj_crs.drop(bind=db.engine)
+    prj_crs.drop(bind=db.engine, checkfirst=True)
     path = os.path.join(lib_dir(), "utils", "prj_crs.csv")
     csv = CSVRestore()
     csv.start([path], metadata=db.metadata, force=True)

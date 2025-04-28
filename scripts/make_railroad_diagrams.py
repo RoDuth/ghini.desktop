@@ -29,7 +29,7 @@ def main() -> None:
     prefs.prefs.init()
     pluginmgr.load()
     db.create(import_defaults=False)
-    pluginmgr.install("all", False, force=True)
+    pluginmgr.install("all", False)
     pluginmgr.init()
 
     parser.statement.create_diagram("mapper_search_railroad.html")

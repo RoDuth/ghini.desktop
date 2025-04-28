@@ -461,11 +461,6 @@ class BaseTests(BaubleTestCase):
 
 
 class GlobalFunctionsTests(BaubleTestCase):
-    def test_class_of_object(self):
-        self.assertEqual(db.class_of_object("genus"), Genus)
-        self.assertEqual(db.class_of_object("accession_note"), AccessionNote)
-        self.assertEqual(db.class_of_object("not_existing"), None)
-
     def test_get_related_class(self):
         self.assertEqual(db.get_related_class(Plant, "accession"), Accession)
         self.assertEqual(

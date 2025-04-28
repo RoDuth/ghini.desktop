@@ -2132,8 +2132,8 @@ class PresenterLinksMixin:
         else:
             utils.hide_widgets([menu_btn])
 
-    def on_item_selected(self, _action, _param, button: LinkDict) -> None:
-        desktop.open(self.get_url(button))
+    def on_item_selected(self, _action, _param, link: LinkDict) -> None:
+        desktop.open(self.get_url(link))
 
     def get_url(self, link: LinkDict) -> str:
         _base_uri = link["_base_uri"]

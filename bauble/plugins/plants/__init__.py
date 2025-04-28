@@ -57,13 +57,11 @@ from .family import Familia
 from .family import Family
 from .family import FamilyEditor
 from .family import FamilyInfoBox
-from .family import FamilyNote
 from .family import edit_callback as family_edit_callback
 from .family import family_context_menu
 from .genus import Genus
 from .genus import GenusEditor
 from .genus import GenusInfoBox
-from .genus import GenusNote
 from .genus import edit_callback as genus_edit_callback
 from .genus import genus_context_menu
 from .geography import DistributionMap
@@ -77,7 +75,6 @@ from .species import Species
 from .species import SpeciesDistribution
 from .species import SpeciesEditor
 from .species import SpeciesInfoBox
-from .species import SpeciesNote
 from .species import SynonymSearch
 from .species import VernacularName
 from .species import VernacularNameInfoBox
@@ -86,7 +83,6 @@ from .species import edit_callback as species_edit_callback
 from .species import get_binomial_completions
 from .species import species_context_menu
 from .species import vernname_context_menu
-from .species_model import SpeciesPicture
 from .species_model import update_all_full_names_handler
 from .stored_queries import StoredQueryEditorTool
 
@@ -577,17 +573,6 @@ class SplashInfoBox(View, Gtk.Box):
 
 class PlantsPlugin(pluginmgr.Plugin):
     tools = [StoredQueryEditorTool]
-    provides = {
-        "Family": Family,
-        "FamilyNote": FamilyNote,
-        "Genus": Genus,
-        "GenusNote": GenusNote,
-        "Species": Species,
-        "SpeciesNote": SpeciesNote,
-        "SpeciesPicture": SpeciesPicture,
-        "VernacularName": VernacularName,
-        "Geography": Geography,
-    }
     prefs_change_handler = None
     options_menu_set = False
 
@@ -714,7 +699,6 @@ class PlantsPlugin(pluginmgr.Plugin):
                     "set-focus-child", on_view_box_added
                 )
 
-        pluginmgr.provided.update(cls.provides)
         if "GardenPlugin" in pluginmgr.plugins:
             if add_accession_action not in species_context_menu:
                 species_context_menu.insert(1, add_accession_action)

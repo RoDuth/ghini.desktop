@@ -128,18 +128,6 @@ class GardenPlugin(pluginmgr.Plugin):
     depends = ["PlantsPlugin"]
     tools = [InstitutionTool]
     commands = [InstitutionCommand]
-    provides = {
-        "Accession": Accession,
-        "AccessionNote": AccessionNote,
-        "Location": Location,
-        "LocationNote": LocationNote,
-        "Plant": Plant,
-        "PlantNote": PlantNote,
-        "PlantPicture": PlantPicture,
-        "Source": Source,
-        "SourceDetail": SourceDetail,
-        "Collection": Collection,
-    }
     options_menu_set = False
 
     accession_infobox: AccessionInfoBox | None = None
@@ -153,7 +141,6 @@ class GardenPlugin(pluginmgr.Plugin):
 
     @classmethod
     def init(cls):
-        pluginmgr.provided.update(cls.provides)
         from bauble.plugins.plants import Species
 
         mapper_search = search.strategies.get_strategy("MapperSearch")

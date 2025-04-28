@@ -41,14 +41,12 @@ from .ui.view import TagsBottomPage
 
 
 class TagPlugin(pluginmgr.Plugin):
-    provides = {"Tag": Tag}
 
     tags_infobox: TagInfoBox | None = None
     tags_page: TagsBottomPage | None = None
 
     @classmethod
     def init(cls) -> None:
-        pluginmgr.provided.update(cls.provides)
 
         mapper_search = search.strategies.get_strategy("MapperSearch")
 

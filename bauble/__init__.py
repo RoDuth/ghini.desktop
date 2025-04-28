@@ -175,6 +175,7 @@ def command_handler(cmd, arg):
 
     if not isinstance(last_handler, handler_cls):
         last_handler = handler_cls()
+
     handler_view = last_handler.get_view()
     old_view = gui.get_view()
     if type(old_view) is not type(handler_view) and handler_view:

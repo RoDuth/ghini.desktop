@@ -783,7 +783,7 @@ class ResolutionCentreView(View, Gtk.Box):
 
 
 class ResolveCommandHandler(pluginmgr.CommandHandler):
-    command = "resolve"
+    command = ["resolve"]
     view: ResolutionCentreView | None = None
 
     @classmethod

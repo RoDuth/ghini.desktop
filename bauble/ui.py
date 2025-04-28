@@ -449,10 +449,7 @@ class GUI:
 
         if index < 0 or index > self.history_size:
             raise ValueError(
-                _(
-                    "index must be greater than zero and less than "
-                    "the history size"
-                )
+                "index must be greater than zero and less than history size"
             )
         history = prefs.prefs.get(self.entry_history_pref, [])
         if text in history:

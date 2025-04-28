@@ -57,7 +57,7 @@ class UtilsTest(TestCase):
 
     def test_topological_sort_loop(self):
         self.assertEqual(
-            utils.topological_sort([1, 2], [(2, 1), (1, 2)]), None
+            utils.topological_sort([1, 2], [(2, 1), (1, 2)]), []
         )
 
     def test_topological_empty_dependencies(self):

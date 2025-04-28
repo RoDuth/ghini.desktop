@@ -129,7 +129,7 @@ def get_active_children(
     return kids
 
 
-engine: sa.engine.Engine | None = None
+engine: sa.engine.Engine
 """A :class:`sqlalchemy.engine.base.Engine` used as the default
 connection to the database.
 """
@@ -659,8 +659,7 @@ def create(import_defaults=True):
     """
 
     logger.debug("entered db.create()")
-    if not engine:
-        raise ValueError("engine is None, not connected to a database")
+
     import bauble
     from bauble import meta
     from bauble import pluginmgr
@@ -705,7 +704,7 @@ def create(import_defaults=True):
     connection = engine.connect()
     transaction = connection.begin()
     try:
-        pluginmgr.install("all", import_defaults, force=True)
+        pluginmgr.install("all", import_defaults)
     except (GeneratorExit, Exception) as e:
         logger.warning("bauble.db.create(): %s(%s)", type(e).__name__, e)
         transaction.rollback()
@@ -718,7 +717,11 @@ def create(import_defaults=True):
     connection = engine.connect()
     transaction = connection.begin()
     try:
-        utils.geo.install_default_prjs()
+        # avoid Attribute error (utils has no attribute geo -  tests only) and
+        # circular imports
+        from bauble.utils import geo
+
+        geo.install_default_prjs()
     except (GeneratorExit, Exception) as e:
         logger.warning("bauble.db.create(): %s(%s)", type(e).__name__, e)
         transaction.rollback()
@@ -920,18 +923,6 @@ class WithNotes:
         if is_dict:
             return dict(result)
         return result
-
-
-def class_of_object(obj):
-    """Which class implements obj."""
-
-    name = "".join(p.capitalize() for p in obj.split("_"))
-    cls = globals().get(name)
-    if cls is None:
-        from bauble import pluginmgr
-
-        cls = pluginmgr.provided.get(name)
-    return cls
 
 
 def get_related_class(model, path):

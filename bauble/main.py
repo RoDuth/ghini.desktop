@@ -98,7 +98,7 @@ class Application(Gtk.Application):
 
     def _get_connection(self):
         # allow opening the app in current state when debuging tests
-        if bauble.db.engine:
+        if getattr(bauble.db, "engine", None):
             return
 
         uri = None

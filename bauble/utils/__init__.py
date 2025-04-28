@@ -35,6 +35,7 @@ import time
 from collections import UserDict
 from collections.abc import Callable
 from collections.abc import Iterable
+from collections.abc import Sequence
 from functools import singledispatch
 from functools import wraps
 from pathlib import Path
@@ -1540,13 +1541,11 @@ def debug_gc_decorator(func):
 # originally found at http://www.bitformation.com/art/python_toposort.html
 # can now be found in various places e.g.:
 # https://github.com/Yelp/ezio/blob/master/ezio/tsort.py
-def topological_sort(items, partial_order):
+def topological_sort[T](
+    items: Sequence[T],
+    partial_order: Sequence[tuple[T, T]],
+) -> list[T]:
     """Perform topological sort.  Return list of nodes sorted by dependencies.
-
-    :param items: a list of items to be sorted.
-
-    :param partial_order: a list of pairs. If pair ('a', 'b') is in it, it
-        means that 'a' should not appear after 'b'.
 
     Returns a list of the items in one of the possible orders, or None if
     partial_order contains a loop.
@@ -1555,6 +1554,10 @@ def topological_sort(items, partial_order):
     ordering states dependencies, but they may list more nodes than
     necessary in the solution. for example, whatever dependencies are given,
     if you start from the emtpy items list, the empty list is the solution.
+
+    :param items: a list of items to be sorted.
+    :param partial_order: a list of pairs. If pair ('a', 'b') is in it, it
+        means that 'a' should not appear after 'b'.
     """
 
     def add_node(graph, node):
@@ -1589,14 +1592,15 @@ def topological_sort(items, partial_order):
     # requesting B and E from the above should result in including all except
     # A, and prepending C and D to B.
 
-    graph = {}
+    # first item in list is an int the rest are T
+    graph: dict[T, list[int | T]] = {}
     for v in items:
         add_node(graph, v)
     for a, b in partial_order:  # pylint: disable=invalid-name
         add_arc(graph, a, b)
 
     # Step 2 - find all roots (nodes with zero incoming arcs).
-    roots = [node for (node, nodeinfo) in graph.items() if nodeinfo[0] == 0]
+    roots = [node for node, nodeinfo in graph.items() if nodeinfo[0] == 0]
 
     # step 3 - repeatedly emit a root and remove it from the graph. Removing
     # a node may convert some of the node's direct children into roots.
@@ -1623,14 +1627,15 @@ def topological_sort(items, partial_order):
         # if the input describes a complete ordering, len(roots) stays equal
         # to 1 at each iteration.
         for child in graph[root][1:]:
-            graph[child][0] = graph[child][0] - 1
+            child = cast(T, child)
+            graph[child][0] = cast(int, graph[child][0]) - 1
             if graph[child][0] == 0:
                 roots.append(child)
         del graph[root]
 
-    if len(list(graph.items())) != 0:
+    if len(graph) != 0:
         # There is a loop in the input.
-        return None
+        return []
 
     return sortd
 

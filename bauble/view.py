@@ -2530,7 +2530,7 @@ class HistoryView(View, Gtk.Box):
 
 
 class HistoryCommandHandler(pluginmgr.CommandHandler):
-    command = "history"
+    command = ["history"]
     view: HistoryView | None = None
 
     @classmethod

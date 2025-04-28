@@ -189,7 +189,7 @@ class XMLExporter:
 
 
 class XMLExportCommandHandler(pluginmgr.CommandHandler):
-    command = "exxml"
+    command = ["exxml"]
 
     def __call__(self, cmd, arg):
         logger.debug("XMLExportCommandHandler(%s)", arg)

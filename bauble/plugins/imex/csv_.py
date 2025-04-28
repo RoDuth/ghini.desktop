@@ -257,10 +257,7 @@ class CSVRestore:
 
         bauble.task.queue(self.run(filenames, metadata, force))
 
-        # always update the species full_name
-        from bauble.plugins.plants import species_model
 
-        bauble.task.queue(species_model.update_all_full_names_task())
 
     @staticmethod
     def tdwg_geo_upgrader(filenames):
@@ -1296,7 +1293,7 @@ class CSVBackup:
 
 
 class CSVRestoreCommandHandler(pluginmgr.CommandHandler):
-    command = "restore"
+    command = ["restore"]
 
     def __call__(self, cmd, arg):
         importer = CSVRestore()
@@ -1304,7 +1301,7 @@ class CSVRestoreCommandHandler(pluginmgr.CommandHandler):
 
 
 class CSVBackupCommandHandler(pluginmgr.CommandHandler):
-    command = "backup"
+    command = ["backup"]
 
     def __call__(self, cmd, arg):
         exporter = CSVBackup()
