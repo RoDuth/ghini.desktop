@@ -1016,7 +1016,7 @@ class FamilyTests(PlantTestCase):
     def test_pictures(self):
         from ..garden import Accession
         from ..garden import Location
-        from ..garden import PlantPicture
+        from ..garden.plant import PlantPicture
 
         fam = self.session.query(Family).first()
         gen = fam.genera[0]
@@ -1771,7 +1771,7 @@ class GenusTests(PlantTestCase):
     def test_pictures(self):
         from ..garden import Accession
         from ..garden import Location
-        from ..garden import PlantPicture
+        from ..garden.plant import PlantPicture
 
         gen = self.session.query(Genus).first()
         self.assertEqual(gen.pictures, [])
@@ -3039,7 +3039,7 @@ class SpeciesTests(PlantTestCase):
     def test_pictures_property_w_plant_pics(self):
         from ..garden import Accession
         from ..garden import Location
-        from ..garden import PlantPicture
+        from ..garden.plant import PlantPicture
 
         fam = Family(family="Myrtaceae")
         gen = Genus(epithet="Syzygium", family=fam)
@@ -3069,7 +3069,7 @@ class SpeciesTests(PlantTestCase):
     def test_pictures_property_w_pics_and_plant_pics(self):
         from ..garden import Accession
         from ..garden import Location
-        from ..garden import PlantPicture
+        from ..garden.plant import PlantPicture
 
         fam = Family(family="Myrtaceae")
         gen = Genus(epithet="Syzygium", family=fam)

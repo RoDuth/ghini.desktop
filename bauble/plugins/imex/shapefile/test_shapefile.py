@@ -44,9 +44,9 @@ from bauble.meta import BaubleMeta
 from bauble.meta import get_default
 from bauble.plugins.garden import Accession
 from bauble.plugins.garden import Location
-from bauble.plugins.garden import LocationNote
 from bauble.plugins.garden import Plant
-from bauble.plugins.garden import PlantNote
+from bauble.plugins.garden.location import LocationNote
+from bauble.plugins.garden.plant import PlantNote
 from bauble.plugins.plants import Family
 from bauble.plugins.plants import Genus
 from bauble.plugins.plants.species import DefaultVernacularName
@@ -3137,8 +3137,12 @@ class ShapefileImportTests(ShapefileTestCase):
         self.assertEqual(len(result), 2)
         species = self.session.query(Species).all()
         self.assertEqual(len(species), 2)
-        self.assertEqual(species[0].string(remove_zws=True), "Grevillea robusta")
-        self.assertEqual(species[1].string(remove_zws=True), "Eucalyptus major")
+        self.assertEqual(
+            species[0].string(remove_zws=True), "Grevillea robusta"
+        )
+        self.assertEqual(
+            species[1].string(remove_zws=True), "Eucalyptus major"
+        )
         self.assertEqual(
             species[0].default_vernacular_name.name, "Mountain Grey Gum"
         )
@@ -3192,8 +3196,12 @@ class ShapefileImportTests(ShapefileTestCase):
         self.assertEqual(len(result), 2)
         species = self.session.query(Species).all()
         self.assertEqual(len(species), 2)
-        self.assertEqual(species[0].string(remove_zws=True), "Grevillea robusta")
-        self.assertEqual(species[1].string(remove_zws=True), "Eucalyptus major")
+        self.assertEqual(
+            species[0].string(remove_zws=True), "Grevillea robusta"
+        )
+        self.assertEqual(
+            species[1].string(remove_zws=True), "Eucalyptus major"
+        )
         self.assertEqual(
             species[0].default_vernacular_name.name, "Mountain Grey Gum"
         )

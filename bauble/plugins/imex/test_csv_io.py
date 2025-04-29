@@ -42,7 +42,7 @@ from bauble.plugins.garden import Accession
 from bauble.plugins.garden import Collection
 from bauble.plugins.garden import Location
 from bauble.plugins.garden import Plant
-from bauble.plugins.garden import PlantNote
+from bauble.plugins.garden.plant import PlantNote
 from bauble.plugins.garden import Source
 from bauble.plugins.garden import SourceDetail
 from bauble.plugins.plants import Genus

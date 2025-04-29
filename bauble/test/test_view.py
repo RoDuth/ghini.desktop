@@ -2018,7 +2018,7 @@ class TestSearchView(BaubleTestCase):
         for func in get_setUp_data_funcs():
             func()
         from bauble.plugins.garden import Plant
-        from bauble.plugins.garden import PlantPicture
+        from bauble.plugins.garden.plant import PlantPicture
 
         plt1 = self.session.query(Plant).get(1)
         plt2 = self.session.query(Plant).get(2)

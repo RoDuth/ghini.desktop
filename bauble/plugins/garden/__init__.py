@@ -51,7 +51,6 @@ from .accession import BAUBLE_ACC_CODE_FORMAT
 from .accession import Accession
 from .accession import AccessionEditor
 from .accession import AccessionInfoBox
-from .accession import AccessionNote
 from .accession import acc_context_menu
 from .accession import edit_callback as acc_edit_callback
 from .garden_map import LocationSearchMap
@@ -62,14 +61,11 @@ from .institution import start_institution_editor
 from .location import Location
 from .location import LocationEditor
 from .location import LocationInfoBox
-from .location import LocationNote
 from .location import edit_callback as loc_edit_callback
 from .location import loc_context_menu
 from .plant import Plant
 from .plant import PlantEditor
 from .plant import PlantInfoBox
-from .plant import PlantNote
-from .plant import PlantPicture
 from .plant import PlantSearch
 from .plant import edit_callback as plant_edit_callback
 from .plant import plant_context_menu
