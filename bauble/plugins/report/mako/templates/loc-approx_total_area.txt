@@ -1,0 +1,6 @@
+## vim: set filetype=mako:
+<%!
+from bauble.plugins.report import get_locations_pertinent_to
+from bauble.utils.geo import get_approx_area_from_geojson_sqm
+%>\
+${f"{sum(get_approx_area_from_geojson_sqm(loc.geojson) for loc in get_locations_pertinent_to(values) if loc.geojson):.2f}"} sq.m.

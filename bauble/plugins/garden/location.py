@@ -59,6 +59,7 @@ from bauble.editor import PresenterMapMixin
 from bauble.editor import StringOrNoneValidator
 from bauble.i18n import _
 from bauble.utils.geo import KMLMapCallbackFunctor
+from bauble.utils.geo import get_approx_area_from_geojson_sqm
 from bauble.view import Action
 
 if TYPE_CHECKING:
@@ -585,24 +586,31 @@ class GeneralLocationExpander(InfoExpander):
 
     def update(self, row):
         self.current_obj = row
-        from bauble.plugins.garden.plant import Plant
 
         self.widget_set_value(
             "loc_name_data",
             f"<big>{utils.xml_safe(str(row))}</big>",
             markup=True,
         )
-        session = object_session(row)
-        nplants = session.query(Plant).filter_by(location_id=row.id).count()
-        self.widget_set_value("loc_nplants_data", nplants)
+        self.widget_set_value("loc_nplants_data", len(row.plants))
+
         # NOTE don't load geojson from the row or history will always record
         # an unpdate and _last_updated will always chenge when a note is edited
         # (e.g. `shape = row.geojson...`) instead use a temp session
-        temp = db.Session()
-        geojson = temp.query(Location.geojson).filter_by(id=row.id).scalar()
-        shape = geojson.get("type", "") if geojson else ""
-        temp.close()
+        with db.engine.begin() as connection:
+            table = Location.__table__
+            stmt = select([table.c.geojson]).where(table.c.id == row.id)
+            geojson = connection.execute(stmt).scalar()
+
+        shape = ""
+        approx_area = ""
+
+        if geojson:
+            shape = geojson.get("type", "")
+            approx_area = f"{get_approx_area_from_geojson_sqm(geojson):.2f} m²"
+
         self.widget_set_value("geojson_type", shape)
+        self.widget_set_value("approx_area", approx_area)
 
 
 class DescriptionExpander(InfoExpander):

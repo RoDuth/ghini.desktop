@@ -44,7 +44,6 @@ from gi.repository import GdkPixbuf
 from gi.repository import Gio
 from gi.repository import GLib
 from gi.repository import Gtk
-from pyproj import Geod
 from sqlalchemy import Column
 from sqlalchemy import Float
 from sqlalchemy import ForeignKey
@@ -71,7 +70,10 @@ from bauble import prefs
 from bauble import utils
 from bauble.i18n import _
 from bauble.task import queue
+from bauble.utils.geo import GEOJSONMultiPoly
+from bauble.utils.geo import GEOJSONPoly
 from bauble.utils.geo import KMLMapCallbackFunctor
+from bauble.utils.geo import get_approx_area_from_geojson_sqm
 from bauble.view import Action
 from bauble.view import InfoBox
 from bauble.view import InfoExpander
@@ -102,9 +104,6 @@ map_action = Action(
 )
 
 geography_context_menu = [map_action]
-
-# set WGS84 as CRS
-geod = Geod(ellps="WGS84")
 
 
 def get_species_in_geography(geo):
@@ -251,7 +250,7 @@ class Geography(db.Domain):
     # history change will be recoorded with no indication of its value to the
     # change.  Can use something like:
     # `if geo.geojson != val: geo.geojson = val`
-    geojson: dict = deferred(Column(types.JSON()))
+    geojson: GEOJSONPoly | GEOJSONMultiPoly = deferred(Column(types.JSON()))
     # don't use, can lead to InvalidRequestError (Collection unknown)
     # collection = relationship('Collection', back_populates='region')
     distribution: "SpeciesDistribution" = relationship(
@@ -361,27 +360,8 @@ class Geography(db.Domain):
         """The area in square kilometres using a WGS84 sphere"""
         if not self.geojson:
             return 0.0
-        total = 0.0
-        if self.geojson["type"] == "MultiPolygon":
-            for poly in self.geojson["coordinates"]:
-                for internal in poly:
-                    lons = []
-                    lats = []
-                    for lon, lat in internal:
-                        lons.append(lon)
-                        lats.append(lat)
-                    area, __ = geod.polygon_area_perimeter(lons, lats)
-                    total += area
-        elif self.geojson["type"] == "Polygon":
-            for internal in self.geojson["coordinates"]:
-                lons = []
-                lats = []
-                for lon, lat in internal:
-                    lons.append(lon)
-                    lats.append(lat)
-                area, __ = geod.polygon_area_perimeter(lons, lats)
-                total += area
-        return abs(total) / 1e6
+
+        return get_approx_area_from_geojson_sqm(self.geojson) / 1e6
 
     def get_path_from_root(self) -> list[Self]:
         """Returns the nodes from root to this node including this node."""
@@ -407,21 +387,19 @@ class Geography(db.Domain):
         logger.debug("as_svg_paths, self=%s, fill=%s", self, fill)
         svg_paths: list[str] = []
 
-        coords = self.geojson["coordinates"]
-        for shape in coords:
-            if self.geojson["type"] == "MultiPolygon":
+        if self.geojson["type"] == "MultiPolygon":
+            for shape in self.geojson["coordinates"]:
                 for poly in shape:
                     svg_paths.append(_path_string(poly, fill, False))
                     if pacific_centric:
                         svg_paths.append(
                             _path_string(poly, fill, pacific_centric)
                         )
-            else:
-                svg_paths.append(_path_string(shape, fill, False))
-                if pacific_centric:
-                    svg_paths.append(
-                        _path_string(shape, fill, pacific_centric)
-                    )
+        else:
+            poly = self.geojson["coordinates"][0]
+            svg_paths.append(_path_string(poly, fill, False))
+            if pacific_centric:
+                svg_paths.append(_path_string(poly, fill, pacific_centric))
 
         return "".join(svg_paths)
 
@@ -430,7 +408,7 @@ class Geography(db.Domain):
         return DistributionMap([self.id])
 
 
-def _coord_string(lon: int, lat: int, pacific_centric: bool) -> str:
+def _coord_string(lon: float, lat: float, pacific_centric: bool) -> str:
     """Convert WGS84 coordinates to SVG point strings."""
     if pacific_centric:
         return f"{round(lon + 360, 3)} {round(lat, 3)}"
@@ -439,7 +417,7 @@ def _coord_string(lon: int, lat: int, pacific_centric: bool) -> str:
 
 # NOTE tuple may not be correct, could be a list but will always be 2 values
 def _path_string(
-    poly: Sequence[tuple[int, int]], fill: str, pacific_centric: bool
+    poly: Sequence[tuple[float, float]], fill: str, pacific_centric: bool
 ) -> str:
     """Convert a WGS84 polygon to a SVG path string.
 
@@ -461,17 +439,16 @@ def split_lats_longs(
     longs: list[float] = []
     lats: list[float] = []
     for area in areas:
-        coords = area.geojson["coordinates"]
-        for shape in coords:
-            if area.geojson["type"] == "MultiPolygon":
+        if area.geojson["type"] == "MultiPolygon":
+            for shape in area.geojson["coordinates"]:
                 for poly in shape:
                     for long, lat in poly:
                         longs.append(long)
                         lats.append(lat)
-            else:
-                for long, lat in shape:
-                    longs.append(long)
-                    lats.append(lat)
+        else:
+            for long, lat in area.geojson["coordinates"][0]:
+                longs.append(long)
+                lats.append(lat)
     return longs, lats
 
 

@@ -35,6 +35,7 @@ from sqlalchemy.orm import object_session
 
 from bauble import db
 from bauble import meta
+from bauble import paths
 from bauble import prefs
 from bauble import utils
 from bauble.meta import BaubleMeta
@@ -77,6 +78,7 @@ from .institution import InstitutionCommand
 from .institution import InstitutionDialog
 from .institution import InstitutionTool
 from .institution import start_institution_editor
+from .location import GeneralLocationExpander
 from .location import Location
 from .location import LocationEditor
 from .location import LocationPicture
@@ -4300,6 +4302,32 @@ class LocationTests(GardenTestCase):
         # detached returns empty
         self.session.expunge(loc)
         self.assertEqual(loc.pictures, [])
+
+    def test_general_location_expander_update_w_geojson(self):
+        filename = os.path.join(
+            paths.lib_dir(), "plugins", "garden", "loc_infobox.glade"
+        )
+        widgets = utils.load_widgets(filename)
+        expander = GeneralLocationExpander(widgets)
+        loc = self.session.query(Location).first()
+        loc.geojson = {
+            "type": "Polygon",
+            "coordinates": [
+                [
+                    [0.001, 0.001],
+                    [0.0, 0.001],
+                    [0.0, 0.0],
+                    [0.001, 0.0],
+                    [0.001, 0.001],
+                ],
+            ],
+        }
+        self.session.commit()
+
+        expander.update(loc)
+
+        self.assertEqual(widgets.geojson_type.get_text(), "Polygon")
+        self.assertEqual(widgets.approx_area.get_text(), "12309.07 m²")
 
 
 class CollectionTests(GardenTestCase):

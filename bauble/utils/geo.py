@@ -24,7 +24,9 @@ from math import inf
 from math import sqrt
 from queue import PriorityQueue
 from typing import Any
+from typing import Literal
 from typing import Self
+from typing import TypedDict
 from typing import cast
 
 logger = logging.getLogger(__name__)
@@ -32,6 +34,7 @@ logger = logging.getLogger(__name__)
 import tempfile
 
 from mako.template import Template  # type: ignore [import-untyped]
+from pyproj import Geod
 from pyproj import ProjError
 from pyproj import Transformer
 from sqlalchemy import Column
@@ -82,6 +85,9 @@ CRS_MSG = _(
     "\n\nThis is most easily done by using the shapefile import "
     "tool and providing a shapefile in the desired CRS."
 )
+
+# set WGS84 as CRS
+geod = Geod(ellps="WGS84")
 
 
 # pylint: disable=too-many-locals
@@ -585,3 +591,49 @@ def polylabel(polygon: MultiPolyT, precision: float = 1.0) -> PointT:
     logger.debug("num probes: %s", num_of_probes)
     logger.debug("best distance: %s", best_cell.distance)
     return [best_cell.x, best_cell.y]
+
+
+def _area_of_polygon(coords: list[tuple[float, float]]) -> float:
+    lons, lats = zip(*coords)
+    area, __ = geod.polygon_area_perimeter(lons, lats)
+    return area
+
+
+GEOJSONPoly = TypedDict(
+    "GEOJSONPoly",
+    {
+        "type": Literal["Polygon"],
+        "coordinates": list[list[tuple[float, float]]],
+    },
+)
+GEOJSONMultiPoly = TypedDict(
+    "GEOJSONMultiPoly",
+    {
+        "type": Literal["MultiPolygon"],
+        "coordinates": list[list[list[tuple[float, float]]]],
+    },
+)
+
+
+def get_approx_area_from_geojson_sqm(
+    geojson: GEOJSONPoly | GEOJSONMultiPoly,
+) -> float:
+    """Get the approximate area in square metres for a geojson Polygon or
+    MultiPolygon.
+
+    Simplified explanations:
+    Polygon: 1 exterior boundary and 0 or more interior boundaries (holes but
+    no islands in those holes. e.g: a ring shaped atoll, single island, etc.)
+    MultiPolygon: a collection of multiple polygons (holes with islands in
+    them, multiple separate polygons, etc. e.g.: a ring shaped atoll with a
+    central island(s), an island group, etc.)
+    """
+    total = 0.0
+    if geojson["type"] == "MultiPolygon":
+        for multipoly in geojson["coordinates"]:
+            for poly in multipoly:
+                total += _area_of_polygon(poly)
+    else:
+        for poly in geojson["coordinates"]:
+            total += _area_of_polygon(poly)
+    return abs(total)
