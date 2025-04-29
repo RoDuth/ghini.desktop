@@ -1145,16 +1145,14 @@ class SearchViewMapPresenter:
         )
 
     def _populate_after_timer(self) -> None:
-        if self.is_visible():
+        if self.is_visible() and (
+            not self.populate_thread or not self.populate_thread.is_alive()
+        ):
             if self.populated:
-                if (
-                    not self.populate_thread
-                    or not self.populate_thread.is_alive()
-                ):
-                    logger.debug("populate_after_timer: update selected")
-                    selected = get_search_view_selected()
-                    if selected:
-                        self.update_map(selected)
+                logger.debug("populate_after_timer: update selected")
+                selected = get_search_view_selected()
+                if selected:
+                    self.update_map(selected)
             else:
                 logger.debug("populate_after_timer: populate from search view")
                 self.populate_map_from_search_view()
