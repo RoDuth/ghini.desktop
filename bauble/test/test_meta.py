@@ -1,6 +1,6 @@
 # Copyright (c) 2005,2006,2007,2008,2009 Brett Adams <brett@belizebotanic.org>
 # Copyright (c) 2012-2015 Mario Frasca <mario@anche.no>
-# Copyright (c) 2021-2024 Ross Demuth <rossdemuth123@gmail.com>
+# Copyright (c) 2021-2025 Ross Demuth <rossdemuth123@gmail.com>
 #
 # This file is part of ghini.desktop.
 #
@@ -135,3 +135,26 @@ class MetaTests(BaubleTestCase):
             val = meta.get_cached_value(name)
             mock_session.assert_called()
             self.assertEqual(val, value2)
+
+    @mock.patch("bauble.meta.utils.create_message_dialog")
+    def test_set_value_single_no_value_returns_none(self, mock_dialog):
+        mock_dialog().run.return_value = Gtk.ResponseType.OK
+        self.assertEqual(meta.set_value("foo", "", "baz"), [])
+        self.assertEqual(meta.get_default("foo"), None)
+
+    @mock.patch("bauble.meta.utils.create_message_dialog")
+    def test_set_value_mutliple_w_value_returns_metas(self, mock_dialog):
+        mock_dialog().run.return_value = Gtk.ResponseType.OK
+        self.assertEqual(
+            len(
+                meta.set_value(
+                    ["foo", "bar", "baz"],
+                    ["", "qux", "quux"],
+                    "FOO",
+                )
+            ),
+            2,
+        )
+        self.assertEqual(meta.get_default("foo"), None)
+        self.assertEqual(meta.get_default("bar").value, "qux")
+        self.assertEqual(meta.get_default("baz").value, "quux")

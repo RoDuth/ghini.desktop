@@ -1,6 +1,6 @@
 # Copyright (c) 2005,2006,2007,2008,2009 Brett Adams <brett@belizebotanic.org>
 # Copyright (c) 2012-2015 Mario Frasca <mario@anche.no>
-# Copyright (c) 2020-2023 Ross Demuth <rossdemuth123@gmail.com>
+# Copyright (c) 2020-2025 Ross Demuth <rossdemuth123@gmail.com>
 #
 # This file is part of ghini.desktop.
 #
@@ -16,10 +16,13 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with ghini.desktop. If not, see <http://www.gnu.org/licenses/>.
-#
-# meta.py
-#
+"""
+Provides the database table and functions to access metadata.
+"""
+from __future__ import annotations
+
 import logging
+from collections.abc import Iterable
 
 from sqlalchemy import Column
 from sqlalchemy import Unicode
@@ -29,39 +32,38 @@ from sqlalchemy.orm import Session
 
 logger = logging.getLogger(__name__)
 
+from gi.repository import Gtk
+
 from bauble import db
 from bauble import utils
 
 VERSION_KEY = "version"
 CREATED_KEY = "created"
-REGISTRY_KEY = "registry"
-
-DATE_FORMAT_KEY = "date_format"
 
 
 @utils.timed_cache(secs=None)
-def get_cached_value(name):
-    session = db.Session()
-    query = session.query(BaubleMeta)
-    meta = query.filter_by(name=name).first()
-    value = meta.value if meta else None
-    logger.debug("get_cached_value from database: %s=%s", name, value)
-    session.close()
+def get_cached_value(name: str) -> str | None:
+    value = None
+    with db.Session() as session:
+        query = session.query(BaubleMeta)
+        meta = query.filter_by(name=name).first()
+        value = meta.value if meta else None
+        logger.debug("get_cached_value from database: %s=%s", name, value)
+
     return value
 
 
-def confirm_default(name, default, msg, parent=None):
+def confirm_default(
+    name: str,
+    default: str,
+    msg: str,
+    parent: Gtk.Window | None = None,
+) -> BaubleMeta | None:
     """Allow the user to confirm the value of a BaubleMeta object the first
     time it is needed.
     """
     current_default = get_default(name)
     if not current_default:
-        from gi.repository import Gtk  # noqa
-
-        import bauble
-
-        if bauble.gui:
-            parent = bauble.gui.window
         dialog = utils.create_message_dialog(
             msg=msg, parent=parent, resizable=False
         )
@@ -84,7 +86,12 @@ def confirm_default(name, default, msg, parent=None):
     return current_default
 
 
-def set_value(names, defaults, msg, parent=None):
+def set_value(  # pylint: disable=too-many-locals
+    names: str | Iterable[str],
+    defaults: str | Iterable[str],
+    msg: str,
+    parent: Gtk.Window | None = None,
+) -> list[BaubleMeta]:
     """Allow the user to change the value of a BaubleMeta object at any time.
 
     :param names: a string or iterable of strings, an iterable of names
@@ -97,19 +104,17 @@ def set_value(names, defaults, msg, parent=None):
     """
     logger.debug("set_value for %s", names)
     meta = None
-    from gi.repository import Gtk  # noqa
-
-    import bauble
-
-    if bauble.gui:
-        parent = bauble.gui.window
     dialog = utils.create_message_dialog(
         msg=msg, parent=parent, resizable=False
     )
     box = dialog.get_message_area()
+
     if isinstance(names, str):
         names = [names]
+
+    if isinstance(defaults, str):
         defaults = [defaults]
+
     entry_map = {}
     for name, default in zip(names, defaults):
         frame = Gtk.Frame(shadow_type=Gtk.ShadowType.NONE)
@@ -151,7 +156,7 @@ def set_value(names, defaults, msg, parent=None):
     return metas
 
 
-class BaubleMeta(db.Base):
+class BaubleMeta(db.Base):  # pylint: disable=too-few-public-methods
     """The BaubleMeta class is used to set and retrieve meta information
     based on key/name values from the bauble meta table.
 
@@ -166,12 +171,15 @@ class BaubleMeta(db.Base):
     """
 
     __tablename__ = "bauble"
-    name = Column(Unicode(64), unique=True)
-    value = Column(UnicodeText)
+
+    name: str = Column(Unicode(64), unique=True)
+    value: str = Column(UnicodeText)
 
 
 def get_default(
-    name: str, default: str | None = None, session: Session | None = None
+    name: str,
+    default: str | None = None,
+    session: Session | None = None,
 ) -> BaubleMeta | None:
     """Get a BaubleMeta object with name.
 
@@ -182,6 +190,7 @@ def get_default(
     don't commit the session.
     """
     commit = False
+
     if not session:
         session = db.Session()
         commit = True
@@ -189,7 +198,7 @@ def get_default(
     query = session.query(BaubleMeta)
     meta = query.filter_by(name=name).first()
     if not meta and default is not None:
-        meta = BaubleMeta(name=utils.nstr(name), value=default)
+        meta = BaubleMeta(name=name, value=default)
         session.add(meta)
         if commit:
             session.commit()
@@ -203,13 +212,14 @@ def get_default(
     if commit:
         # close the session whether we added anything or not
         session.close()
+
     return meta
 
 
 @event.listens_for(BaubleMeta, "after_insert")
 @event.listens_for(BaubleMeta, "after_delete")
 @event.listens_for(BaubleMeta, "after_update")
-def meta_after_execute(*_args):
+def meta_after_execute(*_args) -> None:
     """Clear cache on any commits to BaubleMeta."""
     logger.debug("clearing meta.get_cache_value cache")
     get_cached_value.clear_cache()
