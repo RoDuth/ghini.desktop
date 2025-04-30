@@ -1078,6 +1078,8 @@ class TestSearchViewMapPresenter(BaubleTestCase):
     def test__populate_after_timer_only_updates_if_already_populated(
         self, mock_get_selected
     ):
+        for func in get_setUp_data_funcs():
+            func()
         map_ = GardenMap(Map())
         presenter = SearchViewMapPresenter(map_)
         presenter.populate_map_from_search_view = mock.Mock()
@@ -1091,19 +1093,31 @@ class TestSearchViewMapPresenter(BaubleTestCase):
         presenter.populate_map_from_search_view.assert_not_called()
         presenter.update_map.assert_not_called()
 
+        plts = self.session.query(Plant).filter(Plant.id < 3).all()
         presenter.populate_thread = mock.Mock()
         presenter.populate_thread.is_alive.return_value = True
-        mock_get_selected.return_value = ["test1", "test2"]
+        mock_get_selected.return_value = plts
         # if selected but populate_thread_still_running don't update
         presenter.populate_map_from_search_view.assert_not_called()
         presenter.update_map.assert_not_called()
 
         presenter.populate_thread.is_alive.return_value = False
-        mock_get_selected.return_value = ["test1", "test2"]
+        mock_get_selected.return_value = plts
+        presenter.selected = {("plt", 2, True), ("plt", 1, True)}
+
         presenter._populate_after_timer()
-        # thread finished and selected, update
+        # thread finished and selected but selection not changed, don't update
         presenter.populate_map_from_search_view.assert_not_called()
-        presenter.update_map.assert_called_with(["test1", "test2"])
+        presenter.update_map.assert_not_called()
+
+        locs = self.session.query(Location).all()
+        presenter.populate_thread.is_alive.return_value = False
+        mock_get_selected.return_value = locs
+
+        presenter._populate_after_timer()
+        # thread finished and selected has changed, update
+        presenter.populate_map_from_search_view.assert_not_called()
+        presenter.update_map.assert_called_with(locs)
 
     def test_get_location_polys(self):
         for func in get_setUp_data_funcs():

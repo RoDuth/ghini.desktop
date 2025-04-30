@@ -897,9 +897,8 @@ class SearchViewMapPresenter:
 
     def get_nearest_plants_id(self, x: float, y: float) -> int | None:
         if self.populate_thread:
-            while self.populate_thread.is_alive():
-                self.populate_thread.join(0.02)
-                Gtk.main_iteration()
+            if self.populate_thread.is_alive():
+                self.populate_thread.join()
 
         best_id = None
         best_hyp = 0.1
@@ -1144,6 +1143,17 @@ class SearchViewMapPresenter:
             300, self._populate_after_timer
         )
 
+    def _selection_changed(self, selected: list[db.Domain]) -> bool:
+        sv_selected = set()
+
+        for i in selected:
+            if isinstance(i, Plant):
+                sv_selected.add(("plt", i.id, i.active))
+            if isinstance(i, Location):
+                sv_selected.add(("loc", i.id, True))
+
+        return sv_selected != self.selected
+
     def _populate_after_timer(self) -> None:
         if self.is_visible() and (
             not self.populate_thread or not self.populate_thread.is_alive()
@@ -1151,7 +1161,7 @@ class SearchViewMapPresenter:
             if self.populated:
                 logger.debug("populate_after_timer: update selected")
                 selected = get_search_view_selected()
-                if selected:
+                if selected and self._selection_changed(selected):
                     self.update_map(selected)
             else:
                 logger.debug("populate_after_timer: populate from search view")
