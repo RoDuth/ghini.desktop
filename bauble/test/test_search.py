@@ -1678,7 +1678,7 @@ class SearchTests2(BaubleTestCase):
         # clause last as it uses comma separation)
         string = (
             "accession where count(plants.location[name!=None, "
-            "description=None, code in RBW, URBW].id) = 1"
+            "description='Way up high', code in RBW, URBW].id) = 1"
         )
         results = search.search(string, self.session)
         self.assertCountEqual([i.id for i in results], [1, 5, 6])

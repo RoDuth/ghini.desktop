@@ -78,6 +78,7 @@ from .institution import InstitutionCommand
 from .institution import InstitutionDialog
 from .institution import InstitutionTool
 from .institution import start_institution_editor
+from .location import DescriptionExpander
 from .location import GeneralLocationExpander
 from .location import Location
 from .location import LocationEditor
@@ -214,7 +215,12 @@ propagation_test_data = (
 plant_propagation_test_data = ({"id": 1, "plant_id": 1, "propagation_id": 1},)
 
 location_test_data = (
-    {"id": 1, "name": "Somewhere Over The Rainbow", "code": "RBW"},
+    {
+        "id": 1,
+        "name": "Somewhere Over The Rainbow",
+        "code": "RBW",
+        "description": "Way up high",
+    },
     {"id": 2, "name": "Somewhere Under The Rainbow", "code": "URBW"},
     {"id": 3, "name": "Somewhere Else", "code": "SE"},
 )
@@ -4328,6 +4334,24 @@ class LocationTests(GardenTestCase):
 
         self.assertEqual(widgets.geojson_type.get_text(), "Polygon")
         self.assertEqual(widgets.approx_area.get_text(), "12309.07 m²")
+
+    def test_desription_expander_expands(self):
+        filename = os.path.join(
+            paths.lib_dir(), "plugins", "garden", "loc_infobox.glade"
+        )
+        widgets = utils.load_widgets(filename)
+        expander = DescriptionExpander(widgets)
+        # with description
+        loc = self.session.query(Location).first()
+        expander.update(loc)
+
+        self.assertTrue(expander.get_expanded())
+
+        # without description
+        loc = self.session.query(Location).get(2)
+        expander.update(loc)
+
+        self.assertFalse(expander.get_expanded())
 
 
 class CollectionTests(GardenTestCase):

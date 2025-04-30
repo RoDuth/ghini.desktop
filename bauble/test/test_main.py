@@ -1,3 +1,4 @@
+# pylint: disable=no-self-use,protected-access
 # Copyright (c) 2024 Ross Demuth <rossdemuth123@gmail.com>
 #
 # This file is part of ghini.desktop.
@@ -43,7 +44,6 @@ from bauble import ui
 uri = "sqlite:///:memory:"
 
 
-# pylint: disable=protected-access
 def setup_prefs():
     handle, temp = mkstemp(suffix=".cfg", text=True)
     prefs.default_prefs_file = temp
@@ -295,3 +295,9 @@ class MethodTests(TestCase):
         with mock.patch("sys.platform", "darwin"):
             bauble.main.Application._build_menubar(mock_app)
         mock_app.set_menubar.assert_called()
+
+    def test_on_activate_bails_on_connection_manager_cancel(self):
+        db.engine = None
+        with mock.patch.object(bauble.main.Application, "add_window") as mad:
+            bauble.main.Application.on_activate(None)
+            mad.assert_not_called()

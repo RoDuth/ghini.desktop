@@ -99,7 +99,7 @@ class Application(Gtk.Application):
     def _get_connection(self):
         # allow opening the app in current state when debuging tests
         if getattr(bauble.db, "engine", None):
-            return
+            return None
 
         uri = None
         conn_name = None
@@ -201,6 +201,10 @@ class Application(Gtk.Application):
         return True
 
     def on_activate(self, *_args, **_kwargs):
+        # bail early if connection manager cancelled
+        if not getattr(bauble.db, "engine", None):
+            return
+
         # second
         self.add_window(bauble.gui.window)
         self._build_menubar()
