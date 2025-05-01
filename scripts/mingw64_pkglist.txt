@@ -16,4 +16,5 @@ mingw-w64-ucrt-x86_64-python-coverage
 mingw-w64-ucrt-x86_64-cython
 mingw-w64-ucrt-x86_64-osm-gps-map
 mingw-w64-ucrt-x86_64-python-cairo
+mingw-w64-ucrt-x86_64-pyinstaller
 git
