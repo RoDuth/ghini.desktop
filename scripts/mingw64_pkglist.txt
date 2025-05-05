@@ -1,7 +1,6 @@
 base-devel
 mingw-w64-ucrt-x86_64-toolchain
 mingw-w64-ucrt-x86_64-cmake
-mingw-w64-ucrt-x86_64-unixodbc
 mingw-w64-ucrt-x86_64-python-setuptools
 mingw-w64-ucrt-x86_64-python-pip
 mingw-w64-ucrt-x86_64-python-wheel
@@ -17,4 +16,5 @@ mingw-w64-ucrt-x86_64-cython
 mingw-w64-ucrt-x86_64-osm-gps-map
 mingw-w64-ucrt-x86_64-python-cairo
 mingw-w64-ucrt-x86_64-pyinstaller
+mingw-w64-ucrt-x86_64-python-pyodbc
 git

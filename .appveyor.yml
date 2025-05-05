@@ -68,12 +68,11 @@ for:
     # cutting edge on MSYS2 can be dangerous
     # - bash -lc "pacman --noconfirm -Syuu"  # Core update.  see: https://msys2.org/docs/ci/
     # - bash -lc "pacman --noconfirm -Syuu"  # Normal update
-    - bash -lc "pacman --noconfirm --needed -S - < ./scripts/mingw64_pkglist.txt"
+    - bash -lc "pacman --noconfirm --needed -Sy - < ./scripts/mingw64_pkglist.txt"
     - bash -lc "python --version"
     - bash -lc "python -m pip install --upgrade pip"
     - dir %WINDIR%\System32\msodbcsql*.dll
     # wheels cache
-    - if not exist wheels\ bash -lc "pip wheel git+https://github.com/RoDuth/pyodbc --wheel-dir wheels"
     - bash -lc "pip wheel pyproj --wheel-dir wheels --find-links wheels"
     - bash -lc "pip wheel dukpy --wheel-dir wheels --find-links wheels"
     - bash -lc "pip wheel 'SQLAlchemy<2.0' --wheel-dir wheels --find-links wheels"
@@ -81,9 +80,7 @@ for:
     - dir wheels
 
   build_script:
-    - bash -lc "pip install pyodbc --find-links wheels"
     - bash -lc "pip install . --find-links wheels"
-    # - bash -lc "pip install pyinstaller"
     - bash -lc "python -m PyInstaller --clean --noconfirm scripts/ghini.spec"
     - if not exist jre\ for /f %%i in ('dir "C:\Program Files\OpenJDK\jdk*" /b') do "C:\Program Files"\OpenJDK\%%i\bin\jlink --output jre --add-modules java.base,java.logging,java.desktop,java.xml
     - dir jre
@@ -114,12 +111,11 @@ for:
     # cutting edge on MSYS2 can be dangerous
     # - bash -lc "pacman --noconfirm -Syuu"  # Core update.  see: https://msys2.org/docs/ci/
     # - bash -lc "pacman --noconfirm -Syuu"  # Normal update
-    - bash -lc "pacman --noconfirm --needed -S - < ./scripts/mingw64_pkglist.txt"
+    - bash -lc "pacman --noconfirm --needed -Sy - < ./scripts/mingw64_pkglist.txt"
     - bash -lc "python --version"
     - bash -lc "python -m pip install --upgrade pip"
     - dir %WINDIR%\System32\msodbcsql*.dll
     # wheels cache
-    - if not exist wheels\ bash -lc "pip wheel git+https://github.com/RoDuth/pyodbc --wheel-dir wheels"
     - bash -lc "pip wheel pyproj --wheel-dir wheels --find-links wheels"
     - bash -lc "pip wheel dukpy --wheel-dir wheels --find-links wheels"
     - bash -lc "pip wheel 'SQLAlchemy<2.0' --wheel-dir wheels --find-links wheels"
@@ -127,7 +123,6 @@ for:
     - dir wheels
 
   build_script:
-    - bash -lc "pip install pyodbc --find-links wheels"
     - bash -lc "pip install . --find-links wheels"
 
   test_script:
