@@ -75,7 +75,6 @@ setup(
         "SQLAlchemy<2.0",
         "Pillow",
         "lxml",
-        "tld",
         "mako",
         "pyparsing",
         "pyshp",

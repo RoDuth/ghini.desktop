@@ -5,7 +5,6 @@ import sysconfig
 from pathlib import Path
 
 import pyproj
-from tld.defaults import NAMES_LOCAL_PATH_PARENT
 
 import bauble
 
@@ -17,10 +16,6 @@ glade_files = [(f'{i}/*.glade', f'{i.relative_to(root)}') for i in
                set(j.parent for j in bauble_root.glob('**/*.glade'))]
 glade_files += [(f'{i}/*.ui', f'{i.relative_to(root)}') for i in
                 set(j.parent for j in bauble_root.glob('**/*.ui'))]
-
-# effective_tld_names.dat.txt from tld
-tld_names = [(str(Path(NAMES_LOCAL_PATH_PARENT, 'res', '*.txt')),
-              'tld/res')]
 
 # prefs config files
 configs = [(f'{i}/*.cfg', f'{i.relative_to(root)}') for i in
@@ -70,7 +65,7 @@ a = Analysis(['ghini'],
                  ('../bauble/plugins/report/xsl/stylesheets',
                   'bauble/plugins/report/xsl/stylesheets'),
                  (pyproj.datadir.get_data_dir(), 'share/proj'),
-             ] + glade_files + tld_names + configs + gio_modules,  # noqa
+             ] + glade_files + configs + gio_modules,  # noqa
              hiddenimports=[
                  'sqlalchemy.dialects.sqlite',
                  'sqlalchemy.dialects.postgresql',
