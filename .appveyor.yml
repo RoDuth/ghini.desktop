@@ -76,7 +76,6 @@ for:
     - bash -lc "pip wheel pyproj --wheel-dir wheels --find-links wheels"
     - bash -lc "pip wheel dukpy --wheel-dir wheels --find-links wheels"
     - bash -lc "pip wheel 'SQLAlchemy<2.0' --wheel-dir wheels --find-links wheels"
-    - bash -lc "pip wheel markupsafe --wheel-dir wheels --find-links wheels"
     - dir wheels
 
   build_script:
@@ -119,7 +118,6 @@ for:
     - bash -lc "pip wheel pyproj --wheel-dir wheels --find-links wheels"
     - bash -lc "pip wheel dukpy --wheel-dir wheels --find-links wheels"
     - bash -lc "pip wheel 'SQLAlchemy<2.0' --wheel-dir wheels --find-links wheels"
-    - bash -lc "pip wheel markupsafe --wheel-dir wheels --find-links wheels"
     - dir wheels
 
   build_script:
