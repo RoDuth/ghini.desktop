@@ -65,10 +65,10 @@ for:
 
   install:
     - if not exist jre\ choco install openjdk -y
-    # cutting edge on MSYS2 can be dangerous
-    # - bash -lc "pacman --noconfirm -Syuu"  # Core update.  see: https://msys2.org/docs/ci/
-    # - bash -lc "pacman --noconfirm -Syuu"  # Normal update
-    - bash -lc "pacman --noconfirm --needed -Sy - < ./scripts/mingw64_pkglist.txt"
+    - bash -lc "uname -a"
+    - bash -lc "pacman --noconfirm -Syuu"  # Core update.  see: https://msys2.org/docs/ci/
+    - bash -lc "pacman --noconfirm -Syuu"  # Normal update
+    - bash -lc "pacman --noconfirm --needed -S - < ./scripts/mingw64_pkglist.txt"
     - bash -lc "python --version"
     - bash -lc "python -m pip install --upgrade pip"
     - dir %WINDIR%\System32\msodbcsql*.dll
@@ -91,7 +91,6 @@ for:
     - path: dist/*-setup.exe
 
   test_script:
-    - bash -lc "pip install pytest"
     - bash -lc "python -m pytest -sv"
   cache:
     - wheels -> setup.py
@@ -107,10 +106,10 @@ for:
     - net start MSSQL$SQL2019
 
   install:
-    # cutting edge on MSYS2 can be dangerous
-    # - bash -lc "pacman --noconfirm -Syuu"  # Core update.  see: https://msys2.org/docs/ci/
-    # - bash -lc "pacman --noconfirm -Syuu"  # Normal update
-    - bash -lc "pacman --noconfirm --needed -Sy - < ./scripts/mingw64_pkglist.txt"
+    - bash -lc "uname -a"
+    - bash -lc "pacman --noconfirm -Syuu"  # Core update.  see: https://msys2.org/docs/ci/
+    - bash -lc "pacman --noconfirm -Syuu"  # Normal update
+    - bash -lc "pacman --noconfirm --needed -S - < ./scripts/mingw64_pkglist.txt"
     - bash -lc "python --version"
     - bash -lc "python -m pip install --upgrade pip"
     - dir %WINDIR%\System32\msodbcsql*.dll
@@ -124,8 +123,6 @@ for:
     - bash -lc "pip install . --find-links wheels"
 
   test_script:
-    - bash -lc "pip install pytest"
-    - bash -lc "pip install coverage"
     - bash -lc "pip install coveralls"
     - bash -lc "BAUBLE_TEST_DB_URI='mssql://sa:Password12!@localhost:1433/master?driver=ODBC+Driver+17+for+SQL+Server&MARS_Connection=Yes' coverage run -m pytest -sv"
     - bash -lc "coverage combine"

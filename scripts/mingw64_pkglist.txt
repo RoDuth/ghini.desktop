@@ -16,3 +16,10 @@ mingw-w64-ucrt-x86_64-python-cairo
 mingw-w64-ucrt-x86_64-pyinstaller
 mingw-w64-ucrt-x86_64-python-pyodbc
 mingw-w64-ucrt-x86_64-python-markupsafe
+mingw-w64-ucrt-x86_64-python-greenlet
+mingw-w64-ucrt-x86_64-python-mako
+mingw-w64-ucrt-x86_64-python-pyparsing
+mingw-w64-ucrt-x86_64-python-filelock
+mingw-w64-ucrt-x86_64-python-certifi
+mingw-w64-ucrt-x86_64-python-dateutil
+mingw-w64-ucrt-x86_64-python-six
