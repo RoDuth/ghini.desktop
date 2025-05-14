@@ -8,16 +8,16 @@ environment:
   PIP_BREAK_SYSTEM_PACKAGES: "true"
   fop_ver: 2.9
   matrix:
-    - APPVEYOR_BUILD_WORKER_IMAGE: macos-sonoma
-      TEST_DB: sqlite
-    - APPVEYOR_BUILD_WORKER_IMAGE: Visual Studio 2019
-      TEST_DB: sqlite
-      PATH: C:\msys64\usr\bin;C:\Program Files (x86)\NSIS\Bin;%PATH%
     - APPVEYOR_BUILD_WORKER_IMAGE: Visual Studio 2019
       TEST_DB: MSSQL
       COVERALLS_REPO_TOKEN:
         secure: dFRyBsYhvG/CAVHHXVL8JVuFWRBuB0zGmiH6W+fQUafSmAsIITs7P7mwOl2y2voK
       PATH: C:\msys64\usr\bin;%PATH%
+    - APPVEYOR_BUILD_WORKER_IMAGE: Visual Studio 2019
+      TEST_DB: sqlite
+      PATH: C:\msys64\usr\bin;C:\Program Files (x86)\NSIS\Bin;%PATH%
+    - APPVEYOR_BUILD_WORKER_IMAGE: macos-sonoma
+      TEST_DB: sqlite
 
 skip_tags: true
 
@@ -29,7 +29,7 @@ for:
         TEST_DB: sqlite
 
   install:
-    - brew install pygobject3 gtk+3 adwaita-icon-theme osm-gps-map unixodbc
+    - brew install pygobject3 gtk+3 adwaita-icon-theme osm-gps-map unixodbc postgresql
 
   build_script:
     - python3.13 -m venv ~/venv3.13
@@ -40,12 +40,8 @@ for:
     - cp -rf "$(find /usr/local/Cellar/pygobject3 -type d -name site-packages | grep --color=never $_PY_VER)"/* "$(find $VIRTUAL_ENV -type d -name site-packages)"
     - ls -la "$(find $VIRTUAL_ENV -type d -name site-packages)"
     - ls -la /usr/local/lib/girepository-1.0 2>/dev/null || echo "/usr/local/lib/girepository-1.0 not found"
-    - pip install --upgrade pip
-    - pip install psycopg2-binary
-    - pip install pyodbc
-    - pip install pyobjc-framework-SystemConfiguration
-    - pip install .
-    # - pip install pyinstaller
+    - pip install -r requirements.txt
+    - pip install -r ci-requirements.txt
     # - pyinstaller --clean --noconfirm scripts/ghini.spec
     # - pip install dmgbuild==1.6.1
     # - dmgbuild -s scripts/dmgbuild_settings.py "Ghini" Ghini.dmg   # NOTE: last 2 args are required but overidden in dmgbuild_settings.py
@@ -70,16 +66,14 @@ for:
     - bash -lc "pacman --noconfirm -Syuu"  # Normal update
     - bash -lc "pacman --noconfirm --needed -S - < ./scripts/mingw64_pkglist.txt"
     - bash -lc "python --version"
-    - bash -lc "python -m pip install --upgrade pip"
     - dir %WINDIR%\System32\msodbcsql*.dll
     # wheels cache
-    - bash -lc "pip wheel pyproj --wheel-dir wheels --find-links wheels"
     - bash -lc "pip wheel dukpy --wheel-dir wheels --find-links wheels"
     - bash -lc "pip wheel 'SQLAlchemy<2.0' --wheel-dir wheels --find-links wheels"
     - dir wheels
 
   build_script:
-    - bash -lc "pip install . --find-links wheels"
+    - bash -lc "pip install '.[ci]' --find-links wheels"
     - bash -lc "python -m PyInstaller --clean --noconfirm scripts/ghini.spec"
     - if not exist jre\ for /f %%i in ('dir "C:\Program Files\OpenJDK\jdk*" /b') do "C:\Program Files"\OpenJDK\%%i\bin\jlink --output jre --add-modules java.base,java.logging,java.desktop,java.xml
     - dir jre
@@ -93,7 +87,7 @@ for:
   test_script:
     - bash -lc "python -m pytest -sv"
   cache:
-    - wheels -> setup.py
+    - wheels -> requirements.txt, ci-requirements.txt
     - fop-$(fop_ver) -> scripts\get_fop.sh
     - jre -> scripts\get_fop.sh
 -
@@ -111,16 +105,14 @@ for:
     - bash -lc "pacman --noconfirm -Syuu"  # Normal update
     - bash -lc "pacman --noconfirm --needed -S - < ./scripts/mingw64_pkglist.txt"
     - bash -lc "python --version"
-    - bash -lc "python -m pip install --upgrade pip"
     - dir %WINDIR%\System32\msodbcsql*.dll
     # wheels cache
-    - bash -lc "pip wheel pyproj --wheel-dir wheels --find-links wheels"
     - bash -lc "pip wheel dukpy --wheel-dir wheels --find-links wheels"
     - bash -lc "pip wheel 'SQLAlchemy<2.0' --wheel-dir wheels --find-links wheels"
     - dir wheels
 
   build_script:
-    - bash -lc "pip install . --find-links wheels"
+    - bash -lc "pip install '.[ci]' --find-links wheels"
 
   test_script:
     - bash -lc "pip install coveralls"
@@ -129,7 +121,7 @@ for:
     - bash -lc "coverage report"
     - bash -lc "coveralls"
   cache:
-    - wheels -> setup.py
+    - wheels -> requirements.txt, ci-requirements.txt
 
 deploy:
   provider: GitHub

@@ -7,7 +7,7 @@ mingw-w64-ucrt-x86_64-python-pillow
 mingw-w64-ucrt-x86_64-gtk3
 mingw-w64-ucrt-x86_64-python-gobject
 mingw-w64-ucrt-x86_64-python-psycopg2
-mingw-w64-ucrt-x86_64-proj
+mingw-w64-ucrt-x86_64-python-pyproj
 mingw-w64-ucrt-x86_64-python-pytest
 mingw-w64-ucrt-x86_64-python-coverage
 mingw-w64-ucrt-x86_64-cython
@@ -20,6 +20,5 @@ mingw-w64-ucrt-x86_64-python-greenlet
 mingw-w64-ucrt-x86_64-python-mako
 mingw-w64-ucrt-x86_64-python-pyparsing
 mingw-w64-ucrt-x86_64-python-filelock
-mingw-w64-ucrt-x86_64-python-certifi
 mingw-w64-ucrt-x86_64-python-dateutil
 mingw-w64-ucrt-x86_64-python-six

@@ -1,0 +1,7 @@
+# extra DB-API connectors, build/test tools, etc.
+psycopg2
+pyodbc
+Babel
+coverage
+pytest
+pyinstaller

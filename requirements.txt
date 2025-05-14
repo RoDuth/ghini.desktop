@@ -1,0 +1,11 @@
+pyobjc-framework-SystemConfiguration; sys_platform == 'darwin'
+SQLAlchemy < 2.0
+Pillow
+lxml
+mako
+pyparsing
+pyshp
+pyproj
+filelock
+python-dateutil
+dukpy

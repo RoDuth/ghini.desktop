@@ -39,7 +39,8 @@ class PoTests(unittest.TestCase):
             raise unittest.SkipTest("don't test on appveyor")
 
         for filename in files:
-            catalog = read_po(open(filename))
+            with open(filename, "r", encoding="utf-8") as f:
+                catalog = read_po(f)
             for msg in catalog:
                 if not msg.id:
                     # not a translation
