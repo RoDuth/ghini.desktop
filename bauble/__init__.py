@@ -140,12 +140,6 @@ last_handler = None
 conn_default_pref = "conn.default"
 conn_list_pref = "conn.list"
 
-# import late to avoid circular imports
-from bauble.ui import GUI
-
-gui: GUI = GUI()
-"""bauble.gui is the instance :class:`bauble.ui.GUI`"""
-
 
 def command_handler(cmd, arg):
     """Call a command handler.
@@ -200,3 +194,7 @@ def command_handler(cmd, arg):
 
 # avoid circular import
 from bauble.i18n import _
+from bauble.ui import GUI
+
+gui: GUI = GUI()
+"""bauble.gui is the instance :class:`bauble.ui.GUI`"""

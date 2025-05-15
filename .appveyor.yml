@@ -9,13 +9,13 @@ environment:
   fop_ver: 2.9
   matrix:
     - APPVEYOR_BUILD_WORKER_IMAGE: Visual Studio 2019
+      TEST_DB: sqlite
+      PATH: C:\msys64\usr\bin;C:\Program Files (x86)\NSIS\Bin;%PATH%
+    - APPVEYOR_BUILD_WORKER_IMAGE: Visual Studio 2019
       TEST_DB: MSSQL
       COVERALLS_REPO_TOKEN:
         secure: dFRyBsYhvG/CAVHHXVL8JVuFWRBuB0zGmiH6W+fQUafSmAsIITs7P7mwOl2y2voK
       PATH: C:\msys64\usr\bin;%PATH%
-    - APPVEYOR_BUILD_WORKER_IMAGE: Visual Studio 2019
-      TEST_DB: sqlite
-      PATH: C:\msys64\usr\bin;C:\Program Files (x86)\NSIS\Bin;%PATH%
     - APPVEYOR_BUILD_WORKER_IMAGE: macos-sonoma
       TEST_DB: sqlite
 

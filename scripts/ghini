@@ -46,6 +46,16 @@ if __name__ == "__main__":
             sys._MEIPASS, "lib", "gio", "modules"  # type:ignore [attr-defined]
         )
     freeze_support()
+
+    # if a pyinstaller splash screen exists close it.
+    try:
+        import pyi_splash  # type: ignore [import-untyped]
+
+        if pyi_splash.is_alive():
+            pyi_splash.close()
+    except ImportError:
+        pass
+
     from bauble import main
 
     sys.exit(main.main())
