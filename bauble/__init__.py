@@ -132,7 +132,7 @@ logging.getLogger("sqlalchemy").setLevel(logging.WARNING)
 default_icon = os.path.join(paths.lib_dir(), "images", "icon.png")
 """The default icon."""
 
-conn_name = None
+conn_name: str | None = None
 """The name of the current connection."""
 
 last_handler = None

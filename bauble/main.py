@@ -1,4 +1,4 @@
-# Copyright (c) 2022 Ross Demuth <rossdemuth123@gmail.com>
+# Copyright (c) 2022-2025 Ross Demuth <rossdemuth123@gmail.com>
 #
 # This file is part of ghini.desktop.
 #
@@ -15,11 +15,13 @@
 # You should have received a copy of the GNU General Public License
 # along with ghini.desktop. If not, see <http://www.gnu.org/licenses/>.
 """
-The main application
+The main application entry point.
 """
 import logging
+import shutil
 import sys
 import traceback
+from typing import Literal
 
 from gi.repository import Gdk
 from gi.repository import Gio
@@ -39,14 +41,14 @@ logger = logging.getLogger(__name__)
 
 
 class Application(Gtk.Application):
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__(
             application_id="org.gnome.GhiniDesktop",
             flags=Gio.ApplicationFlags.FLAGS_NONE,
         )
         self.connect("activate", self.on_activate)
 
-    def do_startup(self, *args, **kwargs):
+    def do_startup(self, *args, **kwargs) -> None:
         # first
         Gtk.Application.do_startup(self, *args, **kwargs)
 
@@ -63,15 +65,17 @@ class Application(Gtk.Application):
         logger.debug("tempdir: %s", paths.TEMPDIR)
 
         open_exc = self._get_connection()
+
+        # bail early if no connection
+        if open_exc is False:
+            logger.debug("bailing early, no connection")
+            return
+
         self._load_plugins()
         bauble.gui.init()
         # add any prefs menus etc.
         prefs.post_gui()
         bauble.gui.show()
-        # bail early if no connection
-        if open_exc is False:
-            logger.debug("bailing early, no connection")
-            return
 
         if not self._post_loop(open_exc):
             self.quit()
@@ -93,17 +97,19 @@ class Application(Gtk.Application):
         )
 
         # Keep clipboard contents after application exit
-        clip = Gtk.Clipboard.get_default(Gdk.Display.get_default())
-        clip.set_can_store(None)
+        display = Gdk.Display.get_default()
+        if display:
+            clip = Gtk.Clipboard.get_default(display)
+            clip.set_can_store(None)
 
-    def _get_connection(self):
+    def _get_connection(self) -> None | Literal[False] | Exception:
         # allow opening the app in current state when debuging tests
         if getattr(bauble.db, "engine", None):
             return None
 
-        uri = None
-        conn_name = None
-        open_exc = None
+        uri: str | None = None
+        conn_name: str | None = None
+        open_exc: Exception | None = None
         while True:
             if not uri or not conn_name:
                 conn_name, uri = start_connection_manager()
@@ -148,7 +154,7 @@ class Application(Gtk.Application):
         return open_exc
 
     @staticmethod
-    def _load_plugins():
+    def _load_plugins() -> None:
         # load the plugins
         pluginmgr.load()
 
@@ -157,7 +163,7 @@ class Application(Gtk.Application):
         prefs.prefs.save()
 
     @staticmethod
-    def _post_loop(open_exc):
+    def _post_loop(open_exc) -> bool:
         logger.debug("entering _post_loop")
         try:
             if isinstance(open_exc, err.DatabaseError):
@@ -196,11 +202,14 @@ class Application(Gtk.Application):
             msg = utils.xml_safe(f"{type(e).__name__}({e})")
             utils.message_dialog(msg, Gtk.MessageType.WARNING)
             return False
-        # updates the splashscreen
-        bauble.gui.get_view().update()
+        # update the splashscreen
+        splash = bauble.gui.get_view()
+        if splash:
+            splash.update()
+
         return True
 
-    def on_activate(self, *_args, **_kwargs):
+    def on_activate(self, *_args, **_kwargs) -> None:
         # bail early if connection manager cancelled
         if not getattr(bauble.db, "engine", None):
             return
@@ -209,7 +218,7 @@ class Application(Gtk.Application):
         self.add_window(bauble.gui.window)
         self._build_menubar()
 
-    def _build_menubar(self):
+    def _build_menubar(self) -> None:
         actions = (
             ("open", bauble.gui.on_file_menu_open),
             ("new", bauble.gui.on_file_menu_new),
@@ -241,16 +250,15 @@ class Application(Gtk.Application):
         else:
             self.set_menubar(bauble.gui.menubar)
 
-    def do_shutdown(self, *args, **kwargs):
+    def do_shutdown(self, *args, **kwargs) -> None:
         logger.debug("Application shutdown")
         prefs.prefs.save()
-        import shutil
 
         # delete global tempdir
         shutil.rmtree(paths.TEMPDIR)
         Gtk.Application.do_shutdown(self, *args, **kwargs)
 
 
-def main():
+def main() -> int:
     app = Application()
     return app.run(sys.argv)
