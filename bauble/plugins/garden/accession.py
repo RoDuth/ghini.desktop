@@ -52,6 +52,7 @@ from sqlalchemy import exists
 from sqlalchemy import func
 from sqlalchemy import literal
 from sqlalchemy import select
+from sqlalchemy import union
 from sqlalchemy.exc import DBAPIError
 from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.orm import Session
@@ -843,6 +844,85 @@ class Accession(db.Domain, db.WithNotes):
             .scalar_subquery()
         )
         return cast(case([(cls.id.in_(inactive), 0)], else_=1), types.Boolean)
+
+    @hybrid_property
+    def updated(self) -> datetime.datetime:
+        updates = [self._last_updated]
+
+        if self.source:
+            updates.append(self.source._last_updated)
+            if self.source.collection:
+                updates.append(self.source.collection._last_updated)
+            if self.source.propagation:
+                updates.append(self.source.propagation._last_updated)
+
+        if self.notes:
+            updates.append(max(i._last_updated for i in self.notes))
+
+        if self.documents:
+            updates.append(max(i._last_updated for i in self.documents))
+
+        if self.intended_locations:
+            updates.append(
+                max(i._last_updated for i in self.intended_locations)
+            )
+
+        if self.vouchers:
+            updates.append(max(i._last_updated for i in self.vouchers))
+
+        if self.verifications:
+            updates.append(max(i._last_updated for i in self.verifications))
+
+        return max(updates)
+
+    @updated.expression  # type: ignore [no-redef]
+    def updated(cls) -> types.DateTime:
+        # pylint: disable=no-self-argument,no-self-use,arguments-renamed
+        self_select = select([cls._last_updated, cls.id])
+
+        source_select = select([Source._last_updated, cls.id]).join(cls)
+        collect_select = (
+            select([Collection._last_updated, cls.id])
+            .join(Source, Collection.source_id == Source.id)
+            .join(cls)
+        )
+        prop_select = (
+            select([Propagation._last_updated, cls.id])
+            .join(Source, Propagation.id == Source.propagation_id)
+            .join(cls)
+        )
+
+        note_select = select([AccessionNote._last_updated, cls.id]).join(cls)
+
+        doc_select = select([AccessionDocument._last_updated, cls.id]).join(
+            cls
+        )
+
+        intended_locs_select = select(
+            [IntendedLocation._last_updated, cls.id]
+        ).join(cls)
+
+        vouchers_select = select([Voucher._last_updated, cls.id]).join(cls)
+
+        verif_select = select([Verification._last_updated, cls.id]).join(cls)
+
+        dates = union(
+            self_select,
+            source_select,
+            collect_select,
+            prop_select,
+            note_select,
+            doc_select,
+            intended_locs_select,
+            vouchers_select,
+            verif_select,
+        ).alias("dates")
+
+        return (
+            select([func.max(dates.c._last_updated)])
+            .where(dates.c.id == cls.id)
+            .label("updated")
+        )
 
     def __str__(self):
         return str(self.code)

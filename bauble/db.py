@@ -321,6 +321,21 @@ class Domain(Base):
     def pictures(self) -> list[Picture]:
         return []
 
+    @hybrid_property
+    def updated(self) -> datetime.datetime:
+        """Domains that have an editor should return the greatest of all
+        _last_updated values for all the associated tables that their editor
+        can edit.
+
+        For Domains without dedicated editors just return _last_updated.
+        """
+        return self._last_updated
+
+    @updated.expression  # type: ignore [no-redef]
+    def updated(cls) -> types.DateTime:
+        # pylint: disable=no-self-argument,no-self-use
+        return cls._last_updated
+
 
 @event.listens_for(Base, "before_update", propagate=True)
 def before_update(_mapper, _connection, instance):

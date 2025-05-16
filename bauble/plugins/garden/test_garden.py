@@ -62,6 +62,7 @@ from .accession import Accession
 from .accession import AccessionEditor
 from .accession import AccessionEditorPresenter
 from .accession import AccessionEditorView
+from .accession import AccessionNote
 from .accession import IntendedLocation
 from .accession import IntendedLocationPresenter
 from .accession import SourcePresenter
@@ -82,6 +83,7 @@ from .location import DescriptionExpander
 from .location import GeneralLocationExpander
 from .location import Location
 from .location import LocationEditor
+from .location import LocationNote
 from .location import LocationPicture
 from .plant import DEFAULT_PLANT_CODE_FORMAT
 from .plant import PLANT_CODE_FORMAT_KEY
@@ -1291,6 +1293,205 @@ class PlantTests(GardenTestCase):
         mock_self.presenter.refresh_view.assert_called()
         mock_self.presenter.reset_change.not_assert_called()
         mock_self.presenter.refresh_view.assert_called()
+
+
+class PlantUpdatedTests(BaubleTestCase):
+
+    def test_updated_self(self):
+        fam = Family(epithet="Myrtaceae")
+        gen = Genus(epithet="Syzygium", family=fam)
+        sp = Species(epithet="luehmannii", genus=gen)
+        acc = Accession(code="2025.0001", species=sp)
+        loc = Location(code="LOC1")
+        plt = Plant(code="1", quantity=1, accession=acc, location=loc)
+        change = PlantChange(_last_updated=datetime.datetime(2000, 1, 1, 0))
+        plt.changes.append(change)
+        self.session.add(plt)
+        self.session.commit()
+
+        self.assertIs(
+            self.session.query(Plant).filter(Plant.updated > "Today").first(),
+            plt,
+        )
+
+        # the python function
+        self.assertEqual(plt.updated, plt._last_updated)
+
+        date = datetime.datetime(2001, 1, 1, 0)
+        plt._last_updated = date
+        # need to ensure the change doesn't refresh
+        plt.changes[0]._last_updated = date
+        self.session.commit()
+
+        self.assertIs(
+            self.session.query(Plant).filter(Plant.updated == date).first(),
+            plt,
+        )
+
+        # the python function
+        self.assertEqual(plt.updated, plt._last_updated)
+
+    def test_updated_notes(self):
+        date = datetime.datetime(2001, 1, 1, 0)
+        fam = Family(epithet="Myrtaceae")
+        gen = Genus(epithet="Syzygium", family=fam)
+        sp = Species(epithet="luehmannii", genus=gen)
+        acc = Accession(code="2025.0001", species=sp)
+        loc = Location(code="LOC1")
+        plt = Plant(
+            code="1",
+            quantity=1,
+            accession=acc,
+            location=loc,
+            _last_updated=date,
+        )
+        change = PlantChange(_last_updated=datetime.datetime(2000, 1, 1, 0))
+        plt.changes.append(change)
+        note = PlantNote(category="Spam", note="Eggs", plant=plt)
+        self.session.add_all([plt, note])
+        self.session.commit()
+
+        self.assertIs(
+            self.session.query(Plant).filter(Plant.updated > "Today").first(),
+            plt,
+        )
+
+        # the python function
+        self.assertEqual(plt.updated, note._last_updated)
+
+        note._last_updated = datetime.datetime(2001, 1, 1, 0)
+        # need to ensure the change doesn't refresh
+        plt.changes[0]._last_updated = date
+        self.session.commit()
+
+        self.assertIs(
+            self.session.query(Plant).filter(Plant.updated == date).first(),
+            plt,
+        )
+
+        # the python function
+        self.assertEqual(plt.updated, plt._last_updated)
+
+    def test_updated_pictures(self):
+        date = datetime.datetime(2001, 1, 1, 0)
+        fam = Family(epithet="Myrtaceae")
+        gen = Genus(epithet="Syzygium", family=fam)
+        sp = Species(epithet="luehmannii", genus=gen)
+        acc = Accession(code="2025.0001", species=sp)
+        loc = Location(code="LOC1")
+        plt = Plant(
+            code="1",
+            quantity=1,
+            accession=acc,
+            location=loc,
+            _last_updated=date,
+        )
+        change = PlantChange(_last_updated=datetime.datetime(2000, 1, 1, 0))
+        plt.changes.append(change)
+        pic = PlantPicture(category="Spam", picture="Eggs.png", plant=plt)
+        self.session.add_all([plt, pic])
+        self.session.commit()
+
+        self.assertIs(
+            self.session.query(Plant).filter(Plant.updated > "Today").first(),
+            plt,
+        )
+
+        # the python function
+        self.assertEqual(plt.updated, pic._last_updated)
+
+        pic._last_updated = datetime.datetime(2001, 1, 1, 0)
+        # need to ensure the change doesn't refresh
+        plt.changes[0]._last_updated = date
+        self.session.commit()
+
+        self.assertIs(
+            self.session.query(Plant).filter(Plant.updated == date).first(),
+            plt,
+        )
+
+        # the python function
+        self.assertEqual(plt.updated, plt._last_updated)
+
+    def test_updated_propagation(self):
+        date = datetime.datetime(2001, 1, 1, 0)
+        fam = Family(epithet="Myrtaceae")
+        gen = Genus(epithet="Syzygium", family=fam)
+        sp = Species(epithet="luehmannii", genus=gen)
+        acc = Accession(code="2025.0001", species=sp)
+        loc = Location(code="LOC1")
+        plt = Plant(
+            code="1",
+            quantity=1,
+            accession=acc,
+            location=loc,
+            _last_updated=date,
+        )
+        change = PlantChange(_last_updated=datetime.datetime(2000, 1, 1, 0))
+        plt.changes.append(change)
+        prop = Propagation(prop_type="Other")
+        plt.propagations.append(prop)
+        self.session.add(plt)
+        self.session.commit()
+
+        self.assertIs(
+            self.session.query(Plant).filter(Plant.updated > "Today").first(),
+            plt,
+        )
+
+        # the python function
+        self.assertEqual(plt.updated, prop._last_updated)
+
+        prop._last_updated = datetime.datetime(2001, 1, 1, 0)
+        # need to ensure the change doesn't refresh
+        plt.changes[0]._last_updated = date
+        self.session.commit()
+
+        self.assertIs(
+            self.session.query(Plant).filter(Plant.updated == date).first(),
+            plt,
+        )
+
+        # the python function
+        self.assertEqual(plt.updated, plt._last_updated)
+
+    def test_updated_changes(self):
+        date = datetime.datetime(2001, 1, 1, 0)
+        fam = Family(epithet="Myrtaceae")
+        gen = Genus(epithet="Syzygium", family=fam)
+        sp = Species(epithet="luehmannii", genus=gen)
+        acc = Accession(code="2025.0001", species=sp)
+        loc = Location(code="LOC1")
+        plt = Plant(
+            code="1",
+            quantity=1,
+            accession=acc,
+            location=loc,
+            _last_updated=date,
+        )
+        change = PlantChange(date=date)
+        plt.changes.append(change)
+        self.session.add(plt)
+        self.session.commit()
+
+        self.assertIs(
+            self.session.query(Plant).filter(Plant.updated > "Today").first(),
+            plt,
+        )
+
+        # the python function
+        self.assertEqual(plt.updated, change._last_updated)
+
+        change._last_updated = datetime.datetime(2001, 1, 1, 0)
+        self.session.commit()
+
+        self.assertIs(
+            self.session.query(Plant).filter(Plant.updated == date).first(),
+            plt,
+        )
+
+        # the python function
+        self.assertEqual(plt.updated, plt._last_updated)
 
 
 class PlantEditorPresenterTests(GardenTestCase):
@@ -3250,6 +3451,228 @@ class AccessionTests(GardenTestCase):
         self.assertEqual(acc.pictures, [])
 
 
+class AccessionUpdatedTests(BaubleTestCase):
+
+    def test_updated_self(self):
+        fam = Family(epithet="Myrtaceae")
+        gen = Genus(epithet="Syzygium", family=fam)
+        sp = Species(epithet="luehmannii", genus=gen)
+        acc = Accession(code="2025.0001", species=sp)
+        self.session.add(acc)
+        self.session.commit()
+
+        self.assertIs(
+            self.session.query(Accession)
+            .filter(Accession.updated > "Today")
+            .first(),
+            acc,
+        )
+
+        # the python function
+        self.assertEqual(acc.updated, acc._last_updated)
+
+        date = datetime.datetime(2001, 1, 1, 0)
+        acc._last_updated = date
+        self.session.commit()
+
+        self.assertIs(
+            self.session.query(Accession)
+            .filter(Accession.updated == date)
+            .first(),
+            acc,
+        )
+
+        # the python function
+        self.assertEqual(acc.updated, acc._last_updated)
+
+    def test_updated_notes(self):
+        date = datetime.datetime(2001, 1, 1, 0)
+        fam = Family(epithet="Myrtaceae")
+        gen = Genus(epithet="Syzygium", family=fam)
+        sp = Species(epithet="luehmannii", genus=gen)
+        acc = Accession(code="2025.0001", species=sp, _last_updated=date)
+        note = AccessionNote(category="Spam", note="Eggs", accession=acc)
+        self.session.add_all([acc, note])
+        self.session.commit()
+
+        self.assertIs(
+            self.session.query(Accession)
+            .filter(Accession.updated > "Today")
+            .first(),
+            acc,
+        )
+
+        # the python function
+        self.assertEqual(acc.updated, note._last_updated)
+
+        note._last_updated = datetime.datetime(2000, 1, 1, 0)
+        self.session.commit()
+
+        self.assertIs(
+            self.session.query(Accession)
+            .filter(Accession.updated == date)
+            .first(),
+            acc,
+        )
+
+        # the python function
+        self.assertEqual(acc.updated, acc._last_updated)
+
+    def test_updated_source(self):
+        # make sure the date is not now
+        date = datetime.datetime(2001, 1, 1, 0)
+        fam = Family(epithet="Myrtaceae")
+        gen = Genus(epithet="Syzygium", family=fam)
+        sp = Species(epithet="luehmannii", genus=gen)
+        acc = Accession(code="2025.0001", species=sp, _last_updated=date)
+        source_detail = SourceDetail(
+            name="Jade Green", source_type="Individual"
+        )
+        acc.source = Source(source_detail=source_detail)
+        self.session.add(acc)
+        self.session.commit()
+
+        self.assertIs(
+            self.session.query(Accession)
+            .filter(Accession.updated > "Today")
+            .first(),
+            acc,
+        )
+
+        # the python function
+        self.assertEqual(acc.updated, acc.source._last_updated)
+
+    def test_updated_source_collection(self):
+        # make sure the date is not now
+        date = datetime.datetime(2001, 1, 1, 0)
+        fam = Family(epithet="Myrtaceae")
+        gen = Genus(epithet="Syzygium", family=fam)
+        sp = Species(epithet="luehmannii", genus=gen)
+        acc = Accession(code="2025.0001", species=sp, _last_updated=date)
+        source_detail = SourceDetail(
+            name="Jade Green", source_type="Individual"
+        )
+        collection = Collection(locale="some location")
+        acc.source = Source(
+            source_detail=source_detail,
+            collection=collection,
+            _last_updated=date,
+        )
+        self.session.add(acc)
+        self.session.commit()
+
+        self.assertIs(
+            self.session.query(Accession)
+            .filter(Accession.updated > "Today")
+            .first(),
+            acc,
+        )
+
+        # the python function
+        self.assertEqual(acc.updated, acc.source.collection._last_updated)
+
+    def test_updated_source_propagation(self):
+        # make sure the date is not now
+        date = datetime.datetime(2001, 1, 1, 0)
+        fam = Family(epithet="Myrtaceae")
+        gen = Genus(epithet="Syzygium", family=fam)
+        sp = Species(epithet="luehmannii", genus=gen)
+        acc = Accession(code="2025.0001", species=sp, _last_updated=date)
+        source_detail = SourceDetail(
+            name="Jade Green", source_type="Individual"
+        )
+        prop = Propagation(prop_type="Other")
+        acc.source = Source(
+            source_detail=source_detail, propagation=prop, _last_updated=date
+        )
+        self.session.add(acc)
+        self.session.commit()
+
+        self.assertIs(
+            self.session.query(Accession)
+            .filter(Accession.updated > "Today")
+            .first(),
+            acc,
+        )
+
+        # the python function
+        self.assertEqual(acc.updated, acc.source.propagation._last_updated)
+
+    def test_updated_intended_locations(self):
+        # make sure the date is not now
+        date = datetime.datetime(2001, 1, 1, 0)
+        fam = Family(epithet="Myrtaceae")
+        gen = Genus(epithet="Syzygium", family=fam)
+        sp = Species(epithet="luehmannii", genus=gen)
+        acc = Accession(code="2025.0001", species=sp, _last_updated=date)
+        loc = Location(code="LOC1")
+        acc.intended_locations.append(IntendedLocation(location=loc))
+        self.session.add(acc)
+        self.session.commit()
+
+        self.assertIs(
+            self.session.query(Accession)
+            .filter(Accession.updated > "Today")
+            .first(),
+            acc,
+        )
+
+        # the python function
+        self.assertEqual(acc.updated, acc.intended_locations[0]._last_updated)
+
+    def test_updated_vouchers(self):
+        # make sure the date is not now
+        date = datetime.datetime(2001, 1, 1, 0)
+        fam = Family(epithet="Myrtaceae")
+        gen = Genus(epithet="Melaleuca", family=fam)
+        sp = Species(epithet="viminalis", genus=gen)
+        acc = Accession(code="2025.0001", species=sp, _last_updated=date)
+        voucher = Voucher(herbarium="BRI", code="AQ0012")
+        acc.vouchers.append(voucher)
+        self.session.add(acc)
+        self.session.commit()
+
+        self.assertIs(
+            self.session.query(Accession)
+            .filter(Accession.updated > "Today")
+            .first(),
+            acc,
+        )
+
+        # the python function
+        self.assertEqual(acc.updated, acc.vouchers[0]._last_updated)
+        self.assertNotEqual(acc.updated, acc._last_updated)
+
+    def test_updated_verifications(self):
+        # make sure the date is not now
+        date = datetime.datetime(2001, 1, 1, 0)
+        fam = Family(epithet="Myrtaceae")
+        gen = Genus(epithet="Melaleuca", family=fam)
+        sp = Species(epithet="viminalis", genus=gen)
+        acc = Accession(code="2025.0001", species=sp, _last_updated=date)
+        vern = Verification(
+            verifier="Jade Green",
+            level=3,
+            prev_species_id=1,
+            species_id=1,
+            date="1/1/2025",
+        )
+        acc.verifications.append(vern)
+        self.session.add(acc)
+        self.session.commit()
+
+        self.assertIs(
+            self.session.query(Accession)
+            .filter(Accession.updated > "Today")
+            .first(),
+            acc,
+        )
+
+        # the python function
+        self.assertEqual(acc.updated, acc.verifications[0]._last_updated)
+        self.assertNotEqual(acc.updated, acc._last_updated)
+
+
 class IntendedLocationsTests(GardenTestCase):
     @staticmethod
     def set_combo_from_value(combo, value):
@@ -4352,6 +4775,100 @@ class LocationTests(GardenTestCase):
         expander.update(loc)
 
         self.assertFalse(expander.get_expanded())
+
+
+class LocationUpdatedTests(BaubleTestCase):
+
+    def test_updated_self(self):
+        loc = Location(code="LOC1")
+        self.session.add(loc)
+        self.session.commit()
+
+        self.assertIs(
+            self.session.query(Location)
+            .filter(Location.updated > "Today")
+            .first(),
+            loc,
+        )
+
+        # the python function
+        self.assertEqual(loc.updated, loc._last_updated)
+
+        date = datetime.datetime(2001, 1, 1, 0)
+        loc._last_updated = date
+        self.session.commit()
+
+        self.assertIs(
+            self.session.query(Location)
+            .filter(Location.updated == date)
+            .first(),
+            loc,
+        )
+
+        # the python function
+        self.assertEqual(loc.updated, loc._last_updated)
+
+    def test_updated_notes(self):
+        date = datetime.datetime(2001, 1, 1, 0)
+        loc = Location(code="LOC1", _last_updated=date)
+        note = LocationNote(category="Spam", note="Eggs", location=loc)
+        self.session.add(loc)
+        self.session.commit()
+
+        self.assertIs(
+            self.session.query(Location)
+            .filter(Location.updated > "Today")
+            .first(),
+            loc,
+        )
+
+        # the python function
+        self.assertEqual(loc.updated, note._last_updated)
+
+        note._last_updated = datetime.datetime(2000, 1, 1, 0)
+        self.session.commit()
+
+        self.assertIs(
+            self.session.query(Location)
+            .filter(Location.updated == date)
+            .first(),
+            loc,
+        )
+
+        # the python function
+        self.assertEqual(loc.updated, loc._last_updated)
+
+    def test_updated_pictures(self):
+        date = datetime.datetime(2001, 1, 1, 0)
+        loc = Location(code="LOC1", _last_updated=date)
+        note = LocationPicture(
+            category="Spam", picture="Eggs.png", location=loc
+        )
+        self.session.add(loc)
+        self.session.commit()
+
+        self.assertIs(
+            self.session.query(Location)
+            .filter(Location.updated > "Today")
+            .first(),
+            loc,
+        )
+
+        # the python function
+        self.assertEqual(loc.updated, note._last_updated)
+
+        note._last_updated = datetime.datetime(2000, 1, 1, 0)
+        self.session.commit()
+
+        self.assertIs(
+            self.session.query(Location)
+            .filter(Location.updated == date)
+            .first(),
+            loc,
+        )
+
+        # the python function
+        self.assertEqual(loc.updated, loc._last_updated)
 
 
 class CollectionTests(GardenTestCase):

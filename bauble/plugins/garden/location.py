@@ -22,6 +22,7 @@ Location table definition and related
 import logging
 import os
 import traceback
+from datetime import datetime
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -35,7 +36,9 @@ from sqlalchemy import case
 from sqlalchemy import func
 from sqlalchemy import literal
 from sqlalchemy import select
+from sqlalchemy import union
 from sqlalchemy.exc import DBAPIError
+from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.orm import Session
 from sqlalchemy.orm import backref
 from sqlalchemy.orm import deferred
@@ -258,6 +261,39 @@ class Location(db.Domain, db.WithNotes):
         if self.name:
             return f"({self.code}) {self.name}"
         return str(self.code)
+
+    @hybrid_property
+    def updated(self) -> datetime:
+        updates = [self._last_updated]
+
+        if self.notes:
+            updates.append(max(i._last_updated for i in self.notes))
+
+        if self.pictures:
+            updates.append(max(i._last_updated for i in self.pictures))
+
+        return max(updates)
+
+    @updated.expression  # type: ignore [no-redef]
+    def updated(cls) -> types.DateTime:
+        # pylint: disable=no-self-argument,no-self-use,arguments-renamed
+        self_select = select([cls._last_updated, cls.id])
+
+        note_select = select([LocationNote._last_updated, cls.id]).join(cls)
+
+        pic_select = select([LocationPicture._last_updated, cls.id]).join(cls)
+
+        dates = union(
+            self_select,
+            note_select,
+            pic_select,
+        ).alias("dates")
+
+        return (
+            select([func.max(dates.c._last_updated)])
+            .where(dates.c.id == cls.id)
+            .label("updated")
+        )
 
     @classmethod
     def top_level_count(

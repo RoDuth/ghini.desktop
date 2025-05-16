@@ -33,6 +33,7 @@ from bauble import db
 from bauble import error
 from bauble import prefs
 from bauble import search
+from bauble import utils
 from bauble.search.search import result_cache
 from bauble.test import BaubleClassTestCase
 from bauble.test import BaubleTestCase
@@ -1855,11 +1856,14 @@ class SearchTests2(BaubleTestCase):
         from bauble.plugins.garden.plant import PlantPicture
         from bauble.plugins.plants.species_model import SpeciesPicture
 
+        date = utils.utcnow_naive() + datetime.timedelta(days=1)
+
         loc_pic = LocationPicture(
             picture="test.jpg",
             user="Jade Green",
             date=datetime.datetime.today(),
             location_id=1,
+            _last_updated=date,
         )
         plt_pic = PlantPicture(
             picture="test.jpg",
@@ -1872,6 +1876,7 @@ class SearchTests2(BaubleTestCase):
             user="Forrest Gardener",
             date=datetime.datetime.today(),
             species_id=1,
+            _last_updated=date,
         )
         self.session.add_all([loc_pic, plt_pic, sp_pic])
         self.session.commit()
@@ -1899,6 +1904,15 @@ class SearchTests2(BaubleTestCase):
         self.assertCountEqual(
             {(type(i).__tablename__, i.id) for i in results},
             [("plant", 1), ("location", 1)],
+        )
+
+        # test updated
+        string = "domains where updated on 1"
+        results = search.search(string, self.session)
+
+        self.assertCountEqual(
+            {(type(i).__tablename__, i.id) for i in results},
+            [("species", 1), ("location", 1)],
         )
 
         # test the error

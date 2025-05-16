@@ -64,6 +64,7 @@ from sqlalchemy import not_
 from sqlalchemy import or_
 from sqlalchemy import select
 from sqlalchemy import tuple_
+from sqlalchemy import union
 from sqlalchemy.exc import DBAPIError
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.exc import SQLAlchemyError
@@ -112,6 +113,7 @@ from .accession import Accession
 from .location import Location
 from .location import LocationEditor
 from .propagation import PlantPropagation
+from .propagation import Propagation
 
 # TODO: might be worthwhile to have a label or textview next to the
 # location combo that shows the description of the currently selected
@@ -972,6 +974,60 @@ class Plant(db.Domain, db.WithNotes):
         from sqlalchemy.sql.expression import cast
 
         return cast(case([(cls.quantity > 0, 1)], else_=0), types.Boolean)
+
+    @hybrid_property
+    def updated(self) -> datetime:
+        updates = [self._last_updated]
+
+        if self.notes:
+            updates.append(max(i._last_updated for i in self.notes))
+
+        if self.pictures:
+            updates.append(max(i._last_updated for i in self.pictures))
+
+        if self.propagations:
+            updates.append(max(i._last_updated for i in self.propagations))
+
+        if self.changes:
+            updates.append(max(i._last_updated for i in self.changes))
+
+        return max(updates)
+
+    @updated.expression  # type: ignore [no-redef]
+    def updated(cls) -> types.DateTime:
+        # pylint: disable=no-self-argument,no-self-use,arguments-renamed
+        self_select = select([cls._last_updated, cls.id])
+
+        note_select = select([PlantNote._last_updated, cls.id]).join(cls)
+
+        pic_select = select([PlantPicture._last_updated, cls.id]).join(cls)
+
+        prop_select = (
+            select([Propagation._last_updated, cls.id])
+            .join(
+                PlantPropagation,
+                PlantPropagation.propagation_id == Propagation.id,
+            )
+            .join(cls)
+        )
+
+        change_select = select([PlantChange._last_updated, cls.id]).join(
+            cls, PlantChange.plant_id == cls.id
+        )
+
+        dates = union(
+            self_select,
+            note_select,
+            pic_select,
+            prop_select,
+            change_select,
+        ).alias("dates")
+
+        return (
+            select([func.max(dates.c._last_updated)])
+            .where(dates.c.id == cls.id)
+            .label("updated")
+        )
 
     def __str__(self):
         return f"{self.accession}{self.delimiter}{self.code}"

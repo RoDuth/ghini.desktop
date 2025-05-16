@@ -24,6 +24,7 @@ Genera table module
 import logging
 import os
 import traceback
+from datetime import datetime
 
 logger = logging.getLogger(__name__)
 
@@ -45,6 +46,7 @@ from sqlalchemy import inspect as sa_inspect
 from sqlalchemy import literal
 from sqlalchemy import or_
 from sqlalchemy import select
+from sqlalchemy import union
 from sqlalchemy import update
 from sqlalchemy.exc import DBAPIError
 from sqlalchemy.ext.associationproxy import association_proxy
@@ -401,6 +403,37 @@ class Genus(db.Domain, db.WithNotes):
             .scalar_subquery()
         )
         return cast(case([(cls.id.in_(active), 1)], else_=0), types.Boolean)
+
+    @hybrid_property
+    def updated(self) -> datetime:
+        updates = [self._last_updated]
+
+        if self._accepted:
+            updates.append(self._accepted._last_updated)
+
+        if self.notes:
+            updates.append(max(i._last_updated for i in self.notes))
+
+        return max(updates)
+
+    @updated.expression  # type: ignore [no-redef]
+    def updated(cls) -> types.DateTime:
+        # pylint: disable=no-self-argument,no-self-use,arguments-renamed
+        self_select = select([cls._last_updated, cls.id])
+
+        note_select = select([GenusNote._last_updated, cls.id]).join(cls)
+
+        accepted_select = select([GenusSynonym._last_updated, cls.id]).join(
+            cls, cls.id == GenusSynonym.synonym_id
+        )
+
+        dates = union(self_select, note_select, accepted_select).alias("dates")
+
+        return (
+            select([func.max(dates.c._last_updated)])
+            .where(dates.c.id == cls.id)
+            .label("updated")
+        )
 
     @classmethod
     def top_level_count(

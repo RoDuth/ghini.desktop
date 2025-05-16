@@ -23,6 +23,7 @@ The species database model
 
 import logging
 import re
+from datetime import datetime
 from itertools import chain
 
 logger = logging.getLogger(__name__)
@@ -44,6 +45,7 @@ from sqlalchemy import literal
 from sqlalchemy import or_
 from sqlalchemy import select
 from sqlalchemy import text
+from sqlalchemy import union
 from sqlalchemy.ext.associationproxy import association_proxy
 from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.orm import Mapped
@@ -1038,7 +1040,7 @@ class Species(db.Domain, db.WithNotes):
 
     @active.expression  # type: ignore [no-redef]
     def active(cls):
-        # pylint: disable=no-self-argument
+        # pylint: disable=no-self-argument,no-self-use,arguments-renamed
         acc_cls = cls.accessions.prop.mapper.class_
         plt_cls = acc_cls.plants.prop.mapper.class_
         active = (
@@ -1049,6 +1051,63 @@ class Species(db.Domain, db.WithNotes):
             .scalar_subquery()
         )
         return cast(case([(cls.id.in_(active), 1)], else_=0), types.Boolean)
+
+    @hybrid_property
+    def updated(self) -> datetime:
+        updates = [self._last_updated]
+
+        if self._accepted:
+            updates.append(self._accepted._last_updated)
+
+        if self.notes:
+            updates.append(max(i._last_updated for i in self.notes))
+
+        if self._pictures:
+            updates.append(max(i._last_updated for i in self._pictures))
+
+        if self.distribution:
+            updates.append(max(i._last_updated for i in self.distribution))
+
+        if self.vernacular_names:
+            updates.append(max(i._last_updated for i in self.vernacular_names))
+
+        return max(updates)
+
+    @updated.expression  # type: ignore [no-redef]
+    def updated(cls) -> types.DateTime:
+        # pylint: disable=no-self-argument,no-self-use,arguments-renamed
+        self_select = select([cls._last_updated, cls.id])
+
+        note_select = select([SpeciesNote._last_updated, cls.id]).join(cls)
+
+        pic_select = select([SpeciesPicture._last_updated, cls.id]).join(cls)
+
+        accepted_select = select([SpeciesSynonym._last_updated, cls.id]).join(
+            cls, cls.id == SpeciesSynonym.synonym_id
+        )
+
+        dist_select = select([SpeciesDistribution._last_updated, cls.id]).join(
+            cls, cls.id == SpeciesDistribution.species_id
+        )
+
+        vern_select = select([VernacularName._last_updated, cls.id]).join(
+            cls, cls.id == VernacularName.species_id
+        )
+
+        dates = union(
+            self_select,
+            note_select,
+            pic_select,
+            accepted_select,
+            dist_select,
+            vern_select,
+        ).alias("dates")
+
+        return (
+            select([func.max(dates.c._last_updated)])
+            .where(dates.c.id == cls.id)
+            .label("updated")
+        )
 
     @property
     def pictures(self) -> list[db.Picture]:

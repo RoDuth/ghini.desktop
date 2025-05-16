@@ -1237,6 +1237,83 @@ class FamilyTests(PlantTestCase):
         self.assertEqual(fam.has_children(), True)
 
 
+class FamilyUpdatedTests(BaubleTestCase):
+
+    def test_updated_self(self):
+        fam = Family(epithet="Myrtaceae")
+        self.session.add(fam)
+        self.session.commit()
+
+        self.assertIs(
+            self.session.query(Family)
+            .filter(Family.updated > "Today")
+            .first(),
+            fam,
+        )
+
+        # the python function
+        self.assertEqual(fam.updated, fam._last_updated)
+
+        date = datetime(2001, 1, 1, 0)
+        fam._last_updated = date
+        self.session.commit()
+
+        self.assertIs(
+            self.session.query(Family).filter(Family.updated == date).first(),
+            fam,
+        )
+
+        # the python function
+        self.assertEqual(fam.updated, fam._last_updated)
+
+    def test_updated_notes(self):
+        date = datetime(2001, 1, 1, 0)
+        fam = Family(epithet="Myrtaceae", _last_updated=date)
+        note = FamilyNote(category="Spam", note="Eggs", family=fam)
+        self.session.add_all([fam, note])
+        self.session.commit()
+
+        self.assertIs(
+            self.session.query(Family)
+            .filter(Family.updated > "Today")
+            .first(),
+            fam,
+        )
+
+        # the python function
+        self.assertEqual(fam.updated, note._last_updated)
+
+        note._last_updated = datetime(2001, 1, 1, 0)
+        self.session.commit()
+
+        self.assertIs(
+            self.session.query(Family).filter(Family.updated == date).first(),
+            fam,
+        )
+
+        # the python function
+        self.assertEqual(fam.updated, fam._last_updated)
+
+    def test_updated_synonym(self):
+        # make sure the date is not now
+        date = datetime(2001, 1, 1, 0)
+        fam = Family(epithet="Myrtaceae", _last_updated=date)
+        fam2 = Family(epithet="Kaniaceae", _last_updated=date)
+        fam2.accepted = fam
+        self.session.add_all([fam, fam2])
+        self.session.commit()
+
+        self.assertIs(
+            self.session.query(Family)
+            .filter(Family.updated > "Today")
+            .first(),
+            fam2,
+        )
+
+        # the python function
+        self.assertEqual(fam2.updated, fam2._accepted._last_updated)
+
+
 class FamilyTopLevelCountTests(BaubleTestCase):
     def setUp(self):
         super().setUp()
@@ -1950,6 +2027,80 @@ class GenusTests(PlantTestCase):
             Genus.active.is_(True)
         )
         self.assertNotIn(gen, gen_active_in_db)
+
+
+class GenusUpdatedTests(BaubleTestCase):
+
+    def test_updated_self(self):
+        fam = Family(epithet="Myrtaceae")
+        gen = Genus(epithet="Syzygium", family=fam)
+        self.session.add(gen)
+        self.session.commit()
+
+        self.assertIs(
+            self.session.query(Genus).filter(Genus.updated > "Today").first(),
+            gen,
+        )
+
+        # the python function
+        self.assertEqual(gen.updated, gen._last_updated)
+
+        date = datetime(2001, 1, 1, 0)
+        gen._last_updated = date
+        self.session.commit()
+
+        self.assertIs(
+            self.session.query(Genus).filter(Genus.updated == date).first(),
+            gen,
+        )
+
+        # the python function
+        self.assertEqual(gen.updated, gen._last_updated)
+
+    def test_updated_notes(self):
+        date = datetime(2001, 1, 1, 0)
+        fam = Family(epithet="Myrtaceae")
+        gen = Genus(epithet="Syzygium", family=fam, _last_updated=date)
+        note = GenusNote(category="Spam", note="Eggs", genus=gen)
+        self.session.add_all([gen, note])
+        self.session.commit()
+
+        self.assertIs(
+            self.session.query(Genus).filter(Genus.updated > "Today").first(),
+            gen,
+        )
+
+        # the python function
+        self.assertEqual(gen.updated, note._last_updated)
+
+        note._last_updated = datetime(2000, 1, 1, 0)
+        self.session.commit()
+
+        self.assertIs(
+            self.session.query(Genus).filter(Genus.updated == date).first(),
+            gen,
+        )
+
+        # the python function
+        self.assertEqual(gen.updated, gen._last_updated)
+
+    def test_updated_synonym(self):
+        # make sure the date is not now
+        date = datetime(2001, 1, 1, 0)
+        fam = Family(epithet="Myrtaceae")
+        gen = Genus(epithet="Melaleuca", family=fam, _last_updated=date)
+        gen2 = Genus(epithet="Callistemon", family=fam, _last_updated=date)
+        gen2.accepted = gen
+        self.session.add_all([gen, gen2])
+        self.session.commit()
+
+        self.assertIs(
+            self.session.query(Genus).filter(Genus.updated > "Today").first(),
+            gen2,
+        )
+
+        # the python function
+        self.assertEqual(gen2.updated, gen2._accepted._last_updated)
 
 
 class GenusTopLevelCountTests(BaubleTestCase):
@@ -3105,6 +3256,170 @@ class SpeciesTests(PlantTestCase):
         # detached returns empty
         self.session.expunge(sp)
         self.assertEqual(sp.pictures, [])
+
+
+class SpeciesUpdatedTests(BaubleTestCase):
+
+    def test_updated_self(self):
+        fam = Family(epithet="Myrtaceae")
+        gen = Genus(epithet="Syzygium", family=fam)
+        sp = Species(epithet="luehmannii", genus=gen)
+        self.session.add(sp)
+        self.session.commit()
+
+        self.assertIs(
+            self.session.query(Species)
+            .filter(Species.updated > "Today")
+            .first(),
+            sp,
+        )
+
+        # the python function
+        self.assertEqual(sp.updated, sp._last_updated)
+
+        date = datetime(2001, 1, 1, 0)
+        sp._last_updated = date
+        self.session.commit()
+
+        self.assertIs(
+            self.session.query(Species)
+            .filter(Species.updated == date)
+            .first(),
+            sp,
+        )
+
+        # the python function
+        self.assertEqual(sp.updated, sp._last_updated)
+
+    def test_updated_notes(self):
+        date = datetime(2001, 1, 1, 0)
+        fam = Family(epithet="Myrtaceae")
+        gen = Genus(epithet="Syzygium", family=fam)
+        sp = Species(epithet="luehmannii", genus=gen, _last_updated=date)
+        note = SpeciesNote(category="Spam", note="Eggs", species=sp)
+        self.session.add_all([sp, note])
+        self.session.commit()
+
+        self.assertIs(
+            self.session.query(Species)
+            .filter(Species.updated > "Today")
+            .first(),
+            sp,
+        )
+
+        # the python function
+        self.assertEqual(sp.updated, note._last_updated)
+
+        note._last_updated = datetime(2000, 1, 1, 0)
+        self.session.commit()
+
+        self.assertIs(
+            self.session.query(Species)
+            .filter(Species.updated == date)
+            .first(),
+            sp,
+        )
+
+        # the python function
+        self.assertEqual(sp.updated, sp._last_updated)
+
+    def test_updated_pictures(self):
+        date = datetime(2001, 1, 1, 0)
+        fam = Family(epithet="Myrtaceae")
+        gen = Genus(epithet="Syzygium", family=fam)
+        sp = Species(epithet="luehmannii", genus=gen, _last_updated=date)
+        pic = SpeciesPicture(category="Spam", picture="Eggs.png", species=sp)
+        self.session.add_all([sp, pic])
+        self.session.commit()
+
+        self.assertIs(
+            self.session.query(Species)
+            .filter(Species.updated > "Today")
+            .first(),
+            sp,
+        )
+
+        # the python function
+        self.assertEqual(sp.updated, pic._last_updated)
+
+        pic._last_updated = datetime(2000, 1, 1, 0)
+        self.session.commit()
+
+        self.assertIs(
+            self.session.query(Species)
+            .filter(Species.updated == date)
+            .first(),
+            sp,
+        )
+
+        # the python function
+        self.assertEqual(sp.updated, sp._last_updated)
+
+    def test_updated_synonym(self):
+        # make sure the date is not now
+        date = datetime(2001, 1, 1, 0)
+        fam = Family(epithet="Myrtaceae")
+        gen = Genus(epithet="Melaleuca", family=fam)
+        gen2 = Genus(epithet="Callistemon", family=fam)
+        sp1 = Species(epithet="viminalis", genus=gen, _last_updated=date)
+        sp2 = Species(epithet="viminalis", genus=gen2, _last_updated=date)
+        sp2.accepted = sp1
+        self.session.add_all([sp1, sp2])
+        self.session.commit()
+
+        self.assertIs(
+            self.session.query(Species)
+            .filter(Species.updated > "Today")
+            .first(),
+            sp2,
+        )
+
+        # the python function
+        self.assertEqual(sp2.updated, sp2._accepted._last_updated)
+
+    def test_updated_distribution(self):
+        # make sure the date is not now
+        date = datetime(2001, 1, 1, 0)
+        fam = Family(epithet="Myrtaceae")
+        gen = Genus(epithet="Melaleuca", family=fam)
+        sp = Species(epithet="viminalis", genus=gen, _last_updated=date)
+        geo = Geography(name="Fiji", code="FIJ", level="1")
+        sp.distribution.append(SpeciesDistribution(geography=geo))
+        self.session.add(sp)
+        self.session.commit()
+
+        self.assertIs(
+            self.session.query(Species)
+            .filter(Species.updated > "Today")
+            .first(),
+            sp,
+        )
+
+        # the python function
+        self.assertEqual(sp.updated, sp.distribution[0]._last_updated)
+        self.assertNotEqual(sp.updated, sp._last_updated)
+
+    def test_updated_vernacular_name(self):
+        # make sure the date is not now
+        date = datetime(2001, 1, 1, 0)
+        fam = Family(epithet="Myrtaceae")
+        gen = Genus(epithet="Melaleuca", family=fam)
+        sp = Species(epithet="viminalis", genus=gen, _last_updated=date)
+        vern = VernacularName(name="Bottle Brush")
+        sp.vernacular_names.append(vern)
+        self.session.add(sp)
+        self.session.commit()
+
+        self.assertIs(
+            self.session.query(Species)
+            .filter(Species.updated > "Today")
+            .first(),
+            sp,
+        )
+
+        # the python function
+        self.assertEqual(sp.updated, sp.vernacular_names[0]._last_updated)
+        self.assertNotEqual(sp.updated, sp._last_updated)
 
 
 class SpeciesTopLevelCountTests(BaubleTestCase):
