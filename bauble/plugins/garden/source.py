@@ -1133,7 +1133,7 @@ class PropagationChooserPresenter(editor.ChildPresenter):
 
 def create_source_detail(parent=None):
     model = SourceDetail()
-    source_detail_edit_callback([model], parent)
+    source_detail_edit_callback([model], parent=parent)
     return [model]
 
 
