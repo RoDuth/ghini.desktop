@@ -1164,14 +1164,14 @@ class GenericPresenter:
     Example as a separate presenter classes::
 
         @Gtk.Template(filename="/path/to/file.ui"))
-        class FooView(GenericPresenter, Gtk.Dialog):
+        class FooView(Gtk.Dialog):
 
             __gtype_name__ = "Foo"
 
             bar = cast(Gtk.Entry, Gtk.Template.Child())
 
 
-        class FooPresenter(editor.GenericPresenter):
+        class FooPresenter(GenericPresenter):
             def __init__(
                     self, model: FooModel, view: FooView
             ) -> None:
