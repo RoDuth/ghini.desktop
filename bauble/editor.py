@@ -56,6 +56,8 @@ from bauble.i18n import _
 from bauble.utils import desktop
 from bauble.utils.web import FIELD_RE
 from bauble.utils.web import LinkDict
+from bauble.utils.web import get_formatted_url_for_obj
+from bauble.utils.web import update_deprecated_forms
 from bauble.view import get_search_view
 
 # TODO: create a generic date entry that can take a mask for the date format
@@ -2136,29 +2138,14 @@ class PresenterLinksMixin:
         desktop.open(self.get_url(link))
 
     def get_url(self, link: LinkDict) -> str:
-        _base_uri = link["_base_uri"]
-        fields = FIELD_RE.findall(_base_uri)
-        if fields:
-            values = {}
-            for key in fields:
-                val: str | db.Domain = self.model
-                for step in key.split("."):
-                    val = getattr(val, step, "-")
-                values[key] = val if val == str(val) else ""
-            url = _base_uri % values
-        else:
-            # remove any zws (species string)
-            string = (
-                str(self.model)
-                .replace("\u200b", "")
-                .replace(" ", link.get("_space", " "))
-            )
-            url = _base_uri % string
-        return url
+        base_uri = update_deprecated_forms(link["_base_uri"])
+        fields = FIELD_RE.findall(base_uri)
+        return get_formatted_url_for_obj(base_uri, fields, self.model)
 
     def remove_link_action_group(self):
         """Remove the action group from map_menu_btn widget."""
         action_name = self.model.__tablename__.lower() + "_link"
+        # TODO maybe self.link_menu_btn - same as above
         self.view.widgets.link_menu_btn.insert_action_group(action_name, None)
 
 

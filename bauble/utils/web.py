@@ -1,6 +1,6 @@
 # Copyright 2008-2010 Brett Adams
 # Copyright 2014-2017 Mario Frasca <mario@anche.no>.
-# Copyright 2016-2024 Ross Demuth <rossdemuth123@gmail.com>
+# Copyright 2016-2025 Ross Demuth <rossdemuth123@gmail.com>
 #
 # This file is part of ghini.desktop.
 #
@@ -19,6 +19,8 @@
 """
 Utils for the web...
 """
+from __future__ import annotations
+
 import json
 import logging
 import re
@@ -31,6 +33,8 @@ from fnmatch import fnmatch
 from http.client import HTTPResponse
 from ipaddress import ip_address
 from ipaddress import ip_network
+from operator import attrgetter
+from typing import TYPE_CHECKING
 from typing import NotRequired
 from typing import TypedDict
 
@@ -43,11 +47,13 @@ from gi.repository import Gtk
 from bauble.i18n import _
 from bauble.utils import desktop
 
+if TYPE_CHECKING:
+    from bauble import db
+
 LinkDict = TypedDict(
     "LinkDict",
     {
         "_base_uri": NotRequired[str],
-        "_space": NotRequired[str],
         "title": str,
         "tooltip": None | str,
         "name": NotRequired[str],
@@ -55,12 +61,49 @@ LinkDict = TypedDict(
     },
 )
 
-FIELD_RE = re.compile(r"%\(([a-z_\.]+)\)s")
+DEPRECATED_FIELD_RE = re.compile(r"%\(([a-z_\.]+)\)s")
+FIELD_RE = re.compile(r"\{v\[([a-z_\.]+)\]\}")
+
+
+def update_deprecated_forms(_base_uri: str) -> str:
+    """Update deprecated forms of the base uri to the new format.
+
+    This is a temporary measure to allow for backwards compatibility.
+    """
+    _base_uri = _base_uri.replace("%s", "{}")
+    _base_uri = re.sub(
+        DEPRECATED_FIELD_RE,
+        r"{v[\1]}",
+        _base_uri,
+    )
+    return _base_uri
+
+
+def get_formatted_url_for_obj(
+    base_uri: str, fields: list[str], obj: db.Domain
+) -> str:
+    """Given a base_uri template and list of fields get the formatted url for
+    the object.
+    """
+    uri = ""
+    values = {}
+    if fields:
+        for key in fields:
+            value = attrgetter(key)(obj)
+            values[key] = urllib.parse.quote(str(value))
+        uri = base_uri.format(v=values)
+    else:
+        # remove any zws (species string)
+        string = urllib.parse.quote(str(obj).replace("\u200b", ""))
+        uri = base_uri.format(string)
+
+    logger.debug("uri = %s", repr(uri))
+
+    return uri
 
 
 class BaubleLinkButton(Gtk.LinkButton):
     _base_uri = "%s"
-    _space = "_"
     title = _("Search")
     tooltip: str | None = None
     fields: list[str] = []
@@ -68,6 +111,9 @@ class BaubleLinkButton(Gtk.LinkButton):
     def __init__(self) -> None:
         super().__init__(uri="", label=self.title)
         self.set_tooltip_text(self.tooltip or self.title)
+
+        self.__class__._base_uri = update_deprecated_forms(self._base_uri)
+
         self.__class__.fields = FIELD_RE.findall(self._base_uri)
         self.set_halign(Gtk.Align.START)
         self.connect("activate-link", self.on_link_activated)
@@ -77,19 +123,15 @@ class BaubleLinkButton(Gtk.LinkButton):
         desktop.open(self.get_uri())
         return True
 
-    def set_string(self, row) -> None:
-        if self.fields:
-            values = {}
-            for key in self.fields:
-                value = row
-                for step in key.split("."):
-                    value = getattr(value, step, "-")
-                values[key] = value if value == str(value) else ""
-            self.set_uri(self._base_uri % values)
-        else:
-            # remove any zws (species string)
-            string = str(row).replace("\u200b", "").replace(" ", self._space)
-            self.set_uri(self._base_uri % string)
+    def set_string(self, row: db.Domain) -> None:
+
+        self.set_uri(
+            get_formatted_url_for_obj(
+                self._base_uri,
+                self.fields,
+                row,
+            )
+        )
 
 
 def link_button_factory(link: LinkDict) -> BaubleLinkButton:
@@ -303,12 +345,17 @@ class NetSession:
         if pac_js:
             self.pac_file = PACFile(pac_js)
 
-    def get(self, url: str, timeout: float = 5.0) -> NetResponse:
+    def get(self, url: str, timeout: float = 5.0, **kwargs) -> NetResponse:
         """Make a GET request to the supplied url.
 
         Uses an appropriate proxy when required.
 
         `close` should be called after you have finished with the response.
+
+        :param url: The url to open.
+        :param timeout: The timeout in seconds for the request.
+        :param kwargs: Any additional arguments are passed to the
+            `urllib.request.Request` object.
         """
         if self.pac_file:
             split = urllib.parse.urlsplit(url)
@@ -319,12 +366,14 @@ class NetSession:
             if proxy != "DIRECT":
                 for proxy_url in self.pac_file.parse_proxy(proxy):
                     proxies = {split.scheme: proxy_url}
-                    self._response = self._get_response(url, proxies, timeout)
+                    self._response = self._get_response(
+                        url, proxies, timeout, **kwargs
+                    )
                     if self._response:
                         return NetResponse(self._response)
         proxies = self.get_proxies()
         logger.debug("proxies now: %s", proxies)
-        self._response = self._get_response(url, proxies, timeout)
+        self._response = self._get_response(url, proxies, timeout, **kwargs)
         return NetResponse(self._response)
 
     def get_proxies(self) -> dict:
@@ -338,7 +387,7 @@ class NetSession:
         return {}
 
     def _get_response(
-        self, url: str, proxies: dict[str, str], timeout: float
+        self, url: str, proxies: dict[str, str], timeout: float, **kwargs
     ) -> HTTPResponse | None:
         # recreate the opener if the proxies are the not the same as last time
         if proxies != self._last_proxies:
@@ -346,7 +395,8 @@ class NetSession:
 
         logger.debug("attempting to open url: %s", url)
         try:
-            return self.opener.open(url, timeout=timeout)
+            req_url = urllib.request.Request(url, **kwargs)
+            return self.opener.open(req_url, timeout=timeout)
         except OSError as e:
             # NOTE to avoid SSL: CERTIFICATE_VERIFY_FAILED in frozen state need
             # to add SSL_CERT_FILE envvar pointing to certifi's cacert.pem at

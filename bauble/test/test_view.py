@@ -1936,8 +1936,7 @@ class TestSearchView(BaubleTestCase):
     def test_links_expander_w_link_init(self):
         links = [
             {
-                "_base_uri": "http://www.google.com/search?q=%s",
-                "_space": "+",
+                "_base_uri": "http://www.google.com/search?q={}",
                 "title": "Search Test",
                 "tooltip": "TEST",
             }
@@ -1951,7 +1950,6 @@ class TestSearchView(BaubleTestCase):
         links = [
             {
                 "_base_uri": None,
-                "_space": "+",
                 "title": "Search Test",
                 "tooltip": "TEST",
             }
@@ -1996,8 +1994,7 @@ class TestSearchView(BaubleTestCase):
         self.session.commit()
         links = [
             {
-                "_base_uri": "http://www.google.com/search?q=%s",
-                "_space": "+",
+                "_base_uri": "http://www.google.com/search?q={}",
                 "title": "Search Test",
                 "tooltip": "TEST",
             }

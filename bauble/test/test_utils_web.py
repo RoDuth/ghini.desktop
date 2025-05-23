@@ -39,8 +39,7 @@ from scripts.pac_server.simple_serve import server
 class LinkButtonTests(TestCase):
     def test_factory(self):
         link = {
-            "_base_uri": "http://www.google.com/search?q=%s",
-            "_space": "+",
+            "_base_uri": "http://www.google.com/search?q={}",
             "title": "Search Test",
             "tooltip": "TEST",
         }
@@ -50,21 +49,62 @@ class LinkButtonTests(TestCase):
 
     def test_set_string_basic(self):
         link = {
-            "_base_uri": "http://www.google.com/search?q=%s",
-            "_space": "+",
+            "_base_uri": "http://www.google.com/search?q={}",
             "title": "Search Test",
             "tooltip": "TEST",
         }
         btn = link_button_factory(link)
         btn.set_string("Eucalyptus major")
         self.assertEqual(
-            btn.get_uri(), "http://www.google.com/search?q=Eucalyptus+major"
+            btn.get_uri(), "http://www.google.com/search?q=Eucalyptus%20major"
         )
 
     def test_set_string_w_fields(self):
         link = {
+            "_base_uri": "http://en.wikipedia.org/wiki/{v[genus.epithet]}_{v[epithet]}",
+            "title": "Search Wikipedia",
+            "tooltip": "open the wikipedia page about this species",
+        }
+        btn = link_button_factory(link)
+        mock_row = mock.Mock(
+            genus=mock.Mock(epithet="Eucalyptus"),
+            epithet="major",
+        )
+        btn.set_string(mock_row)
+        self.assertEqual(
+            btn.get_uri(),
+            "http://en.wikipedia.org/wiki/Eucalyptus_major",
+        )
+
+    @mock.patch("bauble.utils.web.desktop.open")
+    def test_on_link_activate(self, mock_open):
+        link = {
+            "_base_uri": "http://www.google.com/search?q={}",
+            "title": "Search Test",
+            "tooltip": "TEST",
+        }
+        btn = link_button_factory(link)
+        btn.set_string("Eucalyptus major")
+        btn.on_link_activated(None)
+        mock_open.assert_called_with(
+            "http://www.google.com/search?q=Eucalyptus%20major"
+        )
+
+    def test_depricated_format_wo_field(self):
+        link = {
+            "_base_uri": "http://www.google.com/search?q=%s",
+            "title": "Search Test",
+            "tooltip": "TEST",
+        }
+        btn = link_button_factory(link)
+        btn.set_string("Eucalyptus major")
+        self.assertEqual(
+            btn.get_uri(), "http://www.google.com/search?q=Eucalyptus%20major"
+        )
+
+    def test_depricated_format_w_field(self):
+        link = {
             "_base_uri": "http://en.wikipedia.org/wiki/%(genus.genus)s_%(sp)s",
-            "_space": "+",
             "title": "Search Wikipedia",
             "tooltip": "open the wikipedia page about this species",
         }
@@ -76,19 +116,27 @@ class LinkButtonTests(TestCase):
             "http://en.wikipedia.org/wiki/Eucalyptus_major",
         )
 
-    @mock.patch("bauble.utils.web.desktop.open")
-    def test_on_link_activate(self, mock_open):
+    def test_url_encoded(self):
         link = {
-            "_base_uri": "http://www.google.com/search?q=%s",
-            "_space": "+",
-            "title": "Search Test",
-            "tooltip": "TEST",
+            "_base_uri": "https://plantsearch.bgci.org/search?"
+            "filter%5Bgenus%5D={v[genus.epithet]}&"
+            "filter%5bspecific_epithet%5D={v[epithet]}&"
+            "sort=name",
+            "title": "Search BGCI",
+            "tooltip": "Search Botanic Gardens Conservation International",
         }
         btn = link_button_factory(link)
-        btn.set_string("Eucalyptus major")
-        btn.on_link_activated(None)
-        mock_open.assert_called_with(
-            "http://www.google.com/search?q=Eucalyptus+major"
+        mock_row = mock.Mock(
+            genus=mock.Mock(epithet="Lenwebbia"),
+            epithet="sp. (Main Range P.R. Sharpe+ 4877)",
+        )
+        btn.set_string(mock_row)
+        self.assertEqual(
+            btn.get_uri(),
+            "https://plantsearch.bgci.org/search?"
+            "filter%5Bgenus%5D=Lenwebbia&"
+            "filter%5bspecific_epithet%5D="
+            "sp.%20%28Main%20Range%20P.R.%20Sharpe%2B%204877%29&sort=name",
         )
 
 
