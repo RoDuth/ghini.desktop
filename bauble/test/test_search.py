@@ -1856,7 +1856,9 @@ class SearchTests2(BaubleTestCase):
         from bauble.plugins.garden.plant import PlantPicture
         from bauble.plugins.plants.species_model import SpeciesPicture
 
-        date = utils.utcnow_naive() + datetime.timedelta(days=1)
+        # NOTE test data already has species 1 _last_updated days + 1 so need
+        # to use + 2 here.
+        date = utils.utcnow_naive() + datetime.timedelta(days=2)
 
         loc_pic = LocationPicture(
             picture="test.jpg",
@@ -1907,7 +1909,7 @@ class SearchTests2(BaubleTestCase):
         )
 
         # test updated
-        string = "domains where updated on 1"
+        string = "domains where updated on 2"
         results = search.search(string, self.session)
 
         self.assertCountEqual(
