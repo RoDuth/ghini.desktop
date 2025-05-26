@@ -22,10 +22,12 @@ import shutil
 import sys
 import traceback
 from typing import Literal
+from typing import cast
 
 from gi.repository import Gdk
 from gi.repository import Gio
 from gi.repository import Gtk
+from sqlalchemy.engine import URL
 
 import bauble
 from bauble import db
@@ -107,14 +109,14 @@ class Application(Gtk.Application):
         if getattr(bauble.db, "engine", None):
             return None
 
-        uri: str | None = None
+        uri: URL | None = None
         conn_name: str | None = None
         open_exc: Exception | None = None
         while True:
             if not uri or not conn_name:
                 conn_name, uri = start_connection_manager()
                 logger.debug("conn_name = %s")
-                if conn_name is None:
+                if conn_name is None or uri is None:
                     self.quit()
                     return False
                 bauble.conn_name = conn_name
@@ -122,12 +124,12 @@ class Application(Gtk.Application):
                 # testing, database initialized at current version.  or we
                 # get two different exceptions.
                 if db.open_conn(uri, True, True):
-                    prefs.prefs[bauble.conn_default_pref] = conn_name
+                    prefs.prefs[bauble.CONN_DEFAULT_PREF] = conn_name
                     break
                 uri = conn_name = None
             except err.VersionError as e:
                 logger.warning("%s(%s)", type(e).__name__, e)
-                db.open_conn(uri, False)
+                db.open_conn(cast(URL, uri), False)
                 break
             except (
                 err.EmptyDatabaseError,
@@ -139,7 +141,7 @@ class Application(Gtk.Application):
                 open_exc = e
                 # reopen without verification so that db.Session and
                 # db.engine, db.metadata will be bound to an engine
-                db.open_conn(uri, False)
+                db.open_conn(cast(URL, uri), False)
                 break
             except err.DatabaseError as e:
                 logger.debug("%s(%s)", type(e).__name__, e)
@@ -182,7 +184,7 @@ class Application(Gtk.Application):
                         # inadvertantly create tables from the plugins
                         pluginmgr.init()
                         # set the default connection
-                        prefs.prefs[bauble.conn_default_pref] = (
+                        prefs.prefs[bauble.CONN_DEFAULT_PREF] = (
                             bauble.conn_name
                         )
                     except Exception as e:  # pylint: disable=broad-except

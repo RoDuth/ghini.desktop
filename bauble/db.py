@@ -41,6 +41,8 @@ from sqlalchemy import cast as sqlacast
 from sqlalchemy import event
 from sqlalchemy import literal
 from sqlalchemy import select
+from sqlalchemy.engine import URL
+from sqlalchemy.engine import Engine
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.orm import Session as SASession
@@ -598,7 +600,12 @@ def _sqlite_fk_pragma(dbapi_connection, _connection_record):
         cursor.close()
 
 
-def open_conn(uri, verify=True, show_error_dialogs=False, poolclass=None):
+def open_conn(
+    uri: URL,
+    verify: bool = True,
+    show_error_dialogs: bool = False,
+    poolclass=None,
+) -> Engine | None:
     """Open a database connection.  This function sets bauble.db.engine to
     the opened engined.
 
@@ -606,7 +613,6 @@ def open_conn(uri, verify=True, show_error_dialogs=False, poolclass=None):
     bauble.db.engine remains unchanged.
 
     :param uri: The URI of the database to open.
-    :type uri: str
 
     :param verify: Where the database we connect to should be verified
         as one created by Ghini.  This flag is used mostly for
@@ -625,7 +631,7 @@ def open_conn(uri, verify=True, show_error_dialogs=False, poolclass=None):
     new_engine = None
 
     connect_args = {}
-    if uri.startswith("sqlite"):
+    if uri.drivername == "sqlite":
         logger.debug("sqlite, setting check_same_thread to False")
         # avoid sqlite thread errors
         connect_args = {"check_same_thread": False}

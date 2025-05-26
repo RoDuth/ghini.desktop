@@ -29,6 +29,7 @@ from tempfile import mkstemp
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
 
+from sqlalchemy.engine import make_url
 from sqlalchemy.orm import close_all_sessions
 from sqlalchemy.pool import StaticPool
 
@@ -141,7 +142,7 @@ class BaubleClassTestCase(unittest.TestCase):
                 # so threads work in memory database.
                 poolclass = StaticPool
             db.open_conn(
-                uri,
+                make_url(uri),
                 verify=False,
                 show_error_dialogs=False,
                 poolclass=poolclass,
@@ -205,7 +206,7 @@ class BaubleTestCase(unittest.TestCase):
                 # so threads work in memory database.
                 poolclass = StaticPool
             db.open_conn(
-                uri,
+                make_url(uri),
                 verify=False,
                 show_error_dialogs=False,
                 poolclass=poolclass,

@@ -1,4 +1,4 @@
-# Copyright 2023-2024 Ross Demuth <rossdemuth123@gmail.com>
+# Copyright 2023-2025 Ross Demuth <rossdemuth123@gmail.com>
 #
 # This file is part of ghini.desktop.
 #
@@ -808,15 +808,14 @@ class DBSyncTool(pluginmgr.Tool):
             "the current database.</b>"
         )
         _name, uri = start_connection_manager(msg)
-        if uri:
-            # convert to URL to compare
-            uri = make_url(uri)
-        else:
+        if uri is None:
             return
 
         current_uri = None
+
         if db.engine:
             current_uri = db.engine.url
+
         logger.debug("selected uri = %s", repr(uri))
         logger.debug("current uri = %s", repr(current_uri))
 

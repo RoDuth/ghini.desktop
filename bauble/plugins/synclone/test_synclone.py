@@ -1,4 +1,4 @@
-# Copyright 2023-2024 Ross Demuth <rossdemuth123@gmail.com>
+# Copyright 2023-2025 Ross Demuth <rossdemuth123@gmail.com>
 #
 # This file is part of ghini.desktop.
 #
@@ -79,7 +79,7 @@ class DBClonerTests(BaubleTestCase):
         self.assertIsNone(cloner._uri)
 
     @mock.patch(
-        "bauble.connmgr.start_connection_manager",
+        "bauble.plugins.synclone.clone.start_connection_manager",
         return_value=(None, "sqlite:///test.db"),
     )
     def test_get_uri_succeeds(self, _mock_start_cm):
@@ -87,7 +87,8 @@ class DBClonerTests(BaubleTestCase):
 
     @mock.patch("bauble.plugins.synclone.clone.utils.message_dialog")
     @mock.patch(
-        "bauble.connmgr.start_connection_manager", return_value=(None, uri)
+        "bauble.plugins.synclone.clone.start_connection_manager",
+        return_value=(None, make_url(uri)),
     )
     def test_get_uri_fails(self, _mock_start_cm, mock_dialog):
         self.assertIsNone(DBCloner._get_uri())
@@ -189,12 +190,12 @@ class DBClonerTests(BaubleTestCase):
         )
         mock_set_message.assert_called()
 
-    @mock.patch("bauble.connmgr.start_connection_manager")
+    @mock.patch("bauble.plugins.synclone.clone.start_connection_manager")
     @mock.patch("bauble.task.set_message")
     def test_start(self, mock_set_message, mock_start_cm):
         # without supplying uri
         temp_dir = tempfile.mkdtemp()
-        clone_uri = f"sqlite:///{temp_dir}/test.db"
+        clone_uri = make_url(f"sqlite:///{temp_dir}/test.db")
         mock_start_cm.return_value = (None, clone_uri)
         self.add_data()
         cloner = DBCloner()
@@ -2499,9 +2500,9 @@ class SyncToolTests(BaubleTestCase):
     @mock.patch("bauble.plugins.synclone.sync.start_connection_manager")
     @mock.patch("bauble.plugins.synclone.sync.command_handler")
     def test_db_sync_tool_start(self, mock_handler, mock_start, mock_tosync):
-        uri = "sqlite:///test.db"
+        test_uri = make_url("sqlite:///test.db")
         mock_tosync.add_batch_from_uri.return_value = 1
-        mock_start.return_value = (None, uri)
+        mock_start.return_value = (None, test_uri)
         tool = DBSyncTool()
         tool.start()
-        mock_handler.assert_called_with("resolve", [1, make_url(uri)])
+        mock_handler.assert_called_with("resolve", [1, make_url(test_uri)])

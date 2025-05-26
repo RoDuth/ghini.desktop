@@ -34,6 +34,7 @@ from unittest import mock
 logger = logging.getLogger(__name__)
 
 from gi.repository import Gtk
+from sqlalchemy.engine import make_url
 
 from bauble import db
 from bauble import paths
@@ -281,7 +282,7 @@ class GlobalFunctionsTests(TestCase):
         self.assertIn("Could not load", mock_dialog.call_args[0][0])
 
     def test_get_registered_unregistered_all_unregistered(self):
-        db.open_conn(uri, verify=False)
+        db.open_conn(make_url(uri), verify=False)
         db.metadata.drop_all(db.engine, checkfirst=True)
         db.metadata.create_all(db.engine)
         plug_a = A()
@@ -298,7 +299,7 @@ class GlobalFunctionsTests(TestCase):
         )
 
     def test_get_registered_unregistered_all_registered(self):
-        db.open_conn(uri, verify=False)
+        db.open_conn(make_url(uri), verify=False)
         db.metadata.drop_all(db.engine, checkfirst=True)
         db.metadata.create_all(db.engine)
         plug_a = A()
@@ -316,7 +317,7 @@ class GlobalFunctionsTests(TestCase):
         self.assertEqual([], unreg)
 
     def test_get_registered_unregistered_removes_not_in_plugins(self):
-        db.open_conn(uri, verify=False)
+        db.open_conn(make_url(uri), verify=False)
         db.metadata.drop_all(db.engine, checkfirst=True)
         db.metadata.create_all(db.engine)
         plug_a = A()
@@ -363,7 +364,7 @@ class StandalonePluginMgrTests(TestCase):
     def test_successful_init(self):
         "pluginmgr.init() should be successful"
 
-        db.open_conn(uri, verify=False)
+        db.open_conn(make_url(uri), verify=False)
         db.create(False)
         pluginmgr.plugins[C.__name__] = C()
         pluginmgr.plugins[B.__name__] = B()
@@ -388,7 +389,7 @@ class StandalonePluginMgrTests(TestCase):
     @mock.patch("bauble.pluginmgr.utils.message_dialog")
     @mock.patch("bauble.pluginmgr._get_registered_unregistered")
     def test_init_unregistered(self, mock_unreg, mock_dialog):
-        db.open_conn(uri, verify=False)
+        db.open_conn(make_url(uri), verify=False)
         db.create(False)
         plug_a = A()
         mock_unreg.return_value = ([plug_a], ["foo"])
@@ -405,7 +406,7 @@ class StandalonePluginMgrTests(TestCase):
     @mock.patch("bauble.pluginmgr._create_dependency_pairs")
     @mock.patch("bauble.pluginmgr._get_registered_unregistered")
     def test_init_no_registered_bails(self, mock_unreg, mock_deps):
-        db.open_conn(uri, verify=False)
+        db.open_conn(make_url(uri), verify=False)
         db.metadata.drop_all(db.engine, checkfirst=True)
         db.metadata.create_all(db.engine)
         mock_unreg.return_value = ([], [])
@@ -422,7 +423,7 @@ class StandalonePluginMgrTests(TestCase):
     def test_init_with_problem(self):
         """pluginmgr.init() using plugin which can't initialize"""
 
-        db.open_conn(uri, verify=False)
+        db.open_conn(make_url(uri), verify=False)
         db.create(False)
         pluginmgr.plugins[FailingInitPlugin.__name__] = FailingInitPlugin()
         pluginmgr.plugins[DependsOnFailingInitPlugin.__name__] = (
@@ -438,7 +439,7 @@ class StandalonePluginMgrTests(TestCase):
     def test_init_with_dependancy_problem_raises(self):
         "pluginmgr.init() using plugin which can't install"
 
-        db.open_conn(uri, verify=False)
+        db.open_conn(make_url(uri), verify=False)
         db.create(False)
         pluginmgr.plugins[FailingInstallPlugin.__name__] = (
             FailingInstallPlugin()
@@ -458,7 +459,7 @@ class StandalonePluginMgrTests(TestCase):
         pluginmgr.plugins[C.__name__] = plug_c
         pluginmgr.plugins[B.__name__] = plug_b
         pluginmgr.plugins[A.__name__] = plug_a
-        db.open_conn(uri, verify=False)
+        db.open_conn(make_url(uri), verify=False)
         db.create(False)
         pluginmgr.install((plug_a, plug_b, plug_c))
 
@@ -476,7 +477,7 @@ class StandalonePluginMgrTests(TestCase):
         self.assertFalse(C.installed)
         self.assertFalse(B.installed)
         self.assertFalse(A.installed)
-        db.open_conn(uri, verify=False)
+        db.open_conn(make_url(uri), verify=False)
         db.create(False)
         # the creation of the database installed all plugins, so we manually
         # reset everything, just to make sure we really test the logic
@@ -501,7 +502,7 @@ class StandalonePluginMgrTests(TestCase):
         self.assertFalse(C.installed)
         self.assertFalse(B.installed)
         self.assertFalse(A.installed)
-        db.open_conn(uri, verify=False)
+        db.open_conn(make_url(uri), verify=False)
         db.create(False)
         # the creation of the database installed all plugins, so we manually
         # reset everything, just to make sure we really test the logic

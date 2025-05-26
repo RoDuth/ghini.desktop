@@ -31,6 +31,7 @@ from unittest import mock
 
 from gi.repository import GLib
 from gi.repository import Gtk
+from sqlalchemy.engine import make_url
 from sqlalchemy.orm import close_all_sessions
 
 import bauble
@@ -41,7 +42,7 @@ from bauble import pluginmgr
 from bauble import prefs
 from bauble import ui
 
-uri = "sqlite:///:memory:"
+uri = make_url("sqlite:///:memory:")
 
 
 def setup_prefs():
@@ -213,7 +214,7 @@ class ExistingDBTests(TestCase):
 
     def setUp(self):
         filename = os.path.join(paths.TEMPDIR, "test.db")
-        self.db_uri = f"sqlite:////{filename.strip('C:/')}"
+        self.db_uri = make_url(f"sqlite:////{filename.strip('C:/')}")
         db.open_conn(
             self.db_uri,
             verify=False,

@@ -38,10 +38,10 @@ from gi.repository.OsmGpsMap import MapImage
 from gi.repository.OsmGpsMap import MapPoint as OSMMapPoint
 from gi.repository.OsmGpsMap import MapPolygon
 from gi.repository.OsmGpsMap import MapTrack
+from sqlalchemy.engine import make_url
 
 from bauble import db
 from bauble import prefs
-from bauble import ui
 from bauble.test import BaubleTestCase
 from bauble.test import get_setUp_data_funcs
 from bauble.test import update_gui
@@ -1490,7 +1490,7 @@ class TestSearchViewMapPresenter(BaubleTestCase):
         self.assertTrue(presenter.update_thread.is_alive())
 
         db.open_conn(
-            "sqlite:///:memory:",
+            make_url("sqlite:///:memory:"),
             verify=False,
             show_error_dialogs=False,
         )

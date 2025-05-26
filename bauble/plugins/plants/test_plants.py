@@ -3131,7 +3131,7 @@ class SpeciesTests(PlantTestCase):
 
         # restart connection
         self.session.close()
-        db.open_conn(str(db.engine.url))
+        db.open_conn(db.engine.url)
         self.session = db.Session()
         sp = self.session.query(Species).first()
 

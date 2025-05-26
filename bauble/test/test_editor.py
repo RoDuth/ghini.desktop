@@ -84,29 +84,41 @@ class BaubleTests(BaubleTestCase):
 
     def test_set_accept_buttons_sensitive_not_set(self):
         "it is a task of the presenter to indicate the accept buttons"
-        filename = os.path.join(paths.lib_dir(), "connmgr.glade")
-        view = GenericEditorView(filename, root_widget_name="main_dialog")
+        filename = os.path.join(
+            paths.lib_dir(), "plugins", "imex", "xml.glade"
+        )
+        view = GenericEditorView(
+            filename, root_widget_name="xml_export_dialog"
+        )
         self.assertIsNone(view.set_accept_buttons_sensitive(False))
         view.get_window().destroy()
 
     def test_set_sensitive(self):
-        filename = os.path.join(paths.lib_dir(), "connmgr.glade")
-        view = GenericEditorView(filename, root_widget_name="main_dialog")
-        view.widget_set_sensitive("cancel_button", True)
-        self.assertTrue(view.widgets.cancel_button.get_sensitive())
-        view.widget_set_sensitive("cancel_button", False)
-        self.assertFalse(view.widgets.cancel_button.get_sensitive())
+        filename = os.path.join(
+            paths.lib_dir(), "plugins", "imex", "xml.glade"
+        )
+        view = GenericEditorView(
+            filename, root_widget_name="xml_export_dialog"
+        )
+        view.widget_set_sensitive("exp_button_cancel", True)
+        self.assertTrue(view.widgets.exp_button_cancel.get_sensitive())
+        view.widget_set_sensitive("exp_button_cancel", False)
+        self.assertFalse(view.widgets.exp_button_cancel.get_sensitive())
         view.get_window().destroy()
 
     def test_set_visible_get_visible(self):
-        filename = os.path.join(paths.lib_dir(), "connmgr.glade")
-        view = GenericEditorView(filename, root_widget_name="main_dialog")
-        view.widget_set_visible("noconnectionlabel", True)
-        self.assertTrue(view.widget_get_visible("noconnectionlabel"))
-        self.assertTrue(view.widgets.noconnectionlabel.get_visible())
-        view.widget_set_visible("noconnectionlabel", False)
-        self.assertFalse(view.widget_get_visible("noconnectionlabel"))
-        self.assertFalse(view.widgets.noconnectionlabel.get_visible())
+        filename = os.path.join(
+            paths.lib_dir(), "plugins", "imex", "xml.glade"
+        )
+        view = GenericEditorView(
+            filename, root_widget_name="xml_export_dialog"
+        )
+        view.widget_set_visible("out_box", True)
+        self.assertTrue(view.widget_get_visible("out_box"))
+        self.assertTrue(view.widgets.out_box.get_visible())
+        view.widget_set_visible("out_box", False)
+        self.assertFalse(view.widget_get_visible("out_box"))
+        self.assertFalse(view.widgets.out_box.get_visible())
         view.get_window().destroy()
 
 

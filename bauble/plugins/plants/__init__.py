@@ -661,7 +661,7 @@ class PlantsPlugin(pluginmgr.Plugin):
                 )
                 cls.register_custom_column("_sp_custom1")
                 cls.register_custom_column("_sp_custom2")
-                db.open_conn(str(db.engine.url))
+                db.open_conn(db.engine.url)
 
             def prefs_ls_changed(model, path, _itr):
                 key, _repr_str, _type_str = model[path]

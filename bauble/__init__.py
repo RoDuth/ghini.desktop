@@ -39,9 +39,16 @@ from bauble import paths
 from bauble.version import version
 
 version_tuple: tuple[str, ...] = tuple(version.split("."))
+"""The version number as a tuple of strings."""
+
 release_date = datetime.datetime.fromtimestamp(0, datetime.UTC)
-release_version = None
-installation_date = datetime.datetime.now()
+"""The release date of the latest release."""
+
+release_version: str = version
+"""The version string for the latest release."""
+
+installation_date = datetime.datetime.fromtimestamp(os.stat(__file__).st_mtime)
+"""The date this install was last updated."""
 
 
 logger = logging.getLogger(__name__)
@@ -137,8 +144,9 @@ conn_name: str | None = None
 
 last_handler = None
 
-conn_default_pref = "conn.default"
-conn_list_pref = "conn.list"
+CONN_DEFAULT_PREF = "conn.default"
+CONN_LIST_PREF = "conn.list"
+CONN_DONT_ASK_PREF = "conn.dont_ask"
 
 
 def command_handler(cmd, arg):

@@ -1,4 +1,4 @@
-# Copyright 2023-2024 Ross Demuth <rossdemuth123@gmail.com>
+# Copyright 2023-2025 Ross Demuth <rossdemuth123@gmail.com>
 #
 # This file is part of ghini.desktop.
 #
@@ -42,6 +42,7 @@ from bauble import pb_set_fraction
 from bauble import pluginmgr
 from bauble import task
 from bauble import utils
+from bauble.connmgr import start_connection_manager
 from bauble.i18n import _
 
 
@@ -61,7 +62,7 @@ class DBCloner:
         if uri:
             self.uri = uri  # type: ignore [assignment]
         else:
-            self.uri = self._get_uri()  # type: ignore [assignment]
+            self.uri = self._get_uri()
 
         if self.uri:
             task.clear_messages()
@@ -82,7 +83,7 @@ class DBCloner:
         logger.debug("uri = %s", repr(self._uri))
 
     @staticmethod
-    def _get_uri() -> None | str:
+    def _get_uri() -> None | URL:
         """Ask the user for a database connection to clone into."""
         if not db.engine:
             raise error.DatabaseError("Not connected to a database")
@@ -91,10 +92,9 @@ class DBCloner:
             "<b>Select a database connection to clone the contents of\n"
             "the current database to.</b>"
         )
-        _name, uri = bauble.connmgr.start_connection_manager(msg)
-        if uri:
-            uri = make_url(uri)
+        _name, uri = start_connection_manager(msg)
         logger.debug("selected uri = %s", repr(uri))
+
         current_uri = db.engine.url
         logger.debug("current uri = %s", repr(current_uri))
 

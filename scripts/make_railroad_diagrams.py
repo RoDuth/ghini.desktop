@@ -6,6 +6,8 @@ Scrips to generate railroad diagrams for all version of the search dialect.
 import os
 from tempfile import mkstemp
 
+from sqlalchemy.engine import make_url
+
 from bauble import db
 from bauble import pluginmgr
 from bauble import prefs
@@ -17,7 +19,7 @@ from bauble.search.strategies import ValueListSearch
 
 
 def main() -> None:
-    uri = "sqlite:///:memory:"
+    uri = make_url("sqlite:///:memory:")
     db.open_conn(
         uri,
         verify=False,

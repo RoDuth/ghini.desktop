@@ -233,7 +233,7 @@ class EnumTests(BaubleTestCase):
         self.assertRaises(EnumError, enum.process_bind_param, "BLAH", None)
 
         self.session.close()
-        db.open_conn(str(db.engine.url))
+        db.open_conn(db.engine.url)
         self.session = db.Session()
 
         after = TestTableCustom(value="BLAH")
