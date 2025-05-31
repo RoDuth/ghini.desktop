@@ -27,11 +27,11 @@ connections. This is the first thing displayed when Ghini starts.
 """
 from __future__ import annotations
 
-import copy
 import logging
 import os
 from collections.abc import Callable
 from dataclasses import dataclass
+from dataclasses import field
 from importlib import import_module
 from pathlib import Path
 from threading import Thread
@@ -47,10 +47,12 @@ import dateutil
 import pyodbc
 from gi.repository import GdkPixbuf
 from gi.repository import GLib
+from gi.repository import GObject
 from gi.repository import Gtk
 from sqlalchemy.engine import URL
 
 import bauble
+from bauble import editor
 from bauble import paths
 from bauble import prefs
 from bauble import utils
@@ -145,6 +147,7 @@ def check_new_release(github_release_data: dict) -> Literal[False] | dict:
         return github_release_data
     if github_version < current_version:
         logger.info("running unreleased version")
+
     return False
 
 
@@ -188,6 +191,7 @@ def make_absolute(path: str) -> str:
     """Replaces './' with the appdata directory."""
     if path.startswith("./") or path.startswith(".\\"):
         path = str(Path(paths.appdata_dir(), path[2:]))
+
     return path
 
 
@@ -250,48 +254,188 @@ ConnectionDict = TypedDict(
 )
 
 
-@Gtk.Template(filename=str(Path(paths.lib_dir(), "connmgr.ui")))
-class ConnectionManagerDialog(Gtk.Dialog):
-    """The main class that starts the connection manager GUI."""
+@dataclass
+class ConnectionModel:
+    """A model for a connection, used to store the connection parameters.
 
-    __gtype_name__ = "ConnectionManagerDialog"
+    Provides an interface to the stored prefs.  To use instantiate with
+    connection_name only and it will load the rest from you prefs or provide
+    sane defaults for a new connection. e.g.::
 
-    name_combo = cast(Gtk.ComboBoxText, Gtk.Template.Child())
-    usedefaults_chkbx = cast(Gtk.CheckButton, Gtk.Template.Child())
+        model = ConnectionModel("spam")
+
+    """
+
+    connection_name: str
+
+    dbtype: str = field(init=False, default="")
+    filename: str = field(init=False, default="")
+    database: str = field(init=False, default="")
+    host: str = field(init=False, default="")
+    port: str = field(init=False, default="")
+    user: str = field(init=False, default="")
+    rootdir: str = field(init=False, default="")
+    passwd: bool = field(init=False, default=False)
+    options: dict[str, str] = field(default_factory=dict)
+
+    _use_defaults: bool = field(init=False, repr=False, default=True)
+
+    def __post_init__(self) -> None:
+        if not self.connection_name:
+            raise ValueError("Must supply a valid connection_name")
+
+        self.load_from_prefs()
+
+    def load_from_prefs(self) -> None:
+        params = prefs.prefs.get(bauble.CONN_LIST_PREF, {}).get(
+            self.connection_name
+        )
+
+        if params:
+            self._set_from_params(params)
+        else:
+            self.use_defaults = True
+
+    def _set_defaults(self) -> None:
+        """If a name is available set the defaults."""
+        if self.connection_name:
+            self.dbtype = "SQLite"
+            # use os.path.join here so we get ./
+            self.filename = os.path.join(".", self.connection_name + ".db")
+            self.rootdir = os.path.join(".", self.connection_name)
+
+    @property
+    def use_defaults(self) -> bool:
+        return self._use_defaults
+
+    @use_defaults.setter
+    def use_defaults(self, value: bool) -> None:
+        self._use_defaults = value
+        if value:
+            self._set_defaults()
+
+    def get_params(self) -> ConnectionDict:
+        """Return the params as they should be in prefs."""
+
+        result: ConnectionDict = {
+            "type": self.dbtype,
+            "directory": self.rootdir,
+        }
+
+        if self.dbtype == "SQLite":
+            result["file"] = self.filename
+            result["directory"] = self.rootdir
+            result["default"] = self.use_defaults
+        else:
+            result["directory"] = self.rootdir
+            result["db"] = self.database
+            result["host"] = self.host
+            result["port"] = self.port
+            result["user"] = self.user
+            result["passwd"] = self.passwd
+            result["options"] = self.options
+
+        return result
+
+    def _set_from_params(self, params: ConnectionDict) -> None:
+        self.dbtype = params["type"]
+
+        if self.dbtype == "SQLite":
+            self.filename = params.get("file", "")
+            self.use_defaults = params.get("default", True)
+            self.rootdir = params.get("directory", "")
+            self.database = ""
+            self.host = ""
+            self.port = ""
+            self.user = ""
+            self.options = {}
+            self.passwd = False
+        else:
+            self.database = params.get("db", "")
+            self.host = params.get("host", "")
+            self.port = params.get("port", "")
+            self.user = params.get("user", "")
+            self.rootdir = params.get("directory", "")
+            self.passwd = params.get("passwd", False)
+            self.options = params.get("options", {})
+            self.filename = ""
+            self.use_defaults = False
+
+    def save(self) -> None:
+        """Save this connection to prefs."""
+        if self.connection_name is None:
+            return
+
+        logger.debug("save current to prefs")
+
+        connections: dict[str, ConnectionDict] = prefs.prefs.get(
+            bauble.CONN_LIST_PREF, {}
+        )
+
+        connections[self.connection_name] = self.get_params()
+        prefs.prefs[bauble.CONN_LIST_PREF] = connections
+        prefs.prefs.save()
+
+    def is_saved(self) -> bool:
+        """Check if this connection's parameters are already saved in prefs in
+        their current state.
+        """
+        connections = prefs.prefs.get(bauble.CONN_LIST_PREF, {})
+        if self.connection_name not in connections:
+            return False
+
+        stored = self.__class__(self.connection_name)
+        logger.debug("stored: %s", stored)
+        logger.debug("local: %s", self)
+
+        return self == stored
+
+    def remove(self) -> None:
+        """Remove this connection from the saved connections."""
+
+        logger.debug("removing connection %s", self.connection_name)
+
+        connections = prefs.prefs.get(bauble.CONN_LIST_PREF, {})
+        if self.connection_name in connections:
+            del connections[self.connection_name]
+            prefs.prefs[bauble.CONN_LIST_PREF] = connections
+            prefs.prefs.save()
+
+
+@Gtk.Template(filename=str(Path(paths.lib_dir(), "connection_box.ui")))
+class ConnectionBox(editor.GenericPresenter[ConnectionModel], Gtk.Box):
+    """The connection manager GUI."""
+
+    __gtype_name__ = "ConnectionBox"
+
+    __gsignals__ = {
+        "problems-changed": (GObject.SignalFlags.RUN_FIRST, None, (bool,))
+    }
+
     type_combo = cast(Gtk.ComboBoxText, Gtk.Template.Child())
+    usedefaults_chkbx = cast(Gtk.CheckButton, Gtk.Template.Child())
     file_entry = cast(Gtk.Entry, Gtk.Template.Child())
+    file_btnbrowse = cast(Gtk.Button, Gtk.Template.Child())
     database_entry = cast(Gtk.Entry, Gtk.Template.Child())
     host_entry = cast(Gtk.Entry, Gtk.Template.Child())
     port_entry = cast(Gtk.Entry, Gtk.Template.Child())
     user_entry = cast(Gtk.Entry, Gtk.Template.Child())
     passwd_chkbx = cast(Gtk.CheckButton, Gtk.Template.Child())
     rootdir_entry = cast(Gtk.Entry, Gtk.Template.Child())
-    rootdir2_entry = cast(Gtk.Entry, Gtk.Template.Child())
-    file_btnbrowse = cast(Gtk.Button, Gtk.Template.Child())
     rootdirectory_btnbrowse = cast(Gtk.Button, Gtk.Template.Child())
+    rootdir2_entry = cast(Gtk.Entry, Gtk.Template.Child())
     rootdirectory2_btnbrowse = cast(Gtk.Button, Gtk.Template.Child())
-    remove_button = cast(Gtk.Button, Gtk.Template.Child())
-    cancel_button = cast(Gtk.Button, Gtk.Template.Child())
-    connect_button = cast(Gtk.Button, Gtk.Template.Child())
-    expander = cast(Gtk.Expander, Gtk.Template.Child())
     sqlite_parambox = cast(Gtk.Box, Gtk.Template.Child())
     dbms_parambox = cast(Gtk.Box, Gtk.Template.Child())
-    logo_image = cast(Gtk.Image, Gtk.Template.Child())
-    image_box = cast(Gtk.Box, Gtk.Template.Child())
-    noconnectionlabel = cast(Gtk.Label, Gtk.Template.Child())
-    notify_message_label = cast(Gtk.Label, Gtk.Template.Child())
-    notify_close_button = cast(Gtk.Button, Gtk.Template.Child())
-    notify_revealer = cast(Gtk.Revealer, Gtk.Template.Child())
     # defined twice to convince pylint that it is iterable
     options_liststore = Gtk.ListStore(str, str)
     options_liststore = cast(Gtk.ListStore, Gtk.Template.Child())
-    dont_ask_chkbx = cast(Gtk.CheckButton, Gtk.Template.Child())
 
-    first_run = True
+    PROBLEM_UNREADABLE = editor.Problem("unreadable_file")
 
-    def __init__(self) -> None:
-        super().__init__(title=f"Ghini {bauble.version}")
-        self.widget_to_attr: dict[Gtk.Widget | Gtk.ListStore, str] = {
+    def __init__(self, model: ConnectionModel) -> None:
+        super().__init__(model, self)
+        self.widgets_to_model_map = {
             self.type_combo: "dbtype",
             self.file_entry: "filename",
             self.database_entry: "database",
@@ -302,101 +446,11 @@ class ConnectionManagerDialog(Gtk.Dialog):
             self.rootdir2_entry: "rootdir",
             self.usedefaults_chkbx: "use_defaults",
             self.passwd_chkbx: "passwd",
-            self.options_liststore: "options",
         }
-        self.connection_name: str | None = None
-        self.prev_connection_name: str | None = None
-
-        self.dbtype: str = ""
-        self.filename: str = ""
-        self.database: str = ""
-        self.host: str = ""
-        self.port: str = ""
-        self.user: str = ""
-        self.rootdir: str = ""
-        self.use_defaults: bool = True
-        self.passwd: bool = False
-        self.options: dict[str, str] = {}
-
-        self.connection_names: list[str] = []
-        self.connections: dict[str, ConnectionDict] = self.filter_dbtypes(
-            prefs.prefs.get(bauble.CONN_LIST_PREF, {})
-        )
 
         # initialize comboboxes
         for dbapi in DBTYPES:
             self.type_combo.append_text(dbapi)
-        self.type_combo.set_active(0)
-
-        self.setup_name_combo()
-
-        logo_path = Path(paths.lib_dir(), "images", "bauble_logo.png")
-        self.logo_image.set_from_file(str(logo_path))
-        self.set_icon(GdkPixbuf.Pixbuf.new_from_file(bauble.default_icon))
-
-        logger.debug("checking for new version")
-        if self.first_run:
-            Thread(
-                target=notify_new_release,
-                args=[
-                    self,
-                    retrieve_latest_release_data,
-                    check_new_release,
-                ],
-            ).start()
-            self.__class__.first_run = False
-
-        self.dont_ask_chkbx.set_active(
-            prefs.prefs.get(bauble.CONN_DONT_ASK_PREF, False)
-        )
-        self.refresh_view()
-
-    @staticmethod
-    def filter_dbtypes(
-        connections: dict[str, ConnectionDict],
-    ) -> dict[str, ConnectionDict]:
-        """Filter the connections to only include those with a supported
-        dbtypes.
-        """
-        filtered_connections = {}
-        for name, params in connections.items():
-            if params.get("type") in DBTYPES:
-                filtered_connections[name] = params
-            else:
-                logger.warning(
-                    "Connection %s has unsupported type %s",
-                    name,
-                    params.get("type"),
-                )
-        return filtered_connections
-
-    def setup_name_combo(self) -> None:
-        for connection_name in sorted(self.connections):
-            self.name_combo.append_text(connection_name)
-            self.connection_names.append(connection_name)
-
-        if self.connection_names:
-            self.connection_name = prefs.prefs[bauble.CONN_DEFAULT_PREF]
-
-            if self.connection_name not in self.connections:
-                self.connection_name = self.connection_names[0]
-                self.prev_connection_name = self.connection_name
-
-            self.dbtype = ""
-            self.set_params()
-        else:
-            self.dbtype = ""
-            self.connection_name = None
-
-        if self.connection_name:
-            self.name_combo.set_active(
-                self.connection_names.index(self.connection_name)
-            )
-
-    @Gtk.Template.Callback()
-    def on_notify_close_button_clicked(self, _button) -> None:
-        """Close the notification revealer."""
-        self.notify_revealer.set_reveal_child(False)
 
     def btnbrowse_clicked(
         self, entry: Gtk.Entry, action: Gtk.FileChooserAction
@@ -456,58 +510,271 @@ class ConnectionManagerDialog(Gtk.Dialog):
 
         return str(Path(path).parent)
 
-    def refresh_view(self) -> None:
-        """Refresh the state of the widgets based of the current connection
-        settings.
-        """
-        if self.connections is None or len(list(self.connections.keys())) == 0:
-            self.noconnectionlabel.set_visible(True)
-            self.expander.set_visible(False)
-            self.prev_connection_name = None
-            self.connect_button.set_sensitive(False)
+    @Gtk.Template.Callback()
+    def on_type_combo_changed(self, combo: Gtk.ComboBoxText) -> None:
+        if self.model.dbtype != combo.get_active_text():
+            # if changed reload from prefs (drop any changes)
+            self.model.load_from_prefs()
+
+        super().on_combobox_changed(combo)
+
+        if self.model.dbtype == "MSSQL":
+            self.add_default_options()
+
+        if self.model.dbtype == "SQLite":
+            self.refresh_sqlite()
         else:
-            self.expander.set_visible(True)
-            self.noconnectionlabel.set_visible(False)
-            self.connect_button.set_sensitive(True)
-            if self.dbtype == "SQLite":
-                self.sqlite_parambox.set_visible(True)
-                self.dbms_parambox.set_visible(False)
-                self.refresh_entries_sensitive()
-            else:
-                self.sqlite_parambox.set_visible(False)
-                self.dbms_parambox.set_visible(True)
+            self.refresh_dbms()
 
-        self.refresh_widgets()
+    def refresh_dbms(self) -> None:
+        logger.debug("refresh dbms")
+        self.sqlite_parambox.set_visible(False)
+        self.dbms_parambox.set_visible(True)
+        self.problems.clear()
+        self.refresh_all_widgets_from_model()
+        self.refresh_options_liststore()
+        self.database_entry.emit("changed")
+        self.host_entry.emit("changed")
+        self.port_entry.emit("changed")
+        self.user_entry.emit("changed")
 
-    def refresh_widgets(self) -> None:
-        for widget, attr in self.widget_to_attr.items():
-            if attr == "options":
-                # special case to update the liststore
-                self.refresh_options_liststore()
-            else:
-                utils.set_widget_value(widget, getattr(self, attr))
+    def refresh_sqlite(self) -> None:
+        logger.debug("refresh sqlite")
+        self.sqlite_parambox.set_visible(True)
+        self.dbms_parambox.set_visible(False)
+        self.problems.clear()
+        self.refresh_all_widgets_from_model()
+        self.refresh_entries_sensitive()
+        self.file_entry.emit("changed")
+
+    def add_default_options(self) -> None:
+        """Add sensible defaults for new MSSQL connections."""
+        if any(
+            (
+                self.model.database,
+                self.model.host,
+                self.model.port,
+                self.model.options,
+            )
+        ):
+            logger.debug("Model is not new bailing.")
+            # not new bail
+            return
+
+        drivers = pyodbc.drivers()
+
+        if drivers:
+            self.model.options["driver"] = drivers[0]
+
+        self.model.options["MARS_Connection"] = "Yes"
+        logger.debug("adding MSSQL sensible defaults %s", self.model.options)
 
     @Gtk.Template.Callback()
     def on_usedefaults_chkbx_toggled(
         self, check_button: Gtk.CheckButton, *_args
     ) -> None:
-        self.use_defaults = check_button.get_active()
-        if self.use_defaults:
-            self.set_defaults()
-            self.file_entry.set_text(self.filename)
-            self.rootdir_entry.set_text(self.rootdir)
-            self.rootdir2_entry.set_text(self.rootdir)
+        self.model.use_defaults = check_button.get_active()
+        self.refresh_all_widgets_from_model()
         self.refresh_entries_sensitive()
 
     def refresh_entries_sensitive(self) -> None:
         """Set the sensitivity of the entries based on whether defaults are
         used or not.
         """
-        sensitive = not self.use_defaults
+        sensitive = not self.model.use_defaults
         self.file_entry.set_sensitive(sensitive)
         self.rootdir_entry.set_sensitive(sensitive)
         self.file_btnbrowse.set_sensitive(sensitive)
         self.rootdirectory_btnbrowse.set_sensitive(sensitive)
+
+    @Gtk.Template.Callback()
+    def on_file_entry_changed(self, entry: Gtk.Entry) -> None:
+        value = super()._on_non_empty_text_entry_changed(entry)
+
+        file = Path(make_absolute(value))
+        if file.exists() and os.access(file, os.R_OK):
+            self.remove_problem(self.PROBLEM_UNREADABLE, entry)
+        elif (
+            not file.exists()
+            and os.access(file.parent, os.R_OK)
+            and os.access(file.parent, os.W_OK)
+        ):
+            self.remove_problem(self.PROBLEM_UNREADABLE, entry)
+        else:
+            self.add_problem(self.PROBLEM_UNREADABLE, entry)
+
+    @Gtk.Template.Callback()
+    def on_non_empty_text_entry_changed(self, entry: Gtk.Entry) -> None:
+        super().on_non_empty_text_entry_changed(entry)
+
+    @Gtk.Template.Callback()
+    def on_port_entry_changed(self, entry: Gtk.Entry) -> None:
+        # don't allow 0, replace with ''
+        value = entry.get_text()
+        if value == "0":
+            entry.set_text("")
+
+        super().on_text_entry_changed(entry)
+
+    @Gtk.Template.Callback()
+    def on_text_entry_changed(self, entry: Gtk.Entry) -> None:
+        super().on_text_entry_changed(entry)
+
+    @Gtk.Template.Callback()
+    def on_passwd_chkbx_toggled(self, check_button: Gtk.CheckButton) -> None:
+        self.model.passwd = check_button.get_active()
+
+    def refresh_options_liststore(self) -> None:
+        """Refresh the options liststore with the current options."""
+        self.options_liststore.clear()
+
+        for name, value in self.model.options.items():
+            self.options_liststore.append([name, value])
+
+        self.options_liststore.append(["", ""])
+
+    def options_edited(
+        self,
+        path: Gtk.TreePath,
+        column: int,
+        text: str,
+    ) -> None:
+        """Generic handler for editing options in the liststore."""
+        self.options_liststore[path][column] = text
+        self.model.options = {  # type: ignore[misc]
+            name: value for name, value in self.options_liststore if name  # type: ignore # noqa
+        }
+        self.refresh_options_liststore()
+
+    @Gtk.Template.Callback()
+    def on_options_name_edited(
+        self,
+        _cell: Gtk.CellRendererText,
+        path: Gtk.TreePath,
+        text: str,
+    ) -> None:
+        self.options_edited(path, 0, text)
+
+    @Gtk.Template.Callback()
+    def on_options_value_edited(
+        self,
+        _cell: Gtk.CellRendererText,
+        path: Gtk.TreePath,
+        text: str,
+    ) -> None:
+        self.options_edited(path, 1, text)
+
+    def add_problem(self, problem_id: str, widget: Gtk.Widget) -> None:
+        start = len(self.problems)
+
+        super().add_problem(problem_id, widget)
+
+        if start == 0:
+            self.emit("problems-changed", not bool(self.problems))
+
+    def remove_problem(
+        self, problem_id: str | None = None, widget: Gtk.Widget | None = None
+    ) -> None:
+        super().remove_problem(problem_id, widget)
+
+        end = len(self.problems)
+
+        if end == 0:
+            self.emit("problems-changed", not bool(self.problems))
+
+
+@Gtk.Template(filename=str(Path(paths.lib_dir(), "connection_manager.ui")))
+class ConnectionManagerDialog(Gtk.Dialog):
+    """The connection manager GUI."""
+
+    __gtype_name__ = "ConnectionManagerDialog"
+
+    name_combo = cast(Gtk.ComboBoxText, Gtk.Template.Child())
+    remove_button = cast(Gtk.Button, Gtk.Template.Child())
+    cancel_button = cast(Gtk.Button, Gtk.Template.Child())
+    connect_button = cast(Gtk.Button, Gtk.Template.Child())
+    expander = cast(Gtk.Expander, Gtk.Template.Child())
+    logo_image = cast(Gtk.Image, Gtk.Template.Child())
+    image_box = cast(Gtk.Box, Gtk.Template.Child())
+    noconnectionlabel = cast(Gtk.Label, Gtk.Template.Child())
+    notify_message_label = cast(Gtk.Label, Gtk.Template.Child())
+    notify_close_button = cast(Gtk.Button, Gtk.Template.Child())
+    notify_revealer = cast(Gtk.Revealer, Gtk.Template.Child())
+    dont_ask_chkbx = cast(Gtk.CheckButton, Gtk.Template.Child())
+
+    first_run = True
+
+    def __init__(self) -> None:
+        super().__init__(title=f"Ghini {bauble.version}")
+        self.model: ConnectionModel
+
+        self.setup_name_combo()
+
+        logo_path = Path(paths.lib_dir(), "images", "bauble_logo.png")
+        self.logo_image.set_from_file(str(logo_path))
+        self.set_icon(GdkPixbuf.Pixbuf.new_from_file(bauble.default_icon))
+
+        logger.debug("checking for new version")
+        if self.first_run:
+            Thread(
+                target=notify_new_release,
+                args=[
+                    self,
+                    retrieve_latest_release_data,
+                    check_new_release,
+                ],
+            ).start()
+            self.__class__.first_run = False
+
+        self.dont_ask_chkbx.set_active(
+            prefs.prefs.get(bauble.CONN_DONT_ASK_PREF, False)
+        )
+
+    def setup_name_combo(self) -> None:
+        connections = self.filter_supported(
+            prefs.prefs.get(bauble.CONN_LIST_PREF, {})
+        )
+
+        connection_names = []
+        for connection_name in sorted(connections):
+            self.name_combo.append_text(connection_name)
+            connection_names.append(connection_name)
+
+        if connection_names:
+            connection_name = prefs.prefs[bauble.CONN_DEFAULT_PREF]
+
+            if connection_name not in connections:
+                connection_name = connection_names[0]
+
+            if connection_name:
+                self.name_combo.set_active(
+                    connection_names.index(connection_name)
+                )
+
+    @staticmethod
+    def filter_supported(
+        connections: dict[str, ConnectionDict],
+    ) -> dict[str, ConnectionDict]:
+        """Filter the connections to only include those with a supported
+        dbtypes.
+        """
+        filtered_connections = {}
+        for name, params in connections.items():
+            if params.get("type") in DBTYPES:
+                filtered_connections[name] = params
+            else:
+                logger.warning(
+                    "Connection %s has unsupported type %s",
+                    name,
+                    params.get("type"),
+                )
+        return filtered_connections
+
+    def get_connection_box(self) -> ConnectionBox | None:
+        connection_box = self.expander.get_child()
+        if connection_box:
+            return cast(ConnectionBox, connection_box)
+        return None
 
     @Gtk.Template.Callback()
     def on_dialog_response(
@@ -517,387 +784,123 @@ class ConnectionManagerDialog(Gtk.Dialog):
     ) -> bool:
         """The dialog's response signal handler."""
         if response == Gtk.ResponseType.OK:
-            settings = self.get_params()
-            valid, msg = self.check_parameters_valid(settings)
+            msg = ""
+            valid = True
+
+            if not getattr(self, "model", None):
+                msg = _("No connection set")
+                valid = False
+            elif self.model.rootdir:  # no value - a global may have been set
+                valid, msg = check_create_paths(self.model.rootdir)
 
             if not valid:
                 # don't close the dialog
                 utils.message_dialog(msg, Gtk.MessageType.ERROR)
                 dialog.stop_emission_by_name("response")
                 return True
-            # grab directory location from global setting
+
             prefs.prefs[prefs.root_directory_pref] = make_absolute(
-                settings["directory"]
+                self.model.rootdir
             )
-            self.save_current_to_prefs()
+            self.model.save()
+            prefs.prefs[bauble.CONN_DEFAULT_PREF] = (
+                self.name_combo.get_active_text()
+            )
         elif response in (
             Gtk.ResponseType.CANCEL,
             Gtk.ResponseType.DELETE_EVENT,
         ):
-            if not self.are_prefs_already_saved(self.connection_name):
-                msg = _("Do you want to save your changes?")
+            connection_box = self.get_connection_box()
+            if (
+                connection_box
+                and not connection_box.problems
+                and not self.model.is_saved()
+            ):
+                # if the model is not saved, ask the user if they want to save
+                # their changes before closing the dialog
+                msg = (
+                    _("Do you want to save your changes to %s?")
+                    % self.model.connection_name
+                )
                 if utils.yes_no_dialog(msg):
-                    self.save_current_to_prefs()
+                    self.model.save()
 
         return False
-
-    def remove_connection(self, name: str) -> None:
-        """remove named connection, from combobox and from self"""
-        if name in self.connections:
-            position = self.connection_names.index(name)
-            del self.connection_names[position]
-            del self.connections[name]
-            self.name_combo.remove(position)
-            self.refresh_view()
-        self.name_combo.set_active(0)
-        prefs.prefs[bauble.CONN_LIST_PREF] = self.connections
-        prefs.prefs.save()
-
-    @Gtk.Template.Callback()
-    def on_remove_button_clicked(self, _button: Gtk.Button) -> None:
-        """remove the connection from connection list, this does not affect
-        the database or its data
-        """
-        if not self.connection_name:
-            return
-
-        msg = (
-            _(
-                'Are you sure you want to remove "%s"?\n\n'
-                "<i>Note: This only removes the connection to the database "
-                "and does not affect the database or its data</i>"
-            )
-            % self.connection_name
-        )
-
-        if not utils.yes_no_dialog(msg):
-            return
-
-        self.remove_connection(self.connection_name)
-
-    @Gtk.Template.Callback()
-    def on_add_button_clicked(self, _button: Gtk.Button) -> None:
-        if not self.are_prefs_already_saved(self.prev_connection_name):
-            msg = (
-                _("Do you want to save your changes to %s ?")
-                % self.prev_connection_name
-            )
-
-            if utils.yes_no_dialog(msg):
-                self.save_current_to_prefs()
-
-        name = self.run_entry_dialog(_("Enter a connection name"))
-
-        if name is None:
-            return
-
-        self.prev_connection_name = None
-
-        if name != "" and name not in self.connection_names:
-            self.connection_name = name
-            self.connection_names.insert(0, name)
-            self.connections[name] = self.get_params(new=name)
-            self.name_combo.prepend_text(name)
-            self.expander.set_expanded(True)
-            self.name_combo.set_active(0)
-            self.refresh_view()
-
-    def save_current_to_prefs(self) -> None:
-        """Add current named params to saved connections."""
-        if self.connection_name is None:
-            return
-
-        logger.debug("save current to prefs")
-
-        if bauble.CONN_LIST_PREF not in prefs.prefs:
-            prefs.prefs[bauble.CONN_LIST_PREF] = {}
-
-        params = copy.copy(self.get_params())
-        self.connections[self.connection_name] = params
-        prefs.prefs[bauble.CONN_LIST_PREF] = self.connections
-        prefs.prefs.save()
-
-    def are_prefs_already_saved(self, name: str | None) -> bool:
-        """Check if the current connection parameters are already saved in
-        prefs as in their current state.
-        """
-        if not name:  # no name, no need to check
-            return True
-
-        connections = prefs.prefs.get(bauble.CONN_LIST_PREF, {})
-
-        if name not in connections:
-            return False
-
-        stored_params = connections[name]
-        logger.debug("stored_params for %s: %s", name, stored_params)
-        params = copy.copy(self.get_params())
-        logger.debug("local params for %s: %s", name, params)
-
-        return params == stored_params
-
-    @Gtk.Template.Callback()
-    def on_type_combo_changed(self, combo: Gtk.ComboBoxText) -> None:
-        logger.debug("on_type_combo_changed %s", combo.get_active_text())
-        self.dbtype = combo.get_active_text() or ""
-
-        params: ConnectionDict | None = None
-        params = self.connections.get(self.connection_name or "")
-
-        if params:
-            params["type"] = self.dbtype
-
-            if self.dbtype == "MSSQL":
-                self.add_default_options(params)
-
-            self.set_params(params)
-
-    def add_default_options(self, params: ConnectionDict) -> None:
-        """Add sensible defaults for new MSSQL connections."""
-        if any((self.database, self.host, self.port, self.options)):
-            # not new bail
-            return
-
-        options: dict[str, str] = {}
-        drivers = pyodbc.drivers()
-
-        if drivers:
-            options["driver"] = drivers[0]
-
-        options["MARS_Connection"] = "Yes"
-        logger.debug("adding MSSQL sensible defaults %s", options)
-
-        params["options"] = options
 
     @Gtk.Template.Callback()
     def on_name_combo_changed(self, combo: Gtk.ComboBoxText) -> None:
         """The name changed so fill in everything else"""
+        previous = None
+
+        connection_box = self.get_connection_box()
+        if connection_box and not connection_box.problems:
+            previous = getattr(self, "model", None)
+
+        connection_name = cast(str, combo.get_active_text())
+        logger.debug("name_combo now at %s", connection_name)
+
+        if connection_name:
+            self.expander.set_visible(True)
+            self.dont_ask_chkbx.set_sensitive(True)
+            self.noconnectionlabel.set_visible(False)
+            self.swap_connections(previous, connection_name)
+        else:
+            self.expander.set_visible(False)
+            self.dont_ask_chkbx.set_sensitive(False)
+            self.noconnectionlabel.set_visible(True)
+
+    def on_problems_changed(self, _box: ConnectionBox, state: bool) -> None:
+        self.connect_button.set_sensitive(state)
+        self.dont_ask_chkbx.set_sensitive(state)
+
+    def swap_connections(
+        self,
+        previous_model: ConnectionModel | None,
+        new_name: str,
+    ) -> None:
+        self.model = ConnectionModel(new_name)
+        connection_box = ConnectionBox(self.model)
+        self.connect_button.set_sensitive(not bool(connection_box.problems))
+        connection_box.connect("problems-changed", self.on_problems_changed)
+
+        child = self.expander.get_child()
+        if child:
+            self.expander.remove(child)
+            child.destroy()
+
+        self.expander.add(connection_box)
+        connection_box.show_all()
+
+        connection_box.refresh_all_widgets_from_model()
+        connection_box.refresh_options_liststore()
+
         logger.debug(
             "on_name_combo_changing from %s to %s",
-            self.prev_connection_name,
-            self.connection_name,
+            previous_model and previous_model.connection_name,
+            self.model.connection_name,
         )
 
-        self.type_combo.set_sensitive(True)
-
-        if (
-            self.prev_connection_name is not None
-            and self.prev_connection_name in self.connection_names
-        ):
-            # we are leaving some valid settings
-            if self.prev_connection_name not in self.connections:
-                msg = _("Do you want to save %s?") % self.prev_connection_name
-
-                if utils.yes_no_dialog(msg):
-                    self.save_current_to_prefs()
-                else:
-                    self.remove_connection(self.prev_connection_name)
-
-            elif not self.are_prefs_already_saved(self.prev_connection_name):
-                msg = (
-                    _("Do you want to save your changes to %s ?")
-                    % self.prev_connection_name
-                )
-
-                if utils.yes_no_dialog(msg):
-                    self.save_current_to_prefs()
-
-        if self.connection_names:
-            self.connection_name = combo.get_active_text()
-
-        logger.debug("on_name_combo_changed %s", self.connection_name)
-
-        if self.connection_name in self.connections:
-            # we are retrieving connection info from the global settings
-            index = DBTYPES.index(
-                self.connections[self.connection_name]["type"]
+        if previous_model and not previous_model.is_saved():
+            msg = _("Do you want to save %s?") % repr(
+                previous_model.connection_name
             )
-            self.type_combo.set_active(index)
-            self.set_params()
-        else:  # this is for new connections
-            self.type_combo.set_active(0)
 
-        self.refresh_view()
-        self.prev_connection_name = self.connection_name
+            if utils.yes_no_dialog(msg):
+                previous_model.save()
 
-        self.replace_leading_appdata(self.file_entry)
-        self.replace_leading_appdata(self.rootdir_entry)
-        self.replace_leading_appdata(self.rootdir2_entry)
+    @Gtk.Template.Callback()
+    @staticmethod
+    def on_dont_ask_toggled(check_button: Gtk.CheckButton) -> None:
+        prefs.prefs[bauble.CONN_DONT_ASK_PREF] = check_button.get_active()
 
-    def get_passwd(self) -> str | None:
-        """Show a dialog with and entry and return the value entered."""
-        passwd = self.run_entry_dialog(_("Enter your password"), visible=False)
-        return passwd
+    @Gtk.Template.Callback()
+    def on_notify_close_button_clicked(self, _button) -> None:
+        """Close the notification revealer."""
+        self.notify_revealer.set_reveal_child(False)
 
-    def parameters_to_uri(self, params: ConnectionDict) -> URL:
-        """return connections paramaters as a SQLAlchemy URL object."""
-        database = params.get(
-            "db",
-            make_absolute(params.get("file", "").replace("\\", "/")),
-        )
-        uri = URL.create(
-            drivername=params["type"].lower(),
-            username=params.get("user"),
-            password=self.get_passwd() if params.get("passwd") else None,
-            host=params.get("host"),
-            port=int(params["port"]) if params.get("port") else None,
-            database=database,
-            query=params.get("options", {}),
-        )
-        return uri
-
-    @property
-    def connection_uri(self) -> URL:
-        params = copy.copy(self.get_params())
-        return self.parameters_to_uri(params)
-
-    def check_parameters_valid(
-        self, params: ConnectionDict
-    ) -> tuple[bool, str | None]:
-        """Check for errors in the connection params.
-
-        :return: tuple
-            first is a boolean indicating validity;
-            second is the localized error message.
-        """
-        if self.name_combo.get_active_text() == "":
-            return False, _("Please choose a name for this connection")
-
-        valid = True
-        msg = None
-        # first check connection parameters, then directory path
-        if params["type"] == "SQLite":
-            if params["file"] == "":
-                valid = False
-                msg = _("Please specify a database file name")
-                return valid, msg
-            filename = Path(make_absolute(params["file"]))
-            if not filename.exists():
-                directory = filename.parent
-                if not os.access(directory, os.R_OK):
-                    valid = False
-                    msg = (
-                        _(
-                            "Ghini does not have permission to "
-                            "read the directory:\n\n%s"
-                        )
-                        % directory
-                    )
-                elif not os.access(directory, os.W_OK):
-                    valid = False
-                    msg = (
-                        _(
-                            "Ghini does not have permission to "
-                            "write to the directory:\n\n%s"
-                        )
-                        % directory
-                    )
-            elif not os.access(filename, os.R_OK):
-                valid = False
-                msg = (
-                    _(
-                        "Ghini does not have permission to read the "
-                        "database file:\n\n%s"
-                    )
-                    % filename
-                )
-            elif not os.access(filename, os.W_OK):
-                valid = False
-                msg = (
-                    _(
-                        "Ghini does not have permission to "
-                        "write to the database file:\n\n%s"
-                    )
-                    % filename
-                )
-        else:
-            missing_fields = []
-            if params["user"] == "":
-                valid = False
-                missing_fields.append(_("user name"))
-            if params["db"] == "":
-                valid = False
-                missing_fields.append(_("database name"))
-            if params["host"] == "":
-                valid = False
-                missing_fields.append(_("DBMS host name"))
-            if not valid:
-                msg = _(
-                    "Current connection does not specify the fields:\n"
-                    "%s\nPlease try again."
-                ) % "\n".join(missing_fields)
-        if not valid:
-            return valid, msg
-        # now check the params['directory']
-        valid, msg = check_create_paths(params["directory"])
-
-        return valid, msg
-
-    def set_defaults(self, new: str | None = None) -> None:
-        """If a name is available set the defaults."""
-        if new or self.connection_name:
-            name = new or self.connection_name or ""
-            # use os.path.join here so we get ./
-            self.filename = os.path.join(".", name + ".db")
-            self.rootdir = os.path.join(".", name)
-
-    def get_params(self, new: str | None = None) -> ConnectionDict:
-        if new is not None:
-            self.dbtype = "SQLite"
-            self.use_defaults = True
-
-        result: ConnectionDict = {
-            "type": self.dbtype,
-            "directory": self.rootdir,
-        }
-
-        if self.dbtype == "SQLite":
-            if self.use_defaults is True:
-                self.set_defaults(new)
-
-            result["file"] = self.filename
-            result["default"] = self.use_defaults
-            result["directory"] = self.rootdir
-        else:
-            result["db"] = self.database
-            result["host"] = self.host
-            result["port"] = self.port
-            result["user"] = self.user
-            result["passwd"] = self.passwd
-            result["options"] = self.options
-
-        return result
-
-    def set_params(self, params: None | ConnectionDict = None) -> None:
-        if self.connection_name is None:
-            return
-
-        if params is None:
-            params = self.connections[self.connection_name]
-
-        self.dbtype = params["type"]
-
-        if self.dbtype == "SQLite":
-            self.filename = params.get("file", "")
-            self.use_defaults = params.get("default", True)
-            self.rootdir = params.get("directory", "")
-            self.database = ""
-            self.host = ""
-            self.port = ""
-            self.user = ""
-            self.passwd = False
-        else:
-            self.database = params.get("db", "")
-            self.host = params.get("host", "")
-            self.port = params.get("port", "")
-            self.user = params.get("user", "")
-            self.rootdir = params.get("directory", "")
-            self.passwd = params.get("passwd", False)
-            self.options = params.get("options", {})
-            self.filename = ""
-            self.use_defaults = True
-        self.refresh_view()
-
+    # TODO put this in utils - can we provide a simple problems validator?
+    # i.e. here it would just need to check that the value was not in the
+    # current connection names...  (This would also disallow OK)
     def run_entry_dialog(self, title: str, visible: bool = True) -> str | None:
         """Run a minimal dialog with a single entry for user input.
 
@@ -939,58 +942,96 @@ class ConnectionManagerDialog(Gtk.Dialog):
         dialog.destroy()
         return user_reply
 
-    @Gtk.Template.Callback()
-    def on_text_entry_changed(self, entry: Gtk.Entry) -> None:
-        setattr(self, self.widget_to_attr[entry], entry.get_text())
+    def remove_connection(self) -> None:
+        """Remove current selected connection from combobox and from prefs."""
+        self.model.remove()
 
-    def refresh_options_liststore(self) -> None:
-        """Refresh the options liststore with the current options."""
-        self.options_liststore.clear()
+        connection_box = self.get_connection_box()
+        if connection_box:
+            self.expander.remove(connection_box)
 
-        for name, value in self.options.items():
-            self.options_liststore.append([name, value])
-
-        self.options_liststore.append(["", ""])
-
-    def options_edited(
-        self,
-        path: Gtk.TreePath,
-        column: int,
-        text: str,
-    ) -> None:
-        """Generic handler for editing options in the liststore."""
-        self.options_liststore[path][column] = text
-        self.options = {  # type: ignore[misc]
-            name: value for name, value in self.options_liststore if name  # type: ignore # noqa
-        }
-        self.refresh_options_liststore()
+        self.connect_button.set_sensitive(False)
+        self.name_combo.remove(self.name_combo.get_active())
+        self.name_combo.set_active(0)
 
     @Gtk.Template.Callback()
-    def on_options_name_edited(
-        self,
-        _cell: Gtk.CellRendererText,
-        path: Gtk.TreePath,
-        text: str,
-    ) -> None:
-        self.options_edited(path, 0, text)
+    def on_remove_button_clicked(self, _button: Gtk.Button) -> None:
+        """remove the connection from connection list, this does not affect
+        the database or its data
+        """
+        if not self.connection_name:
+            return
+
+        msg = (
+            _(
+                'Are you sure you want to remove "%s"?\n\n'
+                "<i>Note: This only removes the connection to the database "
+                "and does not affect the database or its data</i>"
+            )
+            % self.connection_name
+        )
+
+        if not utils.yes_no_dialog(msg):
+            return
+
+        self.remove_connection()
 
     @Gtk.Template.Callback()
-    def on_options_value_edited(
-        self,
-        _cell: Gtk.CellRendererText,
-        path: Gtk.TreePath,
-        text: str,
-    ) -> None:
-        self.options_edited(path, 1, text)
+    def on_add_button_clicked(self, _button: Gtk.Button) -> None:
+        if getattr(self, "model", None) and not self.model.is_saved():
+            msg = (
+                _("Do you want to save your changes to %s ?")
+                % self.model.connection_name
+            )
 
-    @Gtk.Template.Callback()
-    @staticmethod
-    def on_dont_ask_toggled(check_button: Gtk.CheckButton) -> None:
-        prefs.prefs[bauble.CONN_DONT_ASK_PREF] = check_button.get_active()
+            if utils.yes_no_dialog(msg):
+                self.model.save()
 
-    @Gtk.Template.Callback()
-    def on_passwd_chkbx_toggled(self, check_button: Gtk.CheckButton) -> None:
-        self.passwd = check_button.get_active()
+        name = self.run_entry_dialog(_("Enter a connection name"))
+        logger.debug("new name = %s", repr(name))
+
+        if not name:
+            return
+
+        connections = prefs.prefs.get(bauble.CONN_LIST_PREF, {})
+
+        if name not in connections:
+            self.name_combo.prepend_text(name)
+            self.expander.set_expanded(True)
+            self.name_combo.set_active(0)
+
+    def get_passwd(self) -> str | None:
+        """Show a dialog with and entry and return the value entered."""
+        passwd = self.run_entry_dialog(_("Enter your password"), visible=False)
+        return passwd
+
+    def parameters_to_uri(self, params: ConnectionDict) -> URL:
+        """return connections paramaters as a SQLAlchemy URL object."""
+        database = params.get(
+            "db",
+            make_absolute(params.get("file", "").replace("\\", "/")),
+        )
+        uri = URL.create(
+            drivername=params["type"].lower(),
+            username=params.get("user"),
+            password=self.get_passwd() if params.get("passwd") else None,
+            host=params.get("host"),
+            port=int(params["port"]) if params.get("port") else None,
+            database=database,
+            query=params.get("options", {}),
+        )
+        return uri
+
+    @property
+    def connection_uri(self) -> URL:
+        params = self.model.get_params()
+        return self.parameters_to_uri(params)
+
+    @property
+    def connection_name(self) -> str | None:
+        if hasattr(self, "model"):
+            return self.model.connection_name
+        return None
 
 
 def start_connection_manager(

@@ -1136,7 +1136,7 @@ class Problem:  # pylint: disable=too-few-public-methods
         return f"{self.problem_type}::{class_.__name__}::{id(instance)}"
 
 
-class GenericPresenter:
+class GenericPresenter[T]:
     """A presenter with a model that can be used with a Gtk.Template decorated
     class as the view.
 
@@ -1146,7 +1146,7 @@ class GenericPresenter:
     Example as a Mixin::
 
         @Gtk.Template(filename="/path/to/file.ui"))
-        class Foo(GenericPresenter, Gtk.Dialog):
+        class Foo(GenericPresenter[FooModel], Gtk.Dialog):
 
             __gtype_name__ = "Foo"
 
@@ -1173,7 +1173,7 @@ class GenericPresenter:
             bar = cast(Gtk.Entry, Gtk.Template.Child())
 
 
-        class FooPresenter(GenericPresenter):
+        class FooPresenter(GenericPresenter[FooModel]):
             def __init__(
                     self, model: FooModel, view: FooView
             ) -> None:
@@ -1194,9 +1194,10 @@ class GenericPresenter:
     PROBLEM_EMPTY = Problem("empty")
 
     def __init__(
-        self, model: object, view: Self | Gtk.Widget, *args, **kwargs
+        self, model: T, view: Self | Gtk.Widget, *args, **kwargs
     ) -> None:
 
+        logger.debug("%s.__init__", type(self).__name__)
         self.widgets_to_model_map: dict[GObject.Object, str]
         self.problems: set[tuple[str, Gtk.Widget]] = set()
 

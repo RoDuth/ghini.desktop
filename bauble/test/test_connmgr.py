@@ -20,7 +20,6 @@ import copy
 import os
 from pathlib import Path
 from tempfile import mkdtemp
-from tempfile import mkstemp
 from unittest import mock
 
 import dateutil
@@ -35,7 +34,9 @@ import bauble
 from bauble import paths
 from bauble import prefs
 from bauble.connmgr import DBTYPES
+from bauble.connmgr import ConnectionBox
 from bauble.connmgr import ConnectionManagerDialog
+from bauble.connmgr import ConnectionModel
 from bauble.connmgr import check_create_paths
 from bauble.connmgr import check_new_release
 from bauble.connmgr import is_package_name
@@ -57,7 +58,8 @@ def test_duplicate_ids():
     import bauble.connmgr as mod
 
     head, _tail = os.path.split(mod.__file__)
-    assert not check_dupids(os.path.join(head, "connmgr.ui"))
+    assert not check_dupids(os.path.join(head, "connection_manager.ui"))
+    assert not check_dupids(os.path.join(head, "connection_box.ui"))
 
 
 class ConnectionManagerTests(BaubleTestCase):
@@ -89,7 +91,7 @@ class ConnectionManagerTests(BaubleTestCase):
         self.assertTrue(presenter.expander.get_visible())
         self.assertFalse(presenter.noconnectionlabel.get_visible())
         # action
-        presenter.remove_connection("nugkui")
+        presenter.remove_connection()
         # T_1
         self.assertFalse(presenter.expander.get_visible())
         self.assertTrue(presenter.noconnectionlabel.get_visible())
@@ -97,8 +99,16 @@ class ConnectionManagerTests(BaubleTestCase):
 
     @mock.patch("bauble.connmgr.utils.yes_no_dialog")
     def test_on_remove_no_connection_name_bails(self, mock_dialog):
+        prefs.prefs[bauble.CONN_LIST_PREF] = {
+            "nugkui": {
+                "default": True,
+                "directory": "./nugkui",
+                "type": "SQLite",
+                "file": "./nugkui.db",
+            }
+        }
         presenter = ConnectionManagerDialog()
-        presenter.connection_name = None
+        presenter.model.connection_name = None
         presenter.on_remove_button_clicked("button")
         # nothing changes
         mock_dialog.assert_not_called()
@@ -156,11 +166,14 @@ class ConnectionManagerTests(BaubleTestCase):
             },
         }
         prefs.prefs[bauble.CONN_DEFAULT_PREF] = "nugkui"
+        prefs.prefs.save()
         presenter = ConnectionManagerDialog()
+        connection_box = presenter.expander.get_child()
+
         self.assertEqual(presenter.connection_name, "nugkui")
-        params = presenter.connections[presenter.connection_name]
-        self.assertEqual(params["default"], True)
-        self.assertTrue(presenter.usedefaults_chkbx.get_active())
+        self.assertTrue(presenter.model.use_defaults)
+        self.assertTrue(connection_box.usedefaults_chkbx.get_active())
+
         presenter.destroy()
 
     def test_two_connection_initialize_default_second(self):
@@ -180,10 +193,12 @@ class ConnectionManagerTests(BaubleTestCase):
         }
         prefs.prefs[bauble.CONN_DEFAULT_PREF] = "btuu"
         presenter = ConnectionManagerDialog()
+        connection_box = presenter.expander.get_child()
+
         self.assertEqual(presenter.connection_name, "btuu")
-        params = presenter.connections[presenter.connection_name]
-        self.assertEqual(params["default"], False)
-        self.assertFalse(presenter.usedefaults_chkbx.get_active())
+        self.assertFalse(presenter.model.use_defaults)
+        self.assertFalse(connection_box.usedefaults_chkbx.get_active())
+
         presenter.destroy()
 
     @mock.patch("bauble.connmgr.utils.yes_no_dialog")
@@ -239,14 +254,17 @@ class ConnectionManagerTests(BaubleTestCase):
         }
         prefs.prefs[bauble.CONN_DEFAULT_PREF] = "quisquis"
         presenter = ConnectionManagerDialog()
+        connection_box = presenter.expander.get_child()
+
         self.assertEqual(presenter.connection_name, "quisquis")
         self.assertTrue(presenter.expander.get_visible())
-        self.assertTrue(presenter.dbms_parambox.get_visible())
-        self.assertFalse(presenter.sqlite_parambox.get_visible())
+        self.assertTrue(connection_box.dbms_parambox.get_visible())
+        self.assertFalse(connection_box.sqlite_parambox.get_visible())
         self.assertFalse(presenter.noconnectionlabel.get_visible())
+
         presenter.destroy()
 
-    def test_one_connection_shown_and_selected_unknown_oracle(self):
+    def test_one_connection_unknown_dbtype_doesnt_show(self):
         prefs.prefs[bauble.CONN_LIST_PREF] = {
             "quisquis": {
                 "passwd": False,
@@ -259,11 +277,12 @@ class ConnectionManagerTests(BaubleTestCase):
         }
         prefs.prefs[bauble.CONN_DEFAULT_PREF] = "quisquis"
         presenter = ConnectionManagerDialog()
+
         self.assertIsNone(presenter.connection_name)
         self.assertFalse(presenter.expander.get_visible())
-        self.assertFalse(presenter.dbms_parambox.get_visible())
-        self.assertFalse(presenter.sqlite_parambox.get_visible())
+        self.assertIsNone(presenter.expander.get_child())
         self.assertTrue(presenter.noconnectionlabel.get_visible())
+
         presenter.destroy()
 
     def test_one_connection_shown_and_selected_mssql_w_options(self):
@@ -283,12 +302,15 @@ class ConnectionManagerTests(BaubleTestCase):
         }
         prefs.prefs[bauble.CONN_DEFAULT_PREF] = "quisquis"
         presenter = ConnectionManagerDialog()
+        connection_box = presenter.expander.get_child()
+
         self.assertEqual(presenter.connection_name, "quisquis")
         self.assertTrue(presenter.expander.get_visible())
-        self.assertTrue(presenter.dbms_parambox.get_visible())
-        self.assertFalse(presenter.sqlite_parambox.get_visible())
+        self.assertTrue(connection_box.dbms_parambox.get_visible())
+        self.assertFalse(connection_box.sqlite_parambox.get_visible())
         self.assertFalse(presenter.noconnectionlabel.get_visible())
-        self.assertEqual(len(presenter.options_liststore), 3)
+        self.assertEqual(len(connection_box.options_liststore), 3)
+
         presenter.destroy()
 
     def test_two_connections_wrong_default_use_first_one(self):
@@ -311,8 +333,7 @@ class ConnectionManagerTests(BaubleTestCase):
         }
         prefs.prefs[bauble.CONN_DEFAULT_PREF] = "nonce"
         presenter = ConnectionManagerDialog()
-        as_list = presenter.connection_names
-        self.assertEqual(presenter.connection_name, as_list[0])
+        self.assertEqual(presenter.model.connection_name, "nugkui")
         presenter.destroy()
 
     def test_when_user_selects_different_type(self):
@@ -334,18 +355,22 @@ class ConnectionManagerTests(BaubleTestCase):
             },
         }
         presenter = ConnectionManagerDialog()
+        connection_box = presenter.expander.get_child()
         # T_0
         self.assertEqual(presenter.connection_name, "nugkui")
-        self.assertTrue(presenter.sqlite_parambox.get_visible())
-        self.assertFalse(presenter.dbms_parambox.get_visible())
+        self.assertTrue(connection_box.sqlite_parambox.get_visible())
+        self.assertFalse(connection_box.dbms_parambox.get_visible())
         # action
         presenter.name_combo.set_active(1)
         # result
         self.assertEqual(presenter.connection_name, "quisquis")
-        self.assertEqual(presenter.dbtype, "PostgreSQL")
+        self.assertEqual(presenter.model.dbtype, "PostgreSQL")
         # T_1
-        self.assertTrue(presenter.dbms_parambox.get_visible())
-        self.assertFalse(presenter.sqlite_parambox.get_visible())
+        connection_box = presenter.expander.get_child()
+
+        self.assertTrue(connection_box.dbms_parambox.get_visible())
+        self.assertFalse(connection_box.sqlite_parambox.get_visible())
+
         presenter.destroy()
 
     def test_set_default_toggles_sensitivity_sets_default(self):
@@ -359,142 +384,15 @@ class ConnectionManagerTests(BaubleTestCase):
             },
         }
         presenter = ConnectionManagerDialog()
-        presenter.usedefaults_chkbx.set_active(True)
-        self.assertFalse(presenter.file_entry.get_sensitive())
+        connection_box = presenter.expander.get_child()
+
+        connection_box.usedefaults_chkbx.set_active(True)
+        self.assertFalse(connection_box.file_entry.get_sensitive())
         self.assertEqual(presenter.connection_name, "nugkui")
-        self.assertEqual(presenter.rootdir_entry.get_text(), "./nugkui")
-        self.assertEqual(presenter.file_entry.get_text(), "./nugkui.db")
+        self.assertEqual(connection_box.rootdir_entry.get_text(), "./nugkui")
+        self.assertEqual(connection_box.file_entry.get_text(), "./nugkui.db")
+
         presenter.destroy()
-
-    def test_check_parameters_valid_not_sqlite(self):
-        prefs.prefs[bauble.CONN_DEFAULT_PREF] = "quisquis"
-        prefs.prefs[bauble.CONN_LIST_PREF] = {
-            "quisquis": {
-                "type": "PostgreSQL",
-                "passwd": False,
-                "directory": f"{TEMP_ROOT}/",
-                "db": "quisquis",
-                "host": "localhost",
-                "user": "pg",
-            }
-        }
-        presenter = ConnectionManagerDialog()
-        params = presenter.connections["quisquis"]
-        valid, message = presenter.check_parameters_valid(params)
-        self.assertTrue(valid)
-        self.assertFalse(message)
-        params = copy.copy(presenter.connections["quisquis"])
-        params["user"] = ""
-        valid, message = presenter.check_parameters_valid(params)
-        self.assertFalse(valid)
-        self.assertTrue(message)
-        params = copy.copy(presenter.connections["quisquis"])
-        params["db"] = ""
-        valid, message = presenter.check_parameters_valid(params)
-        self.assertFalse(valid)
-        self.assertTrue(message)
-        params = copy.copy(presenter.connections["quisquis"])
-        params["host"] = ""
-        valid, message = presenter.check_parameters_valid(params)
-        self.assertFalse(valid)
-        self.assertTrue(message)
-        presenter.destroy()
-
-    def test_check_parameters_valid_sqlite(self):
-        sqlite_params = {
-            "type": "SQLite",
-            "default": False,
-            "file": f"{TEMP_ROOT}/test.db",
-            "directory": f"{TEMP_ROOT}/",
-        }
-        presenter = ConnectionManagerDialog()
-        params = copy.copy(sqlite_params)
-        valid, message = presenter.check_parameters_valid(params)
-        self.assertTrue(valid)
-        self.assertFalse(message)
-        # file doesnt exists and is not readable
-        with mock.patch("os.access") as mock_access:
-            mock_access.return_value = False
-            valid, message = presenter.check_parameters_valid(params)
-            self.assertFalse(valid)
-            self.assertTrue(message)
-        # file doesn't exist and isn't writable
-
-        def access_not_writable(_path, mode):
-            if mode == os.W_OK:
-                return False
-            return True
-
-        with mock.patch("os.access") as mock_access:
-
-            mock_access.side_effect = access_not_writable
-            mock_access.return_value = False
-            valid, message = presenter.check_parameters_valid(params)
-            self.assertFalse(valid)
-            self.assertTrue(message)
-        # file exists and is read and writable
-        handle, path = mkstemp()
-        params = copy.copy(sqlite_params)
-        params["file"] = path
-        valid, message = presenter.check_parameters_valid(params)
-        self.assertTrue(valid)
-        self.assertFalse(message)
-        os.close(handle)
-        os.unlink(path)
-        # file exists, directory not readable
-        handle, path = mkstemp()
-        params = copy.copy(sqlite_params)
-        params["file"] = path
-        with mock.patch("os.access") as mock_access:
-            mock_access.return_value = False
-            valid, message = presenter.check_parameters_valid(params)
-            self.assertFalse(valid)
-            self.assertTrue(message)
-
-        os.close(handle)
-        os.unlink(path)
-        # file exists, directory not writable
-        handle, path = mkstemp()
-        params = copy.copy(sqlite_params)
-        params["file"] = path
-        with mock.patch("os.access") as mock_access:
-
-            mock_access.side_effect = access_not_writable
-            valid, message = presenter.check_parameters_valid(params)
-            self.assertFalse(valid)
-            self.assertTrue(message)
-
-        os.close(handle)
-        os.unlink(path)
-        presenter.destroy()
-
-    def test_check_parameters_valid_no_name(self):
-        presenter = ConnectionManagerDialog()
-        params = {
-            "type": "PostgreSQL",
-            "passwd": False,
-            "directory": f"{TEMP_ROOT}/",
-            "db": "",
-            "host": "localhost",
-            "user": "pg",
-        }
-        with mock.patch.object(presenter, "name_combo") as mock_combo:
-            mock_combo.get_active_text.return_value = ""
-            valid, message = presenter.check_parameters_valid(params)
-        self.assertFalse(valid)
-        self.assertEqual(message, "Please choose a name for this connection")
-
-    def test_check_parameters_valid_sqlite_no_file(self):
-        presenter = ConnectionManagerDialog()
-        params = {
-            "type": "SQLite",
-            "default": False,
-            "file": "",
-            "directory": f"{TEMP_ROOT}/",
-        }
-        valid, message = presenter.check_parameters_valid(params)
-        self.assertFalse(valid)
-        self.assertEqual(message, "Please specify a database file name")
 
     def test_parameters_to_uri_sqlite(self):
         prefs.prefs[bauble.CONN_DEFAULT_PREF] = None
@@ -610,19 +508,22 @@ class ConnectionManagerTests(BaubleTestCase):
             }
         }
         presenter = ConnectionManagerDialog()
+        connection_box = presenter.expander.get_child()
+
         self.assertEqual(presenter.connection_name, "quisquis")
-        self.assertEqual(presenter.dbtype, "PostgreSQL")
+        self.assertEqual(presenter.model.dbtype, "PostgreSQL")
         self.assertEqual(
             presenter.connection_uri,
             make_url("postgresql://pg@localhost:9876/quisquis"),
         )
         # change it
-        presenter.database_entry.set_text("new_db")
-        presenter.user_entry.set_text("new_user")
-        presenter.host_entry.set_text("new_host")
-        presenter.port_entry.set_text("1234")
-        presenter.passwd_chkbx.set_active(True)
-        params = presenter.get_params()
+        connection_box.database_entry.set_text("new_db")
+
+        connection_box.user_entry.set_text("new_user")
+        connection_box.host_entry.set_text("new_host")
+        connection_box.port_entry.set_text("1234")
+        connection_box.passwd_chkbx.set_active(True)
+        params = presenter.model.get_params()
         self.assertEqual(params["db"], "new_db")
         self.assertEqual(params["user"], "new_user")
         self.assertEqual(params["host"], "new_host")
@@ -638,53 +539,37 @@ class ConnectionManagerTests(BaubleTestCase):
             )
         presenter.destroy()
 
-    def test_save_to_current_prefs_no_connection_bails(self):
-        presenter = ConnectionManagerDialog()
-        presenter.connection_name = None
-
-        with self.assertNoLogs(level="DEBUG"):
-            presenter.save_current_to_prefs()
-
-        presenter.destroy()
-
-    def test_save_to_current_prefs_no_pref_creates(self):
-        presenter = ConnectionManagerDialog()
-        del prefs.prefs[bauble.CONN_LIST_PREF]
-        presenter.connection_name = "spam"
-        presenter.filename = "./spam.db"
-        presenter.rootdir = "./spam"
-        presenter.dbtype = "SQLite"
-        presenter.use_defaults = False
-
-        self.assertNotIn(bauble.CONN_LIST_PREF, prefs.prefs)
-
-        presenter.save_current_to_prefs()
-
-        self.assertIn(bauble.CONN_LIST_PREF, prefs.prefs)
-        conn_list = prefs.prefs[bauble.CONN_LIST_PREF]
-        # pylint: disable=unsubscriptable-object
-        self.assertEqual(conn_list["spam"]["file"], "./spam.db")
-        self.assertEqual(conn_list["spam"]["directory"], "./spam")
-
-        presenter.destroy()
-
     def test_are_prefs_already_saved(self):
+        prefs.prefs[bauble.CONN_LIST_PREF] = {
+            "quisquis": {
+                "type": "PostgreSQL",
+                "passwd": False,
+                "directory": f"{TEMP_ROOT}/",
+                "db": "quisquis",
+                "host": "localhost",
+                "port": "9876",
+                "user": "pg",
+            }
+        }
         presenter = ConnectionManagerDialog()
         # no connection_name
 
-        self.assertTrue(presenter.are_prefs_already_saved(None))
-
+        self.assertTrue(presenter.model.is_saved())
         # prefs with out the connection name
         prefs.prefs[bauble.CONN_LIST_PREF] = {}
 
-        self.assertFalse(presenter.are_prefs_already_saved("spam"))
+        self.assertFalse(presenter.model.is_saved())
 
         # prefs with connection name and equal
-        presenter.connection_name = "spam"
-        presenter.filename = "./spam.db"
-        presenter.rootdir = "./spam"
-        presenter.dbtype = "SQLite"
-        presenter.use_defaults = False
+        presenter.model.connection_name = "spam"
+        presenter.model.filename = "./spam.db"
+        presenter.model.rootdir = "./spam"
+        presenter.model.dbtype = "SQLite"
+        presenter.model.use_defaults = False
+        presenter.model.database = ""
+        presenter.model.host = ""
+        presenter.model.port = ""
+        presenter.model.user = ""
         prefs.prefs[bauble.CONN_LIST_PREF] = {
             "spam": {
                 "default": False,
@@ -694,46 +579,54 @@ class ConnectionManagerTests(BaubleTestCase):
             }
         }
 
-        self.assertTrue(presenter.are_prefs_already_saved("spam"))
+        self.assertTrue(presenter.model.is_saved())
 
         # prefs with connection name and not equal
-        presenter.rootdir = "./spam_and_eggs"
+        presenter.model.rootdir = "./spam_and_eggs"
 
-        self.assertFalse(presenter.are_prefs_already_saved("spam"))
+        self.assertFalse(presenter.model.is_saved())
 
         presenter.destroy()
 
     @mock.patch("bauble.connmgr.utils.yes_no_dialog")
     def test_on_name_combo_changed_asks_saves_unsaved(self, mock_yn):
+        prefs.prefs[bauble.CONN_LIST_PREF] = {
+            "spam": {
+                "default": False,
+                "directory": "./spam",
+                "type": "SQLite",
+                "file": "./spam.db",
+            },
+            "eggs": {
+                "default": False,
+                "directory": "./eggs",
+                "type": "SQLite",
+                "file": "./egss.db",
+            },
+        }
         mock_yn.return_value = True
         presenter = ConnectionManagerDialog()
-        # no connection_name
-        presenter.prev_connection_name = "spam"
-        presenter.connection_names = ["spam", "eggs"]
+        # make a change to prefs
+        prefs.prefs[bauble.CONN_LIST_PREF] = {
+            "spam": {
+                "default": False,
+                "directory": "./ham",
+                "type": "SQLite",
+                "file": "./ham.db",
+            },
+            "eggs": {
+                "default": False,
+                "directory": "./eggs",
+                "type": "SQLite",
+                "file": "./eggs.db",
+            },
+        }
 
-        with mock.patch.object(
-            presenter, "save_current_to_prefs"
-        ) as mock_save:
-            presenter.on_name_combo_changed(presenter.name_combo)
+        with mock.patch.object(presenter.model, "save") as mock_save:
+            presenter.name_combo.set_active(1)
+
             mock_save.assert_called()
-
-        presenter.destroy()
-
-    @mock.patch("bauble.connmgr.utils.yes_no_dialog")
-    def test_on_name_combo_changed_asks_removes_unsaved(self, mock_yn):
-        mock_yn.return_value = False
-        presenter = ConnectionManagerDialog()
-        # no connection_name
-        presenter.prev_connection_name = "spam"
-        presenter.connection_names = ["spam", "eggs"]
-
-        with (
-            mock.patch.object(presenter, "save_current_to_prefs") as mock_save,
-            mock.patch.object(presenter, "remove_connection") as mock_remove,
-        ):
-            presenter.on_name_combo_changed(presenter.name_combo)
-            mock_save.assert_not_called()
-            mock_remove.assert_called_once_with("spam")
+            mock_yn.assert_called_once()
 
         presenter.destroy()
 
@@ -756,67 +649,123 @@ class ConnectionManagerTests(BaubleTestCase):
         self.assertEqual(result, "spam")
         presenter.destroy()
 
-    def test_set_params_no_connection_name_bails(self):
-        presenter = ConnectionManagerDialog()
-        presenter.connection_name = None
-        self.assertEqual(presenter.filename, "")
-        params = {
-            "type": "SQLite",
-            "default": False,
-            "file": "./test.db",
-            "directory": "./test",
+    def test_problems_prevents_connecting(self):
+        prefs.prefs[bauble.CONN_LIST_PREF] = {
+            "spam": {
+                "default": True,
+                "directory": "./ham",
+                "type": "SQLite",
+                "file": "./ham.db",
+            }
         }
-        presenter.set_params(params)
-        self.assertEqual(presenter.filename, "")
-        self.assertEqual(presenter.rootdir, "")
-        self.assertEqual(presenter.dbtype, "")
+        presenter = ConnectionManagerDialog()
+        self.assertTrue(presenter.connect_button.get_sensitive())
+        self.assertTrue(presenter.dont_ask_chkbx.get_sensitive())
+
+        presenter.on_problems_changed(None, False)
+
+        self.assertFalse(presenter.connect_button.get_sensitive())
+        self.assertFalse(presenter.dont_ask_chkbx.get_sensitive())
+
         presenter.destroy()
 
-    def test_set_defaults_only_sets_when_name_available(self):
-        presenter = ConnectionManagerDialog()
-        presenter.connection_name = None
-        presenter.set_defaults()
-        self.assertEqual(presenter.filename, "")
-        self.assertEqual(presenter.rootdir, "")
-        presenter.set_defaults("spam")
-        self.assertEqual(presenter.filename, "./spam.db")
-        self.assertEqual(presenter.rootdir, "./spam")
-        presenter.connection_name = "eggs"
-        presenter.set_defaults()
-        self.assertEqual(presenter.filename, "./eggs.db")
-        self.assertEqual(presenter.rootdir, "./eggs")
-        presenter.destroy()
+
+class ConnectionModelTests(BaubleTestCase):
+    def test_no_connection_name_raises(self):
+        self.assertRaises(ValueError, ConnectionModel, None)
+        self.assertRaises(ValueError, ConnectionModel, "")
+
+    def test_use_defaults(self):
+        prefs.prefs[bauble.CONN_LIST_PREF] = {
+            "quisquis": {
+                "passwd": False,
+                "directory": "",
+                "db": "quisquis",
+                "host": "localhost",
+                "port": "9876",
+                "user": "foo",
+                "type": "MSSQL",
+                "options": {
+                    "driver": "Fake driver",
+                    "MARS_Connection": "No",
+                },
+            }
+        }
+        model = ConnectionModel("quisquis")
+        model.connection_name = None
+        model.use_defaults = True
+        self.assertEqual(model.filename, "")
+        self.assertEqual(model.rootdir, "")
+        model = ConnectionModel("quisquis")
+        model.use_defaults = True
+        self.assertEqual(model.filename, "./quisquis.db")
+        self.assertEqual(model.rootdir, "./quisquis")
+        model.connection_name = "eggs"
+        model.use_defaults = True
+        self.assertEqual(model.filename, "./eggs.db")
+        self.assertEqual(model.rootdir, "./eggs")
+
+    def test_save_no_connection_bails(self):
+        model = ConnectionModel("spam")
+        model.connection_name = None
+
+        with self.assertNoLogs(level="DEBUG"):
+            model.save()
+
+    def test_save_no_prefs_creates(self):
+        model = ConnectionModel("spam")
+        del prefs.prefs[bauble.CONN_LIST_PREF]
+        model.filename = "./spam.db"
+        model.rootdir = "./spam"
+        model.dbtype = "SQLite"
+        model.use_defaults = False
+
+        self.assertNotIn(bauble.CONN_LIST_PREF, prefs.prefs)
+
+        model.save()
+
+        self.assertIn(bauble.CONN_LIST_PREF, prefs.prefs)
+        conn_list = prefs.prefs[bauble.CONN_LIST_PREF]
+        # pylint: disable=unsubscriptable-object
+        self.assertEqual(conn_list["spam"]["file"], "./spam.db")
+        self.assertEqual(conn_list["spam"]["directory"], "./spam")
 
 
 class OptionsTests(BaubleTestCase):
     def test_on_options_edited(self):
-        presenter = ConnectionManagerDialog()
-        self.assertEqual(len(presenter.options_liststore), 1)
-        presenter.on_options_name_edited("entry", 0, "spam")
-        presenter.on_options_value_edited("entry", 0, "eggs")
+        model = ConnectionModel("ham")
+        connection_box = ConnectionBox(model)
+        connection_box.type_combo.set_active(DBTYPES.index("PostgreSQL"))
 
-        self.assertEqual(len(presenter.options_liststore), 2)
-        self.assertEqual(presenter.options, {"spam": "eggs"})
+        self.assertEqual(len(connection_box.options_liststore), 1)
+        connection_box.on_options_name_edited("entry", 0, "spam")
+        connection_box.on_options_value_edited("entry", 0, "eggs")
 
-        presenter.destroy()
+        self.assertEqual(len(connection_box.options_liststore), 2)
+        self.assertEqual(model.options, {"spam": "eggs"})
+
+        connection_box.destroy()
 
     def test_new_mssql_adds_sensible_defaults(self):
         presenter = ConnectionManagerDialog()
         with mock.patch.object(presenter, "run_entry_dialog") as mock_dlog:
             mock_dlog.return_value = "spam"
-            presenter.on_add_button_clicked("button")
+            presenter.on_add_button_clicked(presenter.name_combo)
 
         self.assertEqual(presenter.connection_name, "spam")
 
-        presenter.type_combo.set_active(DBTYPES.index("MSSQL"))
+        connection_box = presenter.get_connection_box()
+        connection_box.type_combo.set_active(DBTYPES.index("MSSQL"))
 
-        self.assertEqual(len(presenter.options_liststore), 3)
-        self.assertEqual(presenter.options_liststore[0][0], "driver")
+        self.assertEqual(len(connection_box.options_liststore), 3)
+        self.assertEqual(connection_box.options_liststore[0][0], "driver")
         self.assertEqual(
-            presenter.options_liststore[0][1], pyodbc.drivers()[0]
+            connection_box.options_liststore[0][1], pyodbc.drivers()[0]
         )
-        self.assertEqual(presenter.options_liststore[1][0], "MARS_Connection")
-        self.assertEqual(presenter.options_liststore[1][1], "Yes")
+        self.assertEqual(
+            connection_box.options_liststore[1][0], "MARS_Connection"
+        )
+        self.assertEqual(connection_box.options_liststore[1][1], "Yes")
 
         presenter.destroy()
 
@@ -837,20 +786,25 @@ class OptionsTests(BaubleTestCase):
             }
         }
         presenter = ConnectionManagerDialog()
+        connection_box = presenter.get_connection_box()
 
         self.assertEqual(presenter.connection_name, "quisquis")
-        self.assertEqual(presenter.options_liststore[0][0], "driver")
-        self.assertEqual(presenter.options_liststore[0][1], "Fake driver")
-        self.assertEqual(presenter.options_liststore[1][0], "MARS_Connection")
-        self.assertEqual(presenter.options_liststore[1][1], "No")
+        self.assertEqual(connection_box.options_liststore[0][0], "driver")
+        self.assertEqual(connection_box.options_liststore[0][1], "Fake driver")
+        self.assertEqual(
+            connection_box.options_liststore[1][0], "MARS_Connection"
+        )
+        self.assertEqual(connection_box.options_liststore[1][1], "No")
 
-        presenter.type_combo.set_active(DBTYPES.index("SQLite"))
-        presenter.type_combo.set_active(DBTYPES.index("MSSQL"))
+        connection_box.type_combo.set_active(DBTYPES.index("SQLite"))
+        connection_box.type_combo.set_active(DBTYPES.index("MSSQL"))
 
-        self.assertEqual(presenter.options_liststore[0][0], "driver")
-        self.assertEqual(presenter.options_liststore[0][1], "Fake driver")
-        self.assertEqual(presenter.options_liststore[1][0], "MARS_Connection")
-        self.assertEqual(presenter.options_liststore[1][1], "No")
+        self.assertEqual(connection_box.options_liststore[0][0], "driver")
+        self.assertEqual(connection_box.options_liststore[0][1], "Fake driver")
+        self.assertEqual(
+            connection_box.options_liststore[1][0], "MARS_Connection"
+        )
+        self.assertEqual(connection_box.options_liststore[1][1], "No")
 
         presenter.destroy()
 
@@ -859,14 +813,17 @@ class AddConnectionTests(BaubleTestCase):
 
     def test_on_add_button_clicked_no_name_bails(self):
         presenter = ConnectionManagerDialog()
+        self.assertFalse(presenter.expander.get_visible())
         with mock.patch.object(presenter, "run_entry_dialog") as mock_dlog:
-            mock_dlog.return_value = None
-            presenter.on_add_button_clicked("button")
+            mock_dlog.return_value = ""
+            self.assertTrue(presenter.noconnectionlabel.get_visible())
+            presenter.on_add_button_clicked(presenter.name_combo)
+            self.assertTrue(presenter.noconnectionlabel.get_visible())
         # nothing changes
         self.assertFalse(presenter.expander.get_visible())
         self.assertFalse(presenter.connect_button.get_sensitive())
         self.assertTrue(presenter.noconnectionlabel.get_visible())
-        self.assertEqual(presenter.connection_names, [])
+        self.assertIsNone(presenter.get_connection_box())
         presenter.destroy()
 
     @mock.patch("bauble.connmgr.utils.yes_no_dialog")
@@ -881,11 +838,11 @@ class AddConnectionTests(BaubleTestCase):
             }
         }
         presenter = ConnectionManagerDialog()
-        presenter.rootdir = "./eggs"
+        presenter.model.rootdir = "./eggs"
         # change something
         with mock.patch.object(presenter, "run_entry_dialog") as mock_dlog:
             mock_dlog.return_value = "spam"
-            presenter.on_add_button_clicked("button")
+            presenter.on_add_button_clicked(presenter.name_combo)
 
         mock_yn.assert_called_once()
         conn_list = prefs.prefs[bauble.CONN_LIST_PREF]
@@ -893,7 +850,7 @@ class AddConnectionTests(BaubleTestCase):
         self.assertEqual(conn_list["nugkui"]["directory"], "./eggs")
         self.assertEqual(conn_list["nugkui"]["type"], "SQLite")
         self.assertEqual(conn_list["nugkui"]["file"], "./nugkui.db")
-        params = presenter.get_params()
+        params = presenter.model.get_params()
         self.assertEqual(params["directory"], "./spam")
         self.assertEqual(params["file"], "./spam.db")
 
@@ -903,7 +860,7 @@ class AddConnectionTests(BaubleTestCase):
         presenter = ConnectionManagerDialog()
         with mock.patch.object(presenter, "run_entry_dialog") as mock_dlog:
             mock_dlog.return_value = ""
-            presenter.on_add_button_clicked("button")
+            presenter.on_add_button_clicked(presenter.name_combo)
         # nothing changes
         self.assertFalse(presenter.expander.get_visible())
         self.assertFalse(presenter.connect_button.get_sensitive())
@@ -914,7 +871,7 @@ class AddConnectionTests(BaubleTestCase):
         presenter = ConnectionManagerDialog()
         with mock.patch.object(presenter, "run_entry_dialog") as mock_dlog:
             mock_dlog.return_value = "spam"
-            presenter.on_add_button_clicked("button")
+            presenter.on_add_button_clicked(presenter.name_combo)
         # visibility swapped
         self.assertTrue(presenter.expander.get_visible())
         self.assertTrue(presenter.connect_button.get_sensitive())
@@ -935,40 +892,207 @@ class AddConnectionTests(BaubleTestCase):
         presenter = ConnectionManagerDialog()
         with mock.patch.object(presenter, "run_entry_dialog") as mock_dlog:
             mock_dlog.return_value = "spam"
-            presenter.on_add_button_clicked("button")
+            presenter.on_add_button_clicked(presenter.name_combo)
         self.assertTrue(presenter.expander.get_visible())
         self.assertTrue(presenter.connect_button.get_sensitive())
         self.assertFalse(presenter.noconnectionlabel.get_visible())
         self.assertEqual(presenter.name_combo.get_active_text(), "spam")
-        params = presenter.get_params()
+        params = presenter.model.get_params()
         self.assertEqual(params["default"], True)
         self.assertEqual(params["directory"], "./spam")
         self.assertEqual(params["type"], "SQLite")
         self.assertEqual(params["file"], "./spam.db")
         presenter.destroy()
 
+
+class ConnectionBoxTests(BaubleTestCase):
+
     def test_get_parent_folder(self):
-        path = ConnectionManagerDialog.get_parent_folder("")
+        path = ConnectionBox.get_parent_folder("")
         self.assertEqual(paths.appdata_dir(), path)
-        path = ConnectionManagerDialog.get_parent_folder(None)
+        path = ConnectionBox.get_parent_folder(None)
         self.assertEqual(paths.appdata_dir(), path)
         relative_path = "./test/this"
-        path = ConnectionManagerDialog.get_parent_folder(relative_path)
+        path = ConnectionBox.get_parent_folder(relative_path)
         self.assertEqual(
             str(Path(paths.appdata_dir(), relative_path[2:]).parent), path
         )
         absolute_path = Path(paths.appdata_dir(), relative_path[2:])
         absolute_parent = str(absolute_path.parent)
-        path = ConnectionManagerDialog.get_parent_folder(str(absolute_path))
+        path = ConnectionBox.get_parent_folder(str(absolute_path))
         self.assertEqual(absolute_parent, path)
 
     def test_replace_leading_appdata(self):
-        presenter = ConnectionManagerDialog()
+        model = ConnectionModel("spam")
+        box = ConnectionBox(model)
         path = str(Path(paths.appdata_dir(), "test/this"))
-        presenter.rootdir_entry.set_text(path)
-        presenter.replace_leading_appdata(presenter.rootdir_entry)
-        self.assertEqual(presenter.rootdir_entry.get_text(), "./test/this")
-        presenter.destroy()
+        box.rootdir_entry.set_text(path)
+        box.replace_leading_appdata(box.rootdir_entry)
+        self.assertEqual(box.rootdir_entry.get_text(), "./test/this")
+        box.destroy()
+
+    def test_on_file_entry_changed_empty_problems(self):
+        model = ConnectionModel("spam")
+        box = ConnectionBox(model)
+        box.refresh_all_widgets_from_model()
+
+        self.assertFalse(box.problems)
+        # empty
+        box.file_entry.set_text("")
+
+        self.assertEqual(
+            box.problems,
+            {(box.PROBLEM_EMPTY, box.file_entry)},
+        )
+        # fix
+        box.file_entry.set_text("eggs.db")
+
+        self.assertFalse(box.problems)
+
+    def test_on_file_entry_changed_unreadable_problems(self):
+        # file exists but unreadable
+        model = ConnectionModel("spam")
+        box = ConnectionBox(model)
+        box.refresh_all_widgets_from_model()
+
+        self.assertFalse(box.problems)
+        # exists
+        path = f"{TEMP_ROOT}/nugkui.db"
+        Path(path).touch()
+
+        def access_not_readable(_path, mode):
+            if mode == os.R_OK:
+                return False
+            return True
+
+        with mock.patch("os.access") as mock_access:
+            mock_access.side_effect = access_not_readable
+            box.file_entry.set_text(path)
+
+        self.assertEqual(
+            box.problems,
+            {(box.PROBLEM_UNREADABLE, box.file_entry)},
+        )
+        # fix
+        box.file_entry.set_text("./nugkui.db")
+
+        self.assertFalse(box.problems)
+
+    def test_on_file_entry_changed_unwritable_dir_problems(self):
+        # file doesn't exist and parent unwritable
+        model = ConnectionModel("spam")
+        box = ConnectionBox(model)
+        box.refresh_all_widgets_from_model()
+
+        self.assertFalse(box.problems)
+        # doesn't exist
+        path = f"{TEMP_ROOT}/nugkui.db"
+        if Path(path).exists():
+            Path(path).unlink()
+
+        def access_not_readable(_path, mode):
+            if mode == os.W_OK:
+                return False
+            return True
+
+        with mock.patch("os.access") as mock_access:
+            mock_access.side_effect = access_not_readable
+            box.file_entry.set_text(path)
+
+        self.assertEqual(
+            box.problems,
+            {(box.PROBLEM_UNREADABLE, box.file_entry)},
+        )
+        # fix
+        box.file_entry.set_text("./nugkui.db")
+
+        self.assertFalse(box.problems)
+
+    def test_on_port_entry_changed(self):
+        model = ConnectionModel("spam")
+        box = ConnectionBox(model)
+        # only allows numeric - stays blank
+        box.port_entry.set_text("blah")
+        box.port_entry.update()
+
+        self.assertEqual(box.port_entry.get_text(), "")
+        # no floats - stays blank
+        box.port_entry.set_text("0.01")
+        box.port_entry.update()
+
+        self.assertEqual(box.port_entry.get_text(), "")
+        # 0 is blank
+        box.port_entry.set_text("0")
+        box.port_entry.update()
+
+        self.assertEqual(box.port_entry.get_text(), "")
+        # not over 65535
+        box.port_entry.set_text("70000")
+        box.port_entry.update()
+
+        self.assertEqual(box.port_entry.get_text(), "65535")
+        # numbers work as expected
+        box.port_entry.set_text("1234")
+        box.port_entry.update()
+
+        self.assertEqual(box.port_entry.get_text(), "1234")
+
+    def test_on_type_combo_changed_new(self):
+        model = ConnectionModel("spam")
+        box = ConnectionBox(model)
+        box.refresh_all_widgets_from_model()
+        params = model.get_params()
+        # starting state
+        self.assertEqual(params["type"], "SQLite")
+        self.assertEqual(params["default"], True)
+        self.assertEqual(params["file"], "./spam.db")
+        self.assertFalse(box.problems)
+
+        box.type_combo.set_active(DBTYPES.index("PostgreSQL"))
+        params = model.get_params()
+
+        self.assertEqual(params["type"], "PostgreSQL")
+        self.assertEqual(params.get("file"), None)
+        self.assertTrue(box.problems)
+
+        box.type_combo.set_active(DBTYPES.index("SQLite"))
+        params = model.get_params()
+        # returns to starting state
+        self.assertEqual(params["type"], "SQLite")
+        self.assertEqual(params["default"], True)
+        self.assertEqual(params["file"], "./spam.db")
+        self.assertFalse(box.problems)
+
+    def test_on_type_combo_changed_existing(self):
+        prefs.prefs[bauble.CONN_LIST_PREF] = {
+            "spam": {
+                "default": False,
+                "directory": "./eggs",
+                "type": "SQLite",
+                "file": "./eggs.db",
+            }
+        }
+        model = ConnectionModel("spam")
+        box = ConnectionBox(model)
+        box.refresh_all_widgets_from_model()
+        params = model.get_params()
+        # starting state
+        self.assertEqual(params["type"], "SQLite")
+        self.assertEqual(params["default"], False)
+        self.assertEqual(params["file"], "./eggs.db")
+        self.assertFalse(box.problems)
+        # create a problem
+        box.file_entry.set_text("")
+
+        self.assertTrue(box.problems)
+        # switch to other and back
+        box.type_combo.set_active(DBTYPES.index("PostgreSQL"))
+        box.type_combo.set_active(DBTYPES.index("SQLite"))
+        # returns to start position
+        self.assertEqual(params["type"], "SQLite")
+        self.assertEqual(params["default"], False)
+        self.assertEqual(params["file"], "./eggs.db")
+        self.assertFalse(box.problems)
 
 
 class GlobalFunctionsTests(BaubleTestCase):
@@ -1166,67 +1290,73 @@ class ButtonBrowseButtons(BaubleTestCase):
     def test_file_chosen(self, mock_file_chooser):
         mock_file_chooser().run.return_value = Gtk.ResponseType.ACCEPT
         mock_file_chooser().get_filename.return_value = "chosen"
-        presenter = ConnectionManagerDialog()
-        presenter.on_file_btnbrowse_clicked()
-        self.assertEqual(presenter.filename, "chosen")
-        presenter.destroy()
+        model = ConnectionModel("spam")
+        connection_box = ConnectionBox(model)
+        connection_box.on_file_btnbrowse_clicked()
+        self.assertEqual(connection_box.model.filename, "chosen")
+        connection_box.destroy()
 
     @mock.patch("utils.Gtk.FileChooserNative.new")
     def test_file_not_chosen(self, mock_file_chooser):
         mock_file_chooser().run.return_value = Gtk.ResponseType.ACCEPT
         mock_file_chooser().get_filename.return_value = ""
-        presenter = ConnectionManagerDialog()
-        presenter.filename = "previously"
-        presenter.on_file_btnbrowse_clicked()
-        self.assertEqual(presenter.filename, "previously")
-        presenter.destroy()
+        model = ConnectionModel("spam")
+        connection_box = ConnectionBox(model)
+        connection_box.model.filename = "previously"
+        connection_box.on_file_btnbrowse_clicked()
+        self.assertEqual(connection_box.model.filename, "previously")
+        connection_box.destroy()
 
     @mock.patch("utils.Gtk.FileChooserNative.new")
     def test_rootdir_chosen(self, mock_file_chooser):
         mock_file_chooser().run.return_value = Gtk.ResponseType.ACCEPT
         mock_file_chooser().get_filename.return_value = "chosen"
-        presenter = ConnectionManagerDialog()
-        presenter.on_rootdir_btnbrowse_clicked()
-        self.assertEqual(presenter.rootdir, "chosen")
-        presenter.destroy()
+        model = ConnectionModel("spam")
+        connection_box = ConnectionBox(model)
+        connection_box.on_rootdir_btnbrowse_clicked()
+        self.assertEqual(model.rootdir, "chosen")
+        connection_box.destroy()
 
     @mock.patch("utils.Gtk.FileChooserNative.new")
     def test_rootdir_not_chosen(self, mock_file_chooser):
         mock_file_chooser().run.return_value = Gtk.ResponseType.ACCEPT
         mock_file_chooser().get_filename.return_value = ""
-        presenter = ConnectionManagerDialog()
-        presenter.rootdir = "previously"
-        presenter.on_rootdir_btnbrowse_clicked()
-        self.assertEqual(presenter.rootdir, "previously")
-        presenter.destroy()
+        model = ConnectionModel("spam")
+        connection_box = ConnectionBox(model)
+        model.rootdir = "previously"
+        connection_box.on_rootdir_btnbrowse_clicked()
+        self.assertEqual(model.rootdir, "previously")
+        connection_box.destroy()
 
     @mock.patch("utils.Gtk.FileChooserNative.new")
     def test_rootdir2_chosen(self, mock_file_chooser):
         mock_file_chooser().run.return_value = Gtk.ResponseType.ACCEPT
         mock_file_chooser().get_filename.return_value = "chosen"
-        presenter = ConnectionManagerDialog()
-        presenter.on_rootdir2_btnbrowse_clicked()
-        self.assertEqual(presenter.rootdir, "chosen")
-        presenter.destroy()
+        model = ConnectionModel("spam")
+        connection_box = ConnectionBox(model)
+        connection_box.on_rootdir2_btnbrowse_clicked()
+        self.assertEqual(model.rootdir, "chosen")
+        connection_box.destroy()
 
     @mock.patch("utils.Gtk.FileChooserNative.new")
     def test_rootdir2_not_chosen(self, mock_file_chooser):
         mock_file_chooser().run.return_value = Gtk.ResponseType.ACCEPT
         mock_file_chooser().get_filename.return_value = ""
-        presenter = ConnectionManagerDialog()
-        presenter.rootdir = "previously"
-        presenter.on_rootdir2_btnbrowse_clicked()
-        self.assertEqual(presenter.rootdir, "previously")
-        presenter.destroy()
+        model = ConnectionModel("spam")
+        connection_box = ConnectionBox(model)
+        model.rootdir = "previously"
+        connection_box.on_rootdir2_btnbrowse_clicked()
+        self.assertEqual(model.rootdir, "previously")
+        connection_box.destroy()
 
 
 class OnDialogResponseTests(BaubleTestCase):
     @mock.patch("bauble.connmgr.utils.message_dialog")
     def test_on_dialog_response_ok_invalid_params(self, mock_dialog):
         presenter = ConnectionManagerDialog()
-        response = presenter.on_dialog_response(presenter, RESPONSE_OK)
+        # emit here to avoid warning "no emission of signal "response" to stop"
+        presenter.emit("response", RESPONSE_OK)
         mock_dialog.assert_called()
-        self.assertTrue(response)
         presenter.destroy()
 
     def test_on_dialog_response_ok_valid_params(self):
@@ -1284,8 +1414,9 @@ class OnDialogResponseTests(BaubleTestCase):
         prefs.prefs[bauble.CONN_LIST_PREF] = copy.copy(con_pref)
         prefs.prefs[bauble.CONN_DEFAULT_PREF] = "nugkui"
         presenter = ConnectionManagerDialog()
+        connection_box = presenter.get_connection_box()
         # change something
-        presenter.usedefaults_chkbx.set_active(True)
+        connection_box.usedefaults_chkbx.set_active(True)
         presenter.on_dialog_response(presenter, RESPONSE_CANCEL)
         # asked to save but said no
         mock_dialog.assert_called()
@@ -1308,8 +1439,9 @@ class OnDialogResponseTests(BaubleTestCase):
         prefs.prefs[bauble.CONN_LIST_PREF] = copy.copy(con_pref)
         prefs.prefs[bauble.CONN_DEFAULT_PREF] = "nugkui"
         presenter = ConnectionManagerDialog()
+        connection_box = presenter.get_connection_box()
         # change something
-        presenter.usedefaults_chkbx.set_active(True)
+        connection_box.usedefaults_chkbx.set_active(True)
         presenter.on_dialog_response(presenter, RESPONSE_CANCEL)
         # asked to save but said no
         mock_dialog.assert_called()
@@ -1374,9 +1506,9 @@ class OnDialogResponseTests(BaubleTestCase):
         presenter = ConnectionManagerDialog()
         response = presenter.on_dialog_response(presenter, RESPONSE_OK)
         self.assertFalse(response)
-        self.assertTrue(Path(f"{TEMP_ROOT}/pictures").is_dir())
-        self.assertTrue(Path(f"{TEMP_ROOT}/pictures/thumbs").is_dir())
-        self.assertTrue(Path(f"{TEMP_ROOT}/documents").is_dir())
+        self.assertTrue(Path(f"{temp_dir}/pictures").is_dir())
+        self.assertTrue(Path(f"{temp_dir}/pictures/thumbs").is_dir())
+        self.assertTrue(Path(f"{temp_dir}/documents").is_dir())
         presenter.destroy()
 
     def test_on_dialog_response_ok_creates_folders_exists_occupied(self):
