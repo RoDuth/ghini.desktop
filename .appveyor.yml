@@ -30,6 +30,9 @@ for:
 
   install:
     - brew install pygobject3 gtk+3 adwaita-icon-theme osm-gps-map unixodbc postgresql
+    - brew tap microsoft/mssql-release https://github.com/Microsoft/homebrew-mssql-release
+    - brew update
+    - HOMEBREW_ACCEPT_EULA=Y brew install msodbcsql18 mssql-tools18
 
   build_script:
     - python3.13 -m venv ~/venv3.13
