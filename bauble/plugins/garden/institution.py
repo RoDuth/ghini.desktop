@@ -126,7 +126,10 @@ class InstitutionDialog(editor.GenericPresenter, Gtk.Dialog):
     inst_geo_latitude = cast(Gtk.Entry, Gtk.Template.Child())
     inst_geo_longitude = cast(Gtk.Entry, Gtk.Template.Child())
     inst_geo_zoom = cast(Gtk.ComboBoxText, Gtk.Template.Child())
-    message_box_parent = cast(Gtk.Box, Gtk.Template.Child())
+    notify_revealer = cast(Gtk.Revealer, Gtk.Template.Child())
+    notify_message_label = cast(Gtk.Label, Gtk.Template.Child())
+    inst_ok = cast(Gtk.Button, Gtk.Template.Child())
+
     message_box: utils.GenericMessageBox | None = None
 
     def __init__(self, model: Institution) -> None:
@@ -158,18 +161,15 @@ class InstitutionDialog(editor.GenericPresenter, Gtk.Dialog):
     def on_non_empty_text_entry_changed(self, entry: Gtk.Entry) -> None:
         value = super()._on_non_empty_text_entry_changed(entry)
 
-        if value:
-            if self.message_box:
-                self.message_box.destroy()
-                self.message_box = None
-        elif not self.message_box:
-            self.message_box = utils.add_message_box(
-                self.message_box_parent, utils.MESSAGE_BOX_INFO
-            )
-            self.message_box.message = _(
-                "Please specify an institution name for this database."
-            )
-            self.message_box.show()
+        if not value:
+            msg = _("Please specify an institution name for this database.")
+            self.notify_message_label.set_label(msg)
+            self.notify_revealer.set_reveal_child(True)
+
+    @Gtk.Template.Callback()
+    def on_notify_close_button_clicked(self, _button) -> None:
+        """Close the notification revealer."""
+        self.notify_revealer.set_reveal_child(False)
 
     @Gtk.Template.Callback()
     def on_text_buffer_changed(self, buffer: Gtk.TextBuffer) -> None:
@@ -182,6 +182,16 @@ class InstitutionDialog(editor.GenericPresenter, Gtk.Dialog):
     @Gtk.Template.Callback()
     def on_combobox_changed(self, combobox: Gtk.ComboBoxText) -> None:
         super().on_combobox_changed(combobox)
+
+    def add_problem(self, problem_id: str, widget: Gtk.Widget) -> None:
+        super().add_problem(problem_id, widget)
+        self.inst_ok.set_sensitive(False)
+
+    def remove_problem(
+        self, problem_id: str | None = None, widget: Gtk.Widget | None = None
+    ) -> None:
+        super().remove_problem(problem_id, widget)
+        self.inst_ok.set_sensitive(bool(self.problems))
 
 
 def start_institution_editor() -> None:

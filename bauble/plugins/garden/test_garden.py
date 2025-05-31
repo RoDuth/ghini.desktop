@@ -5334,17 +5334,32 @@ class InstitutionDialogTests(BaubleTestCase):
         model = Institution()
         model.name = ""
         dialog = InstitutionDialog(model)
-        self.assertIsNotNone(dialog.message_box)
-        self.assertEqual(len(dialog.message_box_parent.get_children()), 1)
+
+        self.assertTrue(dialog.notify_revealer.get_reveal_child())
+        self.assertEqual(
+            dialog.notify_message_label.get_text(),
+            "Please specify an institution name for this database.",
+        )
+
+        dialog.destroy()
 
     def test_initially_empty_name_then_specified_is_ok(self):
         model = Institution()
         model.name = ""
         dialog = InstitutionDialog(model)
+
+        self.assertTrue(dialog.notify_revealer.get_reveal_child())
+
+        dialog.on_notify_close_button_clicked(None)
+
+        self.assertFalse(dialog.notify_revealer.get_reveal_child())
+
         dialog.inst_name.set_text("testBG")
+
         self.assertEqual(model.name, "testBG")
-        self.assertIsNone(dialog.message_box)
-        self.assertEqual(len(dialog.message_box_parent.get_children()), 0)
+        self.assertFalse(dialog.notify_revealer.get_reveal_child())
+
+        dialog.destroy()
 
     def test_on_text_buffer_changed(self):
         model = Institution()
