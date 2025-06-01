@@ -355,11 +355,13 @@ class StandalonePluginMgrTests(TestCase):
         B.initialized = B.installed = False
         C.initialized = C.installed = False
         pluginmgr.plugins = {}
+        self.start_handlers = pluginmgr.commands.copy()
         pluginmgr.commands = {}
 
     def tearDown(self):
         for z in [A, B, C]:
             z.initialized = z.installed = False
+        pluginmgr.commands = self.start_handlers
 
     def test_successful_init(self):
         "pluginmgr.init() should be successful"

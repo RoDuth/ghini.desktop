@@ -23,6 +23,7 @@ from unittest import mock
 from gi.repository import Gio
 from gi.repository import Gtk
 
+import bauble
 from bauble import pluginmgr
 from bauble import prefs
 from bauble import task
@@ -213,6 +214,29 @@ class GUITests(BaubleTestCase):
             history, ["domain where expression", ":cmd=args", ":cmd"]
         )
         gui.destroy()
+
+    def test_on_go_button_clicked_errors_no_history(self):
+        gui = GUI()
+        bauble.gui = gui
+        mock_combo = mock.Mock()
+        mock_entry = mock.Mock()
+        mock_combo.get_child.return_value = mock_entry
+        gui.widgets.main_comboentry = mock_combo
+        gui.set_view = mock.Mock()
+        # valid
+        mock_entry.get_text.return_value = "plant where id = 1"
+        gui.on_go_button_clicked(None)
+
+        history = prefs.prefs.get(gui.entry_history_pref)
+        self.assertIn("plant where id = 1", history)
+        # invalid
+        mock_entry.get_text.return_value = "domain where expression"
+        gui.on_go_button_clicked(None)
+
+        history = prefs.prefs.get(gui.entry_history_pref)
+        self.assertNotIn("domain where expression", history)
+        gui.destroy()
+        bauble.gui = None
 
     @mock.patch("bauble.ui.QueryBuilder")
     def test_on_query_button_clicked(self, mock_builder):

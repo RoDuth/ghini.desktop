@@ -592,6 +592,9 @@ class GlobalFunctionsTests(BaubleTestCase):
         # test key errors
         from bauble import pluginmgr
 
+        # temporarily remove the default command handler
+        start = pluginmgr.commands[None]
+
         del pluginmgr.commands[None]
 
         with mock.patch("bauble.utils.message_dialog") as mock_dialog:
@@ -602,3 +605,5 @@ class GlobalFunctionsTests(BaubleTestCase):
             mock_dialog.assert_called_with(
                 "No command handler for NOTaCOMMAND"
             )
+
+        pluginmgr.commands[None] = start

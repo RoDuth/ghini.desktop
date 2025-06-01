@@ -148,6 +148,8 @@ class GUI:
         arg = rest_of_line.set_results_name("arg")
         self.cmd_parser = (cmd + StringEnd()) | (cmd + "=" + arg) | arg
 
+        self.save_history = True
+
         self.create_main_menu()
 
     def init(self) -> None:
@@ -292,6 +294,7 @@ class GUI:
         box.get_style_context().add_class("err-bg")
 
         box.show()
+        self.save_history = False
 
     def show_message_box(self, msg: str) -> None:
         """Show an info message in the message drop down box."""
@@ -385,13 +388,16 @@ class GUI:
         if text == "":
             return
 
-        self.add_to_history(text)
         logger.debug("go clicked: %s", repr(text))
         tokens = self.cmd_parser.parse_string(text)
         cmd = tokens.get("cmd")
         arg = tokens.get("arg")
 
         bauble.command_handler(cmd, arg)
+
+        if self.save_history:
+            self.add_to_history(text)
+        self.save_history = True
 
     def on_query_button_clicked(self, _widget) -> None:
         query_builder = QueryBuilder(transient_for=self.window)
