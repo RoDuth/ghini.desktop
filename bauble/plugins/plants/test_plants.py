@@ -6837,6 +6837,28 @@ class DistributionPresenterTests(BaubleClassTestCase):
         setUp_data()
         setup_geographies()
 
+    def test_refresh_view_long_label_shortens(self):
+        fam = Family(family="family0")
+        gen = Genus(genus="genus0", family=fam)
+        sp = Species(genus=gen, sp="sp2")
+
+        for dist in self.session.query(Geography).filter(Geography.id < 100):
+            spdist = SpeciesDistribution(geography=dist)
+            sp.distribution.append(spdist)
+
+        self.session.add(sp)
+        self.session.commit()
+
+        mock_parent = mock.Mock()
+        mock_parent.view = SpeciesEditorView()
+        mock_parent.model = sp
+        mock_parent.session = self.session
+        presenter = DistributionPresenter(mock_parent)
+        presenter.refresh_view()
+        text = presenter.view.widgets.sp_dist_label.get_text()
+        self.assertEqual(text[-4:], " ...")
+        self.assertTrue(490 < len(text) < 510)
+
     def test_on_remove_button_pressed(self):
         qld = (
             self.session.query(Geography).filter(Geography.code == "QLD").one()
@@ -7212,8 +7234,16 @@ class DistributionPresenterTests(BaubleClassTestCase):
         mock_parent.session = self.session
 
         presenter = DistributionPresenter(mock_parent)
-        presenter.on_copy()
+        presenter.on_copy_codes()
+
         mock_clipboard.set_text.assert_called_with("QLD, NSW", -1)
+
+        mock_clipboard.reset_mock()
+        presenter.on_copy_names()
+
+        mock_clipboard.set_text.assert_called_with(
+            "Queensland, New South Wales", -1
+        )
 
         del presenter
 

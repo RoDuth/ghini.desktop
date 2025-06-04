@@ -23,6 +23,7 @@ Species table definition
 import logging
 import os
 import re
+import textwrap
 import traceback
 import weakref
 from ast import literal_eval
@@ -1495,7 +1496,8 @@ class DistributionPresenter(editor.GenericEditorPresenter):
             (_("Consolidate"), "consolidate", self.on_consolidate),
             (_("Paste - append"), "append", self.on_paste_append),
             (_("Paste - replace all"), "replace", self.on_paste_replace),
-            (_("Copy"), "copy", self.on_copy),
+            (_("Copy codes"), "copy_codes", self.on_copy_codes),
+            (_("Copy names"), "copy_names", self.on_copy_names),
         )
         for label, name, handler in menu_items:
             action = Gio.SimpleAction.new(name, None)
@@ -1638,7 +1640,7 @@ class DistributionPresenter(editor.GenericEditorPresenter):
             text = bauble.gui.get_display_clipboard().wait_for_text()
             self.append_dists_from_text(text or "")
 
-    def on_copy(self, *_args) -> None:
+    def on_copy_codes(self, *_args) -> None:
         if bauble.gui:
             clipboard = bauble.gui.get_display_clipboard()
             txt = ", ".join(
@@ -1646,14 +1648,22 @@ class DistributionPresenter(editor.GenericEditorPresenter):
             )
             clipboard.set_text(txt, -1)
 
+    def on_copy_names(self, *_args) -> None:
+        if bauble.gui:
+            clipboard = bauble.gui.get_display_clipboard()
+            txt = ", ".join(
+                [d.geography.name for d in self.model.distribution]
+            )
+            clipboard.set_text(txt, -1)
+
     def cleanup(self):
         super().cleanup()
         self.geo_menu.destroy()
 
-    def refresh_view(self):
+    def refresh_view(self) -> None:
         label = self.view.widgets.sp_dist_label
-        txt = ", ".join([str(d) for d in self.model.distribution])
-        label.set_text(txt)
+        txt = ", ".join(str(d) for d in self.model.distribution)
+        label.set_text(textwrap.shorten(txt, width=500, placeholder=" ..."))
 
     def on_add_button_pressed(self, _button, event):
         self.geo_menu.popup_at_pointer(event)
