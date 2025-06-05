@@ -121,9 +121,9 @@ EXPAND_ON_ACTIVATE_PREF = "bauble.search.expand_on_activate"
 
 
 class ViewThread(Protocol):
-    def cancel(self): ...
-    def join(self): ...
-    def start(self): ...
+    def cancel(self) -> None: ...
+    def join(self) -> None: ...
+    def start(self) -> None: ...
 
 
 class View:
@@ -256,7 +256,7 @@ class InfoExpander(Gtk.Expander):
 # beware, typing hack ahead (due to the lack of Intersection).
 class Updateable(Protocol):  # pylint: disable=too-few-public-methods
 
-    def update(self, row: db.Domain): ...
+    def update(self, row: db.Domain) -> None: ...
 
 
 # best solution I could come up with for the MetaClass conflict between
@@ -275,7 +275,7 @@ class _UEMeta(PMeta, EMeta):
 class UpdateableExpander(Gtk.Expander, Updateable, metaclass=_UEMeta):
     _sep: Gtk.Separator | None
 
-    def update(self, row: db.Domain): ...
+    def update(self, row: db.Domain) -> None: ...
 
 
 class InfoBoxPage(Gtk.ScrolledWindow):
@@ -1560,10 +1560,10 @@ class SearchView(View, Gtk.Box):
         treeview.collapse_row(path)
         self.remove_children(model, treeiter)
 
-        def sorter(obj):
+        def sorter(obj) -> tuple[str, Any]:
             cls = type(obj)
-            sorter = self.row_meta[cls].sorter
-            return cls.__name__, sorter(obj)
+            row_sorter = self.row_meta[cls].sorter
+            return cls.__name__, row_sorter(obj)
 
         try:
             kids = self.row_meta[type(obj)].get_children(obj)
@@ -2697,8 +2697,8 @@ class PrefsView(View, Gtk.Box):
         return new_iter
 
     @Gtk.Template.Callback()
-    def on_prefs_edit_toggled(self, widget):
-        state = widget.get_active()
+    def on_prefs_edit_toggled(self, check_button: Gtk.CheckButton) -> None:
+        state = check_button.get_active()
         logger.debug("edit state %s", state)
         msg = _(
             "\n\n<b>CAUTION! Making incorrect changes to your preferences "
@@ -2715,16 +2715,24 @@ class PrefsView(View, Gtk.Box):
 
         else:
             logger.debug("disable editing prefs")
-            widget.set_active(False)
+            check_button.set_active(False)
             self.prefs_data_renderer.set_property("editable", False)
             if self.button_press_sid:
                 self.prefs_tv.disconnect(self.button_press_sid)
                 self.button_press_sid = None
 
     @Gtk.Template.Callback()
-    def on_prefs_edited(self, _renderer, path, new_text):
+    def on_prefs_edited(
+        self,
+        _renderer: Gtk.CellRendererText,
+        path: str,
+        new_text: str,
+    ) -> None:
         # pylint: disable=unsubscriptable-object
-        key, repr_str, type_str = self.prefs_ls[path]
+        key: str
+        repr_str: str
+        type_str: str
+        key, repr_str, type_str = self.prefs_ls[path]  # type: ignore [misc]
         if new_text == "":
             msg = _("Delete the %s preference key?") % key
             parent = bauble.gui.window if bauble.gui else None
@@ -2761,11 +2769,11 @@ class PrefsView(View, Gtk.Box):
 
     @Gtk.Template.Callback()
     @staticmethod
-    def on_prefs_backup_clicked(_widget):
+    def on_prefs_backup_clicked(_button: Gtk.Button) -> None:
         copy2(prefs.default_prefs_file, prefs.default_prefs_file + "BAK")
 
     @Gtk.Template.Callback()
-    def on_prefs_restore_clicked(self, _widget):
+    def on_prefs_restore_clicked(self, _button: Gtk.Button) -> None:
         if Path(prefs.default_prefs_file + "BAK").exists():
             copy2(prefs.default_prefs_file + "BAK", prefs.default_prefs_file)
             prefs.prefs.reload()
@@ -2773,7 +2781,7 @@ class PrefsView(View, Gtk.Box):
         else:
             utils.message_dialog(_("No backup found"))
 
-    def update(self, *_args):
+    def update(self, *_args) -> None:
         self.prefs_ls.clear()
         for key, value in sorted(prefs.prefs.iteritems()):
             logger.debug(
@@ -2790,15 +2798,18 @@ class PrefsView(View, Gtk.Box):
 
         session = db.Session()
         plugins = session.query(
-            pluginmgr.PluginRegistry.name, pluginmgr.PluginRegistry.version
+            pluginmgr.PluginRegistry.name,
+            pluginmgr.PluginRegistry.version,
         )
+
         for item in plugins:
             self.plugins_ls.append(item)
+
         session.close()
         self.refresh_view()
 
     @staticmethod
-    def refresh_view():
+    def refresh_view() -> None:
         if bauble.gui is not None:
             # may be more to do here yet...
             bauble.gui.populate_main_entry()
@@ -2941,7 +2952,7 @@ class SimpleSearchBox(Gtk.Frame):
 
 
 class UpdateableNoArgs(Protocol):  # pylint: disable=too-few-public-methods
-    def update(self): ...
+    def update(self) -> None: ...
 
 
 WMeta: type = type(Gtk.Widget)
