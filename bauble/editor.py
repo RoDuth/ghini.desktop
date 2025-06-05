@@ -1149,16 +1149,25 @@ class GenericPresenter[T]:
         class Foo(GenericPresenter[FooModel], Gtk.Dialog):
 
             __gtype_name__ = "Foo"
+            # include if wanting to connect to the 'problems-changed' signal
+            __gsignals__ = GenericPresenter.gsignals
 
             bar = cast(Gtk.Entry, Gtk.Template.Child())
 
             def __init__(self, model: FooModel) -> None:
                 super().__init__(model, self)
+                # connect here on in .ui file
+                self.connect('problems-changed', on_problems_changed)
 
             # signal handlers defined in the .ui file
             @Gtk.Template.Callback()
             def on_text_entry_changed(self, entry: Gtk.Entry) -> None:
                 super().on_text_entry_changed(entry)
+
+            def on_problems_changed(
+                self, _foo: Self,  has_problems: bool
+            ) -> None:
+                self.ok_button.set_sensitive(not has_problems)
 
         model = FooModel()
         presenter = Foo(model)
@@ -1190,6 +1199,12 @@ class GenericPresenter[T]:
         presenter = FooPresenter(model, view)
     """
 
+    # to use explictily include this: e.g.:
+    # __gsignals__ = GenericPresenter.gsignals
+    gsignals: dict = {
+        "problems-changed": (GObject.SignalFlags.RUN_FIRST, None, (bool,))
+    }
+
     PROBLEM_NOT_UNIQUE = Problem("not_unique")
     PROBLEM_EMPTY = Problem("empty")
 
@@ -1203,6 +1218,9 @@ class GenericPresenter[T]:
 
         self.model = model
         self.view = view
+        # check this class has implimented gsignals
+        signal_list = GObject.signal_list_names(type(view))
+        self.emits_problems_changed = "problems-changed" in signal_list
         # Incase of use as a Gtk.Template mixin call the widgets init
         super().__init__(*args, **kwargs)
 
@@ -1218,6 +1236,7 @@ class GenericPresenter[T]:
         :param widget: the widget whose background color should change to
             indicate a problem
         """
+        start = len(self.problems)
 
         self.problems.add((problem_id, widget))
 
@@ -1226,6 +1245,12 @@ class GenericPresenter[T]:
             widget.get_style_context().add_class("problem")
 
         logger.debug("problems now: %s", self.problems)
+
+        if not self.emits_problems_changed:
+            return
+
+        if hasattr(self.view, "emit") and start == 0 and self.problems:
+            self.view.emit("problems-changed", True)
 
     def remove_problem(
         self, problem_id: str | None = None, widget: Gtk.Widget | None = None
@@ -1239,6 +1264,8 @@ class GenericPresenter[T]:
         :param problem_id: A unique id for the problem.
         :param widget: the problem widget
         """
+        start = len(self.problems)
+
         for prob, widg in self.problems.copy():
             # pylint: disable=too-many-boolean-expressions
             if (
@@ -1249,7 +1276,14 @@ class GenericPresenter[T]:
                 if isinstance(widg, Gtk.Widget):
                     widg.get_style_context().remove_class("problem")
                 self.problems.remove((prob, widg))
+
         logger.debug("problems now: %s", self.problems)
+
+        if not self.emits_problems_changed:
+            return
+
+        if hasattr(self.view, "emit") and start != 0 and not self.problems:
+            self.view.emit("problems-changed", False)
 
     def __on_text_entry_changed(self, entry: Gtk.Entry) -> str:
         # Private, name mangled so cannot be overridden, for internal use

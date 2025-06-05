@@ -662,10 +662,21 @@ class ConnectionManagerTests(BaubleTestCase):
         self.assertTrue(presenter.connect_button.get_sensitive())
         self.assertTrue(presenter.dont_ask_chkbx.get_sensitive())
 
-        presenter.on_problems_changed(None, False)
+        connection_box = presenter.get_connection_box()
+        connection_box.add_problem(
+            connection_box.PROBLEM_UNREADABLE, connection_box.file_entry
+        )
 
         self.assertFalse(presenter.connect_button.get_sensitive())
         self.assertFalse(presenter.dont_ask_chkbx.get_sensitive())
+
+        connection_box = presenter.get_connection_box()
+        connection_box.remove_problem(
+            connection_box.PROBLEM_UNREADABLE, connection_box.file_entry
+        )
+
+        self.assertTrue(presenter.connect_button.get_sensitive())
+        self.assertTrue(presenter.dont_ask_chkbx.get_sensitive())
 
         presenter.destroy()
 

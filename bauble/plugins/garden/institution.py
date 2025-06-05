@@ -24,6 +24,7 @@ Edit and store information about the institution in the bauble meta table
 import logging
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Self
 from typing import cast
 
 logger = logging.getLogger(__name__)
@@ -114,6 +115,8 @@ class InstitutionDialog(editor.GenericPresenter, Gtk.Dialog):
 
     __gtype_name__ = "InstitutionDialog"
 
+    __gsignals__ = editor.GenericPresenter.gsignals
+
     inst_name = cast(Gtk.Entry, Gtk.Template.Child())
     inst_abbr = cast(Gtk.Entry, Gtk.Template.Child())
     inst_code = cast(Gtk.Entry, Gtk.Template.Child())
@@ -183,15 +186,9 @@ class InstitutionDialog(editor.GenericPresenter, Gtk.Dialog):
     def on_combobox_changed(self, combobox: Gtk.ComboBoxText) -> None:
         super().on_combobox_changed(combobox)
 
-    def add_problem(self, problem_id: str, widget: Gtk.Widget) -> None:
-        super().add_problem(problem_id, widget)
-        self.inst_ok.set_sensitive(False)
-
-    def remove_problem(
-        self, problem_id: str | None = None, widget: Gtk.Widget | None = None
-    ) -> None:
-        super().remove_problem(problem_id, widget)
-        self.inst_ok.set_sensitive(bool(self.problems))
+    @Gtk.Template.Callback()
+    def on_problems_changed(self, _widget: Self, has_problems: bool) -> None:
+        self.inst_ok.set_sensitive(not has_problems)
 
 
 def start_institution_editor() -> None:

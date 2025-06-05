@@ -408,9 +408,7 @@ class ConnectionBox(editor.GenericPresenter[ConnectionModel], Gtk.Box):
 
     __gtype_name__ = "ConnectionBox"
 
-    __gsignals__ = {
-        "problems-changed": (GObject.SignalFlags.RUN_FIRST, None, (bool,))
-    }
+    __gsignals__ = editor.GenericPresenter.gsignals
 
     type_combo = cast(Gtk.ComboBoxText, Gtk.Template.Child())
     usedefaults_chkbx = cast(Gtk.CheckButton, Gtk.Template.Child())
@@ -664,24 +662,6 @@ class ConnectionBox(editor.GenericPresenter[ConnectionModel], Gtk.Box):
     ) -> None:
         self.options_edited(path, 1, text)
 
-    def add_problem(self, problem_id: str, widget: Gtk.Widget) -> None:
-        start = len(self.problems)
-
-        super().add_problem(problem_id, widget)
-
-        if start == 0:
-            self.emit("problems-changed", not bool(self.problems))
-
-    def remove_problem(
-        self, problem_id: str | None = None, widget: Gtk.Widget | None = None
-    ) -> None:
-        super().remove_problem(problem_id, widget)
-
-        end = len(self.problems)
-
-        if end == 0:
-            self.emit("problems-changed", not bool(self.problems))
-
 
 @Gtk.Template(filename=str(Path(paths.lib_dir(), "connection_manager.ui")))
 class ConnectionManagerDialog(Gtk.Dialog):
@@ -849,9 +829,11 @@ class ConnectionManagerDialog(Gtk.Dialog):
             self.dont_ask_chkbx.set_sensitive(False)
             self.noconnectionlabel.set_visible(True)
 
-    def on_problems_changed(self, _box: ConnectionBox, state: bool) -> None:
-        self.connect_button.set_sensitive(state)
-        self.dont_ask_chkbx.set_sensitive(state)
+    def on_problems_changed(
+        self, _box: ConnectionBox, has_problems: bool
+    ) -> None:
+        self.connect_button.set_sensitive(not has_problems)
+        self.dont_ask_chkbx.set_sensitive(not has_problems)
 
     def swap_connections(
         self,
