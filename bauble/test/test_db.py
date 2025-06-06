@@ -26,6 +26,7 @@ from sqlalchemy import Integer
 from sqlalchemy import Unicode
 from sqlalchemy import create_engine
 from sqlalchemy import func
+from sqlalchemy import inspect
 from sqlalchemy.orm import relationship
 
 from bauble import btypes
@@ -832,3 +833,14 @@ class GlobalFunctionsTests(BaubleTestCase):
         with self.assertRaises(DatabaseError):
             with db.Session():
                 pass
+
+    def test_create_all(self):
+        class TestTableCustom(db.Domain):
+            # very unique table name to avoid clobbering from other tests
+            __tablename__ = "spam_250606_table"
+
+        self.assertFalse(inspect(db.engine).has_table("spam_250606_table"))
+
+        db._create_all()
+
+        self.assertTrue(inspect(db.engine).has_table("spam_250606_table"))

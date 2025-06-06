@@ -77,6 +77,7 @@ class Application(Gtk.Application):
         bauble.gui.init()
         # add any prefs menus etc.
         prefs.post_gui()
+        db.post_gui()
         bauble.gui.show()
 
         if not self._post_loop(open_exc):

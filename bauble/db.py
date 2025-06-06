@@ -30,6 +30,7 @@ import re
 from collections.abc import Callable
 from collections.abc import Sequence
 from dataclasses import dataclass
+from typing import Any
 from typing import Protocol
 from typing import cast
 
@@ -1217,3 +1218,24 @@ def get_model_by_name(name: str) -> type[Base] | None:
             return model
 
     return None
+
+
+def _create_all(*_args: Any) -> None:
+    logger.debug("creating missing table")
+
+    with engine.connect() as connection:
+        metadata.create_all(bind=connection)
+
+    logger.debug("metadata.create_all complete")
+
+
+def post_gui():
+    """Do any setup that requires bauble.gui to be set first."""
+    from gi.repository import Gio
+
+    import bauble
+
+    bauble.gui.add_action("db_create_all", _create_all)
+
+    item = Gio.MenuItem.new(_("Create Missing Tables"), "win.db_create_all")
+    bauble.gui.options_menu.append_item(item)

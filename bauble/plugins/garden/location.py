@@ -53,6 +53,7 @@ from bauble import db
 from bauble import paths
 from bauble import prefs
 from bauble import utils
+from bauble.editor import DocumentsPresenter
 from bauble.editor import GenericEditorPresenter
 from bauble.editor import GenericEditorView
 from bauble.editor import GenericModelViewPresenterEditor
@@ -163,6 +164,11 @@ loc_context_menu = [edit_action, add_plant_action, remove_action, map_action]
 
 LocationNote = db.make_note_class("Location")
 LocationPicture = db.make_note_class("Location", cls_type="_picture")
+LocationDocument = db.make_note_class(
+    "Location",
+    cls_type="document",
+    extra_columns={"note": Column(UnicodeText)},
+)
 
 
 class Location(db.Domain, db.WithNotes):
@@ -283,10 +289,13 @@ class Location(db.Domain, db.WithNotes):
 
         pic_select = select([LocationPicture._last_updated, cls.id]).join(cls)
 
+        doc_select = select([LocationDocument._last_updated, cls.id]).join(cls)
+
         dates = union(
             self_select,
             note_select,
             pic_select,
+            doc_select,
         ).alias("dates")
 
         return (
@@ -444,6 +453,11 @@ class LocationEditorPresenter(GenericEditorPresenter, PresenterMapMixin):
         pictures_parent.foreach(pictures_parent.remove)
         self.pictures_presenter = PicturesPresenter(
             self, "_pictures", pictures_parent
+        )
+        documents_parent = self.view.widgets.documents_parent_box
+        documents_parent.foreach(documents_parent.remove)
+        self.documents_presenter = DocumentsPresenter(
+            self, "documents", documents_parent
         )
 
         # initialize widgets
