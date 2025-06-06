@@ -4898,6 +4898,18 @@ class CollectionTests(GardenTestCase):
         update_gui()
         self.assertEqual(view.widgets.lat_entry.get_text(), value.split()[0])
         self.assertEqual(view.widgets.lon_entry.get_text(), value.split()[1])
+        # dms with unicode chars and spaces
+        value = "S 27° 28’ 55” E 152° 58’ 24.2”"
+        view.widgets.lon_entry.set_text(value)
+        update_gui()
+        self.assertEqual(view.widgets.lat_entry.get_text(), "S 27° 28’ 55”")
+        self.assertEqual(view.widgets.lon_entry.get_text(), "E 152° 58’ 24.2”")
+        self.assertAlmostEqual(
+            float(presenter.model.latitude), -27.481944, places=3
+        )
+        self.assertAlmostEqual(
+            float(presenter.model.longitude), 152.973389, places=3
+        )
         # dec
         value = "27.481950, -152.973379"
         view.widgets.lat_entry.set_text(value)

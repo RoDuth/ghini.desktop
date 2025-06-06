@@ -138,20 +138,20 @@ collection_context_menu = [
     collection_map_action,
 ]
 
-lat_long_re = re.compile(
-    r"([SN]?[ ]?[0-9]{1,3}°\s*[0-9]{1,2}'\s*[0-9]{1,2}\.*[0-9]*\"[SN]?|"
+LAT_LONG_RE = re.compile(
+    r"([SN]?[ ]?[0-9]{1,3}°\s*[0-9]{1,2}['’]\s*[0-9]{1,2}\.*[0-9]*[\"”][SN]?|"
     r"[-]?\d+\.\d+)"
     r"[, ]{1}[ ]?"
-    r"([EW]?[ ]?[0-9]{1,3}°\s*[0-9]{1,2}'\s*[0-9]{1,2}\.*[0-9]*\"[EW]?|"
+    r"([EW]?[ ]?[0-9]{1,3}°\s*[0-9]{1,2}['’]\s*[0-9]{1,2}\.*[0-9]*[\"”][EW]?|"
     r"[-]?\d+\.\d+)"
 )
 
-lat_re = re.compile(
-    r"[SN]?[ ]?([0-9]{1,3})°\s*([0-9]{1,2})'\s*([0-9]{1,2}\.*[0-9]*)\""
+LAT_RE = re.compile(
+    r"[SN]?[ ]?([0-9]{1,3})°\s*([0-9]{1,2})['’]\s*([0-9]{1,2}\.*[0-9]*)[\"”]"
 )
 
-long_re = re.compile(
-    r"[EW]?[ ]?([0-9]{1,3})°\s*([0-9]{1,2})'\s*([0-9]{1,2}\.*[0-9]*)\""
+LONG_RE = re.compile(
+    r"[EW]?[ ]?([0-9]{1,3})°\s*([0-9]{1,2})['’]\s*([0-9]{1,2}\.*[0-9]*)[\"”]"
 )
 
 
@@ -706,7 +706,7 @@ class CollectionPresenter(editor.ChildPresenter):
             return
 
         if direction == "W":
-            if long_re.match(lon_text):
+            if LONG_RE.match(lon_text):
                 if lon_text[0] == "E":
                     entry.set_text(f"W{lon_text[1:]}")
                 elif lon_text[-1] == "E":
@@ -716,7 +716,7 @@ class CollectionPresenter(editor.ChildPresenter):
             elif lon_text[0] != "-":
                 entry.set_text(f"-{lon_text}")
         elif direction == "E":
-            if long_re.match(lon_text):
+            if LONG_RE.match(lon_text):
                 if lon_text[0] == "W":
                     entry.set_text(f"E{lon_text[1:]}")
                 elif lon_text[-1] == "W":
@@ -743,7 +743,7 @@ class CollectionPresenter(editor.ChildPresenter):
             return
 
         if direction == "S":
-            if lat_re.match(lat_text):
+            if LAT_RE.match(lat_text):
                 if lat_text[0] == "N":
                     entry.set_text(f"S{lat_text[1:]}")
                 elif lat_text[-1] == "N":
@@ -753,7 +753,7 @@ class CollectionPresenter(editor.ChildPresenter):
             elif lat_text[0] != "-":
                 entry.set_text(f"-{lat_text}")
         elif direction == "N":
-            if lat_re.match(lat_text):
+            if LAT_RE.match(lat_text):
                 if lat_text[0] == "S":
                     entry.set_text(f"N{lat_text[1:]}")
                 elif lat_text[-1] == "S":
@@ -816,7 +816,7 @@ class CollectionPresenter(editor.ChildPresenter):
         from .accession import latitude_to_dms
 
         text = entry.get_text()
-        if match := lat_long_re.match(text):
+        if match := LAT_LONG_RE.match(text):
             self._split_lat_long(*match.groups())
             return
         latitude = None
@@ -831,7 +831,7 @@ class CollectionPresenter(editor.ChildPresenter):
                     north_radio.set_active(True)
                 north_radio.handler_unblock(self.north_toggle_signal_id)
                 direction = self._get_lat_direction()
-                if match := lat_re.match(text):
+                if match := LAT_RE.match(text):
                     text = " ".join(match.groups())
 
                 latitude = self._parse_lat_lon(direction, text)
@@ -861,7 +861,7 @@ class CollectionPresenter(editor.ChildPresenter):
         from .accession import longitude_to_dms
 
         text = entry.get_text()
-        if match := lat_long_re.match(text):
+        if match := LAT_LONG_RE.match(text):
             self._split_lat_long(*match.groups())
             return
         longitude = None
@@ -876,7 +876,7 @@ class CollectionPresenter(editor.ChildPresenter):
                     self.view.widgets.east_radio.set_active(True)
                 east_radio.handler_unblock(self.east_toggle_signal_id)
                 direction = self._get_lon_direction()
-                if match := long_re.match(text):
+                if match := LONG_RE.match(text):
                     text = " ".join(match.groups())
 
                 longitude = self._parse_lat_lon(direction, text)
