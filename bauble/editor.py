@@ -167,7 +167,7 @@ def default_completion_cell_data_func(_column, renderer, model, treeiter):
     GenericEditorView.attach_completions
     """
     v = model[treeiter][0]
-    renderer.set_property("markup", utils.nstr(v))
+    renderer.set_property("markup", utils.xml_safe(v))
 
 
 def default_completion_match_func(completion, key_string, treeiter):
