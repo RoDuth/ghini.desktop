@@ -26,6 +26,7 @@ import traceback
 import types
 from collections import deque
 from collections.abc import Callable
+from collections.abc import Iterable
 from pathlib import Path
 from typing import Any
 from typing import Literal
@@ -114,11 +115,13 @@ class GUI:
             Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION,
         )
 
-    set_view_callbacks: set[Callable] = set()
+    set_view_callbacks: set[Callable[[], None]] = set()
     """Any callbacks added to this list will be called each time the set_view
     is called.
     """
-    main_entry_completion_callbacks: set[Callable] = set()
+    main_entry_completion_callbacks: set[Callable[[str], Iterable[str]]] = (
+        set()
+    )
     """Callbacks added here will be called to generate completion strings for
     the main entry
     """
@@ -130,7 +133,7 @@ class GUI:
     def __init__(self) -> None:
         filename = os.path.join(paths.lib_dir(), "bauble.glade")
         self.widgets = utils.load_widgets(filename)
-        self.window = self.widgets.main_window
+        self.window: Gtk.ApplicationWindow = self.widgets.main_window
         self.window.hide()
         self.views: deque[pluginmgr.Viewable] = deque()
         # default location of LICENSE for about window, if not available will
@@ -161,7 +164,7 @@ class GUI:
 
         self.window.connect("destroy", self.on_destroy)
         self.window.connect("delete-event", self.on_delete_event)
-        self.window.connect("size_allocate", self.on_resize)
+        self.window.connect("size-allocate", self.on_resize)
         self.window.set_title(self.title)
         actions = (
             ("cut", self.on_edit_menu_cut),
@@ -226,7 +229,11 @@ class GUI:
         statusbar = self.widgets.statusbar
         statusbar.set_spacing(10)
 
-        def on_statusbar_push(_statusbar, context_id: int, _txt) -> None:
+        def on_statusbar_push(
+            _statusbar: Gtk.Statusbar,
+            context_id: int,
+            _txt: str,
+        ) -> None:
             if context_id not in self._cids:
                 self._cids.append(context_id)
 
@@ -265,7 +272,7 @@ class GUI:
     def remove_action(self, name: str) -> None:
         self.window.remove_action(name)
 
-    def lookup_action(self, name: str) -> Gio.Action:
+    def lookup_action(self, name: str) -> Gio.Action | None:
         return self.window.lookup_action(name)
 
     def close_message_box(self) -> None:
@@ -327,7 +334,7 @@ class GUI:
             )
         return int(prefs.prefs[self.history_pins_size_pref])
 
-    def send_command(self, command) -> None:
+    def send_command(self, command: str) -> None:
         self.widgets.main_comboentry.get_child().set_text(command)
         self.widgets.go_button.emit("clicked")
 
@@ -363,25 +370,25 @@ class GUI:
                 Gtk.EntryIconPosition.SECONDARY, tooltip
             )
 
-    def on_main_entry_activate(self, _widget) -> None:
+    def on_main_entry_activate(self, _entry: Gtk.Entry) -> None:
         self.widgets.go_button.emit("clicked")
 
     @staticmethod
-    def on_home_clicked(*_args) -> None:
+    def on_home_clicked(*_args: Any) -> None:
         # Need args here to use from both menu action and button
         bauble.command_handler("home", None)
 
-    def on_prev_view_clicked(self, *_args) -> None:
+    def on_prev_view_clicked(self, *_args: Any) -> None:
         # Need args here to use from both menu action and button
         self.widgets.main_comboentry.get_child().set_text("")
         self.set_view("previous")
 
-    def on_next_view_clicked(self, *_args) -> None:
+    def on_next_view_clicked(self, *_args: Any) -> None:
         # Need args here to use from both menu action and button
         self.widgets.main_comboentry.get_child().set_text("")
         self.set_view("next")
 
-    def on_go_button_clicked(self, _widget) -> None:
+    def on_go_button_clicked(self, _button: Gtk.Button) -> None:
         self.close_message_box()
         text = self.widgets.main_comboentry.get_child().get_text().strip()
 
@@ -399,7 +406,7 @@ class GUI:
             self.add_to_history(text)
         self.save_history = True
 
-    def on_query_button_clicked(self, _widget) -> None:
+    def on_query_button_clicked(self, _button: Gtk.Button) -> None:
         query_builder = QueryBuilder(transient_for=self.window)
         query_builder.set_query(
             self.widgets.main_comboentry.get_child().get_text()
@@ -414,7 +421,10 @@ class GUI:
         query_builder.destroy()
 
     def on_history_pinned_clicked(
-        self, entry: Gtk.Entry, _icon_pos, _event
+        self,
+        entry: Gtk.Entry,
+        _icon_pos: Gtk.EntryIconPosition,
+        _event: Gdk.Event,
     ) -> None:
         """add or remove a pin search string to the history pins."""
         text = entry.get_text()
@@ -445,7 +455,7 @@ class GUI:
         prefs.prefs[self.entry_history_pins_pref] = history_pins
         self.populate_main_entry()
 
-    def add_to_history(self, text: str, index=0) -> None:
+    def add_to_history(self, text: str, index: int = 0) -> None:
         """add text to history, if text is already in the history then set its
         index to index parameter
         """
@@ -478,8 +488,9 @@ class GUI:
         history = prefs.prefs.get(self.entry_history_pref, [])
         main_combo = self.widgets.main_comboentry
 
-        def separate(model, tree_iter):
-            if model.get(tree_iter, 0) == ("--separator--",):
+        def separate(model: Gtk.ListStore, tree_iter: Gtk.TreeIter) -> bool:
+            cols = model.get(tree_iter, 0)  # type: ignore [arg-type]
+            if cols == ("--separator--",):
                 return True
             return False
 
@@ -757,7 +768,11 @@ class GUI:
                 submenu.append_item(item)
 
     @staticmethod
-    def on_tools_menu_item_activate(_action, _param, *args) -> None:
+    def on_tools_menu_item_activate(
+        _action: Gio.SimpleAction,
+        _param: GLib.Variant | None,
+        *args: Any,
+    ) -> None:
         """Start a tool on the Tool menu."""
         tool = args[0]
         try:
@@ -774,7 +789,7 @@ class GUI:
         self,
         _action: Gio.SimpleAction,
         _param: GLib.Variant | None,
-        *args,
+        *args: Any,
     ) -> None:
         editor_cls = args[0]
         try:
@@ -830,24 +845,46 @@ class GUI:
             if obj != []:
                 logger.warning("%s leaked: %s", view_cls.__name__, obj)
 
-    def on_edit_menu_cut(self, _action, _param) -> None:
+    def on_edit_menu_cut(
+        self,
+        _action: Gio.SimpleAction,
+        _param: GLib.Variant | None,
+    ) -> None:
         self.widgets.main_comboentry.get_child().cut_clipboard()
 
-    def on_edit_menu_copy(self, _action, _param) -> None:
+    def on_edit_menu_copy(
+        self,
+        _action: Gio.SimpleAction,
+        _param: GLib.Variant | None,
+    ) -> None:
         self.widgets.main_comboentry.get_child().copy_clipboard()
 
-    def on_edit_menu_paste(self, _action, _param) -> None:
+    def on_edit_menu_paste(
+        self,
+        _action: Gio.SimpleAction,
+        _param: GLib.Variant | None,
+    ) -> None:
         self.widgets.main_comboentry.get_child().paste_clipboard()
 
     @staticmethod
-    def on_edit_menu_preferences(_action, _param) -> None:
+    def on_edit_menu_preferences(
+        _action: Gio.SimpleAction,
+        _param: GLib.Variant | None,
+    ) -> None:
         bauble.command_handler("prefs", None)
 
     @staticmethod
-    def on_edit_menu_history(_action, _param) -> None:
+    def on_edit_menu_history(
+        _action: Gio.SimpleAction,
+        _param: GLib.Variant | None,
+    ) -> None:
         bauble.command_handler("history", None)
 
-    def on_file_menu_new(self, _action, _param) -> None:
+    def on_file_menu_new(
+        self,
+        _action: Gio.SimpleAction,
+        _param: GLib.Variant | None,
+    ) -> None:
         msg = _(
             "<b>CAUTION! This will wipe all data for the current "
             "connection</b>\n\n"
@@ -872,7 +909,11 @@ class GUI:
             utils.message_details_dialog(msg, traceb, Gtk.MessageType.ERROR)
             return
 
-    def on_file_menu_open(self, _action, _param):
+    def on_file_menu_open(
+        self,
+        action: Gio.SimpleAction,
+        _param: GLib.Variant | None,
+    ) -> None:
         """Open the connection manager."""
 
         name, uri = start_connection_manager()
@@ -881,14 +922,15 @@ class GUI:
 
         engine = None
         try:
-            engine = db.open_conn(uri, True, True)
+            if uri:
+                engine = db.open_conn(uri, True, True)
         except Exception as e:  # pylint: disable=broad-except
             msg = _("Could not open connection.\n\n%s") % e
             utils.message_details_dialog(
                 msg, traceback.format_exc(), Gtk.MessageType.ERROR
             )
             logger.warning(e)
-            self.on_file_menu_open(None, None)
+            self.on_file_menu_open(action, None)
 
         if engine is None:
             # the database wasn't opened
@@ -924,26 +966,39 @@ class GUI:
             self.widgets.statusbar.pop(cid)
 
     @staticmethod
-    def on_help_menu_contents(_action, _param) -> None:
+    def on_help_menu_contents(
+        _action: Gio.SimpleAction,
+        _param: GLib.Variant | None,
+    ) -> None:
         desktop.open(
             "http://ghini.readthedocs.io/en/ghini-1.0-dev/",
             dialog_on_error=True,
         )
 
     @staticmethod
-    def on_help_menu_bug(_action, _param) -> None:
+    def on_help_menu_bug(
+        _action: Gio.SimpleAction,
+        _param: GLib.Variant | None,
+    ) -> None:
         desktop.open(
             "https://github.com/RoDuth/ghini.desktop/issues/new",
             dialog_on_error=True,
         )
 
     @staticmethod
-    def on_help_menu_logfile(_action, _param) -> None:
+    def on_help_menu_logfile(
+        _action: Gio.SimpleAction,
+        _param: GLib.Variant | None,
+    ) -> None:
         logger.debug("opening log file from help menu")
         filename = os.path.join(paths.appdata_dir(), "bauble.log")
         desktop.open(filename, dialog_on_error=True)
 
-    def on_help_menu_about(self, _action, _param) -> None:
+    def on_help_menu_about(
+        self,
+        _action: Gio.SimpleAction,
+        _param: GLib.Variant | None,
+    ) -> None:
         about = Gtk.AboutDialog(transient_for=self.window)
         about.set_program_name("Ghini Desktop")
         about.set_version(bauble.version)
@@ -985,7 +1040,9 @@ class GUI:
         about.destroy()
 
     @staticmethod
-    def on_delete_event(_widget, _event) -> bool:
+    def on_delete_event(
+        _window: Gtk.ApplicationWindow, _event: Gdk.Event
+    ) -> bool:
         if bauble.task.running():
             msg = _("Would you like to cancel the current tasks?")
             if not utils.yes_no_dialog(msg):
@@ -998,16 +1055,24 @@ class GUI:
                 return True
         return False
 
-    def on_destroy(self, _window) -> None:
+    def on_destroy(self, _window: Gtk.ApplicationWindow) -> None:
         active_view = self.get_view()
         if active_view:
             active_view.cancel_threads()
             active_view.prevent_threads = True
         bauble.task.kill()
 
-    def on_resize(self, _widget, _data) -> None:
-        rect = self.window.get_size()
-        prefs.prefs[self.window_geometry_pref] = rect.width, rect.height
+    def on_resize(
+        self, _window: Gtk.ApplicationWindow, allocation: Gdk.Rectangle
+    ) -> None:
+        prefs.prefs[self.window_geometry_pref] = (
+            allocation.width,
+            allocation.height,
+        )
 
-    def on_quit(self, _action, _param) -> None:
+    def on_quit(
+        self,
+        _action: Gio.SimpleAction,
+        _param: GLib.Variant | None,
+    ) -> None:
         self.window.destroy()

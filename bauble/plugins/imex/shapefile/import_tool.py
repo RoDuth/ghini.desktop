@@ -45,8 +45,6 @@ from bauble import task
 from bauble.editor import GenericEditorPresenter
 from bauble.editor import GenericEditorView
 from bauble.editor import Problem
-
-# NOTE importing shapefile Reader Writer above wipes out gettext _
 from bauble.i18n import _
 
 # NOTE: need to import the Note classes as we may need them.

@@ -739,7 +739,6 @@ class TestSearchViewMapPresenter(BaubleTestCase):
         presenter = SearchViewMapPresenter(map_)
         self.assertFalse(presenter.populated)
         results = self.session.query(Plant).filter(Plant.id == 1).all()
-        print(results)
         map_point = map_item_factory(results[0], colours["green"])
         presenter.plt_items[1] = map_point
 

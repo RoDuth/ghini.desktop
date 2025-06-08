@@ -1025,7 +1025,8 @@ class SearchView(View, Gtk.Box):
         # for tests when no gui
         width = 100
         if bauble.gui:
-            width = bauble.gui.window.get_size().width
+            size = cast(Gdk.Rectangle, bauble.gui.window.get_size())
+            width = size.width
         info_width = prefs.prefs.get(INFOBOXPAGE_WIDTH_PREF, 300)
         pane_pos = width - info_width - 1
         logger.debug("setting info_pane position to %s", pane_pos)

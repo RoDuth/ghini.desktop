@@ -753,10 +753,8 @@ class GUITests(BaubleTestCase):
     def test_on_resize(self):
         gui = GUI()
         prefs.prefs[gui.window_geometry_pref] = 25, 15
-        gui.window = mock.Mock()
         mock_rect = mock.Mock(width=20, height=10)
-        gui.window.get_size.return_value = mock_rect
-        gui.on_resize(None, None)
+        gui.on_resize(None, mock_rect)
         self.assertEqual(prefs.prefs.get(gui.window_geometry_pref), (20, 10))
         gui.destroy()
 

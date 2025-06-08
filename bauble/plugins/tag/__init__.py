@@ -78,7 +78,12 @@ class TagPlugin(pluginmgr.Plugin):
         SearchView.cursor_changed_callbacks.add(menu_manager.refresh)
 
         if bauble.gui:
-            bauble.gui.set_view_callbacks.add(menu_manager.refresh)
+
+            def plain_refresh() -> None:
+                # for the sake of type checking only
+                menu_manager.refresh(None)
+
+            bauble.gui.set_view_callbacks.add(plain_refresh)
             menu_manager.reset()
 
         HistoryView.add_translation_query(

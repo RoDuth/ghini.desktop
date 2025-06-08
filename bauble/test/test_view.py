@@ -96,7 +96,6 @@ class DontStop(threading.Thread):
 
     def run(self):
         while not self.stop:
-            print(".")
             sleep(0.1)
 
     def cancel(self):
