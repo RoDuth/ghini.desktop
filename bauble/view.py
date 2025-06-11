@@ -33,6 +33,7 @@ from collections.abc import Callable
 from collections.abc import Generator
 from collections.abc import Iterable
 from collections.abc import Sequence
+from configparser import ConfigParser
 from dataclasses import dataclass
 from dataclasses import field
 from datetime import datetime
@@ -2618,6 +2619,121 @@ def get_search_view() -> SearchView:
 pluginmgr.register_command(DefaultCommandHandler)
 
 
+def _remove_empty_config_sections(config: ConfigParser) -> None:
+    """Remove sections that no longer store any options.
+
+    Mutates the supplied ConfigParser object in place."""
+    to_remove = []
+    for section in config.sections():
+        if not config.items(section):
+            to_remove.append(section)
+
+    logger.debug("removing section %s", to_remove)
+
+    for section in to_remove:
+        config.remove_section(section)
+
+
+@Gtk.Template(filename=str(Path(paths.lib_dir(), "prefs_reset_dialog.ui")))
+class PrefsResetDialog(Gtk.Dialog):
+    __gtype_name__ = "PrefsResetDialog"
+
+    # convince pylint liststore is iterable
+    liststore = Gtk.ListStore(str, bool)
+    liststore = cast(Gtk.ListStore, Gtk.Template.Child())
+    treeview = cast(Gtk.TreeView, Gtk.Template.Child())
+
+    def __init__(self, config: ConfigParser) -> None:
+        logger.debug("PrefsView::__init__")
+        super().__init__()
+        self.config = config
+
+        self.init_context_menu()
+
+        for section in self.config.sections():
+            for option in self.config[section]:
+
+                self.liststore.append([f"{section}.{option}", True])
+
+        self.treeview.connect("button-press-event", self.on_button_press_event)
+
+    def get_config(self) -> ConfigParser:
+        line: str
+        val: bool
+        for line, val in self.liststore:  # type: ignore
+            if val is False:
+                section, option = line.rsplit(".", 1)
+                self.config.remove_option(section, option)
+
+        _remove_empty_config_sections(self.config)
+
+        return self.config
+
+    def on_button_press_event(self, _widget, event: Gdk.EventButton) -> None:
+        logger.debug("event.button %s", event.button)
+        if event.button == 3:
+            self.context_menu.popup_at_pointer(event)
+
+    def init_context_menu(self) -> None:
+        action_group_name = "prefs_reset"
+        action_group = Gio.SimpleActionGroup()
+        menu_model = Gio.Menu()
+
+        section_action = Gio.SimpleAction.new("toggle_section", None)
+        section_action.connect("activate", self.on_toggle_section)
+        action_group.add_action(section_action)
+        section_item = Gio.MenuItem.new(
+            _("Toggle section"),
+            f"{action_group_name}.toggle_section",
+        )
+        menu_model.append_item(section_item)
+
+        all_action = Gio.SimpleAction.new("toggle_all", None)
+        all_action.connect("activate", self.on_toggle_all)
+        action_group.add_action(all_action)
+        all_item = Gio.MenuItem.new(
+            _("Toggle all"),
+            f"{action_group_name}.toggle_all",
+        )
+        menu_model.append_item(all_item)
+
+        self.context_menu = Gtk.Menu.new_from_model(menu_model)
+        self.context_menu.attach_to_widget(self.treeview)
+        self.treeview.insert_action_group(action_group_name, action_group)
+
+    def on_toggle_section(
+        self, _action: Gio.SimpleAction, _param: None
+    ) -> None:
+        selection = self.treeview.get_selection()
+        model, tree_path = selection.get_selected()
+
+        if not tree_path:
+            return
+
+        full_name = model[tree_path][0]
+        section, _option = full_name.rsplit(".", 1)
+
+        line: str
+        val: bool
+        for path, (line, val) in enumerate(self.liststore):  # type: ignore
+            if line.startswith(section):
+                self.liststore[path][1] = not val
+
+    def on_toggle_all(self, _action: Gio.SimpleAction, _param: None) -> None:
+        _line: str
+        val: bool
+        for path, (_line, val) in enumerate(self.liststore):  # type: ignore
+            self.liststore[path][1] = not val
+
+    @Gtk.Template.Callback()
+    def on_include_toggled(
+        self,
+        cell: Gtk.CellRendererToggle,
+        path: Gtk.TreePath,
+    ) -> None:
+        self.liststore[path][1] = not cell.get_active()
+
+
 @Gtk.Template(filename=str(Path(paths.lib_dir(), "prefs_view.ui")))
 class PrefsView(View, Gtk.Box):
     """The PrefsView displays the values in the plugin registry and displays
@@ -2631,14 +2747,38 @@ class PrefsView(View, Gtk.Box):
     plugins_ls = cast(Gtk.ListStore, Gtk.Template.Child())
     prefs_tv = cast(Gtk.TreeView, Gtk.Template.Child())
     prefs_data_renderer = cast(Gtk.CellRendererText, Gtk.Template.Child())
+    menu_button = cast(Gtk.MenuButton, Gtk.Template.Child())
 
     def __init__(self) -> None:
         logger.debug("PrefsView::__init__")
         super().__init__()
-        self.init_menu()
+        self.init_context_menu()
+        self.init_menu_button()
         self.button_press_sid: None | int = None
 
-    def init_menu(self) -> None:
+    def init_menu_button(self) -> None:
+        action_group_name = "prefs_button"
+        action_group = Gio.SimpleActionGroup()
+        menu_model = Gio.Menu()
+
+        menu_items = (
+            (_("Backup"), "backup", self.on_prefs_backup_clicked),
+            (_("Retore"), "restore", self.on_prefs_restore_clicked),
+            (_("Reset defaults"), "defaults", self.on_prefs_reset_clicked),
+            (_("Create share file"), "create", self.on_create_share_clicked),
+            (_("Update from file"), "update", self.on_update_share_clicked),
+        )
+        for label, name, handler in menu_items:
+            action = Gio.SimpleAction.new(name, None)
+            action.connect("activate", handler)
+            action_group.add_action(action)
+            menu_item = Gio.MenuItem.new(label, f"{action_group_name}.{name}")
+            menu_model.append_item(menu_item)
+
+        self.menu_button.set_menu_model(menu_model)
+        self.menu_button.insert_action_group(action_group_name, action_group)
+
+    def init_context_menu(self) -> None:
         action_group_name = "prefs_view"
         action_group = Gio.SimpleActionGroup()
         action = Gio.SimpleAction.new("insert", None)
@@ -2768,19 +2908,152 @@ class PrefsView(View, Gtk.Box):
         prefs.prefs.save()
         self.refresh_view()
 
-    @Gtk.Template.Callback()
     @staticmethod
-    def on_prefs_backup_clicked(_button: Gtk.Button) -> None:
+    def on_prefs_backup_clicked(
+        _action: Gio.SimpleAction,
+        _param: None,
+    ) -> None:
         copy2(prefs.default_prefs_file, prefs.default_prefs_file + "BAK")
 
-    @Gtk.Template.Callback()
-    def on_prefs_restore_clicked(self, _button: Gtk.Button) -> None:
+    def on_prefs_restore_clicked(
+        self,
+        _action: Gio.SimpleAction,
+        _param: None,
+    ) -> None:
         if Path(prefs.default_prefs_file + "BAK").exists():
             copy2(prefs.default_prefs_file + "BAK", prefs.default_prefs_file)
             prefs.prefs.reload()
             self.update()
         else:
             utils.message_dialog(_("No backup found"))
+
+    @staticmethod
+    def get_user_filtered(config: ConfigParser) -> ConfigParser:
+        dialog = PrefsResetDialog(config)
+
+        if dialog.run() == Gtk.ResponseType.OK:
+            config = dialog.get_config()
+        else:
+            config = ConfigParser(interpolation=None)
+
+        dialog.destroy()
+
+        return config
+
+    @staticmethod
+    def remove_already_equal(config: ConfigParser) -> None:
+        """Removes any parts that are already in prefs."""
+        # remove _extend and already equal.
+        to_remove = []
+        for section in config.sections():
+            for option in config[section]:
+                if option == "_extend":
+                    to_remove.append((section, option))
+
+                elif config.get(section, option) == prefs.prefs.config.get(
+                    section, option, fallback=None
+                ):
+                    to_remove.append((section, option))
+
+        logger.debug("removing %s", to_remove)
+        for section, option in to_remove:
+            config.remove_option(section, option)
+
+        _remove_empty_config_sections(config)
+
+    def apply_changes(self, config: ConfigParser) -> None:
+
+        for section in config.sections():
+            for option in config[section]:
+                logger.debug("Applying change to pref %s.%s", section, option)
+                prefs.prefs[f"{section}.{option}"] = config.get(
+                    section, option
+                )
+
+        self.update()
+
+    def on_prefs_reset_clicked(
+        self,
+        _action: Gio.SimpleAction,
+        _param: None,
+    ) -> None:
+        config_paths = pluginmgr.get_config_files(pluginmgr.plugins.values())
+
+        config = ConfigParser(interpolation=None)
+        config.read(config_paths)
+
+        self.remove_already_equal(config)
+
+        config = self.get_user_filtered(config)
+
+        self.apply_changes(config)
+
+    def on_create_share_clicked(
+        self,
+        _action: Gio.SimpleAction,
+        _param: None,
+    ) -> None:
+
+        config = ConfigParser(interpolation=None)
+        config.read(prefs.prefs._filename)  # pylint: disable=protected-access
+
+        config = self.get_user_filtered(config)
+
+        chooser = Gtk.FileChooserNative.new(
+            _("Save to file"),
+            None,
+            Gtk.FileChooserAction.SAVE,
+        )
+        filter_ = Gtk.FileFilter.new()
+        filter_.add_pattern("*.cfg")
+        chooser.add_filter(filter_)
+        chooser.set_current_folder(str(Path.home()))
+
+        filename = None
+        if chooser.run() == Gtk.ResponseType.ACCEPT:
+            filename = chooser.get_filename()
+            logger.debug("saving to %s", filename)
+
+        chooser.destroy()
+
+        if not filename:
+            return
+
+        with open(filename, "w+", encoding="utf-8") as f:
+            config.write(f)
+
+    def on_update_share_clicked(
+        self,
+        _action: Gio.SimpleAction,
+        _param: None,
+    ) -> None:
+        chooser = Gtk.FileChooserNative.new(
+            _("Load file"),
+            None,
+            Gtk.FileChooserAction.OPEN,
+        )
+        filter_ = Gtk.FileFilter.new()
+        filter_.add_pattern("*.cfg")
+        chooser.add_filter(filter_)
+        chooser.set_current_folder(str(Path.home()))
+
+        filename = None
+        if chooser.run() == Gtk.ResponseType.ACCEPT:
+            filename = chooser.get_filename()
+
+        chooser.destroy()
+
+        if not filename:
+            return
+
+        config = ConfigParser(interpolation=None)
+        config.read(filename)
+
+        self.remove_already_equal(config)
+
+        config = self.get_user_filtered(config)
+
+        self.apply_changes(config)
 
     def update(self, *_args) -> None:
         self.prefs_ls.clear()

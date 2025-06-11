@@ -249,13 +249,10 @@ def init(force: bool = False) -> None:
     parser.update_domains()
 
 
-def _update_prefs(registered: list[Plugin]) -> None:
-    """Add any default prefs configuration entries provided by the supplied
-    Plugins.
+def get_config_files(registered: Iterable[Plugin]) -> list[Path]:
+    """Get a list of all exisitng config.cfg files for the supplied plugins."""
+    config_paths = []
 
-    All supplied Plugins are expected to have been added to the PluginRegistry
-    first.
-    """
     for plugin in registered:
 
         directory = Path(getfile(plugin.__class__)).parent
@@ -263,8 +260,21 @@ def _update_prefs(registered: list[Plugin]) -> None:
         conf_file = Path(directory) / "default/config.cfg"
         if conf_file.exists():
             logger.debug("plugin conf file found at: %s", conf_file)
+            config_paths.append(conf_file)
 
-            prefs.update_prefs(conf_file)
+    return config_paths
+
+
+def _update_prefs(registered: list[Plugin]) -> None:
+    """Add any default prefs configuration entries provided by the supplied
+    Plugins.
+
+    All supplied Plugins are expected to have been added to the PluginRegistry
+    first.
+    """
+    for conf_file in get_config_files(registered):
+
+        prefs.update_prefs(conf_file)
 
 
 def _register_commands(registered: list[Plugin]) -> None:

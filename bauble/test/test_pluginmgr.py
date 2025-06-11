@@ -564,3 +564,10 @@ class PluginRegistryTests(BaubleTestCase):
         # test that removing works
         pluginmgr.PluginRegistry.remove(plugin)
         self.assertTrue(not pluginmgr.PluginRegistry.exists(plugin))
+
+    def test_get_config_files(self):
+        conf_paths = pluginmgr.get_config_files(pluginmgr.plugins.values())
+        self.assertEqual(len(conf_paths), 3)
+        self.assertTrue(any("/garden/" in str(i) for i in conf_paths))
+        self.assertTrue(any("/plants/" in str(i) for i in conf_paths))
+        self.assertTrue(any("/imex/" in str(i) for i in conf_paths))

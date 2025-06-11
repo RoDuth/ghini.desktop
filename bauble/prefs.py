@@ -39,6 +39,7 @@ from collections import UserDict
 from configparser import ConfigParser
 from configparser import Error
 from datetime import datetime
+from pathlib import Path
 from shutil import copy2
 
 from filelock import FileLock
@@ -604,7 +605,7 @@ class _prefs(UserDict):
                     logger.error(msg)
 
 
-def update_prefs(conf_file):
+def update_prefs(conf_file: Path) -> None:
     """Given a config file with sections add the sections to the current users
     config (prefs) if the section does not already exist.
     """
@@ -615,16 +616,21 @@ def update_prefs(conf_file):
     # defaults = config.sections()
     logger.debug("looking for prefs sections in %s", conf_file)
     for section in config.sections():
+
         if not prefs.has_section(section):
             logger.debug("adding section: %s", section)
+
             for option in config[section]:
                 prefs[f"{section}.{option}"] = config.get(section, option)
+
         elif config.has_section(section) and config.has_option(
             section, "_extend"
         ):
             for option in config[section]:
+
                 if option != "_extend" and f"{section}.{option}" not in prefs:
                     prefs[f"{section}.{option}"] = config.get(section, option)
+
     prefs.save()
 
 

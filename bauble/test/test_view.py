@@ -23,10 +23,12 @@ view tests
 import json
 import os
 import threading
+from configparser import ConfigParser
 from datetime import datetime
 from datetime import timedelta
 from datetime import timezone
 from pathlib import Path
+from tempfile import mkstemp
 from time import sleep
 from unittest import TestCase
 from unittest import mock
@@ -48,6 +50,7 @@ from bauble import db
 from bauble import error
 from bauble import meta
 from bauble import paths
+from bauble import pluginmgr
 from bauble import prefs
 from bauble import search
 from bauble import utils
@@ -77,6 +80,7 @@ from bauble.view import InfoBoxPage
 from bauble.view import LinksExpander
 from bauble.view import NotesBottomPage
 from bauble.view import PicturesScroller
+from bauble.view import PrefsResetDialog
 from bauble.view import PrefsView
 from bauble.view import PropertiesExpander
 from bauble.view import SearchView
@@ -2961,11 +2965,11 @@ class PrefsViewTests(BaubleTestCase):
         prefs_view = PrefsView()
         prefs_view.update()
         # restore no backup
-        prefs_view.on_prefs_restore_clicked(None)
+        prefs_view.on_prefs_restore_clicked(None, None)
         mock_dialog.assert_called()
         mock_dialog.assert_called_with("No backup found")
         # create backup and check they are the same
-        prefs_view.on_prefs_backup_clicked(None)
+        prefs_view.on_prefs_backup_clicked(None, None)
         with open(self.temp, "r", encoding="utf-8") as f:
             start = f.read()
         with open(self.temp + "BAK", encoding="utf-8") as f:
@@ -2982,8 +2986,199 @@ class PrefsViewTests(BaubleTestCase):
             backup = f.read()
         self.assertNotEqual(start, backup)
         # restore
-        prefs_view.on_prefs_restore_clicked(None)
+        prefs_view.on_prefs_restore_clicked(None, None)
         self.assertIsNone(prefs.prefs["bauble.test.option"])
+
+    @mock.patch("bauble.view.PrefsResetDialog.run")
+    def test_get_user_filtered(self, mock_run):
+        mock_run.return_value = Gtk.ResponseType.CANCEL
+        prefs_view = PrefsView()
+        config_paths = pluginmgr.get_config_files(pluginmgr.plugins.values())
+        config = ConfigParser(interpolation=None)
+        config.read(config_paths)
+        for section in config.sections():
+            prefs.prefs.config.remove_section(section)
+
+        self.assertEqual(prefs_view.get_user_filtered(config).sections(), [])
+
+        mock_run.return_value = Gtk.ResponseType.OK
+
+        self.assertGreater(
+            len(prefs_view.get_user_filtered(config).sections()), 5
+        )
+
+    def test_remove_already_equal(self):
+        prefs.prefs.save(force=True)
+        conf = ConfigParser(interpolation=None)
+        conf.read(self.temp)
+        prefs_view = PrefsView()
+        config_paths = pluginmgr.get_config_files(pluginmgr.plugins.values())
+        config = ConfigParser(interpolation=None)
+        config.read(config_paths)
+        prefs_view.remove_already_equal(config)
+
+        self.assertEqual(config.sections(), [])
+
+    @mock.patch("bauble.view.PrefsResetDialog.run")
+    def test_on_prefs_reset_clicked(self, mock_run):
+        mock_run.return_value = Gtk.ResponseType.OK
+        prefs_view = PrefsView()
+
+        self.assertEqual(len(prefs_view.prefs_ls), 0)
+
+        prefs_view.on_prefs_reset_clicked(None, None)
+
+        self.assertGreater(len(prefs_view.prefs_ls), 50)
+
+    @mock.patch("bauble.view.Gtk.FileChooserNative.new")
+    def test_on_create_share_clicked(self, mock_filechooser):
+        handle, temp = mkstemp(suffix=".cfg", text=True)
+        path = Path(temp)
+        self.assertEqual(path.stat().st_size, 0)
+        mock_filechooser().get_filename.return_value = temp
+        config_paths = pluginmgr.get_config_files(pluginmgr.plugins.values())
+        config = ConfigParser(interpolation=None)
+        config.read(config_paths)
+        for section in config.sections():
+            prefs.prefs.config.remove_section(section)
+        prefs_view = PrefsView()
+        with mock.patch.object(prefs_view, "get_user_filtered") as mock_filter:
+            mock_filter.return_value = config
+            mock_filechooser().run.return_value = Gtk.ResponseType.CANCEL
+
+            prefs_view.on_create_share_clicked(None, None)
+
+            self.assertEqual(path.stat().st_size, 0)
+
+            mock_filechooser().run.return_value = Gtk.ResponseType.ACCEPT
+
+            prefs_view.on_create_share_clicked(None, None)
+
+            self.assertGreater(path.stat().st_size, 10)
+
+        os.close(handle)
+        os.remove(temp)
+
+    @mock.patch("bauble.view.PrefsResetDialog.run")
+    @mock.patch("bauble.view.Gtk.FileChooserNative.new")
+    def test_on_update_share_clicked(self, mock_filechooser, mock_run):
+        mock_run.return_value = Gtk.ResponseType.OK
+        config_path = pluginmgr.get_config_files(pluginmgr.plugins.values())[0]
+        mock_filechooser().get_filename.return_value = config_path
+        prefs_view = PrefsView()
+        mock_filechooser().run.return_value = Gtk.ResponseType.CANCEL
+
+        prefs_view.on_update_share_clicked(None, None)
+
+        self.assertEqual(len(prefs_view.prefs_ls), 0)
+
+        mock_filechooser().run.return_value = Gtk.ResponseType.ACCEPT
+
+        prefs_view.on_update_share_clicked(None, None)
+
+        self.assertGreater(len(prefs_view.prefs_ls), 50)
+
+    def test_apply_changes(self):
+        prefs.prefs.save(force=True)
+        prefs_view = PrefsView()
+        prefs_view.update()
+        config_paths = pluginmgr.get_config_files(pluginmgr.plugins.values())
+        config = ConfigParser(interpolation=None)
+        config.read(config_paths)
+        for section in config.sections():
+            prefs.prefs.config.remove_section(section)
+        len_prefs = len(prefs.prefs.config)
+
+        self.assertLess(len_prefs, 10)
+
+        prefs_view.apply_changes(config)
+
+        self.assertGreater(len(prefs.prefs.config), len_prefs)
+
+
+class PrefsResetDialogTests(BaubleTestCase):
+    def test_init_empty_config(self):
+        conf = ConfigParser(interpolation=None)
+        dialog = PrefsResetDialog(conf)
+
+        self.assertEqual(dialog.config, conf)
+        self.assertEqual(len(dialog.liststore), 0)
+
+    def test_init_not_empty_config(self):
+        prefs.prefs.save(force=True)
+        conf = ConfigParser(interpolation=None)
+        conf.read(self.temp)
+        dialog = PrefsResetDialog(conf)
+
+        self.assertEqual(dialog.config, conf)
+        self.assertGreater(len(dialog.liststore), 50)
+
+    def test_on_toggle_all(self):
+        prefs.prefs.save(force=True)
+        conf = ConfigParser(interpolation=None)
+        conf.read(self.temp)
+        dialog = PrefsResetDialog(conf)
+
+        self.assertGreater(len(dialog.get_config().sections()), 10)
+
+        dialog.on_toggle_all(None, None)
+
+        self.assertFalse(any(val is True for name, val in dialog.liststore))
+        self.assertEqual(dialog.get_config().sections(), [])
+
+        dialog.on_toggle_all(None, None)
+        self.assertTrue(all(val is True for name, val in dialog.liststore))
+        # config will be consumed
+
+    def test_on_toggle_section(self):
+        prefs.prefs.save(force=True)
+        conf = ConfigParser(interpolation=None)
+        conf.read(self.temp)
+        start = len(conf.sections())
+        dialog = PrefsResetDialog(conf)
+        dialog.on_toggle_section(None, None)
+        # no selection
+        self.assertEqual(len(dialog.get_config().sections()), start)
+
+        dialog.treeview.set_cursor(Gtk.TreePath.new_first())
+        dialog.on_toggle_section(None, None)
+
+        self.assertLess(len(dialog.get_config().sections()), start)
+
+    def test_on_button_press_event(self):
+        conf = ConfigParser(interpolation=None)
+        dialog = PrefsResetDialog(conf)
+        with mock.patch.object(dialog, "context_menu") as mock_menu:
+            mock_event_button = mock.Mock(button=2)
+            dialog.on_button_press_event(None, mock_event_button)
+
+            mock_menu.popup_at_pointer.assert_not_called()
+
+            mock_event_button = mock.Mock(button=1)
+            dialog.on_button_press_event(None, mock_event_button)
+
+            mock_menu.popup_at_pointer.assert_not_called()
+
+            mock_event_button = mock.Mock(button=3)
+            dialog.on_button_press_event(None, mock_event_button)
+
+            mock_menu.popup_at_pointer.assert_called_once()
+
+    def test_on_include_toggled(self):
+        prefs.prefs.save(force=True)
+        conf = ConfigParser(interpolation=None)
+        conf.read(self.temp)
+        dialog = PrefsResetDialog(conf)
+        mock_cell = mock.Mock()
+        mock_cell.get_active.return_value = True
+        first = Gtk.TreePath.new_first()
+
+        self.assertTrue(dialog.liststore[first][1])
+
+        dialog.on_include_toggled(mock_cell, first)
+
+        self.assertFalse(dialog.liststore[first][1])
+        self.assertTrue(dialog.liststore[Gtk.TreePath.new_from_string("1")][1])
 
 
 class DefaultViewTests(BaubleTestCase):
