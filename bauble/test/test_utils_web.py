@@ -139,6 +139,20 @@ class LinkButtonTests(TestCase):
             "sp.%20%28Main%20Range%20P.R.%20Sharpe%2B%204877%29&sort=name",
         )
 
+    def test_bad_bad_base_uri(self):
+        link = {
+            "_base_uri": "http://en.wikipedia.org/wiki/%(genus.genus)s_%(sp)s",
+            "title": "Search Wikipedia",
+            "tooltip": "open the wikipedia page about this species",
+        }
+        btn = link_button_factory(link)
+        # should raise Attribute error
+        mock_fam = mock.Mock(epithet="Myrtaceae", spec=["epithet"])
+        btn.set_string(mock_fam)
+
+        self.assertFalse(btn.get_sensitive())
+        self.assertEqual(btn.get_label(), "ERROR!!! <Search Wikipedia>")
+
 
 class PACFileTests(TestCase):
     def test_parse_proxy(self):

@@ -125,13 +125,18 @@ class BaubleLinkButton(Gtk.LinkButton):
 
     def set_string(self, row: db.Domain) -> None:
 
-        self.set_uri(
-            get_formatted_url_for_obj(
-                self._base_uri,
-                self.fields,
-                row,
+        try:
+            self.set_uri(
+                get_formatted_url_for_obj(
+                    self._base_uri,
+                    self.fields,
+                    row,
+                )
             )
-        )
+        except Exception:
+            # rather than crash let the user know
+            self.set_sensitive(False)
+            self.set_label(f"ERROR!!! <{self.title}>")
 
 
 def link_button_factory(link: LinkDict) -> BaubleLinkButton:
