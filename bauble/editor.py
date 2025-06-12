@@ -242,12 +242,6 @@ class GenericEditorView:
                 self.connect(window, "response", self.on_dialog_response)
         self.box = set()  # the top level, meant for warnings.
 
-    def cancel_threads(self):
-        pass
-
-    def update(self):
-        pass
-
     def run_file_chooser_dialog(
         self, text, parent, action, last_folder, target, suffix=None
     ):
@@ -298,10 +292,6 @@ class GenericEditorView:
     ):
         utils.message_dialog(msg, typ, buttons, parent)
 
-    @staticmethod
-    def run_yes_no_dialog(msg, parent=None, yes_delay=-1):
-        return utils.yes_no_dialog(msg, parent, yes_delay)
-
     def get_selection(self):
         """return the selection in the graphic interface"""
         from bauble.view import SearchView
@@ -316,18 +306,6 @@ class GenericEditorView:
             return None
 
         return [row[0] for row in tree_view]
-
-    def set_title(self, title):
-        self.get_window().set_title(title)
-
-    def set_icon(self, icon):
-        self.get_window().set_icon(icon)
-
-    def image_set_from_file(self, widget, value):
-        widget = (
-            widget if isinstance(widget, Gtk.Widget) else self.widgets[widget]
-        )
-        widget.set_from_file(value)
 
     def set_label(self, widget_name, value):
         getattr(self.widgets, widget_name).set_markup(value)
@@ -475,21 +453,9 @@ class GenericEditorView:
         logger.warning("cannot solve widget reference %s", str(ref))
         return None
 
-    def widget_append_page(self, widget, page, label):
-        widget = self.__get_widget(widget)
-        widget.append_page(page, label)
-
     def widget_add(self, widget, child):
         widget = self.__get_widget(widget)
         widget.add(child)
-
-    def widget_get_model(self, widget):
-        widget = self.__get_widget(widget)
-        return widget.get_model()
-
-    def widget_grab_focus(self, widget):
-        widget = self.__get_widget(widget)
-        return widget.grab_focus()
 
     def widget_get_active(self, widget):
         widget = self.__get_widget(widget)
@@ -507,71 +473,14 @@ class GenericEditorView:
         widget = self.__get_widget(widget)
         widget.set_inconsistent(value)
 
-    def combobox_init(self, widget, values=None, cell_data_func=None):
-        combo = self.__get_widget(widget)
-        model = Gtk.ListStore(str)
-        combo.clear()
-        combo.set_model(model)
-        renderer = Gtk.CellRendererText()
-        combo.pack_start(renderer, True)
-        combo.add_attribute(renderer, "text", 0)
-        self.combobox_setup(combo, values, cell_data_func)
-
-    @staticmethod
-    def combobox_setup(combo, values, cell_data_func):
-        if values is None:
-            return None
-        return utils.setup_text_combobox(combo, values, cell_data_func)
-
-    def combobox_remove(self, widget, item):
-        widget = self.__get_widget(widget)
-        if isinstance(item, str):
-            # remove matching
-            model = widget.get_model()
-            for i, row in enumerate(model):
-                if item == row[0]:
-                    widget.remove(i)
-                    break
-            logger.warning("combobox_remove - not found >%s<", item)
-        elif isinstance(item, int):
-            # remove at position
-            widget.remove(item)
-        else:
-            logger.warning(
-                "invoked combobox_remove with item=(%s)%s", type(item), item
-            )
-
-    def comboboxtext_append_text(self, widget, value):
-        # only works on a GtkComboBoxText not a standard GtkComboBox,
-        widget = self.__get_widget(widget)
-        widget.append_text(value)
-
-    def comboboxtext_prepend_text(self, widget, value):
-        # only works on a GtkComboBoxText not a standard GtkComboBox,
-        widget = self.__get_widget(widget)
-        widget.prepend_text(value)
-
-    def combobox_get_active_text(self, widget):
-        widget = self.__get_widget(widget)
-        return widget.get_active_text()
-
     def combobox_get_active(self, widget):
         widget = self.__get_widget(widget)
         return widget.get_active()
-
-    def combobox_set_active(self, widget, index):
-        widget = self.__get_widget(widget)
-        path = Gtk.TreePath.new_from_string(f"0:{index}")
-        widget.get_child().set_displayed_row(path)
 
     def combobox_get_model(self, widget):
         "get the list of values in the combo"
         widget = self.__get_widget(widget)
         return widget.get_model()
-
-    def widget_emit(self, widget, value):
-        widget = self.__get_widget(widget)
-        widget.emit(value)
 
     def widget_set_expanded(self, widget, value):
         widget = self.__get_widget(widget)
@@ -584,10 +493,6 @@ class GenericEditorView:
     def widget_set_visible(self, widget, visible=True):
         widget = self.__get_widget(widget)
         widget.set_visible(visible)
-
-    def widget_get_visible(self, widget):
-        widget = self.__get_widget(widget)
-        return widget.get_visible()
 
     def widget_set_text(self, widget, text):
         widget = self.__get_widget(widget)
@@ -790,26 +695,14 @@ class MockDialog:
         self.size = None
         self.response = Gtk.ResponseType.OK
 
-    def hide(self):
-        self.hidden = True
-
     def run(self):
         return self.response
-
-    def show(self):
-        pass
 
     def show_all(self):
         pass
 
     def set_keep_above(self, val):
         pass
-
-    def add_accel_group(self, group):
-        pass
-
-    def get_content_area(self):
-        return self.content_area
 
     def get_message_area(self):
         return self.message_area
@@ -856,79 +749,17 @@ class MockView:
         "fakes main UI search result - selection"
         return self.selection
 
-    def image_set_from_file(self, *args):
-        self.invoked.append("image_set_from_file")
-        self.invoked_detailed.append((self.invoked[-1], args))
-
     def run_file_chooser_dialog(
         self, text, parent, action, last_folder, target, suffix=None
     ):
         args = [text, parent, action, last_folder, target, suffix]
         self.invoked.append("run_file_chooser_dialog")
         self.invoked_detailed.append((self.invoked[-1], args))
-        try:
-            reply = self.reply_file_chooser_dialog.pop()
-        except Exception:
-            reply = ""
+        reply = self.reply_file_chooser_dialog.pop()
         self.widget_set_value(target, reply)
-
-    def run_entry_dialog(self, *args, **kwargs):
-        self.invoked.append("run_entry_dialog")
-        self.invoked_detailed.append((self.invoked[-1], args))
-        try:
-            return self.reply_entry_dialog.pop()
-        except Exception:
-            return ""
-
-    def run_message_dialog(
-        self,
-        msg,
-        typ=Gtk.MessageType.INFO,
-        buttons=Gtk.ButtonsType.OK,
-        parent=None,
-    ):
-        self.invoked.append("run_message_dialog")
-        args = [msg, typ, buttons, parent]
-        self.invoked_detailed.append((self.invoked[-1], args))
-
-    def run_yes_no_dialog(self, msg, parent=None, yes_delay=-1):
-        self.invoked.append("run_yes_no_dialog")
-        args = [msg, parent, yes_delay]
-        self.invoked_detailed.append((self.invoked[-1], args))
-        try:
-            return self.reply_yes_no_dialog.pop()
-        except Exception:
-            return True
-
-    def set_title(self, *args):
-        self.invoked.append("set_title")
-        self.invoked_detailed.append((self.invoked[-1], args))
-
-    def set_icon(self, *args):
-        self.invoked.append("set_icon")
-        self.invoked_detailed.append((self.invoked[-1], args))
-
-    def combobox_init(self, name, values=None, *args):
-        self.invoked.append("combobox_init")
-        self.invoked_detailed.append((self.invoked[-1], [name, values, args]))
-        self.models[name] = []
-        for i in values or []:
-            self.models[name].append((i,))
 
     def connect_signals(self, *args):
         self.invoked.append("connect_signals")
-        self.invoked_detailed.append((self.invoked[-1], args))
-
-    def set_label(self, *args):
-        self.invoked.append("set_label")
-        self.invoked_detailed.append((self.invoked[-1], args))
-
-    def set_button_label(self, *args):
-        self.invoked.append("set_button_label")
-        self.invoked_detailed.append((self.invoked[-1], args))
-
-    def connect_after(self, *args):
-        self.invoked.append("connect_after")
         self.invoked_detailed.append((self.invoked[-1], args))
 
     def widget_get_value(self, widget, *args):
@@ -940,30 +771,6 @@ class MockView:
         self.invoked.append("widget_set_value")
         self.invoked_detailed.append((self.invoked[-1], [widget, value, args]))
         self.values[widget] = value
-        if widget in self.models:
-            if (value,) in self.models[widget]:
-                self.index[widget] = self.models[widget].index((value,))
-            else:
-                self.index[widget] = -1
-
-    def connect(self, *args):
-        self.invoked.append("connect")
-        self.invoked_detailed.append((self.invoked[-1], args))
-
-    def widget_get_visible(self, name):
-        self.invoked.append("widget_get_visible")
-        self.invoked_detailed.append((self.invoked[-1], [name]))
-        return self.visible.get(name)
-
-    def widget_set_visible(self, name, value=True):
-        self.invoked.append("widget_set_visible")
-        self.invoked_detailed.append((self.invoked[-1], [name, value]))
-        self.visible[name] = value
-
-    def widget_set_expanded(self, widget, value):
-        self.invoked.append("widget_set_expanded")
-        self.invoked_detailed.append((self.invoked[-1], [widget, value]))
-        self.expanded[widget] = value
 
     def widget_set_sensitive(self, name, value=True):
         self.invoked.append("widget_set_sensitive")
@@ -975,10 +782,6 @@ class MockView:
         self.invoked_detailed.append((self.invoked[-1], [name]))
         return self.sensitive[name]
 
-    def widget_set_inconsistent(self, *args):
-        self.invoked.append("widget_set_inconsistent")
-        self.invoked_detailed.append((self.invoked[-1], args))
-
     def widget_get_text(self, widget, *args):
         self.invoked.append("widget_get_text")
         self.invoked_detailed.append((self.invoked[-1], [widget, args]))
@@ -988,10 +791,6 @@ class MockView:
         self.invoked.append("widget_set_text")
         self.invoked_detailed.append((self.invoked[-1], args))
         self.values[args[0]] = args[1]
-
-    def widget_grab_focus(self, *args):
-        self.invoked.append("widget_grab_focus")
-        self.invoked_detailed.append((self.invoked[-1], args))
 
     def widget_set_active(self, *args):
         self.invoked.append("widget_set_active")
@@ -1008,69 +807,6 @@ class MockView:
 
     widget_get_active = widget_get_value
 
-    def combobox_remove(self, name, item):
-        self.invoked.append("combobox_remove")
-        self.invoked_detailed.append((self.invoked[-1], [name, item]))
-        model = self.models.setdefault(name, [])
-        if isinstance(item, int):
-            del model[item]
-        else:
-            model.remove((item,))
-
-    def comboboxtext_append_text(self, name, value):
-        self.invoked.append("comboboxtext_append_text")
-        self.invoked_detailed.append((self.invoked[-1], [name, value]))
-        model = self.models.setdefault(name, [])
-        model.append((value,))
-
-    def comboboxtext_prepend_text(self, name, value):
-        self.invoked.append("comboboxtext_prepend_text")
-        self.invoked_detailed.append((self.invoked[-1], [name, value]))
-        model = self.models.setdefault(name, [])
-        model.insert(0, (value,))
-
-    def combobox_set_active(self, widget, index):
-        self.invoked.append("combobox_set_active")
-        self.invoked_detailed.append((self.invoked[-1], [widget, index]))
-        self.index[widget] = index
-        self.values[widget] = self.models[widget][index][0]
-
-    def combobox_get_active_text(self, widget):
-        self.invoked.append("combobox_get_active_text")
-        self.invoked_detailed.append(
-            (
-                self.invoked[-1],
-                [
-                    widget,
-                ],
-            )
-        )
-        return self.values[widget]
-
-    def combobox_get_active(self, widget):
-        self.invoked.append("combobox_get_active")
-        self.invoked_detailed.append(
-            (
-                self.invoked[-1],
-                [
-                    widget,
-                ],
-            )
-        )
-        return self.index.setdefault(widget, 0)
-
-    def combobox_get_model(self, widget):
-        self.invoked.append("combobox_get_model")
-        self.invoked_detailed.append(
-            (
-                self.invoked[-1],
-                [
-                    widget,
-                ],
-            )
-        )
-        return self.models[widget]
-
     def set_accept_buttons_sensitive(self, sensitive=True):
         self.invoked.append("set_accept_buttons_sensitive")
         self.invoked_detailed.append(
@@ -1081,43 +817,6 @@ class MockView:
                 ],
             )
         )
-
-    def add_message_box(self, message_box_type=utils.MESSAGE_BOX_INFO):
-        self.invoked.append("set_accept_buttons_sensitive")
-        self.invoked_detailed.append(
-            (
-                self.invoked[-1],
-                [
-                    message_box_type,
-                ],
-            )
-        )
-        return MockDialog()
-
-    def add_box(self, box):
-        self.invoked.append("add_box")
-        self.invoked_detailed.append(
-            (
-                self.invoked[-1],
-                [
-                    box,
-                ],
-            )
-        )
-        self.boxes.add(box)
-
-    def remove_box(self, box):
-        self.invoked.append("remove_box")
-        self.invoked_detailed.append(
-            (
-                self.invoked[-1],
-                [
-                    box,
-                ],
-            )
-        )
-        if box in self.boxes:
-            self.boxes.remove(box)
 
 
 class Problem:  # pylint: disable=too-few-public-methods
@@ -2143,7 +1842,6 @@ class PresenterLinksMixin:
         to True
         """
         menu = Gio.Menu()
-        # pylint: disable=line-too-long
         action_name = self.model.__tablename__.lower() + "_link"
         action_group = Gio.SimpleActionGroup()
 
@@ -2238,7 +1936,7 @@ class PresenterMapMixin:
 
     def on_map_delete(self, *_args):
         msg = _("Are you sure you want to delete spatial data?")
-        if self.view.run_yes_no_dialog(msg, yes_delay=1):
+        if utils.yes_no_dialog(msg, None, yes_delay=1):
             if self.model.geojson:
                 self.model.geojson = None
                 self._dirty = True

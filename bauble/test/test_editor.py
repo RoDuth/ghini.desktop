@@ -56,32 +56,6 @@ class BaubleTests(BaubleTestCase):
         view = GenericEditorView(filename)
         self.assertTrue(type(view.widgets) is utils.BuilderWidgets)
 
-    def test_set_title_ok(self):
-        filename = os.path.join(paths.lib_dir(), "bauble.glade")
-        view = GenericEditorView(filename, root_widget_name="main_window")
-        title = "testing"
-        view.set_title(title)
-        self.assertEqual(view.get_window().get_title(), title)
-
-    def test_set_title_no_root(self):
-        filename = os.path.join(paths.lib_dir(), "bauble.glade")
-        view = GenericEditorView(filename)
-        title = "testing"
-        self.assertRaises(NotImplementedError, view.set_title, title)
-        self.assertRaises(NotImplementedError, view.get_window)
-
-    def test_set_icon_no_root(self):
-        filename = os.path.join(paths.lib_dir(), "bauble.glade")
-        view = GenericEditorView(filename)
-        title = "testing"
-        self.assertRaises(NotImplementedError, view.set_icon, title)
-
-    def test_add_widget(self):
-        filename = os.path.join(paths.lib_dir(), "bauble.glade")
-        view = GenericEditorView(filename)
-        label = Gtk.Label(label="testing")
-        view.widget_add("statusbar", label)
-
     def test_set_accept_buttons_sensitive_not_set(self):
         "it is a task of the presenter to indicate the accept buttons"
         filename = os.path.join(
@@ -114,10 +88,8 @@ class BaubleTests(BaubleTestCase):
             filename, root_widget_name="xml_export_dialog"
         )
         view.widget_set_visible("out_box", True)
-        self.assertTrue(view.widget_get_visible("out_box"))
         self.assertTrue(view.widgets.out_box.get_visible())
         view.widget_set_visible("out_box", False)
-        self.assertFalse(view.widget_get_visible("out_box"))
         self.assertFalse(view.widgets.out_box.get_visible())
         view.get_window().destroy()
 
@@ -1006,7 +978,10 @@ class MapMixinTests(BaubleTestCase):
 
     def test_on_map_delete(self):
         self.assertEqual(self.mixin.model.geojson, self.geojson)
-        self.mixin.on_map_delete()
+        with mock.patch("bauble.editor.utils.yes_no_dialog") as mock_dialog:
+            mock_dialog.return_value = True
+            self.mixin.on_map_delete()
+            mock_dialog.assert_called_once()
         self.assertIsNone(self.mixin.model.geojson)
         self.mixin.refresh_sensitivity.assert_called()
 
