@@ -1070,7 +1070,7 @@ template_xml = """\
 """
 
 
-class TestPresenter(GenericPresenter, Gtk.Box):
+class BoxPresenter(GenericPresenter, Gtk.Box):
     def __init__(self, model):
         super().__init__(model, self)
 
@@ -1149,7 +1149,7 @@ class GenericPresenterTests(TestCase):
             baz_combobox=baz_combobox,
         )
 
-        presenter = TestPresenter(mock_model)
+        presenter = BoxPresenter(mock_model)
 
         presenter.widgets_to_model_map = {
             mock_view.foo_entry: "foo",
@@ -1183,7 +1183,7 @@ class GenericPresenterTests(TestCase):
         mock_model = mock.Mock()
 
         # not a widget
-        presenter = TestPresenter(mock_model)
+        presenter = BoxPresenter(mock_model)
         presenter.add_problem("TEST", mock_widget)
         self.assertEqual(presenter.problems, {("TEST", mock_widget)})
         mock_widget.get_style_context().add_class.assert_not_called()
@@ -1200,7 +1200,7 @@ class GenericPresenterTests(TestCase):
     def test_remove_problem_widget_and_problem_id(self):
         mock_model = mock.Mock()
 
-        presenter = TestPresenter(mock_model)
+        presenter = BoxPresenter(mock_model)
         mock_widget1 = mock.Mock()
         mock_widget2 = mock.Mock()
         mock_widget3 = mock.Mock()
@@ -1231,7 +1231,7 @@ class GenericPresenterTests(TestCase):
     def test_remove_problem_problem_id_only(self):
         mock_model = mock.Mock()
 
-        presenter = TestPresenter(mock_model)
+        presenter = BoxPresenter(mock_model)
         mock_widget1 = mock.Mock()
         mock_widget2 = mock.Mock()
         mock_widget3 = mock.Mock(spec=Gtk.Widget)
@@ -1267,7 +1267,7 @@ class GenericPresenterTests(TestCase):
     def test_remove_problem_widget_only(self):
         mock_model = mock.Mock()
 
-        presenter = TestPresenter(mock_model)
+        presenter = BoxPresenter(mock_model)
         mock_widget1 = mock.Mock(spec=Gtk.Widget)
         mock_widget2 = mock.Mock(spec=Gtk.Widget)
         mock_widget3 = mock.Mock(spec=Gtk.Widget)
@@ -1303,7 +1303,7 @@ class GenericPresenterTests(TestCase):
     def test_on_text_entry_changed(self):
         mock_model = mock.Mock()
 
-        presenter = TestPresenter(mock_model)
+        presenter = BoxPresenter(mock_model)
         entry = Gtk.Entry()
         presenter.widgets_to_model_map = {entry: "foo"}
 
@@ -1314,7 +1314,7 @@ class GenericPresenterTests(TestCase):
     def test_on_non_empty_text_entry_changed(self):
         mock_model = mock.Mock()
 
-        presenter = TestPresenter(mock_model)
+        presenter = BoxPresenter(mock_model)
         entry = Gtk.Entry()
         presenter.widgets_to_model_map = {entry: "foo"}
 
@@ -1324,7 +1324,7 @@ class GenericPresenterTests(TestCase):
         self.assertEqual(mock_model.foo, "")
         self.assertEqual(
             presenter.problems,
-            {(f"empty::TestPresenter::{id(presenter)}", entry)},
+            {(f"empty::BoxPresenter::{id(presenter)}", entry)},
         )
         self.assertTrue(entry.get_style_context().has_class("problem"))
 
@@ -1337,7 +1337,7 @@ class GenericPresenterTests(TestCase):
     def test_on_text_buffer_changed(self):
         mock_model = mock.Mock()
 
-        presenter = TestPresenter(mock_model)
+        presenter = BoxPresenter(mock_model)
         buffer = Gtk.TextBuffer()
         presenter.widgets_to_model_map = {buffer: "foo"}
 
@@ -1348,7 +1348,7 @@ class GenericPresenterTests(TestCase):
     def test_on_combobox_changed_comboboxtext(self):
         mock_model = mock.Mock()
 
-        presenter = TestPresenter(mock_model)
+        presenter = BoxPresenter(mock_model)
         combo = Gtk.ComboBoxText()
         combo.append_text("1")
         combo.append_text("2")
@@ -1363,7 +1363,7 @@ class GenericPresenterTests(TestCase):
     def test_on_combobox_changed_comboboxtext_w_entry(self):
         mock_model = mock.Mock()
 
-        presenter = TestPresenter(mock_model)
+        presenter = BoxPresenter(mock_model)
         combo = Gtk.ComboBoxText.new_with_entry()
         combo.append_text("1")
         combo.append_text("2")
@@ -1378,7 +1378,7 @@ class GenericPresenterTests(TestCase):
     def test_on_combobox_changed_combobox_wo_model(self):
         mock_model = mock.Mock()
 
-        presenter = TestPresenter(mock_model)
+        presenter = BoxPresenter(mock_model)
         combo = Gtk.ComboBox()
         cell = Gtk.CellRendererText()
         combo.pack_start(cell, True)
@@ -1392,7 +1392,7 @@ class GenericPresenterTests(TestCase):
     def test_on_combobox_changed_combobox(self):
         mock_model = mock.Mock()
 
-        presenter = TestPresenter(mock_model)
+        presenter = BoxPresenter(mock_model)
         combo = Gtk.ComboBox()
         cell = Gtk.CellRendererText()
         combo.pack_start(cell, True)
@@ -1411,7 +1411,7 @@ class GenericPresenterTests(TestCase):
     def test_on_combobox_changed_combobox_w_entry(self):
         mock_model = mock.Mock()
 
-        presenter = TestPresenter(mock_model)
+        presenter = BoxPresenter(mock_model)
         model = Gtk.ListStore(str, str)
         model.append(["1", "one"])
         model.append(["2", "two"])
@@ -1438,7 +1438,7 @@ class GenericPresenterWithDBTests(BaubleTestCase):
         self.session.add(model1)
         self.session.add(model2)
 
-        presenter = TestPresenter(model1)
+        presenter = BoxPresenter(model1)
         entry = Gtk.Entry()
         presenter.widgets_to_model_map = {entry: "value"}
 
@@ -1448,7 +1448,7 @@ class GenericPresenterWithDBTests(BaubleTestCase):
         self.assertEqual(model1.value, "")
         self.assertEqual(
             presenter.problems,
-            {(f"empty::TestPresenter::{id(presenter)}", entry)},
+            {(f"empty::BoxPresenter::{id(presenter)}", entry)},
         )
         self.assertTrue(entry.get_style_context().has_class("problem"))
 
@@ -1466,7 +1466,7 @@ class GenericPresenterWithDBTests(BaubleTestCase):
         self.session.add(model1)
         self.session.add(model2)
 
-        presenter = TestPresenter(model1)
+        presenter = BoxPresenter(model1)
         entry = Gtk.Entry()
         presenter.widgets_to_model_map = {entry: "value"}
 
@@ -1485,7 +1485,7 @@ class GenericPresenterWithDBTests(BaubleTestCase):
         self.session.add(model2)
         self.session.commit()
 
-        presenter = TestPresenter(model1)
+        presenter = BoxPresenter(model1)
         entry = Gtk.Entry()
         presenter.widgets_to_model_map = {entry: "value"}
 
@@ -1495,7 +1495,7 @@ class GenericPresenterWithDBTests(BaubleTestCase):
         self.assertEqual(model1.value, "unique_value")
         self.assertEqual(
             presenter.problems,
-            {(f"not_unique::TestPresenter::{id(presenter)}", entry)},
+            {(f"not_unique::BoxPresenter::{id(presenter)}", entry)},
         )
         self.assertTrue(entry.get_style_context().has_class("problem"))
 
@@ -1506,7 +1506,7 @@ class GenericPresenterWithDBTests(BaubleTestCase):
         self.session.add(model1)
         self.session.add(model2)
 
-        presenter = TestPresenter(model1)
+        presenter = BoxPresenter(model1)
         entry = Gtk.Entry()
         presenter.widgets_to_model_map = {entry: "value"}
 
