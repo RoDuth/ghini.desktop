@@ -8,6 +8,8 @@ environment:
   PIP_BREAK_SYSTEM_PACKAGES: "true"
   fop_ver: 2.9
   matrix:
+    - APPVEYOR_BUILD_WORKER_IMAGE: macos-sonoma
+      TEST_DB: sqlite
     - APPVEYOR_BUILD_WORKER_IMAGE: Visual Studio 2019
       TEST_DB: sqlite
       PATH: C:\msys64\usr\bin;C:\Program Files (x86)\NSIS\Bin;%PATH%
@@ -16,8 +18,6 @@ environment:
       COVERALLS_REPO_TOKEN:
         secure: dFRyBsYhvG/CAVHHXVL8JVuFWRBuB0zGmiH6W+fQUafSmAsIITs7P7mwOl2y2voK
       PATH: C:\msys64\usr\bin;%PATH%
-    - APPVEYOR_BUILD_WORKER_IMAGE: macos-sonoma
-      TEST_DB: sqlite
 
 skip_tags: true
 
@@ -29,6 +29,8 @@ for:
         TEST_DB: sqlite
 
   install:
+    - brew ls --full-name --formula | grep '^homebrew/homebrew-cask-versions/' | xargs brew uninstall
+    - brew untap homebrew/homebrew-cask-versions
     - brew install pygobject3 gtk+3 adwaita-icon-theme osm-gps-map unixodbc postgresql
     - brew tap microsoft/mssql-release https://github.com/Microsoft/homebrew-mssql-release
     - brew update
