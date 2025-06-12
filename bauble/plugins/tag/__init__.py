@@ -79,11 +79,9 @@ class TagPlugin(pluginmgr.Plugin):
 
         if bauble.gui:
 
-            def plain_refresh() -> None:
-                # for the sake of type checking only
-                menu_manager.refresh(None)
-
-            bauble.gui.set_view_callbacks.add(plain_refresh)
+            bauble.gui.set_view_callbacks.add(
+                lambda: menu_manager.refresh(None)
+            )
             menu_manager.reset()
 
         HistoryView.add_translation_query(

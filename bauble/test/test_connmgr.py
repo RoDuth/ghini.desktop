@@ -780,6 +780,24 @@ class OptionsTests(BaubleTestCase):
 
         presenter.destroy()
 
+    @mock.patch("bauble.connmgr.pyodbc", new=None)
+    def test_new_mssql_no_pyodbc_bails(self):
+        presenter = ConnectionManagerDialog()
+        with mock.patch.object(presenter, "run_entry_dialog") as mock_dlog:
+            mock_dlog.return_value = "spam"
+            presenter.on_add_button_clicked(presenter.name_combo)
+
+        self.assertEqual(presenter.connection_name, "spam")
+
+        connection_box = presenter.get_connection_box()
+        with self.assertLogs(level="DEBUG") as logs:
+            connection_box.type_combo.set_active(DBTYPES.index("MSSQL"))
+
+        self.assertTrue(any("no pyodbc bailing" in i for i in logs.output))
+        self.assertEqual(len(connection_box.options_liststore), 1)
+
+        presenter.destroy()
+
     def test_existing_mssql_dont_add_sensible_defaults(self):
         prefs.prefs[bauble.CONN_LIST_PREF] = {
             "quisquis": {

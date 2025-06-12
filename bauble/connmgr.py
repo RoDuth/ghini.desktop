@@ -35,6 +35,7 @@ from dataclasses import field
 from importlib import import_module
 from pathlib import Path
 from threading import Thread
+from types import ModuleType
 from typing import Literal
 from typing import NotRequired
 from typing import Self
@@ -44,7 +45,6 @@ from typing import cast
 logger = logging.getLogger(__name__)
 
 import dateutil
-import pyodbc
 from gi.repository import GdkPixbuf
 from gi.repository import GLib
 from gi.repository import Gtk
@@ -56,6 +56,12 @@ from bauble import paths
 from bauble import prefs
 from bauble import utils
 from bauble.i18n import _
+
+pyodbc: ModuleType | None
+try:
+    import pyodbc
+except ImportError:  # pragma: no cover
+    pyodbc = None
 
 
 def is_package_name(name: str) -> bool:
@@ -516,7 +522,7 @@ class ConnectionBox(editor.GenericPresenter[ConnectionModel], Gtk.Box):
         super().on_combobox_changed(combo)
 
         if self.model.dbtype == "MSSQL":
-            self.add_default_options()
+            self.add_mssql_default_options()
 
         if self.model.dbtype == "SQLite":
             self.refresh_sqlite()
@@ -544,7 +550,7 @@ class ConnectionBox(editor.GenericPresenter[ConnectionModel], Gtk.Box):
         self.refresh_entries_sensitive()
         self.file_entry.emit("changed")
 
-    def add_default_options(self) -> None:
+    def add_mssql_default_options(self) -> None:
         """Add sensible defaults for new MSSQL connections."""
         if any(
             (
@@ -556,6 +562,10 @@ class ConnectionBox(editor.GenericPresenter[ConnectionModel], Gtk.Box):
         ):
             logger.debug("Model is not new bailing.")
             # not new bail
+            return
+
+        if pyodbc is None:
+            logger.debug("no pyodbc bailing.")
             return
 
         drivers = pyodbc.drivers()
@@ -638,9 +648,13 @@ class ConnectionBox(editor.GenericPresenter[ConnectionModel], Gtk.Box):
     ) -> None:
         """Generic handler for editing options in the liststore."""
         self.options_liststore[path][column] = text
-        self.model.options = {  # type: ignore[misc]
-            name: value for name, value in self.options_liststore if name  # type: ignore # noqa
-        }
+        name: str
+        value: str
+
+        for name, value in self.options_liststore:  # type: ignore[misc]
+            if name:
+                self.model.options[name] = value
+
         self.refresh_options_liststore()
 
     @Gtk.Template.Callback()
