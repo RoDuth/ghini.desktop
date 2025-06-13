@@ -6,7 +6,7 @@ environment:
   MSYSTEM: UCRT64
   CHERE_INVOKING: 1
   PIP_BREAK_SYSTEM_PACKAGES: "true"
-  fop_ver: 2.9
+  fop_ver: 2.11
   matrix:
     - APPVEYOR_BUILD_WORKER_IMAGE: Visual Studio 2019
       TEST_DB: sqlite

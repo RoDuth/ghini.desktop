@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+# increment the below to trigger a appveyor cache update for fop and jre
+# REFRESH CACHE = 1
 
 echo "downloading FOP"
 
@@ -14,7 +16,7 @@ sha_url="https://downloads.apache.org/xmlgraphics/fop/binaries//$sha_name"
 
 curl -fLo "$sha_name" "$sha_url"
 
-sha=$(cat "$sha_name" | cut -f 1 -d " ")
+sha=$(cut -f 1 -d ' ' "$sha_name")
 
 if [ "$sha" != "$fop_sha" ]; then
   echo "fop sha failed"
