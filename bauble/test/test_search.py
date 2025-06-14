@@ -22,11 +22,14 @@
 import datetime
 import logging
 import unittest
+import warnings
+from datetime import timezone
 from unittest.mock import patch
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
 
+import pyparsing as pp
 from pyparsing import ParseException
 
 from bauble import db
@@ -36,15 +39,19 @@ from bauble import search
 from bauble import utils
 from bauble.plugins.garden.accession import Accession
 from bauble.plugins.garden.location import Location
+from bauble.plugins.garden.location import LocationPicture
 from bauble.plugins.garden.plant import Plant
+from bauble.plugins.garden.plant import PlantPicture
 from bauble.plugins.garden.source import Source
 from bauble.plugins.garden.source import SourceDetail
-from bauble.plugins.plants import SpeciesDistribution
 from bauble.plugins.plants.family import Family
 from bauble.plugins.plants.genus import Genus
 from bauble.plugins.plants.genus import GenusNote
 from bauble.plugins.plants.geography import Geography
-from bauble.plugins.plants.species import Species
+from bauble.plugins.plants.species_model import Species
+from bauble.plugins.plants.species_model import SpeciesDistribution
+from bauble.plugins.plants.species_model import SpeciesPicture
+from bauble.plugins.plants.species_model import VernacularName
 from bauble.plugins.plants.test_plants import setup_geographies
 from bauble.search.search import result_cache
 from bauble.test import BaubleClassTestCase
@@ -318,7 +325,7 @@ class SearchTests(BaubleClassTestCase):
             results.extend(i)
         self.assertEqual(len(results), 1)
         f = results[0]
-        self.assertTrue(isinstance(f, self.Family))
+        self.assertTrue(isinstance(f, Family))
         self.assertEqual(f.id, self.family.id)
 
     def test_search_by_expression_genus_eq_1match(self):
@@ -334,7 +341,7 @@ class SearchTests(BaubleClassTestCase):
             results.extend(i)
         self.assertEqual(len(results), 1)
         g = list(results)[0]
-        self.assertTrue(isinstance(g, self.Genus))
+        self.assertTrue(isinstance(g, Genus))
         self.assertEqual(g.id, self.genus.id)
 
     def test_search_by_expression_genus_eq_nomatch(self):
@@ -476,8 +483,6 @@ class SearchTests2(BaubleTestCase):
 
         self.family = Family(family="family1", qualifier="s. lat.")
         self.genus = Genus(family=self.family, genus="genus1")
-        self.Family = Family
-        self.Genus = Genus
         self.session.add_all([self.family, self.genus])
         self.session.commit()
 
@@ -486,7 +491,6 @@ class SearchTests2(BaubleTestCase):
         self.assertTrue(
             isinstance(domain_search, search.strategies.DomainSearch)
         )
-        Family = self.Family
         f2 = Family(family="family2")
         f3 = Family(family="afamily3")
         f4 = Family(family="fam4")
@@ -542,8 +546,6 @@ class SearchTests2(BaubleTestCase):
         """query with MapperSearch, single table, single test"""
 
         # test does not depend on plugin functionality
-        Family = self.Family
-        Genus = self.Genus
         family2 = Family(family="family2")
         genus2 = Genus(family=family2, genus="genus2")
         self.session.add_all([family2, genus2])
@@ -568,8 +570,6 @@ class SearchTests2(BaubleTestCase):
         """query with MapperSearch, single table, p1 OR p2"""
 
         # test does not depend on plugin functionality
-        Family = self.Family
-        Genus = self.Genus
         f2 = Family(family="family2")
         g2 = Genus(family=f2, genus="genus2")
         f3 = Family(family="fam3")
@@ -598,8 +598,6 @@ class SearchTests2(BaubleTestCase):
         """query with MapperSearch, single table, > AND <"""
 
         # test does not depend on plugin functionality
-        Family = self.Family
-        Genus = self.Genus
         family2 = Family(family="family2")
         genus2 = Genus(family=family2, genus="genus2")
         f3 = Family(family="fam3")
@@ -631,8 +629,6 @@ class SearchTests2(BaubleTestCase):
         """query with MapperSearch, joined tables, one predicate"""
 
         # test does not depend on plugin functionality
-        Family = self.Family
-        Genus = self.Genus
         family2 = Family(family="family2")
         genus2 = Genus(family=family2, genus="genus2")
         self.session.add_all([family2, genus2])
@@ -668,8 +664,6 @@ class SearchTests2(BaubleTestCase):
         """query with MapperSearch, joined tables, multiple predicates"""
 
         # test does not depend on plugin functionality
-        Family = self.Family
-        Genus = self.Genus
         family2 = Family(family="family2")
         g2 = Genus(family=family2, genus="genus2")
         f3 = Family(family="fam3", qualifier="s. lat.")
@@ -732,8 +726,6 @@ class SearchTests2(BaubleTestCase):
         """query with &&, ||, !"""
 
         # test does not depend on plugin functionality
-        Family = self.Family
-        Genus = self.Genus
         family2 = Family(family="family2")
         g2 = Genus(family=family2, genus="genus2")
         f3 = Family(family="fam3", qualifier="s. lat.")
@@ -772,8 +764,6 @@ class SearchTests2(BaubleTestCase):
         """
 
         # test does not depend on plugin functionality
-        Family = self.Family
-        Genus = self.Genus
         family2 = Family(family="family2")
         g2 = Genus(family=family2, genus="genus2")
         f3 = Family(family="fam3", qualifier="s. lat.")
@@ -825,8 +815,6 @@ class SearchTests2(BaubleTestCase):
         """
 
         # test does not depend on plugin functionality
-        Family = self.Family
-        Genus = self.Genus
         family2 = Family(family="family2")
         genus2 = Genus(family=family2, genus="genus2")
         f3 = Family(family="fam3")
@@ -852,8 +840,6 @@ class SearchTests2(BaubleTestCase):
         """query with MapperSearch, joined tables, LIKE %"""
 
         # test does not depend on plugin functionality
-        Family = self.Family
-        Genus = self.Genus
         family2 = Family(family="family2")
         family3 = Family(family="afamily3")
         genus21 = Genus(family=family2, genus="genus21")
@@ -883,8 +869,6 @@ class SearchTests2(BaubleTestCase):
         """query with MapperSearch, joined tables, LIKE _"""
 
         # test does not depend on plugin functionality
-        Family = self.Family
-        Genus = self.Genus
         family2 = Family(family="family2")
         family3 = Family(family="afamily3")
         genus21 = Genus(family=family2, genus="genus21")
@@ -924,13 +908,6 @@ class SearchTests2(BaubleTestCase):
 
     def test_search_by_datestring_query(self):
 
-        Family = self.Family
-        Genus = self.Genus
-        from bauble.plugins.garden.accession import Accession
-        from bauble.plugins.garden.location import Location
-        from bauble.plugins.garden.plant import Plant
-        from bauble.plugins.plants.species_model import Species
-
         family2 = Family(family="family2")
         g2 = Genus(family=family2, genus="genus2")
         f3 = Family(family="fam3", qualifier="s. lat.")
@@ -943,7 +920,6 @@ class SearchTests2(BaubleTestCase):
         lc = Location(name="loc1", code="loc1")
         pp = Plant(accession=ac, code="01", location=lc, quantity=1)
         p2 = Plant(accession=ac, code="02", location=lc, quantity=1)
-        from datetime import timezone
 
         pp._last_updated = datetime.datetime(2009, 2, 13).astimezone(
             tz=timezone.utc
@@ -1119,13 +1095,6 @@ class SearchTests2(BaubleTestCase):
 
     def test_search_by_datestring_query_tz_limits(self):
 
-        Family = self.Family
-        Genus = self.Genus
-        from bauble.plugins.garden.accession import Accession
-        from bauble.plugins.garden.location import Location
-        from bauble.plugins.garden.plant import Plant
-        from bauble.plugins.plants.species_model import Species
-
         family2 = Family(family="family2")
         g2 = Genus(family=family2, genus="genus2")
         f3 = Family(family="fam3", qualifier="s. lat.")
@@ -1135,7 +1104,6 @@ class SearchTests2(BaubleTestCase):
         lc = Location(name="loc1", code="loc1")
         pp = Plant(accession=ac, code="01", location=lc, quantity=1)
         pp2 = Plant(accession=ac, code="02", location=lc, quantity=1)
-        from datetime import timezone
 
         # these will store UTC datetimes relative to local time.  Both should
         # be on the same date locally but will be across 2 dates if the local
@@ -1184,13 +1152,6 @@ class SearchTests2(BaubleTestCase):
 
     def test_between_evaluate(self):
         "use BETWEEN value and value"
-        Family = self.Family
-        Genus = self.Genus
-        from bauble.plugins.garden.accession import Accession
-        from bauble.plugins.plants.species_model import Species
-
-        # from bauble.plugins.garden.location import Location
-        # from bauble.plugins.garden.plant import Plant
         family2 = Family(family="family2")
         g2 = Genus(family=family2, genus="genus2")
         f3 = Family(family="fam3", qualifier="s. lat.")
@@ -1209,8 +1170,6 @@ class SearchTests2(BaubleTestCase):
 
     def test_search_by_query_synonyms(self):
         """SynonymSearch strategy gives all synonyms of given taxon."""
-        Family = self.Family
-        Genus = self.Genus
         family2 = Family(family="family2")
         g2 = Genus(family=family2, genus="genus2")
         f3 = Family(family="fam3", qualifier="s. lat.")
@@ -1228,8 +1187,6 @@ class SearchTests2(BaubleTestCase):
         self.assertEqual(results, [g3])
 
     def test_search_by_query_synonyms_disabled(self):
-        Family = self.Family
-        Genus = self.Genus
         family2 = Family(family="family2")
         g2 = Genus(family=family2, genus="genus2")
         f3 = Family(family="fam3", qualifier="s. lat.")
@@ -1248,11 +1205,6 @@ class SearchTests2(BaubleTestCase):
         self.assertIsNone(results)
 
     def test_search_by_query_vernacular(self):
-        Family = self.Family
-        Genus = self.Genus
-        from bauble.plugins.plants.species_model import Species
-        from bauble.plugins.plants.species_model import VernacularName
-
         family2 = Family(family="family2")
         g2 = Genus(family=family2, genus="genus2")
         f3 = Family(family="fam3", qualifier="s. lat.")
@@ -1302,8 +1254,6 @@ class SearchTests2(BaubleTestCase):
         for i in mapper_search.search(s, self.session):
             results.extend(i)
         self.assertEqual(results, [])
-
-        import warnings
 
         # possible: SAWarning: SELECT statement has a cartesian product between
         # FROM element(s) "species" and FROM element "species_1"
@@ -1383,8 +1333,6 @@ class SearchTests2(BaubleTestCase):
         for i in mapper_search.search(s, self.session):
             results.extend(i)
         self.assertCountEqual(results, [sp1, sp2, sp3])
-
-        import warnings
 
         # possible: SAWarning: SELECT statement has a cartesian product between
         # FROM element(s) "species" and FROM element "species_1"
@@ -1550,9 +1498,6 @@ class SearchTests2(BaubleTestCase):
         self.assertCountEqual(results, [sp2])
 
     def test_search_strips_leading_spaces(self):
-        from bauble.plugins.plants import Family
-        from bauble.plugins.plants import Genus
-        from bauble.plugins.plants import Species
 
         fam = Family(epithet="Rutaceae")
         gen = Genus(family=fam, epithet="Flindersia")
@@ -1841,7 +1786,6 @@ class SearchTests3(BaubleClassTestCase):
         self.assertCountEqual(results, [])
 
     def test_string_with_escape_characters(self):
-        from bauble.plugins.plants.genus import GenusNote
 
         note1 = GenusNote(category="bar", note="test\\test\\test", genus_id=1)
         note2 = GenusNote(category="foo", note="test\ntest", genus_id=2)
@@ -1861,10 +1805,6 @@ class SearchTests3(BaubleClassTestCase):
         self.assertCountEqual([i.id for i in results], [2])
 
     def test_all_domains_search(self):
-
-        from bauble.plugins.garden.location import LocationPicture
-        from bauble.plugins.garden.plant import PlantPicture
-        from bauble.plugins.plants.species_model import SpeciesPicture
 
         # NOTE test data already has species 1 _last_updated days + 1 so need
         # to use + 2 here.
@@ -2898,7 +2838,6 @@ class BaubleSearchSearchTest(BaubleTestCase):
 
 class HelperTests(unittest.TestCase):
     def test_infix_notation(self):
-        import pyparsing as pp
 
         token = pp.Word(pp.alphas).set_name("string token")
         binop = pp.one_of("= < > !=").set_name("binary operator")
