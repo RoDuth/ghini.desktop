@@ -34,6 +34,18 @@ from bauble import error
 from bauble import prefs
 from bauble import search
 from bauble import utils
+from bauble.plugins.garden.accession import Accession
+from bauble.plugins.garden.location import Location
+from bauble.plugins.garden.plant import Plant
+from bauble.plugins.garden.source import Source
+from bauble.plugins.garden.source import SourceDetail
+from bauble.plugins.plants import SpeciesDistribution
+from bauble.plugins.plants.family import Family
+from bauble.plugins.plants.genus import Genus
+from bauble.plugins.plants.genus import GenusNote
+from bauble.plugins.plants.geography import Geography
+from bauble.plugins.plants.species import Species
+from bauble.plugins.plants.test_plants import setup_geographies
 from bauble.search.search import result_cache
 from bauble.test import BaubleClassTestCase
 from bauble.test import BaubleTestCase
@@ -42,8 +54,7 @@ from bauble.test import get_setUp_data_funcs
 parser = search.parser
 
 
-class SearchParserTests(BaubleTestCase):
-    error_msg = lambda me, s, v, e: "%s: %s == %s" % (s, v, e)
+class SearchParserTests(BaubleClassTestCase):
 
     def test_query_expression_token_UPPER(self):
         s = "plant where col=value"
@@ -196,27 +207,21 @@ class SearchParserTests(BaubleTestCase):
             )
 
 
-class SearchTests(BaubleTestCase):
-    def __init__(self, *args):
-        super().__init__(*args)
-        prefs.testing = True
+class SearchTests(BaubleClassTestCase):
 
-    def setUp(self):
-        super().setUp()
+    @classmethod
+    def setUpClass(cls):
+        # setup once for all tests
+        super().setUpClass()
         db.engine.execute("delete from genus")
         db.engine.execute("delete from family")
-        from bauble.plugins.plants.family import Family
-        from bauble.plugins.plants.genus import Genus
 
-        self.family = Family(family="family1", qualifier="s. lat.")
-        self.genus = Genus(family=self.family, genus="genus1")
-        self.Family = Family
-        self.Genus = Genus
-        self.session.add_all([self.family, self.genus])
-        self.session.commit()
-
-    def tearDown(self):
-        super().tearDown()
+        cls.family = Family(family="family1", qualifier="s. lat.")
+        cls.genus = Genus(family=cls.family, genus="genus1")
+        cls.Family = Family
+        cls.Genus = Genus
+        cls.session.add_all([cls.family, cls.genus])
+        cls.session.commit()
 
     def test_find_correct_strategy_internal(self):
         mapper_search = search.strategies._search_strategies["MapperSearch"]
@@ -460,6 +465,21 @@ class SearchTests(BaubleTestCase):
         for i in domain_search.search(s, self.session):
             results.extend(i)
         self.assertEqual(len(results), 0)
+
+
+class SearchTests2(BaubleTestCase):
+
+    def setUp(self):
+        super().setUp()
+        db.engine.execute("delete from genus")
+        db.engine.execute("delete from family")
+
+        self.family = Family(family="family1", qualifier="s. lat.")
+        self.genus = Genus(family=self.family, genus="genus1")
+        self.Family = Family
+        self.Genus = Genus
+        self.session.add_all([self.family, self.genus])
+        self.session.commit()
 
     def test_search_by_expression_genus_like_contains_eq(self):
         domain_search = search.strategies.get_strategy("DomainSearch")
@@ -1302,10 +1322,6 @@ class SearchTests(BaubleTestCase):
 
     def test_search_ambiguous_joins_w_results(self):
         """These joins broke down when upgrading to SQLA 1.4"""
-        from bauble.plugins.plants.family import Family
-        from bauble.plugins.plants.genus import Genus
-        from bauble.plugins.plants.species import Species
-        from bauble.plugins.plants.test_plants import setup_geographies
 
         setup_geographies()
 
@@ -1392,14 +1408,6 @@ class SearchTests(BaubleTestCase):
         Tests that parsing and query formation happens as expected in complex
         queries.
         """
-        from bauble.plugins.garden.accession import Accession
-        from bauble.plugins.garden.location import Location
-        from bauble.plugins.garden.plant import Plant
-        from bauble.plugins.garden.source import Source
-        from bauble.plugins.garden.source import SourceDetail
-        from bauble.plugins.plants.family import Family
-        from bauble.plugins.plants.genus import Genus
-        from bauble.plugins.plants.species import Species
 
         g2 = Genus(family=self.family, genus="genus2")
         f1 = Family(epithet="Moraceae")
@@ -1555,9 +1563,11 @@ class SearchTests(BaubleTestCase):
         self.assertEqual(results, [sp])
 
 
-class SearchTests2(BaubleTestCase):
-    def setUp(self):
-        super().setUp()
+class SearchTests3(BaubleClassTestCase):
+    @classmethod
+    def setUpClass(cls):
+        # setup once for all tests
+        super().setUpClass()
         for func in get_setUp_data_funcs():
             func()
 
@@ -2114,26 +2124,23 @@ class SubQueryTests(BaubleClassTestCase):
         )
 
 
-class InOperatorSearch(BaubleTestCase):
-    def __init__(self, *args):
-        super().__init__(*args)
+class InOperatorSearch(BaubleClassTestCase):
 
-    def setUp(self):
-        super().setUp()
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
         db.engine.execute("delete from genus")
         db.engine.execute("delete from family")
-        from bauble.plugins.plants.family import Family
-        from bauble.plugins.plants.genus import Genus
 
-        self.family = Family(family="family1", qualifier="s. lat.", id=1)
-        self.g1 = Genus(family=self.family, genus="genus1", id=1)
-        self.g2 = Genus(family=self.family, genus="genus2", id=2)
-        self.g3 = Genus(family=self.family, genus="genus3", id=3)
-        self.g4 = Genus(family=self.family, genus="genus4", id=4)
-        self.Family = Family
-        self.Genus = Genus
-        self.session.add_all([self.family, self.g1, self.g2, self.g3, self.g4])
-        self.session.commit()
+        cls.family = Family(family="family1", qualifier="s. lat.", id=1)
+        cls.g1 = Genus(family=cls.family, genus="genus1", id=1)
+        cls.g2 = Genus(family=cls.family, genus="genus2", id=2)
+        cls.g3 = Genus(family=cls.family, genus="genus3", id=3)
+        cls.g4 = Genus(family=cls.family, genus="genus4", id=4)
+        cls.Family = Family
+        cls.Genus = Genus
+        cls.session.add_all([cls.family, cls.g1, cls.g2, cls.g3, cls.g4])
+        cls.session.commit()
 
     def test_in_singleton(self):
         mapper_search = search.strategies.get_strategy("MapperSearch")
@@ -2196,7 +2203,7 @@ class InOperatorSearch(BaubleTestCase):
         self.assertCountEqual(results, [self.g1, self.g2])
 
 
-class BuildingSQLStatements(BaubleTestCase):
+class BuildingSQLStatements(BaubleClassTestCase):
     def test_canfindspeciesfromgenus(self):
         "can find species from genus"
 
@@ -2366,39 +2373,32 @@ class BuildingSQLStatements(BaubleTestCase):
         )
 
 
-class FilterThenMatchTests(BaubleTestCase):
-    def __init__(self, *args):
-        super().__init__(*args)
-        prefs.testing = True
+class FilterThenMatchTests(BaubleClassTestCase):
 
-    def setUp(self):
-        super().setUp()
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
         db.engine.execute("delete from genus")
         db.engine.execute("delete from family")
         db.engine.execute("delete from genus_note")
-        from bauble.plugins.plants.family import Family
-        from bauble.plugins.plants.genus import Genus
-        from bauble.plugins.plants.genus import GenusNote
 
-        self.family = Family(family="family1", qualifier="s. lat.")
-        self.genus1 = Genus(family=self.family, genus="genus1")
-        self.genus2 = Genus(family=self.family, genus="genus2")
-        self.genus3 = Genus(family=self.family, genus="genus3")
-        self.genus4 = Genus(family=self.family, genus="genus4", author="me")
-        n1 = GenusNote(category="commentarii", note="olim", genus=self.genus1)
-        n2 = GenusNote(category="commentarii", note="erat", genus=self.genus1)
-        n3 = GenusNote(
-            category="commentarii", note="verbum", genus=self.genus2
-        )
-        n4 = GenusNote(category="test", note="olim", genus=self.genus3)
-        n5 = GenusNote(category="test", note="verbum", genus=self.genus3)
-        self.session.add_all(
+        cls.family = Family(family="family1", qualifier="s. lat.")
+        cls.genus1 = Genus(family=cls.family, genus="genus1")
+        cls.genus2 = Genus(family=cls.family, genus="genus2")
+        cls.genus3 = Genus(family=cls.family, genus="genus3")
+        cls.genus4 = Genus(family=cls.family, genus="genus4", author="me")
+        n1 = GenusNote(category="commentarii", note="olim", genus=cls.genus1)
+        n2 = GenusNote(category="commentarii", note="erat", genus=cls.genus1)
+        n3 = GenusNote(category="commentarii", note="verbum", genus=cls.genus2)
+        n4 = GenusNote(category="test", note="olim", genus=cls.genus3)
+        n5 = GenusNote(category="test", note="verbum", genus=cls.genus3)
+        cls.session.add_all(
             [
-                self.family,
-                self.genus1,
-                self.genus2,
-                self.genus3,
-                self.genus4,
+                cls.family,
+                cls.genus1,
+                cls.genus2,
+                cls.genus3,
+                cls.genus4,
                 n1,
                 n2,
                 n3,
@@ -2406,7 +2406,7 @@ class FilterThenMatchTests(BaubleTestCase):
                 n5,
             ]
         )
-        self.session.commit()
+        cls.session.commit()
 
     def test_can_filter_match_notes(self):
         mapper_search = search.strategies.get_strategy("MapperSearch")
@@ -2579,22 +2579,28 @@ class EmptySetEqualityTest(unittest.TestCase):
         self.assertEqual(nt1.express(None), None)
 
 
-class FunctionsTests(BaubleTestCase):
-    def setUp(self):
-        super().setUp()
+class FunctionsTests(BaubleClassTestCase):
+
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
         db.engine.execute("delete from genus")
         db.engine.execute("delete from family")
         db.engine.execute("delete from species")
         db.engine.execute("delete from accession")
-        from bauble.plugins.plants import Family
-        from bauble.plugins.plants import Genus
-        from bauble.plugins.plants import Species
 
         f1 = Family(family="Rutaceae", qualifier="")
         g1 = Genus(family=f1, genus="Citrus")
         sp1 = Species(sp="medica", genus=g1)
         sp2 = Species(sp="maxima", genus=g1)
         sp3 = Species(sp="aurantium", genus=g1)
+
+        geo1 = Geography(name="Test1", code="T1", level=1)
+        geo2 = Geography(name="Test2", code="T2", level=1)
+        sp1.distribution = [
+            SpeciesDistribution(geography=geo1),
+            SpeciesDistribution(geography=geo2),
+        ]
 
         f2 = Family(family="Sapotaceae")
         g2 = Genus(family=f2, genus="Manilkara")
@@ -2606,10 +2612,10 @@ class FunctionsTests(BaubleTestCase):
 
         f3 = Family(family="Musaceae")
         g4 = Genus(family=f3, genus="Musa")
-        self.session.add_all(
+        cls.session.add_all(
             [f1, f2, f3, g1, g2, g3, g4, sp1, sp2, sp3, sp4, sp5, sp6]
         )
-        self.session.commit()
+        cls.session.commit()
 
     def test_count(self):
         mapper_search = search.strategies.get_strategy("MapperSearch")
@@ -2665,20 +2671,8 @@ class FunctionsTests(BaubleTestCase):
             results.extend(i)
         self.assertEqual(len(results), 1)
         self.assertEqual(results[0].id, 2)
-
-        from bauble.plugins.plants import Species
-        from bauble.plugins.plants import SpeciesDistribution
-        from bauble.plugins.plants.geography import Geography
-
-        geo1 = Geography(name="Test1", code="T1", level=1)
-        geo2 = Geography(name="Test2", code="T2", level=1)
         sp1 = self.session.query(Species).first()
-        sp1.distribution = [
-            SpeciesDistribution(geography=geo1),
-            SpeciesDistribution(geography=geo2),
-        ]
 
-        self.session.commit()
         s = (
             "species where count(distribution.id) > 1 and "
             "distribution.geography.name = 'Test1'"
@@ -2825,12 +2819,6 @@ class BaubleSearchSearchTest(BaubleTestCase):
         self.assertTrue(any(string in i for i in logs.output))
 
     def test_search_exclude_inactive_set(self):
-        from bauble.plugins.garden.accession import Accession
-        from bauble.plugins.garden.location import Location
-        from bauble.plugins.garden.plant import Plant
-        from bauble.plugins.plants.family import Family
-        from bauble.plugins.plants.genus import Genus
-        from bauble.plugins.plants.species import Species
 
         fam1 = Family(epithet="Moraceae")
         gen1 = Genus(family=fam1, genus="Ficus")
