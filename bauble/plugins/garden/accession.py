@@ -1174,16 +1174,17 @@ class AccessionEditorView(editor.GenericEditorView):
         "acc_ok_and_add_button": _(
             "Save your changes and add a plant to this accession."
         ),
-        "acc_next_button": _("Save your changes and add another accession."),
+        "acc_next_button": _(
+            "Save your changes and add another accession with the same "
+            "source, source notes and recieved date."
+        ),
         "sources_code_entry": _(
             "ITF2 - E7 - Donor's Accession Identifier - donacc"
         ),
         "acc_code_format_comboentry": _(
-            "Set the format for the Accession ID "
-            "code generally you will not need to "
-            "set this unless you do not want to "
-            "use you do not want to use the "
-            "system default."
+            "Set the format for the Accession ID code, generally you will not "
+            "need to set this unless you do not want to use the system "
+            "default."
         ),
         "acc_code_format_edit_btn": _(
             "Click here to edit or add to the avialable ID formats."
@@ -3351,8 +3352,40 @@ class AccessionEditor(editor.GenericModelViewPresenterEditor):
         # respond to responses
         more_committed = None
         if response == self.RESPONSE_NEXT:
+            code_format = self.presenter.view.widget_get_value(
+                "acc_code_format_comboentry"
+            )
+            logger.debug(
+                "adding next accession. code_format: %s, date_recvd: %s",
+                code_format,
+                self.model.date_recvd,
+            )
             self.presenter.cleanup()
-            acc_editor = AccessionEditor(parent=self.parent)
+            model = Accession(date_recvd=self.model.date_recvd)
+
+            if self.model.source:
+                logger.debug(
+                    "adding source. source_detail: %s, notes: %s",
+                    self.model.source.source_detail,
+                    self.model.source.notes,
+                )
+                model.source = Source(
+                    notes=self.model.source.notes,
+                    source_detail=self.model.source.source_detail,
+                )
+
+            acc_editor = AccessionEditor(model=model, parent=self.parent)
+
+            if code_format != self.model.code:
+                logger.debug(
+                    "set next acc_code_format_comboentry to %s",
+                    code_format,
+                )
+                acc_editor.presenter.view.widget_set_value(
+                    "acc_code_format_comboentry",
+                    code_format,
+                )
+
             more_committed = acc_editor.start()
         elif response == self.RESPONSE_OK_AND_ADD:
             plt_editor = PlantEditor(Plant(accession=self.model), self.parent)

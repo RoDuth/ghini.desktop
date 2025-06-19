@@ -280,7 +280,8 @@ class DateTime(types.TypeDecorator):
                     dayfirst=DateTime._dayfirst,
                     yearfirst=DateTime._yearfirst,
                 )
-            except ValueError:
+            except ValueError as e:
+                logger.debug("%s(%s)", type(e).__name__, e)
                 return None
         return result.astimezone(tz=timezone.utc)
 
@@ -337,7 +338,8 @@ class Date(types.TypeDecorator):
                 result = date_parser.parse(
                     value, dayfirst=Date._dayfirst, yearfirst=Date._yearfirst
                 )
-            except ValueError:
+            except ValueError as e:
+                logger.debug("%s(%s)", type(e).__name__, e)
                 return None
         return result.date()
 

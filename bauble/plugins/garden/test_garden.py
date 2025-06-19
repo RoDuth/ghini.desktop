@@ -2915,6 +2915,53 @@ class AccessionTests(GardenTestCase):
         editor.presenter.cleanup()
         del editor
 
+    def test_accession_editor_next_populates(self):
+        code_fmat = "XXXX####"
+        meta.get_default("acidf_01", code_fmat)
+        acc = Accession(
+            code="XXXX1234",
+            species=self.species,
+            date_recvd="12/12/12",
+        )
+        source_detail = SourceDetail(
+            name="Test Source", source_type="Expedition"
+        )
+        source = Source(sources_code="22")
+        source.notes = "test notes"
+        source.source_detail = source_detail
+        acc.source = source
+        print(acc.date_recvd)
+        self.session.add(acc)
+        self.session.commit()
+        print(acc.date_recvd)
+        editor = AccessionEditor(acc)
+        editor.presenter.view.widget_set_value(
+            "acc_code_format_comboentry", code_fmat
+        )
+        update_gui()
+        # editor.start()
+
+        with unittest.mock.patch(
+            "bauble.plugins.garden.accession.AccessionEditor"
+        ) as mock_editor:
+            mock_editor().start.return_value = []
+            editor.handle_response(AccessionEditor.RESPONSE_NEXT)
+            model = mock_editor.call_args.kwargs["model"]
+
+            self.assertEqual(model.date_recvd, acc.date_recvd)
+            self.assertIsNotNone(model.date_recvd)
+            mock_editor().presenter.view.widget_set_value.assert_called_with(
+                "acc_code_format_comboentry", code_fmat
+            )
+            self.assertEqual(model.source.source_detail.id, source_detail.id)
+            self.assertIsNotNone(model.source.source_detail.id)
+            self.assertEqual(model.source.notes, source.notes)
+            self.assertIsNotNone(model.source.notes)
+
+        editor.session.close()
+        editor.presenter.cleanup()
+        del editor
+
     def test_accession_editor_purchase_price_entry_change(self):
         sp = self.session.query(Species).first()
         acc = Accession(code="2023", species=sp)
