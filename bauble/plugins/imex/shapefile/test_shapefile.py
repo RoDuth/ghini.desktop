@@ -4364,7 +4364,12 @@ class ShapefileImportTests(ShapefileTestCase):
         # plt2 is not from the same accession
         plt2 = self.session.query(Plant).get(2)
         self.assertIsNone(plt2.geojson)
-        plt3 = self.session.query(Plant).get(3)
+        plt3 = (
+            self.session.query(Plant)
+            .join(Accession)
+            .filter(Accession.code == "2021001", Plant.code == "2")
+            .one()
+        )
         self.assertIsNotNone(plt3.geojson)
 
 

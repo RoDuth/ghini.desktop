@@ -686,58 +686,69 @@ class Species(db.Domain, db.WithNotes):
                 (
                     cls.infrasp4_rank.is_not(None),
                     cast(
-                        cls.infrasp1_rank
-                        + text("' '")
-                        + cls.infrasp1
-                        + text("' '")
-                        + cls.infrasp2_rank
-                        + text("' '")
-                        + cls.infrasp2
-                        + text("' '")
-                        + cls.infrasp3_rank
-                        + text("' '")
-                        + cls.infrasp3
-                        + text("' '")
-                        + cls.infrasp4_rank
-                        + text("' '")
-                        + cls.infrasp4,
+                        func.concat(
+                            cls.infrasp1_rank,
+                            text("' '"),
+                            cls.infrasp1,
+                            text("' '"),
+                            cls.infrasp2_rank,
+                            text("' '"),
+                            cls.infrasp2,
+                            text("' '"),
+                            cls.infrasp3_rank,
+                            text("' '"),
+                            cls.infrasp3,
+                            text("' '"),
+                            cls.infrasp4_rank,
+                            text("' '"),
+                            cls.infrasp4,
+                        ),
                         String,
                     ),
                 ),
                 (
                     cls.infrasp3_rank.is_not(None),
                     cast(
-                        cls.infrasp1_rank
-                        + text("' '")
-                        + cls.infrasp1
-                        + text("' '")
-                        + cls.infrasp2_rank
-                        + text("' '")
-                        + cls.infrasp2
-                        + text("' '")
-                        + cls.infrasp3_rank
-                        + text("' '")
-                        + cls.infrasp3,
+                        func.concat(
+                            cls.infrasp1_rank,
+                            text("' '"),
+                            cls.infrasp1,
+                            text("' '"),
+                            cls.infrasp2_rank,
+                            text("' '"),
+                            cls.infrasp2,
+                            text("' '"),
+                            cls.infrasp3_rank,
+                            text("' '"),
+                            cls.infrasp3,
+                        ),
                         String,
                     ),
                 ),
                 (
                     cls.infrasp2_rank.is_not(None),
                     cast(
-                        cls.infrasp1_rank
-                        + text("' '")
-                        + cls.infrasp1
-                        + text("' '")
-                        + cls.infrasp2_rank
-                        + text("' '")
-                        + cls.infrasp2,
+                        func.concat(
+                            cls.infrasp1_rank,
+                            text("' '"),
+                            cls.infrasp1,
+                            text("' '"),
+                            cls.infrasp2_rank,
+                            text("' '"),
+                            cls.infrasp2,
+                        ),
                         String,
                     ),
                 ),
                 (
                     cls.infrasp1_rank.is_not(None),
                     cast(
-                        cls.infrasp1_rank + text("' '") + cls.infrasp1, String
+                        func.concat(
+                            cls.infrasp1_rank,
+                            text("' '"),
+                            cls.infrasp1,
+                        ),
+                        String,
                     ),
                 ),
             ]

@@ -1898,9 +1898,9 @@ class GenusTests(PlantTestCase):
         from ..garden import Accession
         from ..garden import Location
 
-        gen = self.session.query(Genus).first()
-        sp = gen.species[0]
-        acc = Accession(species=sp, code="1")
+        gen = self.session.query(Genus).get(1)
+        sp1 = self.session.query(Species).get(22)
+        acc = Accession(species=sp1, code="1")
         plt = Plant(
             accession=acc,
             quantity=1,
@@ -1923,8 +1923,9 @@ class GenusTests(PlantTestCase):
         self.assertTrue(gen.has_children())
 
         # make sure only the not active species left
-        for sp in gen.species[1:]:
-            self.session.delete(sp)
+        for sp in gen.species:
+            if sp.id != sp1.id:
+                self.session.delete(sp)
 
         self.session.commit()
 
@@ -3114,7 +3115,7 @@ class SpeciesTests(PlantTestCase):
             "test",
             None,
         )
-        sp = self.session.query(Species).first()
+        sp = self.session.query(Species).get(1)
         self.assertEqual(
             sp.__table__.c["_sp_custom1"].type.values,
             ("extinct", "vulnerable", None),
@@ -3133,7 +3134,7 @@ class SpeciesTests(PlantTestCase):
         self.session.close()
         db.open_conn(db.engine.url)
         self.session = db.Session()
-        sp = self.session.query(Species).first()
+        sp = self.session.query(Species).get(1)
 
         self.assertEqual(sp.nca_status, "vulnerable")
         # can't set value when not in values

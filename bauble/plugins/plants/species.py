@@ -312,7 +312,7 @@ def get_binomial_completions(text: str) -> set[str]:
                 Species.trade_name,
             )
             .join(Genus)
-            .filter(Genus.epithet.startswith(parts[0]))
+            .filter(Genus.epithet.ilike(f"{parts[0]}%"))
         )
         if len(parts) == 2:
             if parts[1].startswith("'"):

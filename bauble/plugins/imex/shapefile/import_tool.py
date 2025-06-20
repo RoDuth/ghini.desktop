@@ -895,6 +895,7 @@ class ShapefileImporter(GenericImporter):
                         self.commit_db(session)
                     except Exception as e:
                         # record errored
+                        logger.debug("%s(%s)", type(e).__name__, e)
                         rec_dict["__file"] = shape_reader.filename
                         rec_dict["__line_#"] = line
                         rec_dict["__err"] = e
