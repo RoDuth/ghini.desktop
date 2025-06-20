@@ -145,8 +145,18 @@ conn_name: str | None = None
 last_handler = None
 
 CONN_DEFAULT_PREF = "conn.default"
-CONN_LIST_PREF = "conn.list"
+"""
+The preferences key for the name of the connection offered first at start up.
+"""
+
 CONN_DONT_ASK_PREF = "conn.dont_ask"
+"""
+The preferences key that sets if the user is asked or not at startup which
+connection to use.
+"""
+
+CONN_LIST_PREF = "conn.list"
+"""The preferences key for the list of all known connections."""
 
 
 def command_handler(cmd, arg):

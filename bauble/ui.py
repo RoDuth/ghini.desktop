@@ -104,6 +104,7 @@ class GUI:
         b".inf-bg * {background-image: image(#B6DAF2);}"
         b".click-label {color: blue;}"
         b".problem {background-color: #FFDCDF;}"
+        b".not-default {background-color: #FFF200;}"
         b".problem-bg * {background-image: image(#FFDCDF);}"
         b".err-btn * {color: #FF9999;}"
         b"#unsaved-entry {color: blue;}"
@@ -917,6 +918,7 @@ class GUI:
         """Open the connection manager."""
 
         name, uri = start_connection_manager()
+
         if name is None:
             return
 
@@ -935,6 +937,12 @@ class GUI:
         if engine is None:
             # the database wasn't opened
             return
+
+        statusbar_style = self.widgets.statusbar.get_style_context()
+        if name != prefs.prefs[bauble.CONN_DEFAULT_PREF]:
+            statusbar_style.add_class("not-default")
+        else:
+            statusbar_style.remove_class("not-default")
 
         # everything seems to have passed ok so setup the rest of bauble
         bauble.conn_name = name

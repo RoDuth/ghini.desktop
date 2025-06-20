@@ -36,6 +36,7 @@ from bauble import paths
 from bauble import pluginmgr
 from bauble import prefs
 from bauble import utils
+from bauble.connmgr import ConnectionManagerDialog
 from bauble.connmgr import start_connection_manager
 from bauble.i18n import _
 
@@ -154,6 +155,7 @@ class Application(Gtk.Application):
                     msg, traceback.format_exc(), Gtk.MessageType.ERROR
                 )
                 uri = None
+        ConnectionManagerDialog.first_run = False
         return open_exc
 
     @staticmethod

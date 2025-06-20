@@ -680,16 +680,30 @@ class GUITests(BaubleTestCase):
         # back out
         mock_start.return_value = (None, None)
         gui.on_file_menu_open(None, None)
+
         mock_handler.assert_not_called()
         mock_open.assert_not_called()
-        import bauble
 
         self.assertIsNone(bauble.conn_name)
         # connection selected
+        prefs.prefs[bauble.CONN_DEFAULT_PREF] = "test2"
+        prefs.prefs.save()
         mock_start.return_value = ("test", "test_conn")
         gui.on_file_menu_open(None, None)
+        stbar_style = gui.widgets.statusbar.get_style_context()
+
+        self.assertTrue(stbar_style.has_class("not-default"))
         mock_handler.assert_called()
         mock_open.assert_called()
+        # connection changed back to default
+        mock_start.return_value = ("test2", "test_conn2")
+        gui.on_file_menu_open(None, None)
+        stbar_style = gui.widgets.statusbar.get_style_context()
+
+        self.assertFalse(stbar_style.has_class("not-default"))
+        mock_handler.assert_called()
+        mock_open.assert_called()
+
         gui.destroy()
 
     @mock.patch("bauble.ui.Gtk.AboutDialog")

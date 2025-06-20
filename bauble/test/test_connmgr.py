@@ -176,6 +176,41 @@ class ConnectionManagerTests(BaubleTestCase):
 
         presenter.destroy()
 
+    def test_only_sets_default_on_first_run(self):
+        prefs.prefs[bauble.CONN_LIST_PREF] = {
+            "btuu": {
+                "default": False,
+                "directory": "btuu",
+                "type": "SQLite",
+                "file": "btuu.db",
+            },
+            "nugkui": {
+                "default": True,
+                "directory": "./nugkui",
+                "type": "SQLite",
+                "file": "./nugkui.db",
+            },
+        }
+        prefs.prefs[bauble.CONN_DEFAULT_PREF] = "nugkui"
+        prefs.prefs.save()
+        self.assertEqual(prefs.prefs[bauble.CONN_DEFAULT_PREF], "nugkui")
+        presenter = ConnectionManagerDialog()
+        presenter.first_run = True
+        presenter.name_combo.set_active(0)
+        update_gui()
+        presenter.on_dialog_response(presenter, Gtk.ResponseType.OK)
+        # changes
+        self.assertEqual(prefs.prefs[bauble.CONN_DEFAULT_PREF], "btuu")
+
+        presenter.first_run = False
+        presenter.name_combo.set_active(1)
+        update_gui()
+        presenter.on_dialog_response(presenter, Gtk.ResponseType.OK)
+        # not changed
+        self.assertEqual(prefs.prefs[bauble.CONN_DEFAULT_PREF], "btuu")
+
+        presenter.destroy()
+
     def test_two_connection_initialize_default_second(self):
         prefs.prefs[bauble.CONN_LIST_PREF] = {
             "nugkui": {

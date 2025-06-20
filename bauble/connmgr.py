@@ -717,7 +717,6 @@ class ConnectionManagerDialog(Gtk.Dialog):
                     check_new_release,
                 ],
             ).start()
-            self.__class__.first_run = False
 
         self.dont_ask_chkbx.set_active(
             prefs.prefs.get(bauble.CONN_DONT_ASK_PREF, False)
@@ -796,9 +795,12 @@ class ConnectionManagerDialog(Gtk.Dialog):
                 self.model.rootdir
             )
             self.model.save()
-            prefs.prefs[bauble.CONN_DEFAULT_PREF] = (
-                self.name_combo.get_active_text()
-            )
+
+            if self.first_run:
+                prefs.prefs[bauble.CONN_DEFAULT_PREF] = (
+                    self.name_combo.get_active_text()
+                )
+
         elif response in (
             Gtk.ResponseType.CANCEL,
             Gtk.ResponseType.DELETE_EVENT,
@@ -1040,6 +1042,7 @@ def start_connection_manager(
     con_mgr = ConnectionManagerDialog()
 
     if msg:
+        con_mgr.dont_ask_chkbx.set_visible(False)
         con_mgr.image_box.remove(con_mgr.logo_image)
         label = Gtk.Label()
         label.set_markup(msg)
