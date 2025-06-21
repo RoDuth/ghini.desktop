@@ -866,7 +866,7 @@ class ReportToolDialog:  # pylint: disable=too-few-public-methods
 
 class ReportTool(pluginmgr.Tool):  # pylint: disable=too-few-public-methods
     category = _("Report")
-    label = _("Generate Report")
+    label = _("Run a Report")
 
     @classmethod
     def start(cls):
