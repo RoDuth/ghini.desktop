@@ -53,13 +53,12 @@ def main_dir():
     return os.path.abspath(directory)
 
 
-def root_dir():
-    """return the root directory we are running from."""
+def root_dir() -> Path:
+    """return the root directory we are running from as a Path object."""
     if main_is_frozen():
-        root = Path(sys.executable)
-    else:
-        root = Path(__file__).parent.parent
-    return root
+        # pylint: disable=protected-access
+        return Path(sys._MEIPASS).parent  # type: ignore[attr-defined]
+    return Path(__file__).parent.parent
 
 
 def lib_dir():
