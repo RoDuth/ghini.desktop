@@ -1054,6 +1054,8 @@ def start_connection_manager(
 
     dont_ask = False
     if first_run:
+        # prevent window starting in background - pyinstaller frozen build
+        con_mgr.set_keep_above(True)
         dont_ask = prefs.prefs.get(bauble.CONN_DONT_ASK_PREF, False)
 
     if dont_ask or con_mgr.run() == Gtk.ResponseType.OK:
