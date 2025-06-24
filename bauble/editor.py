@@ -1893,8 +1893,9 @@ class PresenterMapMixin:
     - supply a valid string path to a mako kml template via the
       `self.kml_template` attribute
     - call `self.remove_map_action_group()` on close. (e.g. in `self.cleanup`)
-    - have a `model` attribute with a `geojson` attribute that returns valid a
-      geojson feature geometry part with "type" and "coordinates" keys.
+    - have a `model` attribute that points to an object with a `geojson`
+      attribute that contains a valid geojson feature geometry part with
+      'type' and 'coordinates' keys.
     """
 
     def __init__(self):

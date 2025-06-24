@@ -2391,7 +2391,7 @@ class GeneralPlantExpander(InfoExpander):
         self.widget_set_value("location_data", str(row.location))
         self.widget_set_value("quantity_data", row.quantity)
         # NOTE don't load geojson from the row or history will always record
-        # an unpdate and _last_updated will always change when a relationship
+        # an update and _last_updated will always change when a relationship
         # (note, propagation, etc.) is edited. (e.g. `shape = row.geojson...`
         # instead use a temp session)
         with db.engine.begin() as connection:
