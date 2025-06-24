@@ -805,8 +805,8 @@ class OptionsTests(BaubleTestCase):
 
         self.assertEqual(len(connection_box.options_liststore), 3)
         self.assertEqual(connection_box.options_liststore[0][0], "driver")
-        self.assertEqual(
-            connection_box.options_liststore[0][1], pyodbc.drivers()[0]
+        self.assertTrue(
+            connection_box.options_liststore[0][1].startswith("ODBC Driver")
         )
         self.assertEqual(
             connection_box.options_liststore[1][0], "MARS_Connection"

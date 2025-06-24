@@ -568,7 +568,7 @@ class ConnectionBox(editor.GenericPresenter[ConnectionModel], Gtk.Box):
             logger.debug("no pyodbc bailing.")
             return
 
-        drivers = pyodbc.drivers()
+        drivers = [i for i in pyodbc.drivers() if i.startswith("ODBC Driver")]
 
         if drivers:
             self.model.options["driver"] = drivers[0]
