@@ -3107,7 +3107,7 @@ pluginmgr.register_command(PrefsCommandHandler)
 
 
 class SimpleSearchBox(Gtk.Frame):
-    """Provides a simple search for the splash screen."""
+    """Provides a simple search for the home screen."""
 
     def __init__(self) -> None:
         super().__init__(label=_("Simple Search"))
@@ -3241,12 +3241,12 @@ class UpdateableWidget(Gtk.Widget, UpdateableNoArgs, metaclass=_UWMeta):
 
 
 class DefaultView(View, Gtk.Box):
-    """consider DefaultView a splash screen.
+    """consider DefaultView a home screen.
 
     It is displayed at program start and when home is selected.  it's the core
     of the "what do I do now" screen.
 
-    DefaultView is related to the SplashCommandHandler, not to the
+    DefaultView is related to the HomeCommandHandler, not to the
     view.DefaultCommandHandler
     """
 
@@ -3256,7 +3256,7 @@ class DefaultView(View, Gtk.Box):
     def __init__(self) -> None:
         super().__init__()
 
-        # splash window contains a hbox: left half is for the proper splash,
+        # home window contains a hbox: left half is for the proper home,
         # right half for infobox, only one infobox is allowed.
 
         self.hbox = Gtk.Box()
@@ -3317,8 +3317,8 @@ class DefaultView(View, Gtk.Box):
             self.vbox.show_all()
 
 
-class SplashCommandHandler(pluginmgr.CommandHandler):
-    command = ["home", "splash"]
+class HomeCommandHandler(pluginmgr.CommandHandler):
+    command = ["home"]
     view: DefaultView | None = None
 
     @classmethod
@@ -3331,4 +3331,4 @@ class SplashCommandHandler(pluginmgr.CommandHandler):
         self.get_view().update()
 
 
-pluginmgr.register_command(SplashCommandHandler)
+pluginmgr.register_command(HomeCommandHandler)

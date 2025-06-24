@@ -207,10 +207,10 @@ class Application(Gtk.Application):
             msg = utils.xml_safe(f"{type(e).__name__}({e})")
             utils.message_dialog(msg, Gtk.MessageType.WARNING)
             return False
-        # update the splashscreen
-        splash = bauble.gui.get_view()
-        if splash:
-            splash.update()
+        # update the home screen
+        home = bauble.gui.get_view()
+        if home:
+            home.update()
 
         return True
 

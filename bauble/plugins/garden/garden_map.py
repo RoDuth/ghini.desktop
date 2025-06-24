@@ -646,7 +646,7 @@ class GardenMap(Gtk.Paned):  # pylint: disable=too-many-instance-attributes
 
 class LocationSearchMap(Gtk.Frame):
     """Simple location search widget.  Used to visually generate a search for
-    locations from splash screen
+    locations from home screen
     """
 
     loc_items: dict[int, MapPoly] = {}

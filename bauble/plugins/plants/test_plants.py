@@ -58,8 +58,8 @@ from bauble.test import wait_on_threads
 from bauble.view import SearchView
 
 from ..garden import Plant
+from . import HomeInfoBox
 from . import PlantsPlugin
-from . import SplashInfoBox
 from . import SynonymsPresenter
 from .family import Family
 from .family import FamilyEditor
@@ -8388,32 +8388,32 @@ class RetrieveTests(PlantTestCase):
         self.assertIsNone(geo)
 
 
-class SplashInfoBoxTests(BaubleTestCase):
+class HomeInfoBoxTests(BaubleTestCase):
     @mock.patch("bauble.gui")
     def test_update_sensitise_exclude_inactive(self, _mock_gui):
-        splash = SplashInfoBox()
-        splash.update()
+        home = HomeInfoBox()
+        home.update()
         wait_on_threads()
         for widget in [
-            splash.splash_nplttot,
-            splash.splash_npltnot,
-            splash.splash_nacctot,
-            splash.splash_naccnot,
-            splash.splash_nspctot,
-            splash.splash_nspcnot,
+            home.home_nplttot,
+            home.home_npltnot,
+            home.home_nacctot,
+            home.home_naccnot,
+            home.home_nspctot,
+            home.home_nspcnot,
         ]:
             self.assertTrue(widget.get_parent().get_sensitive())
 
         prefs.prefs[prefs.exclude_inactive_pref] = True
-        splash.update()
+        home.update()
         wait_on_threads()
         for widget in [
-            splash.splash_nplttot,
-            splash.splash_npltnot,
-            splash.splash_nacctot,
-            splash.splash_naccnot,
-            splash.splash_nspctot,
-            splash.splash_nspcnot,
+            home.home_nplttot,
+            home.home_npltnot,
+            home.home_nacctot,
+            home.home_naccnot,
+            home.home_nspctot,
+            home.home_nspcnot,
         ]:
             self.assertFalse(widget.get_parent().get_sensitive())
 

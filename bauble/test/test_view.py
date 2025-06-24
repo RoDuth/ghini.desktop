@@ -75,6 +75,7 @@ from bauble.view import BaubleLinkButton
 from bauble.view import DefaultCommandHandler
 from bauble.view import DefaultView
 from bauble.view import HistoryView
+from bauble.view import HomeCommandHandler
 from bauble.view import InfoBox
 from bauble.view import InfoBoxPage
 from bauble.view import LinksExpander
@@ -85,7 +86,6 @@ from bauble.view import PrefsView
 from bauble.view import PropertiesExpander
 from bauble.view import SearchView
 from bauble.view import SimpleSearchBox
-from bauble.view import SplashCommandHandler
 from bauble.view import View
 from bauble.view import _Node
 from bauble.view import get_search_view
@@ -3190,7 +3190,7 @@ class DefaultViewTests(BaubleTestCase):
         self.assertFalse(list(def_view.search_box.domain_combo.get_model()))
         self.assertFalse(def_view.infobox)
         def_view.update()
-        # SplashInfoBox threads
+        # HomeInfoBox threads
         wait_on_threads()
         self.assertTrue(list(def_view.search_box.domain_combo.get_model()))
         # set in PlantsPlugin.init
@@ -3207,11 +3207,11 @@ class DefaultViewTests(BaubleTestCase):
         mock_widget.update.assert_called()
 
     @mock.patch.object(DefaultView, "update")
-    def test_splashcommandhandler(self, mock_update):
-        splash = SplashCommandHandler()
-        self.assertIsInstance(splash.get_view(), DefaultView)
-        self.assertIsInstance(splash.view, DefaultView)
-        splash(None, None)
+    def test_homecommandhandler(self, mock_update):
+        home = HomeCommandHandler()
+        self.assertIsInstance(home.get_view(), DefaultView)
+        self.assertIsInstance(home.view, DefaultView)
+        home(None, None)
         mock_update.assert_called()
 
 

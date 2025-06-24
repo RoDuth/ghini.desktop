@@ -2188,7 +2188,7 @@ class ResolutionCentreViewTests(BaubleTestCase):
     def test_on_sync_selected_btn_clicked_succeeds_one(
         self, mock_handler, mock_cloner, mock_dlog
     ):
-        bauble.pluginmgr.register_command(bauble.ui.SplashCommandHandler)
+        bauble.pluginmgr.register_command(bauble.ui.HomeCommandHandler)
         mock_dlog.return_value = Gtk.ResponseType.YES
         data = [
             {

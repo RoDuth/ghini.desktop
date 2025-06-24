@@ -278,38 +278,38 @@ class LabelUpdater(Thread):
                     return
 
 
-@Gtk.Template(filename=str(Path(__file__).resolve().parent / "splash_info.ui"))
-class SplashInfoBox(View, Gtk.Box):
-    """info box shown in the initial splash screen."""
+@Gtk.Template(filename=str(Path(__file__).resolve().parent / "home_info.ui"))
+class HomeInfoBox(View, Gtk.Box):
+    """info box shown in the initial home screen."""
 
-    __gtype_name__ = "SplashInfoBox"
+    __gtype_name__ = "HomeInfoBox"
 
-    splash_stqr_button = Gtk.Template.Child()
-    splash_nlocnot = Gtk.Template.Child()
-    splash_nlocuse = Gtk.Template.Child()
-    splash_nloctot = Gtk.Template.Child()
-    splash_npltnot = Gtk.Template.Child()
-    splash_npltuse = Gtk.Template.Child()
-    splash_nplttot = Gtk.Template.Child()
-    splash_naccnot = Gtk.Template.Child()
-    splash_naccuse = Gtk.Template.Child()
-    splash_nacctot = Gtk.Template.Child()
-    splash_nspcnot = Gtk.Template.Child()
-    splash_nspcuse = Gtk.Template.Child()
-    splash_nspctot = Gtk.Template.Child()
-    splash_ngennot = Gtk.Template.Child()
-    splash_ngenuse = Gtk.Template.Child()
-    splash_ngentot = Gtk.Template.Child()
-    splash_nfamtot = Gtk.Template.Child()
-    splash_nfamuse = Gtk.Template.Child()
-    splash_nfamnot = Gtk.Template.Child()
+    home_stqr_button = Gtk.Template.Child()
+    home_nlocnot = Gtk.Template.Child()
+    home_nlocuse = Gtk.Template.Child()
+    home_nloctot = Gtk.Template.Child()
+    home_npltnot = Gtk.Template.Child()
+    home_npltuse = Gtk.Template.Child()
+    home_nplttot = Gtk.Template.Child()
+    home_naccnot = Gtk.Template.Child()
+    home_naccuse = Gtk.Template.Child()
+    home_nacctot = Gtk.Template.Child()
+    home_nspcnot = Gtk.Template.Child()
+    home_nspcuse = Gtk.Template.Child()
+    home_nspctot = Gtk.Template.Child()
+    home_ngennot = Gtk.Template.Child()
+    home_ngenuse = Gtk.Template.Child()
+    home_ngentot = Gtk.Template.Child()
+    home_nfamtot = Gtk.Template.Child()
+    home_nfamuse = Gtk.Template.Child()
+    home_nfamnot = Gtk.Template.Child()
 
     for i in range(1, 11):
         wname = f"stqr_{i:02d}_button"
         locals()[wname] = Gtk.Template.Child()
 
     def __init__(self):
-        logger.debug("SplashInfoBox::__init__")
+        logger.debug("HomeInfoBox::__init__")
         super().__init__()
 
         for i in range(1, 11):
@@ -322,97 +322,97 @@ class SplashInfoBox(View, Gtk.Box):
         on_clicked_search = utils.generate_on_clicked(bauble.gui.send_command)
 
         utils.make_label_clickable(
-            self.splash_nfamtot, on_clicked_search, "family like %"
+            self.home_nfamtot, on_clicked_search, "family like %"
         )
 
         utils.make_label_clickable(
-            self.splash_nfamuse,
+            self.home_nfamuse,
             on_clicked_search,
             "family where genera.species.accessions.id != 0",
         )
 
         utils.make_label_clickable(
-            self.splash_nfamnot,
+            self.home_nfamnot,
             on_clicked_search,
             "family where not genera.species.accessions.id != 0",
         )
 
         utils.make_label_clickable(
-            self.splash_ngentot, on_clicked_search, "genus like %"
+            self.home_ngentot, on_clicked_search, "genus like %"
         )
 
         utils.make_label_clickable(
-            self.splash_ngenuse,
+            self.home_ngenuse,
             on_clicked_search,
             "genus where species.accessions.id!=0",
         )
 
         utils.make_label_clickable(
-            self.splash_ngennot,
+            self.home_ngennot,
             on_clicked_search,
             "genus where not species.accessions.id!=0",
         )
 
         utils.make_label_clickable(
-            self.splash_nspctot, on_clicked_search, "species like %"
+            self.home_nspctot, on_clicked_search, "species like %"
         )
 
         utils.make_label_clickable(
-            self.splash_nspcuse,
+            self.home_nspcuse,
             on_clicked_search,
             "species where not accessions = Empty",
         )
 
         utils.make_label_clickable(
-            self.splash_nspcnot,
+            self.home_nspcnot,
             on_clicked_search,
             "species where accessions = Empty",
         )
 
         utils.make_label_clickable(
-            self.splash_nacctot, on_clicked_search, "accession like %"
+            self.home_nacctot, on_clicked_search, "accession like %"
         )
 
         utils.make_label_clickable(
-            self.splash_naccuse,
+            self.home_naccuse,
             on_clicked_search,
             "accession where sum(plants.quantity)>0",
         )
 
         utils.make_label_clickable(
-            self.splash_naccnot,
+            self.home_naccnot,
             on_clicked_search,
             "accession where plants = Empty or sum(plants.quantity)=0",
         )
 
         utils.make_label_clickable(
-            self.splash_nplttot, on_clicked_search, "plant like %"
+            self.home_nplttot, on_clicked_search, "plant like %"
         )
 
         utils.make_label_clickable(
-            self.splash_npltuse,
+            self.home_npltuse,
             on_clicked_search,
             "plant where sum(quantity)>0",
         )
 
         utils.make_label_clickable(
-            self.splash_npltnot,
+            self.home_npltnot,
             on_clicked_search,
             "plant where sum(quantity)=0",
         )
 
         utils.make_label_clickable(
-            self.splash_nloctot, on_clicked_search, "location like %"
+            self.home_nloctot, on_clicked_search, "location like %"
         )
 
         utils.make_label_clickable(
-            self.splash_nlocuse,
+            self.home_nlocuse,
             on_clicked_search,
             "location where sum(plants.quantity)>0",
         )
 
         utils.make_label_clickable(
-            self.splash_nlocnot,
+            self.home_nlocnot,
             on_clicked_search,
             "location where plants is Empty or sum(plants.quantity)=0",
         )
@@ -422,24 +422,24 @@ class SplashInfoBox(View, Gtk.Box):
             widget = getattr(self, wname)
             widget.connect("clicked", partial(self.on_sqb_clicked, i))
 
-        self.splash_stqr_button.connect(
-            "clicked", self.on_splash_stqr_button_clicked
+        self.home_stqr_button.connect(
+            "clicked", self.on_home_stqr_button_clicked
         )
 
     def update(self, *_args):
         # desensitise links that wont work.
         sensitive = not prefs.prefs.get(prefs.exclude_inactive_pref)
         for widget in [
-            self.splash_nplttot,
-            self.splash_npltnot,
-            self.splash_nacctot,
-            self.splash_naccnot,
-            self.splash_nspctot,
-            self.splash_nspcnot,
+            self.home_nplttot,
+            self.home_npltnot,
+            self.home_nacctot,
+            self.home_naccnot,
+            self.home_nspctot,
+            self.home_nspcnot,
         ]:
             widget.get_parent().set_sensitive(sensitive)
 
-        logger.debug("SplashInfoBox::update")
+        logger.debug("HomeInfoBox::update")
         statusbar = bauble.gui.widgets.statusbar
         sbcontext_id = statusbar.get_context_id("searchview.nresults")
         statusbar.pop(sbcontext_id)
@@ -468,41 +468,41 @@ class SplashInfoBox(View, Gtk.Box):
         self.start_thread(
             LabelUpdater(
                 (
-                    (self.splash_nplttot, "select count(*) from plant"),
+                    (self.home_nplttot, "select count(*) from plant"),
                     (
-                        self.splash_npltuse,
+                        self.home_npltuse,
                         "select count(*) from plant where quantity>0",
                     ),
                     (
-                        self.splash_npltnot,
+                        self.home_npltnot,
                         "select count(*) from plant where quantity=0",
                     ),
-                    (self.splash_nacctot, "select count(*) from accession"),
+                    (self.home_nacctot, "select count(*) from accession"),
                     (
-                        self.splash_naccuse,
+                        self.home_naccuse,
                         "select count(distinct accession.id) "
                         "from accession "
                         "join plant on plant.accession_id=accession.id "
                         "where plant.quantity>0",
                     ),
                     (
-                        self.splash_naccnot,
+                        self.home_naccnot,
                         "select count(id) "
                         "from accession "
                         "where id not in "
                         "(select accession_id from plant "
                         " where plant.quantity>0)",
                     ),
-                    (self.splash_nloctot, "select count(*) from location"),
+                    (self.home_nloctot, "select count(*) from location"),
                     (
-                        self.splash_nlocuse,
+                        self.home_nlocuse,
                         "select count(distinct location.id) "
                         "from location "
                         "join plant on plant.location_id=location.id "
                         "where plant.quantity>0",
                     ),
                     (
-                        self.splash_nlocnot,
+                        self.home_nlocnot,
                         "select count(id) "
                         "from location "
                         "where id not in "
@@ -510,28 +510,28 @@ class SplashInfoBox(View, Gtk.Box):
                         " where plant.quantity>0)",
                     ),
                     (
-                        self.splash_nspcuse,
+                        self.home_nspcuse,
                         "select count(distinct species.id) "
                         "from species join accession "
                         "on accession.species_id=species.id",
                     ),
                     (
-                        self.splash_ngenuse,
+                        self.home_ngenuse,
                         "select count(distinct species.genus_id) "
                         "from species join accession "
                         "on accession.species_id=species.id",
                     ),
                     (
-                        self.splash_nfamuse,
+                        self.home_nfamuse,
                         "select count(distinct genus.family_id) from genus "
                         "join species on species.genus_id=genus.id "
                         "join accession on accession.species_id=species.id ",
                     ),
-                    (self.splash_nspctot, "select count(*) from species"),
-                    (self.splash_ngentot, "select count(*) from genus"),
-                    (self.splash_nfamtot, "select count(*) from family"),
+                    (self.home_nspctot, "select count(*) from species"),
+                    (self.home_ngentot, "select count(*) from genus"),
+                    (self.home_nfamtot, "select count(*) from family"),
                     (
-                        self.splash_nspcnot,
+                        self.home_nspcnot,
                         "select count(id) from species "
                         "where id not in "
                         "(select distinct species.id "
@@ -539,7 +539,7 @@ class SplashInfoBox(View, Gtk.Box):
                         " on accession.species_id=species.id)",
                     ),
                     (
-                        self.splash_ngennot,
+                        self.home_ngennot,
                         "select count(id) from genus "
                         "where id not in "
                         "(select distinct species.genus_id "
@@ -547,7 +547,7 @@ class SplashInfoBox(View, Gtk.Box):
                         " on accession.species_id=species.id)",
                     ),
                     (
-                        self.splash_nfamnot,
+                        self.home_nfamnot,
                         "select count(id) from family "
                         "where id not in "
                         "(select distinct genus.family_id from genus "
@@ -565,7 +565,7 @@ class SplashInfoBox(View, Gtk.Box):
             bauble.gui.widgets.go_button.emit("clicked")
 
     @staticmethod
-    def on_splash_stqr_button_clicked(_widget):
+    def on_home_stqr_button_clicked(_widget):
         from .stored_queries import edit_callback
 
         edit_callback()
@@ -790,8 +790,8 @@ class PlantsPlugin(pluginmgr.Plugin):
         )
 
         # now it's the turn of the DefaultView
-        logger.debug("PlantsPlugin::init, registering splash info box")
-        DefaultView.infoboxclass = SplashInfoBox
+        logger.debug("PlantsPlugin::init, registering home info box")
+        DefaultView.infoboxclass = HomeInfoBox
 
         if bauble.gui is not None:
             bauble.gui.add_to_insert_menu(FamilyEditor, _("Family"))

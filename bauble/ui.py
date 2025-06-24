@@ -57,8 +57,8 @@ from bauble.i18n import _
 from bauble.prefs import datetime_format_pref
 from bauble.search.query_builder import QueryBuilder
 from bauble.utils import desktop
+from bauble.view import HomeCommandHandler
 from bauble.view import SearchView
-from bauble.view import SplashCommandHandler
 
 from .connmgr import start_connection_manager
 
@@ -607,7 +607,7 @@ class GUI:
         if main_entry is not None:
             main_entry.set_text("")
 
-        self.set_view(SplashCommandHandler.get_view())
+        self.set_view(HomeCommandHandler.get_view())
 
     def set_view(
         self, view: pluginmgr.Viewable | Literal["previous", "next"]

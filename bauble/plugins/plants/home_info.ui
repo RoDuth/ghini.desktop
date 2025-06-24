@@ -2,7 +2,7 @@
 <!-- Generated with glade 3.38.2 -->
 <interface>
   <requires lib="gtk+" version="3.24"/>
-  <template class="SplashInfoBox" parent="GtkBox">
+  <template class="HomeInfoBox" parent="GtkBox">
     <property name="visible">True</property>
     <property name="can-focus">True</property>
     <property name="orientation">vertical</property>
@@ -156,7 +156,7 @@
                 <property name="can-focus">False</property>
                 <property name="border-width">2</property>
                 <child>
-                  <object class="GtkLabel" id="splash_nfamtot">
+                  <object class="GtkLabel" id="home_nfamtot">
                     <property name="visible">True</property>
                     <property name="can-focus">False</property>
                     <property name="margin-top">8</property>
@@ -187,7 +187,7 @@
                 <property name="can-focus">False</property>
                 <property name="border-width">2</property>
                 <child>
-                  <object class="GtkLabel" id="splash_nplttot">
+                  <object class="GtkLabel" id="home_nplttot">
                     <property name="visible">True</property>
                     <property name="can-focus">False</property>
                     <property name="margin-top">8</property>
@@ -217,7 +217,7 @@
                 <property name="can-focus">False</property>
                 <property name="border-width">2</property>
                 <child>
-                  <object class="GtkLabel" id="splash_nacctot">
+                  <object class="GtkLabel" id="home_nacctot">
                     <property name="visible">True</property>
                     <property name="can-focus">False</property>
                     <property name="margin-top">8</property>
@@ -247,7 +247,7 @@
                 <property name="can-focus">False</property>
                 <property name="border-width">2</property>
                 <child>
-                  <object class="GtkLabel" id="splash_ngentot">
+                  <object class="GtkLabel" id="home_ngentot">
                     <property name="visible">True</property>
                     <property name="can-focus">False</property>
                     <property name="margin-top">8</property>
@@ -277,7 +277,7 @@
                 <property name="can-focus">False</property>
                 <property name="border-width">2</property>
                 <child>
-                  <object class="GtkLabel" id="splash_nspctot">
+                  <object class="GtkLabel" id="home_nspctot">
                     <property name="visible">True</property>
                     <property name="can-focus">False</property>
                     <property name="margin-top">8</property>
@@ -307,7 +307,7 @@
                 <property name="can-focus">False</property>
                 <property name="border-width">2</property>
                 <child>
-                  <object class="GtkLabel" id="splash_nloctot">
+                  <object class="GtkLabel" id="home_nloctot">
                     <property name="visible">True</property>
                     <property name="can-focus">False</property>
                     <property name="margin-top">8</property>
@@ -353,7 +353,7 @@
                 <property name="can-focus">False</property>
                 <property name="border-width">2</property>
                 <child>
-                  <object class="GtkLabel" id="splash_nfamuse">
+                  <object class="GtkLabel" id="home_nfamuse">
                     <property name="visible">True</property>
                     <property name="can-focus">False</property>
                     <property name="margin-top">8</property>
@@ -384,7 +384,7 @@
                 <property name="can-focus">False</property>
                 <property name="border-width">2</property>
                 <child>
-                  <object class="GtkLabel" id="splash_ngenuse">
+                  <object class="GtkLabel" id="home_ngenuse">
                     <property name="visible">True</property>
                     <property name="can-focus">False</property>
                     <property name="margin-top">8</property>
@@ -414,7 +414,7 @@
                 <property name="can-focus">False</property>
                 <property name="border-width">2</property>
                 <child>
-                  <object class="GtkLabel" id="splash_nspcuse">
+                  <object class="GtkLabel" id="home_nspcuse">
                     <property name="visible">True</property>
                     <property name="can-focus">False</property>
                     <property name="margin-top">8</property>
@@ -444,7 +444,7 @@
                 <property name="can-focus">False</property>
                 <property name="border-width">2</property>
                 <child>
-                  <object class="GtkLabel" id="splash_naccuse">
+                  <object class="GtkLabel" id="home_naccuse">
                     <property name="visible">True</property>
                     <property name="can-focus">False</property>
                     <property name="margin-top">8</property>
@@ -474,7 +474,7 @@
                 <property name="can-focus">False</property>
                 <property name="border-width">2</property>
                 <child>
-                  <object class="GtkLabel" id="splash_npltnot">
+                  <object class="GtkLabel" id="home_npltnot">
                     <property name="visible">True</property>
                     <property name="can-focus">False</property>
                     <property name="margin-top">8</property>
@@ -504,7 +504,7 @@
                 <property name="can-focus">False</property>
                 <property name="border-width">2</property>
                 <child>
-                  <object class="GtkLabel" id="splash_npltuse">
+                  <object class="GtkLabel" id="home_npltuse">
                     <property name="visible">True</property>
                     <property name="can-focus">False</property>
                     <property name="margin-top">8</property>
@@ -534,7 +534,7 @@
                 <property name="can-focus">False</property>
                 <property name="border-width">2</property>
                 <child>
-                  <object class="GtkLabel" id="splash_nlocuse">
+                  <object class="GtkLabel" id="home_nlocuse">
                     <property name="visible">True</property>
                     <property name="can-focus">False</property>
                     <property name="margin-top">8</property>
@@ -564,7 +564,7 @@
                 <property name="can-focus">False</property>
                 <property name="border-width">2</property>
                 <child>
-                  <object class="GtkLabel" id="splash_naccnot">
+                  <object class="GtkLabel" id="home_naccnot">
                     <property name="visible">True</property>
                     <property name="can-focus">False</property>
                     <property name="margin-top">8</property>
@@ -594,7 +594,7 @@
                 <property name="can-focus">False</property>
                 <property name="border-width">2</property>
                 <child>
-                  <object class="GtkLabel" id="splash_nspcnot">
+                  <object class="GtkLabel" id="home_nspcnot">
                     <property name="visible">True</property>
                     <property name="can-focus">False</property>
                     <property name="margin-top">8</property>
@@ -624,7 +624,7 @@
                 <property name="can-focus">False</property>
                 <property name="border-width">2</property>
                 <child>
-                  <object class="GtkLabel" id="splash_ngennot">
+                  <object class="GtkLabel" id="home_ngennot">
                     <property name="visible">True</property>
                     <property name="can-focus">False</property>
                     <property name="margin-top">8</property>
@@ -654,7 +654,7 @@
                 <property name="can-focus">False</property>
                 <property name="border-width">2</property>
                 <child>
-                  <object class="GtkLabel" id="splash_nfamnot">
+                  <object class="GtkLabel" id="home_nfamnot">
                     <property name="visible">True</property>
                     <property name="can-focus">False</property>
                     <property name="margin-top">8</property>
@@ -701,7 +701,7 @@
                 <property name="can-focus">False</property>
                 <property name="border-width">2</property>
                 <child>
-                  <object class="GtkLabel" id="splash_nlocnot">
+                  <object class="GtkLabel" id="home_nlocnot">
                     <property name="visible">True</property>
                     <property name="can-focus">False</property>
                     <property name="margin-top">8</property>
@@ -898,13 +898,13 @@
           </packing>
         </child>
         <child>
-          <object class="GtkButton" id="splash_stqr_button">
+          <object class="GtkButton" id="home_stqr_button">
             <property name="visible">True</property>
             <property name="can-focus">False</property>
             <property name="focus-on-click">False</property>
             <property name="receives-default">True</property>
             <property name="tooltip-text" translatable="yes">edit stored queries</property>
-            <signal name="clicked" handler="on_splash_stqr_button_clicked" swapped="no"/>
+            <signal name="clicked" handler="on_home_stqr_button_clicked" swapped="no"/>
             <child>
               <object class="GtkImage">
                 <property name="visible">True</property>
