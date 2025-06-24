@@ -68,13 +68,15 @@ def run_in_prcess(target, *args):
 def quits_if_connmgr_cancels(que):
     setup_prefs()
     bauble.gui = ui.GUI()
+    mock_splash = mock.Mock()
     with mock.patch("bauble.main.start_connection_manager") as mock_cm:
         mock_cm.return_value = None, None
-        app = bauble.main.Application()
+        app = bauble.main.Application(mock_splash)
         err = app.run()
     mock_cm.assert_called()
     que.put(bauble.conn_name)
     que.put(err)
+    que.put(mock_splash.destroy.call_count)
 
 
 def connect_empty_db_dont_populate(que):
@@ -87,7 +89,7 @@ def connect_empty_db_dont_populate(que):
     ):
         mock_connmgr.return_value = "test", uri
         mock_yn_dialog.return_value = False
-        app = bauble.main.Application()
+        app = bauble.main.Application(Gtk.Window())
         GLib.idle_add(app.quit)
         err = app.run()
         que.put(mock_connmgr.called)
@@ -108,7 +110,7 @@ def post_loop_fails_quits(que):
     ):
         mock_connmgr.return_value = "test", uri
         mock_post_loop.return_value = False
-        app = bauble.main.Application()
+        app = bauble.main.Application(Gtk.Window())
         err = app.run()
         que.put(mock_connmgr.called)
         que.put(mock_dialog.called)
@@ -129,7 +131,7 @@ def connect_empty_populate(que):
     ):
         mock_connmgr.return_value = "test", uri
         mock_yn_dialog.return_value = True
-        app = bauble.main.Application()
+        app = bauble.main.Application(Gtk.Window())
         GLib.idle_add(app.quit)
         err = app.run()
         que.put(mock_connmgr.called)
@@ -148,7 +150,7 @@ class NewDBTests(TestCase):
 
     @mock.patch("bauble.main.Application")
     def test_main_runs_app(self, mock_app):
-        bauble.main.main()
+        bauble.main.main(Gtk.Window())
         mock_app().run.assert_called()
 
     def test_app_run_quits_if_connmgr_cancels(self):
@@ -156,6 +158,7 @@ class NewDBTests(TestCase):
 
         self.assertIsNone(que.get())
         self.assertEqual(0, que.get())
+        self.assertEqual(1, que.get())
 
     def test_app_connect_empty_db_dont_populate(self):
         que = run_in_prcess(connect_empty_db_dont_populate)
@@ -196,7 +199,7 @@ def connect_existing(que, db_uri):
         mock.patch("bauble.plugins.garden.start_institution_editor"),
     ):
         mock_connmgr.return_value = "test", db_uri
-        app = bauble.main.Application()
+        app = bauble.main.Application(Gtk.Window())
         GLib.idle_add(app.quit)
         err = app.run()
         que.put(mock_connmgr.called)

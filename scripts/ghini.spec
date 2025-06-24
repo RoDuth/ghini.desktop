@@ -97,14 +97,7 @@ a = Analysis(['ghini'],
              noarchive=True)
 pyz = PYZ(a.pure, a.zipped_data,
           cipher=block_cipher)
-splash = Splash('../bauble/images/boot_splash.png',
-                binaries=a.binaries,
-                datas=a.datas,
-                text_color='white',
-                text_default='Initialising...',
-                text_pos=(150, 234))
 exe = EXE(pyz,
-          splash,
           a.scripts,
           exclude_binaries=True,
           name='ghini',
@@ -117,7 +110,6 @@ exe = EXE(pyz,
           # https://github.com/pyinstaller/pyinstaller/issues/6759
           icon=str(bauble_root / 'images/icon.ico'))
 coll = COLLECT(exe,
-               splash.binaries,
                a.binaries,
                a.zipfiles,
                a.datas,

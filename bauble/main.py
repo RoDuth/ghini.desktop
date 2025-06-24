@@ -44,12 +44,13 @@ logger = logging.getLogger(__name__)
 
 
 class Application(Gtk.Application):
-    def __init__(self) -> None:
+    def __init__(self, splash: Gtk.Window) -> None:
         super().__init__(
             application_id="org.gnome.GhiniDesktop",
             flags=Gio.ApplicationFlags.FLAGS_NONE,
         )
         self.connect("activate", self.on_activate)
+        self.splash = splash
 
     def do_startup(self, *args, **kwargs) -> None:
         # first
@@ -67,6 +68,7 @@ class Application(Gtk.Application):
         # log TEMPDIR
         logger.debug("tempdir: %s", paths.TEMPDIR)
 
+        self.splash.destroy()
         open_exc = self._get_connection()
 
         # bail early if no connection
@@ -264,6 +266,6 @@ class Application(Gtk.Application):
         Gtk.Application.do_shutdown(self, *args, **kwargs)
 
 
-def main() -> int:
-    app = Application()
+def main(splash: Gtk.Window) -> int:
+    app = Application(splash)
     return app.run(sys.argv)
