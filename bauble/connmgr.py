@@ -698,7 +698,11 @@ class ConnectionManagerDialog(Gtk.Dialog):
     first_run = True
 
     def __init__(self) -> None:
-        super().__init__(title=f"Ghini {bauble.version}")
+        super().__init__(
+            title=f"Ghini {bauble.version}",
+            transient_for=bauble.gui.window if bauble.gui else None,
+            destroy_with_parent=True,
+        )
         self.model: ConnectionModel
 
         self.setup_name_combo()
