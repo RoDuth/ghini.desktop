@@ -241,7 +241,7 @@ species_test_data = (
         "sp": "variabilis",
         "genus_id": 1,
         "sp_author": "Bateman ex Lindl.",
-        "full_sci_name": "Maxillaria variabilis Bateman ex Lindl.",
+        "full_sci_name": "Maxillaria s. str variabilis Bateman ex Lindl.",
         "_last_updated": datetime.now() + timedelta(days=1),
     },
     {
@@ -7718,6 +7718,7 @@ class GlobalFunctionsTest(PlantTestCase):
         self.assertEqual(partial(db.natsort, "species.accessions")(vName), [])
 
     def test_species_to_string_matcher(self):
+        list(update_all_full_names_task())
         family = Family(family="Myrtaceae")
         gen1 = Genus(family=family, genus="Syzygium")
         gen2 = Genus(family=family, genus="Melaleuca")
@@ -7786,6 +7787,11 @@ class GlobalFunctionsTest(PlantTestCase):
         self.assertTrue(species_to_string_matcher(sp9, "Maxillaria ×"))
         self.assertTrue(species_to_string_matcher(sp9, "Maxil × gen"))
         self.assertFalse(species_to_string_matcher(sp9, "Maxil × sen"))
+        key = "Maxillaria s. str var"
+        sp = self.session.query(Species).get(1)
+        self.assertTrue(species_to_string_matcher(sp, key))
+        key = "Maxi var"
+        self.assertTrue(species_to_string_matcher(sp, key))
 
     def test_species_cell_data_func(self):
         family = Family(family="Myrtaceae")
@@ -8084,6 +8090,12 @@ class SpeciesCompletionMatchTests(PlantTestCase):
 
         key = "+ Crataegomespilus dardarii"
         self.assertCountEqual(completion(key).all(), [self.sp5])
+
+        key = "Maxillaria s. str variabilis"
+        self.assertCountEqual([i.id for i in completion(key)], [1])
+
+        key = "Maxillaria variabilis"
+        self.assertCountEqual([i.id for i in completion(key)], [1])
 
 
 class RetrieveTests(PlantTestCase):

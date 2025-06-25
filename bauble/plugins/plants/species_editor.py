@@ -98,7 +98,6 @@ def generic_sp_get_completions(session: Session, text: str) -> Query:
     if hybrid:
         query = query.filter(Genus.hybrid == hybrid)
     if epithet:
-        # there is a small risk of full_name not existing or being outdated
         query = query.filter(
             utils.ilike(Species.full_name, f"%{genus}%{epithet}%")
         )
@@ -120,13 +119,19 @@ def species_to_string_matcher(
 
     :return: bool, True if the Species matches the key
     """
-    key = key.lower().removeprefix("×").removeprefix("+").strip()
-    key_gen, key_sp = (key + " ").split(" ", 1)
-    key_sp = key_sp.removeprefix("×").removeprefix("+").strip()
     if sp_path:
         from operator import attrgetter
 
         species = attrgetter(sp_path)(species)
+
+    if species.full_name and species.full_name.lower().startswith(key.lower()):
+        return True
+
+    key = key.lower().removeprefix("×").removeprefix("+").strip()
+    key = key.replace(" s. str ", " ", 1).replace(" s. lat. ", " ", 1)
+    key_gen, key_sp = (key + " ").split(" ", 1)
+    key_sp = key_sp.removeprefix("×").removeprefix("+").strip()
+
     comp_gen = str(species.genus.epithet).lower()
     comp_sp = species.string(genus=False).lower().strip(" ×+")
     comp_cv = "'" + (species.cultivar_epithet or "").lower()
