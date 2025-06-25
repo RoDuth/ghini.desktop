@@ -2999,6 +2999,9 @@ class PrefsView(View, Gtk.Box):
 
         config = self.get_user_filtered(config)
 
+        if not config.sections():
+            return
+
         chooser = Gtk.FileChooserNative.new(
             _("Save to file"),
             None,

@@ -3048,10 +3048,20 @@ class PrefsViewTests(BaubleTestCase):
 
             prefs_view.on_create_share_clicked(None, None)
 
+            mock_filechooser().run.assert_called_once()
             self.assertEqual(path.stat().st_size, 0)
 
             mock_filechooser().run.return_value = Gtk.ResponseType.ACCEPT
 
+            mock_filechooser.reset_mock()
+            # user cancelled PrefsResetDialog
+            mock_filter.return_value = ConfigParser(interpolation=None)
+            prefs_view.on_create_share_clicked(None, None)
+
+            mock_filechooser().run.assert_not_called()
+            self.assertEqual(path.stat().st_size, 0)
+
+            mock_filter.return_value = config
             prefs_view.on_create_share_clicked(None, None)
 
             self.assertGreater(path.stat().st_size, 10)
