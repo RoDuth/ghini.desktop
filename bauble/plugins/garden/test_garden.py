@@ -4957,6 +4957,17 @@ class CollectionTests(GardenTestCase):
         self.assertAlmostEqual(
             float(presenter.model.longitude), 152.973389, places=3
         )
+        value = "-27 28’ 55”, 152 58’ 24.2”"
+        view.widgets.lon_entry.set_text(value)
+        update_gui()
+        self.assertEqual(view.widgets.lat_entry.get_text(), "-27 28’ 55”")
+        self.assertEqual(view.widgets.lon_entry.get_text(), "152 58’ 24.2”")
+        self.assertAlmostEqual(
+            float(presenter.model.latitude), -27.481944, places=3
+        )
+        self.assertAlmostEqual(
+            float(presenter.model.longitude), 152.973389, places=3
+        )
         # dec
         value = "27.481950, -152.973379"
         view.widgets.lat_entry.set_text(value)
