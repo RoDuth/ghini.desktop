@@ -458,7 +458,7 @@ class GenericImporter(ABC):  # pylint: disable=too-many-instance-attributes
             if model.__tablename__ == "plant_change":
                 value = self.handle_plant_changes(key, value, item)
 
-            if value:
+            if value and any(value.values()):
                 db_item = None
                 # try get_create_or_update
                 db_item = self.memoized_get_create_or_update(
@@ -466,7 +466,7 @@ class GenericImporter(ABC):  # pylint: disable=too-many-instance-attributes
                 )
                 logger.debug("item is now: %s", db_item)
                 # try existing
-                if db_item is None:
+                if db_item is None:  # not sure still required?
                     try:
                         logger.debug("try get existing with attrgetter")
                         db_item = attrgetter(key)(item)  # existing entries
@@ -485,6 +485,10 @@ class GenericImporter(ABC):  # pylint: disable=too-many-instance-attributes
                         "'id' fields."
                     )
                 value = db_item
+            else:
+                logger.debug("setting value = None")
+                value = None
+
             root, atr = key.rsplit(".", 1) if "." in key else (None, key)
             logger.debug(
                 "root = %s, atr = %s, remainder = %s", root, atr, remainder
@@ -516,7 +520,12 @@ class GenericImporter(ABC):  # pylint: disable=too-many-instance-attributes
 
             if root in remainder:
                 remainder[root][atr] = value
-            elif root and "." in root and root.rsplit(".", 1)[0] in remainder:
+            elif (
+                value
+                and root
+                and "." in root
+                and root.rsplit(".", 1)[0] in remainder
+            ):
                 # linking 1-1 table steps away from item
                 link, atr2 = root.rsplit(".", 1)
                 try:
@@ -527,7 +536,7 @@ class GenericImporter(ABC):  # pylint: disable=too-many-instance-attributes
                 setattr(link_item, atr, value)
                 logger.debug("adding: %s to %s", atr2, link)
                 remainder[link][atr2] = link_item
-            elif root and "." not in root and root not in remainder:
+            elif value and root and "." not in root and root not in remainder:
                 # linking 1-1 table of item
                 link_item = getattr(item, root)  # existing entries
                 if not link_item:

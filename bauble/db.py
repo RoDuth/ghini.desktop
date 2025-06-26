@@ -1095,6 +1095,9 @@ def get_create_or_update(session, model, create_one_to_one=False, **kwargs):
         likely but not likely to be an issue
     :param kwargs: database values
     """
+    for key in kwargs:
+        if key not in model.__mapper__.all_orm_descriptors:
+            raise ValueError("Model %s has no column %s" % (model, key))
     # first try to get an exact match and return it immediately if found
     try:
         inst = session.query(model).filter_by(**kwargs).one()

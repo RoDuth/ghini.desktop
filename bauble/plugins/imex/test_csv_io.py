@@ -42,9 +42,9 @@ from bauble.plugins.garden import Accession
 from bauble.plugins.garden import Collection
 from bauble.plugins.garden import Location
 from bauble.plugins.garden import Plant
-from bauble.plugins.garden.plant import PlantNote
 from bauble.plugins.garden import Source
 from bauble.plugins.garden import SourceDetail
+from bauble.plugins.garden.plant import PlantNote
 from bauble.plugins.plants import Genus
 from bauble.plugins.plants import Species
 from bauble.test import BaubleTestCase
@@ -900,13 +900,7 @@ class CSVImporterEmptyDBTests(BaubleTestCase):
             logger.debug("assert equal %s = %s", acc[0][k], v)
             self.assertEqual(str(attrgetter(acc[0][k])(added_acc)), v)
 
-    @mock.patch("bauble.utils.desktop.open")
-    @mock.patch(
-        "bauble.utils.Gtk.MessageDialog.run", return_value=Gtk.ResponseType.YES
-    )
-    def test_update_accession_with_unresolved_collection_data(
-        self, mock_dialog, mock_open
-    ):
+    def test_update_accession_with_no_collection_data_ignores(self):
         # first add working data (if this fails so should previous test)
         acc = [
             {
@@ -950,8 +944,7 @@ class CSVImporterEmptyDBTests(BaubleTestCase):
         importer.option = "1"
         importer.run()
 
-        # add update the same data but with an unresolvable collection entry
-        # should fail at add_db_data stage
+        # add update the same data but with an empty collection entry
         acc = [
             {
                 "acc_code": "code",
@@ -997,11 +990,71 @@ class CSVImporterEmptyDBTests(BaubleTestCase):
 
         self.assertEqual(end_acc, start_acc + 1)
         self.assertEqual(end_source, start_source + 1)
-        # do want an extra source_detail added
-        self.assertEqual(end_source_detail, start_source_detail + 1)
+        # do want both extra source_details added
+        self.assertEqual(end_source_detail, start_source_detail + 2)
         # no collection should have been added
         self.assertEqual(end_collection, start_collection)
 
+    @mock.patch("bauble.utils.desktop.open")
+    @mock.patch(
+        "bauble.utils.Gtk.MessageDialog.run", return_value=Gtk.ResponseType.YES
+    )
+    def test_update_accession_with_unresolved_collection_data(
+        self, mock_dialog, mock_open
+    ):
+        start_acc = self.session.query(Accession).count()
+        start_source = self.session.query(Source).count()
+        start_source_detail = self.session.query(SourceDetail).count()
+        start_collection = self.session.query(Collection).count()
+        acc = [
+            {
+                "acc_code": "code",
+                "fam": "species.genus.family.epithet",
+                "gen": "species.genus.epithet",
+                "sp": "species.epithet",
+                "date_accd": "date_accd",
+                "recvd": "date_recvd",
+                "prov_type": "prov_type",
+                "prov_status": "wild_prov_status",
+                "qty": "quantity_recvd",
+                "recvd_type": "recvd_type",
+                "source_name": "source.source_detail.name",
+                "source_type": "source.source_detail.source_type",
+                "collector": "source.collection.boom",  # bad key
+            },
+            {
+                "acc_code": "2024.0002",
+                "fam": "Myrtaceae",
+                "gen": "Syzygium",
+                "sp": "australe",
+                "date_accd": "2024-01-31",
+                "recvd": "2021-01-24",
+                "prov_type": "Wild",
+                "prov_status": "WildNative",
+                "qty": "9",
+                "recvd_type": "PLTS",
+                "source_name": "Peter Plant",
+                "source_type": "Individual",
+                "collector": "Peter Plant",
+            },
+        ]
+        importer = self.importer
+        importer.filename = create_csv(acc, self.temp_dir.name)
+        importer.search_by = ["acc_code"]
+        importer.fields = acc[0]
+        importer.domain = Accession
+        importer.option = "2"  # add/update
+        importer.run()
+
+        end_acc = self.session.query(Accession).count()
+        end_source = self.session.query(Source).count()
+        end_source_detail = self.session.query(SourceDetail).count()
+        end_collection = self.session.query(Collection).count()
+
+        self.assertEqual(end_acc, start_acc)
+        self.assertEqual(end_source, start_source)
+        self.assertEqual(end_source_detail, start_source_detail)
+        self.assertEqual(end_collection, start_collection)
         mock_dialog.assert_called()
         mock_open.assert_called()
         with open(mock_open.call_args.args[0], "r", encoding="utf-8-sig") as f:
@@ -1009,7 +1062,7 @@ class CSVImporterEmptyDBTests(BaubleTestCase):
 
             reader = csv.DictReader(f)
             for record in reader:
-                self.assertEqual(int(record["__line_#"]), 1)
+                self.assertEqual(int(record["__line_#"]), 0)
 
     def test_add_synonym_species_w_accepted(self):
         # i.e. we want to import a species and all its synonyms

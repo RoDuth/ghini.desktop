@@ -1126,7 +1126,8 @@ class GenericImporterTests(BaubleTestCase):
         self.assertTrue(item in self.session)
         mock_dialog.assert_called()
 
-    def test_add_rec_to_db_raised_if_rec_cant_be_found_or_created(self):
+    def test_add_rec_to_db_raises_if_rec_cant_be_found_or_created(self):
+        # I'm not sure this test is still relevant?
         data1 = {
             "accession.species._default_vernacular_name.vernacular_name": {
                 "name": "Air Plant"
@@ -1143,7 +1144,7 @@ class GenericImporterTests(BaubleTestCase):
                 "sp": "ionantha",
                 "sp_author": "Planchon",
             },
-            "location": {"code": ""},  # should fail
+            "location": {"name": "loc1"},
             "accession": {"code": "XXXX000001"},
             "code": "1",
             "quantity": 1,
@@ -1152,18 +1153,57 @@ class GenericImporterTests(BaubleTestCase):
         start_plants = self.session.query(Plant).count()
         obj = Plant()
         self.session.add(obj)
-        self.assertRaises(
-            bauble.error.DatabaseError,
-            BasicImporter().add_rec_to_db,
-            self.session,
-            obj,
-            data1,
-        )
+
+        with mock.patch("bauble.plugins.imex.attrgetter") as mock_attrgetter:
+            with mock.patch.object(
+                BasicImporter, "memoized_get_create_or_update"
+            ) as mock_get:
+                mock_get.return_value = None
+                # first look for an existing should fail
+                mock_attrgetter().return_value = None
+                self.assertRaises(
+                    bauble.error.DatabaseError,
+                    BasicImporter().add_rec_to_db,
+                    self.session,
+                    obj,
+                    data1,
+                )
         # Committing will reveal issues that only show up at commit
         self.assertRaises(Exception, self.session.commit)
         self.session.rollback()
         end_plants = self.session.query(Plant).count()
         self.assertEqual(start_plants, end_plants)
+
+    def test_add_rec_to_db_one_to_one_no_value_doesnt_add(self):
+        data1 = {
+            "accession.species._default_vernacular_name.vernacular_name": {
+                "name": "Air Plant"
+            },
+            "accession.species.genus.family": {"family": "Bromeliaceae"},
+            "accession.species.genus": {"genus": "Tillandsia", "author": "L."},
+            "accession.source.source_detail": {"name": ""},
+            "accession.species": {
+                "infrasp1_rank": "f.",
+                "infrasp1": "fastigiate",
+                "infrasp1_author": "Koide",
+                "sp": "ionantha",
+                "sp_author": "Planchon",
+            },
+            "location": {"code": "loc1"},
+            "accession": {"code": "XXXX000001"},
+            "code": "1",
+            "quantity": 1,
+        }
+
+        start_plants = self.session.query(Plant).count()
+        obj = Plant()
+        self.session.add(obj)
+        BasicImporter().add_rec_to_db(self.session, obj, data1)
+        # Committing will reveal issues that only show up at commit
+        self.session.commit()
+        end_plants = self.session.query(Plant).count()
+        self.assertEqual(start_plants + 1, end_plants)
+        self.assertIsNone(obj.accession.source)
 
 
 class GenericExporterTests(BaubleTestCase):
