@@ -20,7 +20,6 @@ Export data to shapefiles (zip file with all component files).
 
 import logging
 from pathlib import Path
-from random import random
 from tempfile import TemporaryDirectory
 from zipfile import ZipFile
 
@@ -73,11 +72,11 @@ TYPE_MAP = {
     "int": "N",
     "float": "F",
     "bool": "L",
-    "DateTime": "D",
     "Date": "D",
 }
 
 MAX_LENGTH = 255
+DATETIME_LENGTH = 50
 MAX_PRECIS = 20
 
 
@@ -110,13 +109,19 @@ def get_field_properties(model, path):
         field_type = path_type.python_type.__name__
     except NotImplementedError:
         field_type = path_type.__class__.__name__
-    field_type = TYPE_MAP.get(field_type)
-    if field_type == "F":
+
+    shp_field_type = TYPE_MAP.get(field_type, "C")
+    if shp_field_type == "F":
         if hasattr(path_type, "precision"):
             size = path_type.precision or 10
+
     if hasattr(path_type, "length"):
         size = path_type.length or MAX_LENGTH
-    return field_type, size
+
+    if field_type == "DateTime":
+        size = DATETIME_LENGTH
+
+    return shp_field_type, size
 
 
 class ShapefileExportSettingsBox(Gtk.ScrolledWindow):
@@ -956,7 +961,11 @@ class ShapefileExporter(GenericExporter):
         shape = self.SHAPE_MAP.get(shape_type)
         record = {}
 
-        record = self.get_item_record(item, {k: v for k, __, __, v in fields})
+        record = self.get_item_record(
+            item,
+            {k: v for k, __, __, v in fields},
+            date_types=[i[0] for i in fields if i[1] == "D"],
+        )
 
         shapefiles.get(shape).record(**record)
         shapefiles.get(shape).shape(item.geojson)

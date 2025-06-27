@@ -951,7 +951,7 @@ def get_related_class(model, path):
     """Follow the path from the model class provided to get the related table's
     class.
 
-    :param model: sqlalchemy table class
+    :param model: sqlalchemy ORM model class
     :param path: string dot seperated path to a related table
 
     :return: sqlalchemy table class

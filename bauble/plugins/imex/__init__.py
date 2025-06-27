@@ -610,7 +610,7 @@ class GenericExporter(ABC):
         """Export task, to be implemented in subclasses"""
 
     @staticmethod
-    def get_item_value(path, item):
+    def get_item_value(path, item, date_as_date=False):
         """Get the items value as a string.
 
         Intended mostly for use with `get_item_record`
@@ -626,21 +626,24 @@ class GenericExporter(ABC):
             try:
                 if "." in path:
                     table = db.get_related_class(
-                        item.__table__, path.rsplit(".", 1)[0]
+                        type(item), path.rsplit(".", 1)[0]
                     ).__table__
                 else:
                     table = item.__table__
                 column_type = getattr(table.c, path.split(".")[-1]).type
-            except AttributeError:
+            except AttributeError as e:
+                logger.debug("%s(%s)", type(e).__name__, e)
                 # path is to a table and not a column
                 column_type = None
+
             if value and isinstance(column_type, btypes.Date):
+                if date_as_date:
+                    return value
                 return value.strftime(date_fmat)
+
             if value and isinstance(column_type, btypes.DateTime):
                 return value.strftime(datetime_fmat)
-            # planted.date death.date etc.
-            if value and isinstance(value, datetime.datetime):
-                return value.strftime(datetime_fmat)
+
             return str(value if value is not None else "")
         except AttributeError:
             return ""
@@ -664,7 +667,7 @@ class GenericExporter(ABC):
         return attr_notes
 
     @classmethod
-    def get_item_record(cls, item, fields):
+    def get_item_record(cls, item, fields, date_types=None):
         """Given a database entry and a dict of names to the paths to
         attributes return a dict of names to their values.
 
@@ -674,6 +677,7 @@ class GenericExporter(ABC):
             Intended as a method to state which type is being exported.
         :return: dict of names to values
         """
+        date_types = date_types or []
         record = {}
         # handle generated attribute notes
         has_notes = hasattr(item, "notes") and isinstance(item.notes, list)
@@ -695,7 +699,11 @@ class GenericExporter(ABC):
             elif path == item.__table__.key:
                 record[name] = str(item)
             else:
-                record[name] = cls.get_item_value(path, item)
+                record[name] = cls.get_item_value(
+                    path,
+                    item,
+                    date_as_date=name in date_types,
+                )
         return record
 
 

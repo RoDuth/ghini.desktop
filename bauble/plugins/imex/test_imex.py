@@ -26,6 +26,7 @@ logger = logging.getLogger(__name__)
 import os
 import shutil
 import tempfile
+from datetime import date
 from datetime import datetime
 from pathlib import Path
 
@@ -1238,12 +1239,42 @@ class GenericExporterTests(BaubleTestCase):
             .replace(hour=0, minute=0, second=0, microsecond=0)
             .timestamp()
         )
+
+        # as sting
         val = GenericExporter.get_item_value("date_accd", item)
-        # accuracy is a day - i.e. very rarely this could spill over from one
-        # day to the next
-        val = self.date_parse(val).timestamp()
-        secs_in_day = 86400
-        self.assertAlmostEqual(val, now, delta=secs_in_day)
+        # i.e. very rarely this could spill over from one day to the next,
+        # just rerun if this fails
+
+        self.assertIsInstance(val, str)
+        self.assertEqual(
+            self.date_parse(val).timestamp(),
+            now,
+        )
+
+        # as datetime.date
+        val = GenericExporter.get_item_value(
+            "date_accd",
+            item,
+            date_as_date=True,
+        )
+        # create timestamp
+        val_timestamp = datetime.combine(val, datetime.min.time()).timestamp()
+
+        self.assertIsInstance(val, date)
+        self.assertEqual(val_timestamp, now)
+
+        # works for related
+        item = Plant(code="3", accession=item, location_id=1, quantity=10)
+        val = GenericExporter.get_item_value(
+            "accession.date_accd",
+            item,
+            date_as_date=True,
+        )
+        # create timestamp
+        val_timestamp = datetime.combine(val, datetime.min.time()).timestamp()
+
+        self.assertIsInstance(val, date)
+        self.assertEqual(val_timestamp, now)
 
     def test_get_item_value_gets_datetime_type(self):
         item = Plant(code="3", accession_id=1, location_id=1, quantity=10)

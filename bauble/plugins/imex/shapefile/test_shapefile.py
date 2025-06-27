@@ -23,6 +23,8 @@ from copy import deepcopy
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
 
+from datetime import date
+from datetime import datetime
 from functools import partial
 from pathlib import Path
 from tempfile import TemporaryDirectory
@@ -238,8 +240,21 @@ species_data = [
 vernacular_data = [{"id": 1, "name": "Mountain Grey Gum", "species_id": 2}]
 default_vernacular_data = [{"id": 1, "vernacular_name_id": 1, "species_id": 2}]
 accession_data = [
-    {"id": 1, "code": "2021001", "species_id": 1},
-    {"id": 2, "code": "2021002", "species_id": 2, "private": True},
+    {
+        "id": 1,
+        "code": "2021001",
+        "species_id": 1,
+        "date_recvd": date(2021, 1, 1),
+        "date_accd": date(2021, 1, 1),
+    },
+    {
+        "id": 2,
+        "code": "2021002",
+        "species_id": 2,
+        "private": True,
+        "date_recvd": date(2021, 1, 1),
+        "date_accd": date(2021, 1, 1),
+    },
 ]
 location_data = [
     {"id": 1, "code": "QCC01", "name": "SE Qld Rainforest"},
@@ -1599,6 +1614,8 @@ class ShapefileExportTests(ShapefileTestCase):
     def test_exports_all_plants_with_advanced_settings(self):
         fields = {
             "plant": "plant",
+            "received": "accession.date_recvd",
+            "dateaccd": "accession.date_accd",
             "quantity": "quantity",
             "bed": "location",
             "family": "accession.species.genus.family",
@@ -1661,6 +1678,10 @@ class ShapefileExportTests(ShapefileTestCase):
             self.assertEqual(shpf.record(0)["source"], "")
             self.assertEqual(shpf.record(0)["plc_holder"], "")
             self.assertIsNone(shpf.record(0)["coll_accy"], "")
+            self.assertIsInstance(shpf.record(0)["received"], date)
+            self.assertEqual(shpf.record(0)["received"], date(2021, 1, 1))
+            self.assertIsInstance(shpf.record(0)["dateaccd"], date)
+            self.assertEqual(shpf.record(0)["dateaccd"], date(2021, 1, 1))
             self.assertEqual(
                 [i for i in shpf.fields if i[0] == "coll_accy"][0][3], 10
             )
@@ -1672,6 +1693,18 @@ class ShapefileExportTests(ShapefileTestCase):
                 ),
                 epsg4326_point_xy,
             )
+
+        # switch to use string date, one field
+        fields[1][1] = "C"
+        fields[1][2] = 50
+        exporter.run()
+        with ZippedShapefile(zip_file, "r") as shpf:
+            # field_names = [i[0] for i in shpf.fields]
+            self.assertEqual(len(shpf.shapes()), 1)
+            self.assertIsInstance(shpf.record(0)["received"], str)
+            self.assertEqual(shpf.record(0)["received"], "01-01-2021")
+            self.assertIsInstance(shpf.record(0)["dateaccd"], date)
+            self.assertEqual(shpf.record(0)["dateaccd"], date(2021, 1, 1))
 
     def test_exports_all_plants_not_private(self):
         exporter = self.exporter
@@ -2322,7 +2355,6 @@ class ImportSettingsBoxTests(ShapefileTestCase):
         )
         settings_box = ImpSetBox(shape_reader)
         # prop_button = settings_box.grid.props.get('location.code')
-        from datetime import datetime
 
         mock_event = mock.Mock(button=1, time=datetime.now().timestamp())
         prop_button, schema_menu = settings_box._get_prop_button(
@@ -2369,8 +2401,6 @@ class ImportSettingsBoxTests(ShapefileTestCase):
             )
         )
         settings_box = ImpSetBox(shape_reader)
-
-        from datetime import datetime
 
         mock_event = mock.Mock(button=1, time=datetime.now().timestamp())
         prop_button, schema_menu = settings_box._get_prop_button(
@@ -4372,6 +4402,43 @@ class ShapefileImportTests(ShapefileTestCase):
         )
         self.assertIsNotNone(plt3.geojson)
 
+    def test_import_task_multiple_date_types_succeeds(self):
+        # single shapefile but with doubleups
+        importer = self.importer
+        importer.option = "4"
+        start = self.session.query(Plant).all()
+        new_shp_fields = plant_fields.copy()
+        new_shp_fields.append(("accd", "C", 50))
+        new_shp_fields.append(("recvd", "D", None))
+        new_plt_points = deepcopy(plt_rec_4326_points)
+
+        for i in new_plt_points:
+            i["record"]["accd"] = "20220202"
+            i["record"]["recvd"] = date(2022, 1, 2)
+
+        filename = create_shapefile(
+            "test",
+            prj_str_4326,
+            new_shp_fields,
+            new_plt_points,
+            self.temp_dir.name,
+        )
+        reader = ShapefileReader(filename)
+        field_map = reader.field_map.copy()
+        field_map["accd"] = "accession.date_accd"
+        field_map["recvd"] = "accession.date_recvd"
+        reader.field_map = field_map
+        importer.shape_readers = [reader]
+        importer.projection = "epsg:4326"
+        importer.run()
+        self.session.commit()
+        end = self.session.query(Plant)
+
+        self.assertEqual(len(end.all()), len(start))
+        for i in end:
+            self.assertEqual(i.accession.date_accd, date(2022, 2, 2))
+            self.assertEqual(i.accession.date_recvd, date(2022, 1, 2))
+
 
 class ShapefileReaderTests(ShapefileTestCase):
     def test_search_by_loc_defaults(self):
@@ -4974,7 +5041,7 @@ class GlobalFunctionsTests(ShapefileTestCase):
         result = ("N", None)
         self.assertEqual(get_field_properties(Plant, path), result)
         path = "_created"
-        result = ("D", None)
+        result = ("C", 50)
         self.assertEqual(get_field_properties(Plant, path), result)
         path = "accession.date_accd"
         result = ("D", None)
