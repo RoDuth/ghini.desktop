@@ -51,8 +51,8 @@ In a virtualbox client vm http://10.0.2.2:8081/test.html should see the same.
 #            then save and close
 #   2) fire up this script from a terminal in the host machine and leave it
 #   running (adjust test.pac if required).  To be complete also
-#   pip install proxy.py in another terminal and run it using proxy --hostname
-#   0.0.0.0 --port 8080
+#   `pip install proxy.py` in another terminal and run it using:
+#       python -m proxy --hostname 0.0.0.0 --port 8080
 #   3) in the win10 VM open ghini.desktop then check the logs to see if it
 #   found the pacfile
 #   Back in the terminal running this script you should see some like:
