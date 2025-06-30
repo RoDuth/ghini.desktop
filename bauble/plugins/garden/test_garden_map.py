@@ -206,7 +206,7 @@ class TestGardenMap(BaubleTestCase):
 
     def test_map_point_add_to_map(self):
         map_ = GardenMap(Map())
-        glib_events[1] = True
+        glib_events[1] = GLib.idle_source_new()
         colour = colours.get("white")
         map_item = MapPoint(1, point, colour)
         map_item.add_to_map(map_.map_)
@@ -235,7 +235,7 @@ class TestGardenMap(BaubleTestCase):
 
     def test_map_line_add_to_map(self):
         map_ = GardenMap(Map())
-        glib_events[1] = True
+        glib_events[1] = GLib.idle_source_new()
         colour = colours.get("yellow")
         map_item = MapLine(1, line, colour)
         map_item.add_to_map(map_.map_)
@@ -263,7 +263,7 @@ class TestGardenMap(BaubleTestCase):
 
     def test_map_poly_add_to_map(self):
         map_ = GardenMap(Map())
-        glib_events[1] = True
+        glib_events[1] = GLib.idle_source_new()
         colour = colours.get("yellow")
         map_item = MapPoly(1, poly, colour)
         map_item.add_to_map(map_.map_)
@@ -272,7 +272,7 @@ class TestGardenMap(BaubleTestCase):
 
     def test_map_poly_add_to_map_w_label(self):
         map_ = GardenMap(Map())
-        glib_events[1] = True
+        glib_events[1] = GLib.idle_source_new()
         colour = colours.get("yellow")
         map_item = MapPoly(1, poly, colour)
         map_item.add_to_map(map_.map_, with_label=True)
@@ -1441,7 +1441,7 @@ class TestSearchViewMapPresenter(BaubleTestCase):
         presenter.is_visible = lambda: True
         map_item = map_item_factory(plt1, colours["red"])
         # for point the only way to create the item is to add it to the map
-        glib_events[1] = True
+        glib_events[1] = GLib.idle_source_new()
         map_item.add_to_map(map_.map_)
         presenter.plt_items[1] = map_item
         presenter._highlight_plant(1, True)
