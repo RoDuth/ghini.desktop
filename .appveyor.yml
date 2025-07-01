@@ -35,10 +35,9 @@ for:
     - brew tap microsoft/mssql-release https://github.com/Microsoft/homebrew-mssql-release
     - brew update
     - HOMEBREW_ACCEPT_EULA=Y brew install msodbcsql18 mssql-tools18
-    - ls -la $(find /usr/local/lib/gdk-pixbuf-2.0/ -type d -name loaders)
-    - mkdir /usr/local/Cellar/librsvg/2.60.0/lib/gdk-pixbuf-2.0/2.10.0/lib
-    - ln -s /usr/local/Cellar/librsvg/2.60.0/lib/librsvg-2.2.dylib /usr/local/Cellar/librsvg/2.60.0/lib/gdk-pixbuf-2.0/2.10.0/lib
-    - sudo gdk-pixbuf-query-loaders $(find /usr/local/lib/gdk-pixbuf-2.0/ -type d -name loaders)/* > $(find /usr/local/lib/gdk-pixbuf-2.0/ -type f -name loaders.cache)
+    - which gdk-pixbuf-query-loaders
+    - ls -la $(brew --prefix)/lib/gdk-pixbuf-2.0/2.10.0/loaders
+    - sudo GDK_PIXBUF_MODULEDIR="$(brew --prefix)/lib/gdk-pixbuf-2.0/2.10.0/loaders" "$(brew --prefix gdk-pixbuf)/bin/gdk-pixbuf-query-loaders" --update-cache
 
   build_script:
     - python3.13 -m venv ~/venv3.13
