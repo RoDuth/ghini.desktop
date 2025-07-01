@@ -31,12 +31,14 @@ for:
   install:
     - brew ls --full-name --formula | grep '^homebrew/homebrew-cask-versions/' | xargs brew uninstall
     - brew untap homebrew/homebrew-cask-versions
-    - brew update
-    - brew upgrade
     - brew install pygobject3 gtk+3 adwaita-icon-theme osm-gps-map unixodbc postgresql
     - brew tap microsoft/mssql-release https://github.com/Microsoft/homebrew-mssql-release
+    - brew update
     - HOMEBREW_ACCEPT_EULA=Y brew install msodbcsql18 mssql-tools18
-    - gdk-pixbuf-query-loaders
+    - ls -la $(find /usr/local/lib/gdk-pixbuf-2.0/ -type d -name loaders)
+    - mkdir /usr/local/Cellar/librsvg/2.60.0/lib/gdk-pixbuf-2.0/2.10.0/lib
+    - ln -s /usr/local/Cellar/librsvg/2.60.0/lib/librsvg-2.2.dylib /usr/local/Cellar/librsvg/2.60.0/lib/gdk-pixbuf-2.0/2.10.0/lib
+    - sudo gdk-pixbuf-query-loaders $(find /usr/local/lib/gdk-pixbuf-2.0/ -type d -name loaders)/* > $(find /usr/local/lib/gdk-pixbuf-2.0/ -type f -name loaders.cache)
 
   build_script:
     - python3.13 -m venv ~/venv3.13
