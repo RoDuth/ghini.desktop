@@ -36,6 +36,8 @@ for:
     - brew update
     - HOMEBREW_ACCEPT_EULA=Y brew install msodbcsql18 mssql-tools18
     - which gdk-pixbuf-query-loaders
+    - otool -L /usr/local/lib/gdk-pixbuf-2.0/2.10.0/loaders/libpixbufloader_svg.so
+    - otool -l /usr/local/lib/gdk-pixbuf-2.0/2.10.0/loaders/libpixbufloader_svg.so | grep -A 2 RPATH
     - ls -la $(brew --prefix)/lib/gdk-pixbuf-2.0/2.10.0/loaders
     - sudo GDK_PIXBUF_MODULEDIR="$(brew --prefix)/lib/gdk-pixbuf-2.0/2.10.0/loaders" "$(brew --prefix gdk-pixbuf)/bin/gdk-pixbuf-query-loaders" --update-cache
 
