@@ -35,10 +35,10 @@ for:
     - brew tap microsoft/mssql-release https://github.com/Microsoft/homebrew-mssql-release
     - brew update
     - HOMEBREW_ACCEPT_EULA=Y brew install msodbcsql18 mssql-tools18
+    # TEMP FIX broken rpath preventing librsvg from loading
     - which gdk-pixbuf-query-loaders
-    - otool -L /usr/local/lib/gdk-pixbuf-2.0/2.10.0/loaders/libpixbufloader_svg.so
-    - otool -l /usr/local/lib/gdk-pixbuf-2.0/2.10.0/loaders/libpixbufloader_svg.so | grep -A 2 RPATH
     - ls -la $(brew --prefix)/lib/gdk-pixbuf-2.0/2.10.0/loaders
+    - install_name_tool -rpath @loader_path/../lib @loader_path/../../../../lib $(brew --cellar librsvg)/2.60.0/lib/gdk-pixbuf-2.0/2.10.0/loaders/libpixbufloader_svg.dylib
     - sudo GDK_PIXBUF_MODULEDIR="$(brew --prefix)/lib/gdk-pixbuf-2.0/2.10.0/loaders" "$(brew --prefix gdk-pixbuf)/bin/gdk-pixbuf-query-loaders" --update-cache
 
   build_script:
