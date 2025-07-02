@@ -954,7 +954,7 @@ def get_related_class(model, path):
     :param model: sqlalchemy ORM model class
     :param path: string dot seperated path to a related table
 
-    :return: sqlalchemy table class
+    :return: sqlalchemy ORM model class
     """
     logger.debug("get_related_class model: %s, path: %s", model, path)
     if not path:
