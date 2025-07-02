@@ -50,11 +50,11 @@ for:
     - cp -rf "$(find /usr/local/Cellar/pygobject3 -type d -name site-packages | grep --color=never $_PY_VER)"/* "$(find $VIRTUAL_ENV -type d -name site-packages)"
     - ls -la "$(find $VIRTUAL_ENV -type d -name site-packages)"
     - ls -la /usr/local/lib/girepository-1.0 2>/dev/null || echo "/usr/local/lib/girepository-1.0 not found"
-    - pip install -r requirements.txt
-    - pip install -r ci-requirements.txt
-    # - pyinstaller --clean --noconfirm scripts/ghini.spec
-    # - pip install dmgbuild==1.6.1
-    # - dmgbuild -s scripts/dmgbuild_settings.py "Ghini" Ghini.dmg   # NOTE: last 2 args are required but overidden in dmgbuild_settings.py
+    - pip install '.[ci]'
+    - echo $PATH | tr ":" "\n"
+    - pyinstaller --clean --noconfirm scripts/ghini.spec
+    - pip install dmgbuild==1.6.1
+    - dmgbuild -s scripts/dmgbuild_settings.py "Ghini" Ghini.dmg   # NOTE: last 2 args are required but overidden in dmgbuild_settings.py
 
   artifacts:
     - path: dist/Ghini-*-installer.dmg
