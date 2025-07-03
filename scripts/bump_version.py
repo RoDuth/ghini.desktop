@@ -4,7 +4,7 @@
 #
 # Copyright 2004-2010 Brett Adams <brett@bauble.io>
 # Copyright 2015 Mario Frasca <mario@anche.no>.
-# Copyright 2017-2021 Ross Demuth <rossdemuth123@gmail.com>
+# Copyright 2017-2025 Ross Demuth <rossdemuth123@gmail.com>
 #
 # This file is part of ghini.desktop.
 #
@@ -134,7 +134,8 @@ def bump_desktop_file(filename):
 
 
 # bump and grind
-bump_py_file(os.path.join(root_of_clone(), "setup.py"))
+bump_py_file(os.path.join(root_of_clone(), "scripts/ghini.spec"))
+bump_py_file(os.path.join(root_of_clone(), "scripts/dmgbuild_settings.py"))
 bump_py_file(os.path.join(root_of_clone(), "bauble/version.py"))
 bump_py_file(os.path.join(root_of_clone(), "doc/conf.py"), "release")
 bump_desktop_file(os.path.join(root_of_clone(), "data/ghini.desktop"))
@@ -157,8 +158,9 @@ print(
         "data/ghini.desktop "
         "packages/builddeb.sh "
         "scripts/build.nsi "
+        "scripts/ghini.spec "
+        "scripts/dmgbuild_settings.py "
         ".appveyor.yml "
-        "setup.py"
     )
 )
 print("git checkout main")

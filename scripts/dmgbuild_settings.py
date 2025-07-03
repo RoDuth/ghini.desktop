@@ -2,7 +2,7 @@
 # pylint: disable=missing-module-docstring,redefined-builtin
 from pathlib import Path
 
-from bauble import version
+version = "1.3.13"  # :bump
 
 # Usage:
 # dmgbuild -s scripts/dmg_create.py "", X

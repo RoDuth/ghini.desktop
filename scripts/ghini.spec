@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pyproj
 
-import bauble
+version = "1.3.13"  # :bump
 
 # this returns CWD.  Call script from repo root.
 root = Path().absolute()
@@ -121,7 +121,7 @@ app = BUNDLE(coll,
              name='Ghini.app',
              icon='../bauble/images/icon.ico',
              bundle_identifier=None,
-             version=bauble.version,
+             version=version,
              info_plist={
                  'NSPrincipalClass': 'NSApplication',
                  'NSAppleScriptEnabled': False,
