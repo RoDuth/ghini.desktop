@@ -31,7 +31,7 @@ for:
   install:
     - brew ls --full-name --formula | grep '^homebrew/homebrew-cask-versions/' | xargs brew uninstall
     - brew untap homebrew/homebrew-cask-versions
-    - brew install pygobject3 gtk+3 adwaita-icon-theme osm-gps-map unixodbc postgresql
+    - brew install pygobject3 gtk+3 adwaita-icon-theme osm-gps-map unixodbc postgresql pillow
     - brew tap microsoft/mssql-release https://github.com/Microsoft/homebrew-mssql-release
     - brew update
     - HOMEBREW_ACCEPT_EULA=Y brew install msodbcsql18 mssql-tools18
@@ -42,16 +42,9 @@ for:
     - sudo GDK_PIXBUF_MODULEDIR="$(brew --prefix)/lib/gdk-pixbuf-2.0/2.10.0/loaders" "$(brew --prefix gdk-pixbuf)/bin/gdk-pixbuf-query-loaders" --update-cache
 
   build_script:
-    - python3.13 -m venv ~/venv3.13
+    - python3.13 -m venv --system-site-packages ~/venv3.13
     - . ~/venv3.13/bin/activate
-    - find /usr/local/Cellar/pygobject3 -type d -name site-packages
-    - export _PY_VER=$(python -c "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')")
-    - echo $_PY_VER
-    - cp -rf "$(find /usr/local/Cellar/pygobject3 -type d -name site-packages | grep --color=never $_PY_VER)"/* "$(find $VIRTUAL_ENV -type d -name site-packages)"
-    - ls -la "$(find $VIRTUAL_ENV -type d -name site-packages)"
-    - ls -la /usr/local/lib/girepository-1.0 2>/dev/null || echo "/usr/local/lib/girepository-1.0 not found"
     - pip install '.[ci]'
-    - echo $PATH | tr ":" "\n"
     - pyinstaller --clean --noconfirm scripts/ghini.spec
     - pip install dmgbuild==1.6.1
     - dmgbuild -s scripts/dmgbuild_settings.py "Ghini" Ghini.dmg   # NOTE: last 2 args are required but overidden in dmgbuild_settings.py
