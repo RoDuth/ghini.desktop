@@ -40,7 +40,14 @@ class SplashScreen(Gtk.Window):
         path = "bauble/images/boot_splash.png"
 
         if getattr(sys, "frozen", False):
-            path = "_internal/" + path
+            path = os.path.join(
+                sys._MEIPASS, "bauble", "images", "boot_splash.png"
+            )
+            if sys.platform == "win32":
+                # Avoid driver letters and backslashes in paths (fails url() in
+                # css below) NOTE on mac the relative path (../) also fails
+                path = os.path.relpath(path, os.path.dirname(sys.executable))
+                path = path.replace("\\", "/")
 
         css = f"""
         .splash-window {{
