@@ -78,12 +78,16 @@ file_handler.setLevel(logging.DEBUG)
 if paths.main_is_frozen():
     import ssl
 
-    if ssl.get_default_verify_paths().cafile is None:
+    cafile = ssl.get_default_verify_paths().cafile
+
+    if cafile is None or not os.path.exists(cafile):
         # So that urllib works
         # pylint: disable=protected-access
         os.environ["SSL_CERT_FILE"] = os.path.join(
             sys._MEIPASS, "certifi", "cacert.pem"  # type: ignore[attr-defined]
         )
+    # for debugging
+    print(ssl.get_default_verify_paths())
 else:
     console_handler = logging.StreamHandler()
     logging.getLogger().addHandler(console_handler)

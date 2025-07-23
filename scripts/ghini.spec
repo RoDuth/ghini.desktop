@@ -1,7 +1,9 @@
 # vim:ft=python
 # pylint: disable=undefined-variable,missing-module-docstring
 
+import sys
 import sysconfig
+import subprocess
 from pathlib import Path
 
 import pyproj
@@ -42,6 +44,24 @@ if 'mingw' in sysconfig.get_platform():
     ]
     gio_modules = [
         ('C:/msys64/ucrt64/lib/gio/modules/giomodule.cache',
+         'lib/gio/modules'),
+    ]
+elif sys.platform == 'darwin':
+    prefix = subprocess.run(
+        ["brew", "--prefix"],
+        capture_output=True,
+        text=True,
+        check=True,
+    ).stdout.strip()
+    binaries = [
+        (f'{prefix}/lib/gio/modules/libgiognutls.so',
+         'lib/gio/modules'),
+        (f'{prefix}/lib/libgnutls.30.dylib', '.'),
+        (f'{prefix}/lib/libintl.8.dylib', '.'),
+        (f'{prefix}/lib/libproxy.1.dylib', '.'),
+    ]
+    gio_modules = [
+        (f'{prefix}/lib/gio/modules/giomodule.cache',
          'lib/gio/modules'),
     ]
 

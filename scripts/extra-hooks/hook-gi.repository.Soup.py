@@ -1,3 +1,5 @@
-from PyInstaller.utils.hooks.gi import get_gi_typelibs
+from PyInstaller.utils.hooks.gi import GiModuleInfo
 
-binaries, datas, hiddenimports = get_gi_typelibs("Soup", "2.4")
+module_info = GiModuleInfo("Soup", "2.4")
+if module_info.available:
+    binaries, datas, hiddenimports = module_info.collect_typelib_data()

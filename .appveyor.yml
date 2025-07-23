@@ -31,7 +31,7 @@ for:
   install:
     - brew ls --full-name --formula | grep '^homebrew/homebrew-cask-versions/' | xargs brew uninstall
     - brew untap homebrew/homebrew-cask-versions
-    - brew install pygobject3 gtk+3 adwaita-icon-theme osm-gps-map unixodbc postgresql pillow
+    - brew install pygobject3 gtk+3 adwaita-icon-theme osm-gps-map unixodbc postgresql pillow libproxy
     - brew tap microsoft/mssql-release https://github.com/Microsoft/homebrew-mssql-release
     - brew update
     - HOMEBREW_ACCEPT_EULA=Y brew install msodbcsql18 mssql-tools18
