@@ -8,7 +8,7 @@ from pathlib import Path
 
 import pyproj
 
-version = "1.3.13"  # :bump
+version = "1.3.14"  # :bump
 
 # this returns CWD.  Call script from repo root.
 root = Path().absolute()
