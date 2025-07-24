@@ -60,7 +60,7 @@ class DBCloner:
         :param uri: address to the database to clone to.
         """
         if uri:
-            self.uri = uri  # type: ignore [assignment]
+            self.uri = uri
         else:
             self.uri = self._get_uri()
 

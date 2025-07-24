@@ -1275,7 +1275,9 @@ class SearchView(View, Gtk.Box):
         # avoid triggering on_selection_changed
         self.selection.handler_block(self._selection_changed_sigid)
         utils.clear_model(self.results_view)
-        self.selection.handler_unblock(self._selection_changed_sigid)
+        self.selection.handler_unblock(
+            handler_id=self._selection_changed_sigid
+        )
 
     def search(self, text: str) -> None:
         """search the database using :param text:"""
@@ -1654,7 +1656,9 @@ class SearchView(View, Gtk.Box):
         # avoid triggering on_selection_changed
         self.selection.handler_block(self._selection_changed_sigid)
         self.results_view.set_model(model)
-        self.selection.handler_unblock(self._selection_changed_sigid)
+        self.selection.handler_unblock(
+            handler_id=self._selection_changed_sigid
+        )
 
     def _group_sort_results(
         self, results: Sequence[db.Domain]
@@ -1930,7 +1934,9 @@ class SearchView(View, Gtk.Box):
         # avoid triggering on_selection_changed (happens later)
         self.selection.handler_block(self._selection_changed_sigid)
         self.results_view.collapse_all()
-        self.selection.handler_unblock(self._selection_changed_sigid)
+        self.selection.handler_unblock(
+            handler_id=self._selection_changed_sigid
+        )
 
         # expand_to_all_rows will invalidate the ref so get the path first
         tree_paths = []

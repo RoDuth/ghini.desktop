@@ -445,7 +445,7 @@ class ExpressionRow:  # pylint: disable=too-many-instance-attributes
             for condition in self.CONDITIONS:
                 self.cond_combo.append_text(condition)
             self.cond_combo.set_active(0)
-            self.cond_combo.handler_unblock(self.cond_handler)
+            self.cond_combo.handler_unblock(handler_id=self.cond_handler)
             self.cond_combo.set_tooltip_text("How to search")
 
         val = utils.get_widget_value(self.value_widget)
@@ -573,7 +573,7 @@ class ExpressionRow:  # pylint: disable=too-many-instance-attributes
             self.cond_combo.set_active(len(conditions) - 1)
         else:
             self.cond_combo.set_active(conditions.index(str(prev)))
-        self.cond_combo.handler_unblock(self.cond_handler)
+        self.cond_combo.handler_unblock(handler_id=self.cond_handler)
         self.cond_combo.set_tooltip_text("How to search")
 
     def set_entry_widget(self, _prop, val: str) -> None:

@@ -1,11 +1,9 @@
 # linters, build/test tools, etc.
-# NOTE to use: pygobject-stubs requires setting PYGOBJECT_STUB_CONFIG=Gtk3,Gdk3,Soup2
-# i.e.
-# $ PYGOBJECT_STUB_CONFIG=Gtk3,Gdk3,Soup2 pip install -r requirements-dev.txt
-# or
-# $ PYGOBJECT_STUB_CONFIG=Gtk3,Gdk3,Soup2 pip install '.[dev]'
+# NOTE to use:
+# for pygobject-stubs may need to use --no-cache-dir e.g.:
+# $ pip install --no-cache-dir -r dev-requirements.txt
 mypy
-pygobject-stubs
+pygobject-stubs --config-settings=config=Gtk3,Gdk3,Soup2
 types-python-dateutil
 sqlalchemy[mypy] < 2.0
 Babel

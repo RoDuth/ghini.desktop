@@ -497,8 +497,8 @@ class ResolutionCentreView(View, Gtk.Box):
     def __init__(self, uri: str | URL | None = None) -> None:
         logger.debug("Starting ResolutionCentreView")
         super().__init__()
-        self._uri = None
-        self.uri = uri  # type: ignore [assignment]
+        self._uri: URL | None = None
+        self.uri = uri
         self.last_pos: (
             tuple[Gtk.TreePath | None, Gtk.TreeViewColumn | None, int, int]
             | None
