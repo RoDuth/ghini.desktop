@@ -432,6 +432,8 @@ class LocationSearchMapTests(BaubleTestCase):
         map_ = LocationSearchMap()
         self.assertFalse(map_.map_.polygon_remove(map_.loc_items[1].poly))
         map_.update()
+        wait_on_threads()
+        update_gui()
         self.assertTrue(map_.map_.polygon_remove(map_.loc_items[1].poly))
 
     def test_update_updates_locations(self):
@@ -439,17 +441,23 @@ class LocationSearchMapTests(BaubleTestCase):
         self.assertFalse(map_.loc_items)
         self.assertFalse(LocationSearchMap.loc_items)
         map_.update()
+        wait_on_threads()
+        update_gui()
         self.assertEqual(len(map_.loc_items), 3)
         self.assertEqual(len(LocationSearchMap.loc_items), 3)
         self.assertEqual(map_.map_.get_property("zoom"), 17)
         # does not update when already populated
         map_.loc_items.pop(1)
         map_.update()
+        wait_on_threads()
+        update_gui()
         self.assertEqual(len(map_.loc_items), 2)
         self.assertEqual(len(LocationSearchMap.loc_items), 2)
         # but does after clearing
         map_.clear_locations()
         map_.update()
+        wait_on_threads()
+        update_gui()
         self.assertEqual(len(map_.loc_items), 3)
         self.assertEqual(len(LocationSearchMap.loc_items), 3)
         # check map is populated
@@ -461,6 +469,8 @@ class LocationSearchMapTests(BaubleTestCase):
         self.assertFalse(map_.loc_items)
         self.assertFalse(LocationSearchMap.loc_items)
         map_.update()
+        wait_on_threads()
+        update_gui()
         self.assertEqual(len(map_.loc_items), 3)
         self.assertEqual(len(LocationSearchMap.loc_items), 3)
         # clear them
@@ -474,6 +484,8 @@ class LocationSearchMapTests(BaubleTestCase):
         self.assertFalse(map_.loc_items)
         self.assertFalse(LocationSearchMap.loc_items)
         map_.update()
+        wait_on_threads()
+        update_gui()
         self.assertEqual(len(map_.loc_items), 3)
         self.assertEqual(len(LocationSearchMap.loc_items), 3)
         # doesn't clear
@@ -491,6 +503,8 @@ class LocationSearchMapTests(BaubleTestCase):
         self.assertFalse(map_.loc_items)
         self.assertFalse(LocationSearchMap.loc_items)
         map_.update()
+        wait_on_threads()
+        update_gui()
         self.assertEqual(len(map_.loc_items), 3)
         self.assertEqual(len(LocationSearchMap.loc_items), 3)
         # get first match
@@ -511,6 +525,8 @@ class LocationSearchMapTests(BaubleTestCase):
         self.assertFalse(map_.loc_items)
         self.assertFalse(LocationSearchMap.loc_items)
         map_.update()
+        wait_on_threads()
+        update_gui()
         self.assertEqual(len(map_.loc_items), 3)
         self.assertEqual(len(LocationSearchMap.loc_items), 3)
 
@@ -550,6 +566,8 @@ class LocationSearchMapTests(BaubleTestCase):
         self.assertFalse(map_.loc_items)
         self.assertFalse(LocationSearchMap.loc_items)
         map_.update()
+        wait_on_threads()
+        update_gui()
         self.assertEqual(len(map_.loc_items), 3)
         self.assertEqual(len(LocationSearchMap.loc_items), 3)
 
@@ -570,6 +588,8 @@ class LocationSearchMapTests(BaubleTestCase):
         self.assertFalse(map_.loc_items)
         self.assertFalse(LocationSearchMap.loc_items)
         map_.update()
+        wait_on_threads()
+        update_gui()
         self.assertEqual(len(map_.loc_items), 3)
         self.assertEqual(len(LocationSearchMap.loc_items), 3)
 
@@ -589,6 +609,8 @@ class LocationSearchMapTests(BaubleTestCase):
         self.assertFalse(map_.loc_items)
         self.assertFalse(LocationSearchMap.loc_items)
         map_.update()
+        wait_on_threads()
+        update_gui()
         self.assertEqual(len(map_.loc_items), 3)
         self.assertEqual(len(LocationSearchMap.loc_items), 3)
 
@@ -607,6 +629,8 @@ class LocationSearchMapTests(BaubleTestCase):
         self.assertFalse(map_.loc_items)
         self.assertFalse(LocationSearchMap.loc_items)
         map_.update()
+        wait_on_threads()
+        update_gui()
         self.assertEqual(len(map_.loc_items), 3)
         self.assertEqual(len(LocationSearchMap.loc_items), 3)
         x, y = map_.map_.convert_geographic_to_screen(

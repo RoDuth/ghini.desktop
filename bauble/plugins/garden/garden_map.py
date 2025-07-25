@@ -687,8 +687,11 @@ class LocationSearchMap(Gtk.Frame):
         """
         if cls.loc_items:
             return
+
         get_locations_polys.clear_cache()
-        if location_polys := get_locations_polys():
+        location_polys = get_locations_polys()
+
+        if location_polys:
             map_item: MapPoly
             for map_item in location_polys.values():
                 map_item.set_colour(
@@ -697,6 +700,7 @@ class LocationSearchMap(Gtk.Frame):
                     ]
                 )
                 cls.loc_items[map_item.id_] = map_item
+
         get_locations_polys.clear_cache()
 
     def update(self) -> None:
@@ -704,15 +708,11 @@ class LocationSearchMap(Gtk.Frame):
         home.
         """
         logger.debug("updating LocationSearchMap")
-        self.update_locations()
 
         base_tiles = prefs.prefs.get(MAP_TILES_PREF_KEY, 1)
         self.map_.set_property("map-source", OsmGpsMap.MapSource_t(base_tiles))
         self.map_.polygon_remove_all()
         self.map_.image_remove_all()
-
-        for map_item in self.loc_items.values():
-            map_item.add_to_map(self.map_, glib=False, with_label=True)
 
         institution = Institution()
         self.map_.set_center_and_zoom(
@@ -720,6 +720,20 @@ class LocationSearchMap(Gtk.Frame):
             float(institution.geo_longitude or 0),
             int(institution.geo_zoom or 16),
         )
+
+        # populate the map in a thread
+        threading.Thread(target=self._update_worker).start()
+
+    def _update_worker(self) -> None:
+        self.update_locations()
+
+        for map_item in self.loc_items.values():
+
+            if not threading.main_thread().is_alive():
+                logger.debug("main thread no longer alive, stopping")
+                return
+
+            GLib.idle_add(map_item.add_to_map, self.map_, False, True)
 
     def on_button_press(
         self, _map: OsmGpsMap.Map, gevent: Gdk.EventButton
@@ -1378,6 +1392,9 @@ class SearchViewMapPresenter:
             del self.plt_items[id_]
 
 
+_get_loc_polys_lock = threading.Lock()
+
+
 @timed_cache(size=1000, secs=None)
 def get_locations_polys() -> dict[int, MapPoly]:
     """Independently search the database for all locations and generate MapPoly
@@ -1386,22 +1403,28 @@ def get_locations_polys() -> dict[int, MapPoly]:
     # NOTE used in test
     logger.debug("get_locations_polys - generating polygon map items")
 
-    colour = prefs.prefs.get(MAP_LOCATION_COLOUR_PREF_KEY)
-    if colour not in colours:
-        colour = "grey"
-    colour = colours[colour]
+    with _get_loc_polys_lock:
+        colour = prefs.prefs.get(MAP_LOCATION_COLOUR_PREF_KEY)
+        if colour not in colours:
+            colour = "grey"
+        colour = colours[colour]
 
-    polys = {}
-    with db.Session() as session:
-        locs = session.query(Location).filter(Location.geojson.isnot(None))
-        for loc in locs:
-            if loc.geojson["type"] == "Polygon":
-                poly = MapPoly(loc.id, loc.geojson, colour, label_txt=loc.code)
-                poly.create_item()
-                poly.set_props(alpha=0.7, line_width=2)
-                polys[loc.id] = poly
+        polys = {}
+        with db.Session() as session:
+            locs = session.query(Location).filter(Location.geojson.isnot(None))
+            for loc in locs:
+                if loc.geojson["type"] == "Polygon":
+                    poly = MapPoly(
+                        loc.id,
+                        loc.geojson,
+                        colour,
+                        label_txt=loc.code,
+                    )
+                    poly.create_item()
+                    poly.set_props(alpha=0.7, line_width=2)
+                    polys[loc.id] = poly
 
-    return polys
+        return polys
 
 
 # global object
