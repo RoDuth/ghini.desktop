@@ -3212,9 +3212,15 @@ class DefaultViewTests(BaubleTestCase):
         # main_widget
         mock_widget = Gtk.Box()
         mock_widget.update = mock.Mock()
-        def_view.main_widget = mock_widget
+        DefaultView.main_widget = mock_widget
         def_view.update()
         mock_widget.update.assert_called()
+        # changing main widget works
+        mock_widget2 = Gtk.Box()
+        mock_widget2.update = mock.Mock()
+        DefaultView.main_widget = mock_widget2
+        def_view.update()
+        mock_widget2.update.assert_called()
 
     @mock.patch.object(DefaultView, "update")
     def test_homecommandhandler(self, mock_update):

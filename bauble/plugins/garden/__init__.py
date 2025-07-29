@@ -427,11 +427,13 @@ class GardenPlugin(pluginmgr.Plugin):
             expunge_garden_map()
 
             if institution.geo_latitude and institution.geo_longitude:
+                logger.debug("setting up garden map")
                 setup_garden_map()
                 loc_map = LocationSearchMap()
                 loc_map.clear_locations()
                 DefaultView.main_widget = loc_map
             else:
+                logger.debug("removing garden map")
                 DefaultView.main_widget = None
 
     @staticmethod

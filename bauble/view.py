@@ -3308,6 +3308,8 @@ class DefaultView(View, Gtk.Box):
 
     def set_main_widget(self) -> None:
         # update after db change
+        logger.debug("_main_widget = %s", self._main_widget)
+        logger.debug("main_widget = %s", self.main_widget)
         if self._main_widget and self._main_widget is not self.main_widget:
             self.vbox.remove(self._main_widget)
             self._main_widget = None
@@ -3321,7 +3323,7 @@ class DefaultView(View, Gtk.Box):
                     str(Path(paths.lib_dir(), "images", "bauble_logo.png"))
                 )
                 self._main_widget.set_valign(Gtk.Align.START)
-                self.main_widget = self._main_widget
+                self.__class__.main_widget = self._main_widget
             self.vbox.pack_start(self._main_widget, True, True, 10)
             self.vbox.show_all()
 
