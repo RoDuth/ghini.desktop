@@ -1521,12 +1521,10 @@ def setup_garden_map() -> None:
         search_view.add_page_to_pic_pane_notebook(*pic_pane_page)
         search_view.connect_signal(*size_allocate_signal)
 
-    # Listen for changes to the database and react if need be
-    event.listen(
-        engine.Engine,
-        "first_connect",
-        map_presenter.update_after_db_connection_change,
+    db.first_connect_callbacks.append(
+        map_presenter.update_after_db_connection_change
     )
+    # Listen for changes to the database and react if need be
     event.listen(
         Location, "after_update", map_presenter.update_after_location_change
     )
@@ -1578,12 +1576,14 @@ def expunge_garden_map() -> None:
     SearchView.populate_callbacks.remove(map_presenter.populate_map)
     SearchView.cursor_changed_callbacks.remove(map_presenter.update_map)
 
-    # Listen for changes to the database and react if need be
-    event.remove(
-        engine.Engine,
-        "first_connect",
-        map_presenter.update_after_db_connection_change,
-    )
+    if (
+        map_presenter.update_after_db_connection_change
+        in db.first_connect_callbacks
+    ):
+        db.first_connect_callbacks.remove(
+            map_presenter.update_after_db_connection_change
+        )
+
     event.remove(
         Location, "after_update", map_presenter.update_after_location_change
     )

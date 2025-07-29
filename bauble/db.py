@@ -601,6 +601,9 @@ def _sqlite_fk_pragma(dbapi_connection, _connection_record):
         cursor.close()
 
 
+first_connect_callbacks: list[Callable[[], None]] = []
+
+
 def open_conn(
     uri: URL,
     verify: bool = True,
@@ -647,6 +650,10 @@ def open_conn(
 
     new_engine.connect().close()  # make sure we can connect
 
+    for func in first_connect_callbacks:
+        logger.debug("calling first_connect callback: %s", func)
+        func()
+
     def _bind():
         """bind metadata to engine and create sessionmaker"""
         global _Session, engine
@@ -666,6 +673,7 @@ def open_conn(
 
     verify_connection(new_engine, show_error_dialogs)
     _bind()
+
     return engine
 
 

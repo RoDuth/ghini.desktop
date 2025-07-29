@@ -1498,6 +1498,8 @@ class TestSearchViewMapPresenter(BaubleTestCase):
         # test stops threads and clears glib events
         stopped = []
 
+        self.assertFalse(presenter.populate_thread.is_alive())
+
         def dont_stop():
             while True:
                 if presenter.thread_event.is_set():
