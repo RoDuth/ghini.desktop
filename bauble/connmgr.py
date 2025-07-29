@@ -1012,10 +1012,17 @@ class ConnectionManagerDialog(Gtk.Dialog):
             "db",
             make_absolute(params.get("file", "").replace("\\", "/")),
         )
+
+        passwd = None
+        if params.get("passwd"):
+            passwd = self.get_passwd()
+            if passwd is None:
+                raise ValueError("Password is required for this connection")
+
         uri = URL.create(
             drivername=params["type"].lower(),
             username=params.get("user"),
-            password=self.get_passwd() if params.get("passwd") else None,
+            password=passwd,
             host=params.get("host"),
             port=int(params["port"]) if params.get("port") else None,
             database=database,
@@ -1061,8 +1068,14 @@ def start_connection_manager(
         dont_ask = prefs.prefs.get(bauble.CONN_DONT_ASK_PREF, False)
 
     if dont_ask or con_mgr.run() == Gtk.ResponseType.OK:
-        result = con_mgr.connection_name, con_mgr.connection_uri
+        try:
+            result = con_mgr.connection_name, con_mgr.connection_uri
+            con_mgr.destroy()
+        except ValueError as e:
+            logger.debug("%s(%s)", type(e).__name__, e)
+            con_mgr.destroy()
 
-    con_mgr.destroy()
+            if not dont_ask:
+                return start_connection_manager(msg)
 
     return result

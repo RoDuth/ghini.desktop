@@ -500,6 +500,8 @@ class ConnectionManagerTests(BaubleTestCase):
                 presenter.parameters_to_uri(params),
                 make_url("postgresql://pg:secret@localhost:9876/quisquis"),
             )
+            mock_get_passwd.return_value = None
+            self.assertRaises(ValueError, presenter.parameters_to_uri, params)
         presenter.destroy()
 
     def test_parameters_to_uri_mssql(self):
@@ -527,6 +529,8 @@ class ConnectionManagerTests(BaubleTestCase):
                     "&MARS_Connection=Yes"
                 ),
             )
+            mock_get_passwd.return_value = None
+            self.assertRaises(ValueError, presenter.parameters_to_uri, params)
         presenter.destroy()
 
     def test_connection_uri_property(self):
@@ -1663,7 +1667,7 @@ class StartConnectionManagerTests(BaubleTestCase):
         mock_run.assert_not_called()
 
     @mock.patch("bauble.connmgr.ConnectionManagerDialog.run")
-    def test_start_connection_manager_reponse_cancel_returns_none(
+    def test_start_connection_manager_response_cancel_returns_none(
         self, mock_run
     ):
         mock_run.return_value = RESPONSE_CANCEL
@@ -1682,3 +1686,42 @@ class StartConnectionManagerTests(BaubleTestCase):
         self.assertIsNone(name)
         self.assertIsNone(uri)
         mock_run.assert_called_once()
+
+    @mock.patch("bauble.connmgr.ConnectionManagerDialog.run")
+    @mock.patch("bauble.connmgr.ConnectionManagerDialog.get_passwd")
+    def test_start_connection_manager_no_passwd_asks_again(
+        self,
+        mock_passwd,
+        mock_run,
+    ):
+        mock_run.return_value = RESPONSE_OK
+        mock_passwd.side_effect = [ValueError("No password provided"), "test"]
+        prefs.prefs[bauble.CONN_DEFAULT_PREF] = "nugkui"
+        prefs.prefs[bauble.CONN_LIST_PREF] = {
+            "nugkui": {
+                "passwd": True,
+                "directory": "",
+                "db": "nugkui",
+                "port": "9876",
+                "host": "localhost",
+                "user": "foo",
+                "type": "MSSQL",
+                "options": {
+                    "driver": "ODBC Driver 17 for SQL Server",
+                    "MARS_Connection": "Yes",
+                },
+            }
+        }
+
+        name, uri = start_connection_manager()
+        self.assertEqual(name, "nugkui")
+        self.assertEqual(
+            uri,
+            make_url(
+                "mssql://foo:test@localhost:9876/nugkui"
+                "?driver=ODBC+Driver+17+for+SQL+Server"
+                "&MARS_Connection=Yes"
+            ),
+        )
+
+        self.assertEqual(mock_run.call_count, 2)
