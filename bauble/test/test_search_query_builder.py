@@ -106,6 +106,21 @@ class ParseTypedValue(BaubleTestCase):
     def test_parse_typed_value_fallback(self):
         result = parse_typed_value("whatever else", None)
         self.assertEqual(result, "'whatever else'")
+        # with quotes
+        result = parse_typed_value("whatever 'else'", None)
+        self.assertEqual(result, "\"whatever 'else'\"")
+        # escapes
+        result = parse_typed_value("whatever\nelse", None)
+        self.assertEqual(result, "'whatever\nelse'")
+        result = parse_typed_value("\\_", None)
+        self.assertEqual(result, "'\\_'")
+        result = parse_typed_value("\\%", None)
+        self.assertEqual(result, "'\\%'")
+        result = parse_typed_value("\n \t", None)
+        self.assertEqual(result, "'\n \t'")
+        # whitespace
+        result = parse_typed_value("   ", None)
+        self.assertEqual(result, "'   '")
 
 
 class SchemaMenuTests(BaubleTestCase):
@@ -421,6 +436,40 @@ class QueryBuilderTests(BaubleTestCase):
         self.assertEqual(qb.get_query(), query)
         # Date type
         query = "accession where date_accd = 01-02-2020"
+        qb.set_query(query)
+        self.assertTrue(qb.validate())
+        self.assertEqual(qb.get_query(), query)
+        qb.destroy()
+
+    def test_whitespace_query(self):
+        qb = QueryBuilder()
+        query = "species where epithet contains ' '"
+        qb.set_query(query)
+        self.assertTrue(qb.validate())
+        self.assertEqual(qb.get_query(), query)
+
+        qb = QueryBuilder()
+        query = "species where epithet contains '\\n'"
+        qb.set_query(query)
+        self.assertTrue(qb.validate())
+        self.assertEqual(qb.get_query(), query)
+
+        qb = QueryBuilder()
+        query = "species where epithet = 'sp. (test)'"
+        qb.set_query(query)
+        self.assertTrue(qb.validate())
+        self.assertEqual(qb.get_query(), query)
+        qb.destroy()
+
+    def test_escape_wildcard_query(self):
+        qb = QueryBuilder()
+        query = "species where epithet like 'Myrt\\%'"
+        qb.set_query(query)
+        self.assertTrue(qb.validate())
+        self.assertEqual(qb.get_query(), query)
+
+        qb = QueryBuilder()
+        query = "species where epithet like 'Myrt\\_'"
         qb.set_query(query)
         self.assertTrue(qb.validate())
         self.assertEqual(qb.get_query(), query)

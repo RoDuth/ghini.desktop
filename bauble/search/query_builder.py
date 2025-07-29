@@ -269,7 +269,12 @@ def parse_typed_value(value: Any, proptype: type | None) -> Any:
         if value:
             value = str(float(value))
     elif value not in ["%", "_"]:
-        value = repr(str(value).strip())
+        # wrap in appropriate quotes but correct any escapes
+        value = (
+            repr(str(value))
+            .encode("raw_unicode_escape")
+            .decode("unicode_escape")
+        )
     return value
 
 
@@ -654,7 +659,7 @@ class ExpressionRow:  # pylint: disable=too-many-instance-attributes
                 value = model[active_iter][0]
         elif isinstance(self.value_widget, Gtk.Entry):
             # assume it's a Gtk.Entry or other widget with a text property
-            value = self.value_widget.get_text().strip()
+            value = self.value_widget.get_text()
         value = parse_typed_value(value, self.proptype)
         and_or = ""
         if self.and_or_combo:

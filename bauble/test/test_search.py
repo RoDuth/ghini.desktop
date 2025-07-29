@@ -842,14 +842,27 @@ class SearchTests2(BaubleTestCase):
         # test does not depend on plugin functionality
         family2 = Family(family="family2")
         family3 = Family(family="afamily3")
+        family4 = Family(family="family%")
         genus21 = Genus(family=family2, genus="genus21")
         genus31 = Genus(family=family3, genus="genus31")
         genus32 = Genus(family=family3, genus="genus32")
         genus33 = Genus(family=family3, genus="genus33")
+        genus41 = Genus(family=family4, genus="genus41")
         f3 = Family(family="fam3")
         g3 = Genus(family=f3, genus="genus31")
         self.session.add_all(
-            [family3, family2, genus21, genus31, genus32, genus33, f3, g3]
+            [
+                family4,
+                family3,
+                family2,
+                genus21,
+                genus31,
+                genus32,
+                genus33,
+                genus41,
+                f3,
+                g3,
+            ]
         )
         self.session.commit()
 
@@ -863,7 +876,13 @@ class SearchTests2(BaubleTestCase):
         results = []
         for i in mapper_search.search(s, self.session):
             results.extend(i)
-        self.assertCountEqual(results, [self.genus, genus21])
+        self.assertCountEqual(results, [self.genus, genus21, genus41])
+        # escaped
+        s = "genus where family.family like 'family\\%'"
+        results = []
+        for i in mapper_search.search(s, self.session):
+            results.extend(i)
+        self.assertEqual(results, [genus41])
 
     def test_search_by_like_underscore_query_joined_table(self):
         """query with MapperSearch, joined tables, LIKE _"""
@@ -871,14 +890,31 @@ class SearchTests2(BaubleTestCase):
         # test does not depend on plugin functionality
         family2 = Family(family="family2")
         family3 = Family(family="afamily3")
+        family4 = Family(family="_family4")
+        family4b = Family(family="afamily4")
         genus21 = Genus(family=family2, genus="genus21")
         genus31 = Genus(family=family3, genus="genus31")
         genus32 = Genus(family=family3, genus="genus32")
         genus33 = Genus(family=family3, genus="genus33")
+        genus41 = Genus(family=family4, genus="genus41")
+        genus42 = Genus(family=family4b, genus="genus42")
         f3 = Family(family="fam3")
         g3 = Genus(family=f3, genus="genus31")
         self.session.add_all(
-            [family3, family2, genus21, genus31, genus32, genus33, f3, g3]
+            [
+                family4b,
+                family4,
+                family3,
+                family2,
+                genus21,
+                genus31,
+                genus32,
+                genus33,
+                genus41,
+                genus42,
+                f3,
+                g3,
+            ]
         )
         self.session.commit()
 
@@ -905,6 +941,18 @@ class SearchTests2(BaubleTestCase):
         for i in mapper_search.search(s, self.session):
             results.extend(i)
         self.assertEqual(results, [genus21])
+        # escaped _
+        s = "genus where family.family like '\\_family4'"
+        results = []
+        for i in mapper_search.search(s, self.session):
+            results.extend(i)
+        self.assertEqual(results, [genus41])
+        # not escaped
+        s = "genus where family.family like _family4"
+        results = []
+        for i in mapper_search.search(s, self.session):
+            results.extend(i)
+        self.assertCountEqual(results, [genus41, genus42])
 
     def test_search_by_datestring_query(self):
 
@@ -1871,6 +1919,15 @@ class SearchTests3(BaubleClassTestCase):
         string = "domains where foo = bar"
 
         self.assertRaises(AttributeError, search.search, string, self.session)
+
+    def test_search_with_whitespace_only(self):
+        string = "species where epithet contains ' '"
+        results = search.search(string, self.session)
+        self.assertCountEqual([i.id for i in results], [27])
+
+        string = "species where epithet like '% %'"
+        results = search.search(string, self.session)
+        self.assertCountEqual([i.id for i in results], [27])
 
 
 class SubQueryTests(BaubleClassTestCase):

@@ -1407,7 +1407,7 @@ def ilike(col, val, engine=None):
         engine = bauble.db.engine
     if engine.name == "postgresql":
         return col.op("ILIKE")(val)
-    return func.lower(col).like(func.lower(val))
+    return func.lower(col).like(func.lower(val), escape="\\")
 
 
 def range_builder(text: str) -> list:

@@ -100,8 +100,15 @@ class StringToken(TokenAction):
 
     def express(self, _handler: QueryHandler) -> str:
         """Returns the unquoted string."""
-        # reset escaped characters
-        return self.value.encode("raw_unicode_escape").decode("unicode_escape")
+        # reset escaped characters. \_ and \% are escaped wildcards and need to
+        # be left in place for the db query to work and to avoid:
+        # invalid escape sequence '\_'
+        return (
+            self.value.replace("\\_", "\\\\_")
+            .replace("\\%", "\\\\%")
+            .encode("raw_unicode_escape")
+            .decode("unicode_escape")
+        )
 
 
 class NumericToken(TokenAction):
