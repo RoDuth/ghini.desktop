@@ -200,7 +200,7 @@ class SpeciesEntry(Gtk.Entry, Gtk.Editable):
             self.species_space = True
 
         # discourage capitalising species names
-        if position == 0 and "×" not in text:
+        if position == 0 and text and "×" not in text:
             text = "".join([text[0].lower(), *text[1:]])
 
         if "*" in text:

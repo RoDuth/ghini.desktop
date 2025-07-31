@@ -5540,6 +5540,11 @@ class GeneralSpeciesExpanderTests(BaubleTestCase):
 
 
 class SpeciesEntryTests(TestCase):
+    def test_blank_does_not_error(self):
+        entry = SpeciesEntry()
+        self.assertFalse(entry.species_space)
+        entry.do_insert_text("", 0, 0)
+
     def test_spaces_not_allowed_on_init(self):
         entry = SpeciesEntry()
         self.assertFalse(entry.species_space)
