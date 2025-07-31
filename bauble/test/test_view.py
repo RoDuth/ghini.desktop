@@ -1920,7 +1920,9 @@ class TestSearchView(BaubleTestCase):
         self.session.commit()
         prop_exp = PropertiesExpander()
         prop_exp.update(fam)
-        mock_event = mock.Mock(button=3, type=Gdk.EventType._2BUTTON_PRESS)
+        mock_event = mock.Mock(
+            button=3, type=Gdk.EventType.DOUBLE_BUTTON_PRESS
+        )
 
         self.assertFalse(prop_exp.on_id_button_press(None, mock_event))
 
@@ -1931,7 +1933,9 @@ class TestSearchView(BaubleTestCase):
         self.session.commit()
         prop_exp = PropertiesExpander()
         prop_exp.update(fam)
-        mock_event = mock.Mock(button=1, type=Gdk.EventType._2BUTTON_PRESS)
+        mock_event = mock.Mock(
+            button=1, type=Gdk.EventType.DOUBLE_BUTTON_PRESS
+        )
 
         self.assertTrue(prop_exp.on_id_button_press(None, mock_event))
         mock_gui.get_display_clipboard().set_text.assert_called_with("1", -1)
@@ -1946,8 +1950,8 @@ class TestSearchView(BaubleTestCase):
         ]
         links_exp = LinksExpander("notes", links=links)
 
-        self.assertEqual(len(links_exp.buttons), 1)
-        self.assertIsInstance(links_exp.buttons[0], BaubleLinkButton)
+        self.assertEqual(len(links_exp.web_links), 1)
+        self.assertIsInstance(links_exp.web_links[0], BaubleLinkButton)
 
     def test_links_expander_w_mal_formed_link_init_logs(self):
         links = [
@@ -1962,7 +1966,7 @@ class TestSearchView(BaubleTestCase):
             links_exp = LinksExpander("notes", links=links)
         self.assertTrue(any("wrong link definition" in i for i in logs.output))
 
-        self.assertEqual(len(links_exp.buttons), 0)
+        self.assertEqual(len(links_exp.web_links), 0)
 
     def test_links_expander_wo_links_update_hides(self):
         fam = Family(epithet="Myrtaceae")
@@ -1972,8 +1976,29 @@ class TestSearchView(BaubleTestCase):
 
         links_exp.update(fam)
 
-        self.assertEqual(len(links_exp.dynamic_box.get_children()), 0)
+        self.assertEqual(len(links_exp.web_links_box.get_children()), 0)
+        self.assertEqual(len(links_exp.notes_links_box.get_children()), 0)
         self.assertFalse(links_exp.get_visible())
+
+    def test_links_expander_w_links_update_unhides(self):
+        fam = Family(epithet="Myrtaceae")
+        self.session.add(fam)
+        self.session.commit()
+        links = [
+            {
+                "_base_uri": "http://www.google.com/search?q={}",
+                "title": "Search Test",
+                "tooltip": "TEST",
+            }
+        ]
+        links_exp = LinksExpander("notes", links=links)
+        links_exp.update(fam)
+
+        self.assertEqual(len(links_exp.web_links_box.get_children()), 1)
+        self.assertTrue(links_exp.web_links_box.get_visible())
+        self.assertFalse(links_exp.notes_links_box.get_visible())
+        self.assertFalse(links_exp.separator.get_visible())
+        self.assertTrue(links_exp.get_visible())
 
     def test_links_expander_w_notes_update_unhides(self):
         fam = Family(epithet="Myrtaceae")
@@ -1982,11 +2007,13 @@ class TestSearchView(BaubleTestCase):
         self.session.add(fam)
         self.session.commit()
         links_exp = LinksExpander("notes")
-        self.assertEqual(len(links_exp.dynamic_box.get_children()), 0)
+        self.assertEqual(len(links_exp.notes_links_box.get_children()), 0)
 
         links_exp.update(fam)
 
-        self.assertEqual(len(links_exp.dynamic_box.get_children()), 1)
+        self.assertEqual(len(links_exp.notes_links_box.get_children()), 1)
+        self.assertTrue(links_exp.notes_links_box.get_visible())
+        self.assertFalse(links_exp.web_links_box.get_visible())
         self.assertTrue(links_exp.get_visible())
 
     def test_links_expander_w_link_w_notes_update_separates(self):
@@ -2003,15 +2030,17 @@ class TestSearchView(BaubleTestCase):
             }
         ]
         links_exp = LinksExpander("notes", links=links)
-        self.assertEqual(len(links_exp.dynamic_box.get_children()), 0)
+        self.assertEqual(len(links_exp.notes_links_box.get_children()), 0)
 
         links_exp.update(fam)
 
-        # 1 note button + sep
-        self.assertEqual(len(links_exp.dynamic_box.get_children()), 2)
-        # 1 link button
-        self.assertEqual(len(links_exp.link_box.get_children()), 1)
-        self.assertTrue(links_exp.get_visible())
+        # 1 note button
+        self.assertEqual(len(links_exp.notes_links_box.get_children()), 1)
+        # 1 web button
+        self.assertEqual(len(links_exp.web_links_box.get_children()), 1)
+        self.assertTrue(links_exp.web_links_box.get_visible())
+        self.assertTrue(links_exp.notes_links_box.get_visible())
+        self.assertTrue(links_exp.separator.get_visible())
 
     @mock.patch("bauble.gui")
     def test_select_object(self, mock_gui):
@@ -3442,7 +3471,9 @@ class TestPicturesScroller(BaubleTestCase):
     @mock.patch("bauble.utils.desktop.open")
     def test_on_button_press_double_click_opens_picture(self, mock_open):
         picture_scroller = PicturesScroller()
-        mock_event = mock.Mock(button=1, type=Gdk.EventType._2BUTTON_PRESS)
+        mock_event = mock.Mock(
+            button=1, type=Gdk.EventType.DOUBLE_BUTTON_PRESS
+        )
         picture_scroller.on_button_press(
             None, mock_event, mock.Mock(picture="test.jpg")
         )
@@ -3453,7 +3484,9 @@ class TestPicturesScroller(BaubleTestCase):
             picture_scroller.on_button_press(
                 None, mock_event, mock.Mock(picture="test.jpg")
             )
-            mock_event = mock.Mock(button=1, type=Gdk.EventType._2BUTTON_PRESS)
+            mock_event = mock.Mock(
+                button=1, type=Gdk.EventType.DOUBLE_BUTTON_PRESS
+            )
             picture_scroller.on_button_press(
                 None, mock_event, mock.Mock(picture="test.jpg")
             )

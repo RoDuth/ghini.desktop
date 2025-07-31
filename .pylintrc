@@ -244,7 +244,7 @@ contextmanager-decorators=contextlib.contextmanager
 # this right one day.
 generated-members=__table__,
 		  id,
-		  bauble.view.LinksExpander._sep,
+		  Gdk.EventType.DOUBLE_BUTTON_PRESS,
 # Tells whether missing members accessed in mixin class should be ignored. A
 # mixin class is detected if its name ends with "mixin" (case insensitive).
 ignore-mixin-members=yes

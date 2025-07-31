@@ -24,6 +24,7 @@ Description: the default view
 import itertools
 import json
 import logging
+import re
 import textwrap
 import threading
 import traceback
@@ -165,7 +166,8 @@ class ActionCallback[T: db.Domain](Protocol):
 
 
 class Action:
-    # pylint: disable=too-few-public-methods,too-many-arguments
+    # pylint: disable=too-few-public-methods
+    # pylint: disable-next=too-many-positional-arguments,too-many-arguments
     def __init__(
         self,
         name: str,
@@ -198,6 +200,66 @@ class Action:
         if not self.connected:
             self.action.connect("activate", handler, self.callback)
             self.connected = True
+
+
+class ExpandedPref:  # pylint: disable=too-few-public-methods
+    """A descriptor for the prefs key for storing the expanded state of an
+    info expander.
+    """
+
+    def __get__[T](self, _instance: T, class_: type[T]) -> str:
+        expander_name = re.sub(
+            r"(?<!^)(?=[A-Z])",
+            "_",
+            class_.__name__,
+        ).lower()[:-1]
+        return f"infobox.{expander_name}d"
+
+
+class InfoExpanderMixin:
+    """InfoExpander mixin that can be used with Gtk.Template decorated class
+    that inherits from Gtk.Expander and supplies an update method.
+
+    This mixin provides a way to store the expanded state of the expander in
+    the preferences.  Usage::
+
+        @Gtk.Template(filename="/path/to/file.ui"))
+        class HamExpander(GenericPresenter, Gtk.Expander):
+
+            __gtype_name__ = "HamExpander"
+
+            label = cast(Gtk.Label, Gtk.Template.Child())
+
+        @Gtk.Template.Callback()
+        def on_expanded(self, expander: Gtk.Expander, *_args) -> None:
+            super().on_expanded(expander)
+
+        def __init__(self) -> None:
+            super().__init__(label=_("Hams"))
+
+        def update(self, row: db.Domain) -> None:
+            label.set_text(row.ham_string)
+    """
+
+    # TODO long term deprecate InfoExpander for this approach
+
+    EXPANDED_PREF = ExpandedPref()
+    set_expanded: Callable[[bool], None]
+
+    def __init__(self, **kwargs) -> None:
+        super().__init__(**kwargs)
+        # the separator inserted between expanders see InfoBoxPage.add_expander
+        self._sep: Gtk.Separator | None = None
+        self.set_expanded(prefs.prefs.get(self.EXPANDED_PREF, True))
+
+    def on_expanded(self, expander: Gtk.Expander) -> None:
+        prefs.prefs[self.EXPANDED_PREF] = expander.get_expanded()
+
+    def update(self, _row: db.Domain) -> None:
+        """This method should be implimented in subclass to update from the
+        selected row.
+        """
+        raise NotImplementedError
 
 
 class InfoExpander(Gtk.Expander):
@@ -398,97 +460,69 @@ class InfoBox(Gtk.Notebook):
             page.update(row)
 
 
-class PropertiesExpander(InfoExpander):
-    EXPANDED_PREF = "infobox.generic_properties_expanded"
+@Gtk.Template(filename=str(Path(paths.lib_dir(), "properties_expander.ui")))
+class PropertiesExpander(InfoExpanderMixin, Gtk.Expander):
+
+    __gtype_name__ = "PropertiesExpander"
+
+    id_label = cast(Gtk.Label, Gtk.Template.Child())
+    type_label = cast(Gtk.Label, Gtk.Template.Child())
+    created_label = cast(Gtk.Label, Gtk.Template.Child())
+    updated_label = cast(Gtk.Label, Gtk.Template.Child())
 
     def __init__(self) -> None:
-        super().__init__(_("Properties"))
-        table = Gtk.Grid()
-        table.set_column_spacing(15)
-        table.set_row_spacing(8)
-
-        # database id
-        id_label = Gtk.Label(label="<b>" + _("ID:") + "</b>")
-        id_label.set_use_markup(True)
-        id_label.set_xalign(1)
-        id_label.set_yalign(0.5)
-        table.attach(id_label, 0, 0, 1, 1)
-
-        id_event = Gtk.EventBox()
-        self.id_data = Gtk.Label(label="--", selectable=True)
-        self.id_data.set_xalign(0)
-        self.id_data.set_yalign(0.5)
-        id_event.add(self.id_data)
-        table.attach(id_event, 1, 0, 1, 1)
-        id_event.connect("button_press_event", self.on_id_button_press)
-
-        # object type
-        type_label = Gtk.Label(label="<b>" + _("Type:") + "</b>")
-        type_label.set_use_markup(True)
-        type_label.set_xalign(1)
-        type_label.set_yalign(0.5)
-        self.type_data = Gtk.Label(label="--")
-        self.type_data.set_xalign(0)
-        self.type_data.set_yalign(0.5)
-        table.attach(type_label, 0, 1, 1, 1)
-        table.attach(self.type_data, 1, 1, 1, 1)
-
-        # date created
-        created_label = Gtk.Label(label="<b>" + _("Date created:") + "</b>")
-        created_label.set_use_markup(True)
-        created_label.set_xalign(1)
-        created_label.set_yalign(0.5)
-        self.created_data = Gtk.Label(label="--", selectable=True)
-        self.created_data.set_xalign(0)
-        self.created_data.set_yalign(0.5)
-        table.attach(created_label, 0, 2, 1, 1)
-        table.attach(self.created_data, 1, 2, 1, 1)
-
-        # date last updated
-        updated_label = Gtk.Label(label="<b>" + _("Last updated:") + "</b>")
-        updated_label.set_use_markup(True)
-        updated_label.set_xalign(1)
-        updated_label.set_yalign(0.5)
-        self.updated_data = Gtk.Label(label="--", selectable=True)
-        self.updated_data.set_xalign(0)
-        self.updated_data.set_yalign(0.5)
-        table.attach(updated_label, 0, 3, 1, 1)
-        table.attach(self.updated_data, 1, 3, 1, 1)
-
-        box = Gtk.Box()
-        box.pack_start(table, expand=False, fill=False, padding=0)
-        self.vbox.pack_start(box, expand=False, fill=False, padding=0)
+        super().__init__(label=_("Properties"))
 
     def update(self, row: db.Domain) -> None:
-        self.set_expanded(prefs.prefs.get(self.EXPANDED_PREF, True))
-        self.id_data.set_text(str(row.id))
-        self.type_data.set_text(str(type(row).__name__))
+        self.id_label.set_text(str(row.id))
+        self.type_label.set_text(str(type(row).__name__))
         fmat = prefs.prefs.get(prefs.datetime_format_pref)
         # pylint: disable=protected-access
-        self.created_data.set_text(
+        self.created_label.set_text(
             row._created.strftime(fmat) if row._created else ""
         )
-        self.updated_data.set_text(
+        self.updated_label.set_text(
             row._last_updated.strftime(fmat) if row._last_updated else ""
         )
 
-    def on_id_button_press(self, _widget, event: Gdk.EventButton) -> bool:
+    @Gtk.Template.Callback()
+    def on_id_button_press(
+        self,
+        _widget: Gtk.EventBox,
+        event: Gdk.EventButton,
+    ) -> bool:
         """Copy the ID value to clipboard."""
-        # pylint: disable=protected-access
-        if event.button == 1 and event.type == Gdk.EventType._2BUTTON_PRESS:
+        if (
+            event.button == 1
+            and event.type == Gdk.EventType.DOUBLE_BUTTON_PRESS
+        ):
             # Copy the ID on a double click
-            string = self.id_data.get_text()
+            string = self.id_label.get_text()
             bauble.gui.get_display_clipboard().set_text(string, -1)
             return True
         return False
 
+    @Gtk.Template.Callback()
+    def on_expanded(self, expander: Gtk.Expander, *_args) -> None:
+        super().on_expanded(expander)
 
-class LinksExpander(InfoExpander):
-    EXPANDED_PREF = "infobox.generic_links_expanded"
+
+@Gtk.Template(filename=str(Path(paths.lib_dir(), "links_expander.ui")))
+class LinksExpander(InfoExpanderMixin, Gtk.Expander):
+
+    __gtype_name__ = "LinksExpander"
+
+    notes_links_box = cast(Gtk.Box, Gtk.Template.Child())
+    web_links_box = cast(Gtk.Box, Gtk.Template.Child())
+    separator = cast(Gtk.Separator, Gtk.Template.Child())
+
+    @Gtk.Template.Callback()
+    def on_expanded(self, expander: Gtk.Expander, *_args) -> None:
+        super().on_expanded(expander)
 
     def __init__(
         self, notes: str | None = None, links: list[LinkDict] | None = None
-    ):
+    ) -> None:
         """Provides the web link buttons section for this row.
 
         :param notes: the name of the notes property on the row, notes can
@@ -496,19 +530,15 @@ class LinksExpander(InfoExpander):
         :param links: a list of link definitions to be used for all rows of
             this type.
         """
-        super().__init__(_("Links"))
+        super().__init__(label=_("Links"))
         links = links or []
-        self.dynamic_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
-        self.vbox.pack_start(self.dynamic_box, False, False, 0)
-        self.link_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
-        self.vbox.pack_start(self.link_box, False, False, 0)
         self.notes = notes
-        self.buttons: list[BaubleLinkButton] = []
+        self.web_links: list[BaubleLinkButton] = []
         for link in sorted(links, key=lambda i: i["title"]):
             try:
                 btn = link_button_factory(link)
-                self.buttons.append(btn)
-                self.link_box.pack_start(btn, False, False, 0)
+                self.web_links.append(btn)
+                self.web_links_box.pack_start(btn, False, False, 0)
             except Exception as e:  # pylint: disable=broad-except
                 # broad except, user data.
                 logger.debug(
@@ -517,15 +547,26 @@ class LinksExpander(InfoExpander):
                     type(e).__name__,
                     e,
                 )
-        self._sep = None
 
     def update(self, row: db.Domain) -> None:
-        self.set_expanded(prefs.prefs.get(self.EXPANDED_PREF, True))
-        note_buttons: list[BaubleLinkButton] = []
-        for btn in self.buttons:
+        widgets: list[Gtk.Widget] = [
+            self,
+            self.notes_links_box,
+            self.separator,
+            self.web_links_box,
+        ]
+        if self._sep:
+            widgets.append(self._sep)
+
+        utils.hide_widgets(widgets)
+
+        note_links: list[BaubleLinkButton] = []
+
+        for btn in self.web_links:
             btn.set_string(row)
-        for child in self.dynamic_box.get_children():
-            self.dynamic_box.remove(child)
+
+        self.notes_links_box.foreach(self.notes_links_box.remove)
+
         if self.notes:
             for note in getattr(row, self.notes):
                 for label, url in utils.get_urls(note.note):
@@ -538,24 +579,27 @@ class LinksExpander(InfoExpander):
                     }
                     button = link_button_factory(link)
                     button.set_uri(url)
-                    note_buttons.append(button)
+                    note_links.append(button)
 
-            for button in sorted(note_buttons, key=lambda i: i.title):
-                self.dynamic_box.pack_start(button, False, False, 0)
-
-            if note_buttons and self.buttons:
-                sep = Gtk.Separator(margin_start=15, margin_end=15)
-                self.dynamic_box.pack_start(sep, False, False, 0)
+            for button in sorted(note_links, key=lambda i: i.title):
+                self.notes_links_box.pack_start(button, False, False, 0)
 
         widgets = [self]
+
         if self._sep:
             widgets.append(self._sep)
 
-        if note_buttons or self.buttons:
+        if self.web_links and note_links:
+            widgets.extend(
+                [self.separator, self.notes_links_box, self.web_links_box]
+            )
             utils.unhide_widgets(widgets)
-            self.show_all()
-        else:
-            utils.hide_widgets(widgets)
+        elif note_links:
+            widgets.append(self.notes_links_box)
+            utils.unhide_widgets(widgets)
+        elif self.web_links:
+            widgets.append(self.web_links_box)
+            utils.unhide_widgets(widgets)
 
 
 class PicturesScroller(Gtk.ScrolledWindow):
@@ -716,9 +760,8 @@ class PicturesScroller(Gtk.ScrolledWindow):
             self.single_button_press_timer.cancel()
             self.single_button_press_timer = None
         link = picture.picture
-        # pylint: disable=protected-access
         if event.button == 1:
-            if event.type == Gdk.EventType._2BUTTON_PRESS:
+            if event.type == Gdk.EventType.DOUBLE_BUTTON_PRESS:
                 # if it is not a url append the picture_root and open, if it is
                 # a URL just open it.
                 full_path = None
@@ -770,7 +813,8 @@ class ViewMeta(UserDict):
             self.sorter: Callable = utils.natsort_key
             self.activated_callback: Callable | None = None
 
-        def set(  # pylint: disable=too-many-arguments
+        # pylint: disable-next=too-many-arguments,too-many-positional-arguments
+        def set(
             self,
             children: Callable[[db.Domain], Sequence[db.Domain]] | None = None,
             infobox: InfoBox | None = None,
@@ -1135,6 +1179,7 @@ class SearchView(View, Gtk.Box):
                 bauble.gui.window.add_action(action.action)
 
                 action.connect(self.on_action_activate)
+                # pylint: disable-next=no-value-for-parameter
                 app = Gio.Application.get_default()
                 if app is not None and hasattr(app, "set_accels_for_action"):
                     app.set_accels_for_action(
@@ -1327,6 +1372,7 @@ class SearchView(View, Gtk.Box):
             self.error_box.set_visible(False)
             self.populate_results(results)
             self.update_statusbar(results)
+            # pylint: disable=no-value-for-parameter
             self.results_view.set_cursor(Gtk.TreePath.new_first())
             self.results_view.scroll_to_cell(
                 Gtk.TreePath.new_first(), None, True, 0.5, 0.0
@@ -3013,6 +3059,7 @@ class PrefsView(View, Gtk.Box):
             None,
             Gtk.FileChooserAction.SAVE,
         )
+        # pylint: disable=no-value-for-parameter
         filter_ = Gtk.FileFilter.new()
         filter_.add_pattern("*.cfg")
         chooser.add_filter(filter_)
@@ -3041,6 +3088,7 @@ class PrefsView(View, Gtk.Box):
             None,
             Gtk.FileChooserAction.OPEN,
         )
+        # pylint: disable=no-value-for-parameter
         filter_ = Gtk.FileFilter.new()
         filter_.add_pattern("*.cfg")
         chooser.add_filter(filter_)
