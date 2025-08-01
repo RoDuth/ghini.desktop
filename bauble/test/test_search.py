@@ -1,6 +1,6 @@
 # Copyright 2008-2010 Brett Adams
 # Copyright 2015 Mario Frasca <mario@anche.no>.
-# Copyright 2021-2024 Ross Demuth <rossdemuth123@gmail.com>
+# Copyright 2021-2025 Ross Demuth <rossdemuth123@gmail.com>
 #
 # This file is part of ghini.desktop.
 #
@@ -1140,6 +1140,20 @@ class SearchTests2(BaubleTestCase):
         for i in mapper_search.search(s, self.session):
             results.extend(i)
         self.assertEqual(results, [])
+
+        # days of week as strings search
+        today_date = datetime.date.today()
+        yesterday_date = today_date - datetime.timedelta(days=1)
+        today_str = today_date.strftime("%A")
+        yesterday_str = yesterday_date.strftime("%A")
+        s = (
+            "plant where _last_updated between "
+            f"{yesterday_str} and {today_str}"
+        )
+        results = []
+        for i in mapper_search.search(s, self.session):
+            results.extend(i)
+        self.assertEqual(results, [p2])
 
     def test_search_by_datestring_query_tz_limits(self):
 

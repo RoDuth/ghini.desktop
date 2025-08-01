@@ -1,6 +1,6 @@
 # Copyright (c) 2005,2006,2007,2008,2009 Brett Adams <brett@belizebotanic.org>
 # Copyright (c) 2012-2017 Mario Frasca <mario@anche.no>
-# Copyright (c) 2021-2024 Ross Demuth <rossdemuth123@gmail.com>
+# Copyright (c) 2021-2025 Ross Demuth <rossdemuth123@gmail.com>
 #
 # This file is part of ghini.desktop.
 #
@@ -217,14 +217,41 @@ class CustomEnum(Enum):
             del self.translations
 
 
+WEEKDAY_NAMES = [
+    _("monday"),
+    _("tuesday"),
+    _("wednesday"),
+    _("thursday"),
+    _("friday"),
+    _("saturday"),
+    _("sunday"),
+]
+
+
+def days_ago(week_day: str) -> int:
+    """Return the number of days ago from today to the given week day.
+
+    When using this as an ofset value you will want the additive inverse
+    (i.e. negative) of the value. e.g. ``-days_ago("monday")``
+
+    :param week_day: A weekday name in lower case, e.g. "monday", "tuesday".
+    """
+    today = datetime.now().weekday()
+    return (today - WEEKDAY_NAMES.index(week_day)) % 7
+
+
 def get_date(val: str | float) -> datetime | None:
     offset = None
     if isinstance(val, float):
         offset = val
-    elif val.strip().lower() == _("today"):
+    elif (val_lower := val.strip().lower()) == _("today"):
         offset = 0
-    elif val.strip().lower() == _("yesterday"):
+    elif val_lower == _("yesterday"):
         offset = -1
+    elif val_lower in WEEKDAY_NAMES:
+        # if the value is a weekday name, calculate the offset
+        offset = -days_ago(val_lower)
+
     if offset is not None:
         return datetime.now().replace(
             hour=0, minute=0, second=0, microsecond=0
@@ -372,7 +399,8 @@ class JSON(types.TypeDecorator):
 class Boolean(types.TypeDecorator):
     """A Boolean type that allows True/False as strings.
 
-    For compatibility with MSSQL converts is_() to = and is_not() to !="""
+    For compatibility with MSSQL converts is_() to = and is_not() to !=
+    """
 
     impl = types.Boolean
 
