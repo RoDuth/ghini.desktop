@@ -36,10 +36,12 @@ from sqlalchemy.exc import StatementError
 import bauble
 from bauble import db
 from bauble import meta
+from bauble import prefs
 from bauble import utils
 from bauble.btypes import CustomEnum
 from bauble.btypes import Enum
 from bauble.btypes import EnumError
+from bauble.btypes import date_parser
 from bauble.test import BaubleTestCase
 from bauble.test import check_dupids
 
@@ -374,6 +376,39 @@ class BaubleTests(BaubleTestCase):
         text = "some random text"
         ret = dtime.process_bind_param(text, None)
         self.assertIsNone(ret)
+
+    def test_date_parser(self):
+        # with dayfirst
+        string = "3-12-2008"
+        val = date_parser(string)
+        self.assertEqual(val.day, 3)
+        self.assertEqual(val.month, 12)
+        self.assertEqual(val.year, 2008)
+
+        # with month first
+        prefs.prefs[prefs.date_format_pref] = "%m-%d-%Y"
+        string = "3-12-2008"
+        val = date_parser(string)
+        self.assertEqual(val.day, 12)
+        self.assertEqual(val.month, 3)
+        self.assertEqual(val.year, 2008)
+
+        # iso
+        string = "2008-12-03"
+        val = date_parser(string)
+        self.assertEqual(val.day, 3)
+        self.assertEqual(val.month, 12)
+        self.assertEqual(val.year, 2008)
+
+        # fuzzy
+        string = "Sunday the 3rd of August, 2025"
+        val = date_parser(string)
+        self.assertEqual(val.day, 3)
+        self.assertEqual(val.month, 8)
+        self.assertEqual(val.year, 2025)
+
+        # invalid
+        self.assertIsNone(date_parser(object()))
 
     def test_bool_type(self):
         string = "True"

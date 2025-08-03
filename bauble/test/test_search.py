@@ -1155,6 +1155,30 @@ class SearchTests2(BaubleTestCase):
             results.extend(i)
         self.assertEqual(results, [p2])
 
+        # fuzzy date strings
+        today_date = datetime.date.today()
+        yesterday_date = today_date - datetime.timedelta(days=1)
+        today_str = today_date.strftime("%A")
+        yesterday_str = yesterday_date.strftime("%A")
+        today_mth = today_date.strftime("%B")
+        yesterday_mth = yesterday_date.strftime("%B")
+        today_day = today_date.strftime("%-d")
+        yesterday_day = yesterday_date.strftime("%-d")
+        yesterday_day += {
+            "1": "st",
+            "2": "nd",
+            "3": "rd",
+        }.get(yesterday_day, "th")
+        s = (
+            "plant where _last_updated between "
+            f"'{yesterday_str} the {yesterday_day} of {yesterday_mth}' and "
+            f"'{today_str} {today_day} {today_mth}'"
+        )
+        results = []
+        for i in mapper_search.search(s, self.session):
+            results.extend(i)
+        self.assertEqual(results, [p2])
+
     def test_search_by_datestring_query_tz_limits(self):
 
         family2 = Family(family="family2")

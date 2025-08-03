@@ -35,7 +35,7 @@ from operator import le
 from operator import lt
 from typing import Any
 
-import dateutil.parser as date_parser
+from dateutil import parser
 from sqlalchemy import types
 from sqlalchemy.engine import Dialect
 from sqlalchemy.sql.elements import ClauseElement
@@ -240,10 +240,12 @@ def days_ago(week_day: str) -> int:
     return (today - WEEKDAY_NAMES.index(week_day)) % 7
 
 
-def get_date(val: str | float) -> datetime | None:
+def get_date_from_offset(val: str | float) -> datetime | None:
     offset = None
     if isinstance(val, float):
         offset = val
+    elif not isinstance(val, str):
+        return None
     elif (val_lower := val.strip().lower()) == _("today"):
         offset = 0
     elif val_lower == _("yesterday"):
@@ -257,6 +259,47 @@ def get_date(val: str | float) -> datetime | None:
             hour=0, minute=0, second=0, microsecond=0
         ) + timedelta(offset)
     return None
+
+
+def date_parser(value: str | float) -> datetime | None:
+    result = get_date_from_offset(value)
+
+    if result:
+        return result
+
+    if not isinstance(value, str):
+        logger.debug("value is not a string: %s", value)
+        return None
+    return parse_str_date(value)
+
+
+def parse_str_date(value: str) -> datetime | None:
+    result = None
+
+    try:
+        # try parsing as iso8601 first
+        result = parser.isoparse(value)
+    except ValueError:
+        pass
+
+    if not result:
+        from bauble import prefs  # avoid circular imports
+
+        try:
+            result = parser.parse(
+                value,
+                dayfirst=prefs.prefs[prefs.parse_dayfirst_pref],
+                yearfirst=prefs.prefs[prefs.parse_yearfirst_pref],
+            )
+        except ValueError:
+            pass
+
+    if not result:
+        try:
+            result = parser.parse(str(value), fuzzy=True)
+        except ValueError:
+            pass
+    return result
 
 
 class DateTime(types.TypeDecorator):
@@ -276,7 +319,7 @@ class DateTime(types.TypeDecorator):
             vals = []
             for val in other:
                 if isinstance(val, (str, float)):
-                    date = get_date(val)
+                    date = date_parser(val)
                     if date:
                         val = date.astimezone(tz=timezone.utc)
                 vals.append(val)
@@ -290,26 +333,12 @@ class DateTime(types.TypeDecorator):
                 return value.astimezone(tz=timezone.utc)
             return value
 
-        if not self._dayfirst or not self._yearfirst:
-            from bauble import prefs  # avoid circular imports
+        result = date_parser(value)
 
-            # pylint: disable=protected-access
-            self.__class__._dayfirst = prefs.prefs[prefs.parse_dayfirst_pref]
-            self.__class__._yearfirst = prefs.prefs[prefs.parse_yearfirst_pref]
+        if result is None:
+            logger.debug("date_parser returned None for value: %s", value)
+            return None
 
-        try:
-            # try parsing as iso8601 first
-            result = date_parser.isoparse(value)
-        except ValueError:
-            try:
-                result = date_parser.parse(
-                    value,
-                    dayfirst=DateTime._dayfirst,
-                    yearfirst=DateTime._yearfirst,
-                )
-            except ValueError as e:
-                logger.debug("%s(%s)", type(e).__name__, e)
-                return None
         return result.astimezone(tz=timezone.utc)
 
     def process_result_value(self, value, dialect):
@@ -339,7 +368,7 @@ class Date(types.TypeDecorator):
             vals = []
             for val in other:
                 if isinstance(val, (str, float)):
-                    date = get_date(val)
+                    date = date_parser(val)
                     if date:
                         val = date
                 vals.append(val)
@@ -350,24 +379,12 @@ class Date(types.TypeDecorator):
         if not isinstance(value, str):
             return value
 
-        if not self._dayfirst or not self._yearfirst:
-            from bauble import prefs
+        result = date_parser(value)
 
-            # pylint: disable=protected-access
-            self.__class__._dayfirst = prefs.prefs[prefs.parse_dayfirst_pref]
-            self.__class__._yearfirst = prefs.prefs[prefs.parse_yearfirst_pref]
+        if result is None:
+            logger.debug("date_parser returned None for value: %s", value)
+            return None
 
-        try:
-            # try parsing as iso8601 first
-            result = date_parser.isoparse(value)
-        except ValueError:
-            try:
-                result = date_parser.parse(
-                    value, dayfirst=Date._dayfirst, yearfirst=Date._yearfirst
-                )
-            except ValueError as e:
-                logger.debug("%s(%s)", type(e).__name__, e)
-                return None
         return result.date()
 
 

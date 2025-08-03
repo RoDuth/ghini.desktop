@@ -40,7 +40,6 @@ from datetime import datetime
 from datetime import timedelta
 from datetime import timezone
 
-from dateutil import parser
 from pyparsing import ParseResults
 from sqlalchemy import and_
 from sqlalchemy import select
@@ -50,9 +49,8 @@ from sqlalchemy.sql import Select
 from sqlalchemy.sql import func
 from sqlalchemy.sql.elements import ColumnElement
 
-from bauble import prefs
 from bauble.btypes import DateTime
-from bauble.btypes import get_date
+from bauble.btypes import date_parser
 from bauble.db import Base
 
 from .operations import OPERATIONS
@@ -131,20 +129,14 @@ class BinaryClause(ClauseAction):
 
 
 def get_datetime(value: str | float) -> datetime:
-    result = get_date(value)
+    result = date_parser(value)
+
     if not result:
-        try:
-            # try parsing as iso8601 first
-            result = parser.isoparse(str(value))
-        except ValueError:
-            try:
-                result = parser.parse(
-                    str(value),
-                    dayfirst=prefs.prefs[prefs.parse_dayfirst_pref],
-                    yearfirst=prefs.prefs[prefs.parse_yearfirst_pref],
-                )
-            except ValueError:
-                result = parser.parse(str(value), fuzzy=True)
+        raise ValueError(
+            f"Invalid date value: {value!r}. "
+            "Expected a date string or float."
+        )
+
     return result.replace(hour=0, minute=0, second=0, microsecond=0)
 
 
