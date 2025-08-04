@@ -13,7 +13,6 @@ mingw-w64-ucrt-x86_64-python-coverage
 mingw-w64-ucrt-x86_64-cython
 mingw-w64-ucrt-x86_64-osm-gps-map
 mingw-w64-ucrt-x86_64-python-cairo
-mingw-w64-ucrt-x86_64-pyinstaller
 mingw-w64-ucrt-x86_64-python-pyodbc
 mingw-w64-ucrt-x86_64-python-markupsafe
 mingw-w64-ucrt-x86_64-python-greenlet

@@ -1162,8 +1162,8 @@ class SearchTests2(BaubleTestCase):
         yesterday_str = yesterday_date.strftime("%A")
         today_mth = today_date.strftime("%B")
         yesterday_mth = yesterday_date.strftime("%B")
-        today_day = today_date.strftime("%-d")
-        yesterday_day = yesterday_date.strftime("%-d")
+        today_day = today_date.strftime("%d").lstrip("0")
+        yesterday_day = yesterday_date.strftime("%d").lstrip("0")
         yesterday_day += {
             "1": "st",
             "2": "nd",

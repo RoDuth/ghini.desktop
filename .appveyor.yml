@@ -8,11 +8,11 @@ environment:
   PIP_BREAK_SYSTEM_PACKAGES: "true"
   fop_ver: 2.11
   matrix:
-    - APPVEYOR_BUILD_WORKER_IMAGE: macos-sonoma
-      TEST_DB: sqlite
     - APPVEYOR_BUILD_WORKER_IMAGE: Visual Studio 2019
       TEST_DB: sqlite
       PATH: C:\msys64\usr\bin;C:\Program Files (x86)\NSIS\Bin;%PATH%
+    - APPVEYOR_BUILD_WORKER_IMAGE: macos-sonoma
+      TEST_DB: sqlite
     - APPVEYOR_BUILD_WORKER_IMAGE: Visual Studio 2019
       TEST_DB: MSSQL
       COVERALLS_REPO_TOKEN:

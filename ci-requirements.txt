@@ -4,4 +4,4 @@ pyodbc
 Babel
 coverage
 pytest
-pyinstaller
+pyinstaller==6.12.0
