@@ -2,21 +2,21 @@ platform:
   - x64
 
 environment:
-  APPVEYOR_SAVE_CACHE_ON_ERROR: "true"
+  APPVEYOR_SAVE_CACHE_ON_ERROR: true
   MSYSTEM: UCRT64
   CHERE_INVOKING: 1
-  PIP_BREAK_SYSTEM_PACKAGES: "true"
+  PIP_BREAK_SYSTEM_PACKAGES: true
   fop_ver: 2.11
   matrix:
     - APPVEYOR_BUILD_WORKER_IMAGE: Visual Studio 2019
       TEST_DB: sqlite
+      COVERALLS_REPO_TOKEN:
+        secure: dFRyBsYhvG/CAVHHXVL8JVuFWRBuB0zGmiH6W+fQUafSmAsIITs7P7mwOl2y2voK
       PATH: C:\msys64\usr\bin;C:\Program Files (x86)\NSIS\Bin;%PATH%
     - APPVEYOR_BUILD_WORKER_IMAGE: macos-sonoma
       TEST_DB: sqlite
     - APPVEYOR_BUILD_WORKER_IMAGE: Visual Studio 2019
       TEST_DB: MSSQL
-      COVERALLS_REPO_TOKEN:
-        secure: dFRyBsYhvG/CAVHHXVL8JVuFWRBuB0zGmiH6W+fQUafSmAsIITs7P7mwOl2y2voK
       PATH: C:\msys64\usr\bin;%PATH%
 
 skip_tags: true
@@ -90,10 +90,14 @@ for:
     - path: dist/*-setup.exe
 
   test_script:
-    - bash -lc "python -m pytest -sv"
+    - bash -lc "pip install coveralls"
+    - bash -lc "coverage run -m pytest -sv"
+    - bash -lc "coverage combine"
+    - bash -lc "coverage report"
+    - bash -lc "coveralls"
   cache:
     - wheels -> requirements.txt, ci-requirements.txt
-    - fop-$(fop_ver) -> scripts\get_fop.sh
+    - 'fop-%fop_ver% -> scripts\get_fop.sh'
     - jre -> scripts\get_fop.sh
 -
   matrix:
@@ -122,11 +126,7 @@ for:
     - bash -lc "pip install '.[ci]' --find-links wheels"
 
   test_script:
-    - bash -lc "pip install coveralls"
-    - bash -lc "BAUBLE_TEST_DB_URI='mssql://sa:Password12!@localhost:1433/master?driver=ODBC+Driver+17+for+SQL+Server&MARS_Connection=Yes' coverage run -m pytest -sv"
-    - bash -lc "coverage combine"
-    - bash -lc "coverage report"
-    - bash -lc "coveralls"
+    - bash -lc "BAUBLE_TEST_DB_URI='mssql://sa:Password12!@localhost:1433/master?driver=ODBC+Driver+17+for+SQL+Server&MARS_Connection=Yes' python -m pytest -sv"
   cache:
     - wheels -> requirements.txt, ci-requirements.txt
 
