@@ -2930,10 +2930,8 @@ class AccessionTests(GardenTestCase):
         source.notes = "test notes"
         source.source_detail = source_detail
         acc.source = source
-        print(acc.date_recvd)
         self.session.add(acc)
         self.session.commit()
-        print(acc.date_recvd)
         editor = AccessionEditor(acc)
         editor.presenter.view.widget_set_value(
             "acc_code_format_comboentry", code_fmat
