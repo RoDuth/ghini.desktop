@@ -2,7 +2,7 @@
 # pylint: disable=missing-module-docstring,redefined-builtin
 from pathlib import Path
 
-version = "1.3.14"  # :bump
+version = "1.3.15"  # :bump
 
 # Usage:
 # dmgbuild -s scripts/dmg_create.py "", X
