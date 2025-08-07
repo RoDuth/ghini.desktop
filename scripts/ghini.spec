@@ -31,20 +31,20 @@ gio_modules = []
 if 'mingw' in sysconfig.get_platform():
     binaries = [
         ('C:/msys64/ucrt64/lib/gio/modules/libgiognomeproxy.dll',
-         'lib/gio/modules'),
+         'gio_modules'),
         ('C:/msys64/ucrt64/lib/gio/modules/libgiolibproxy.dll',
-         'lib/gio/modules'),
+         'gio_modules'),
         ('C:/msys64/ucrt64/lib/gio/modules/libgiognutls.dll',
-         'lib/gio/modules'),
+         'gio_modules'),
         ('C:/msys64/ucrt64/lib/gio/modules/libgioopenssl.dll',
-         'lib/gio/modules'),
+         'gio_modules'),
         ('C:/msys64/ucrt64/bin/libgnutls-30.dll', '.'),
         ('C:/msys64/ucrt64/bin/libintl-8.dll', '.'),
         ('C:/msys64/ucrt64/bin/libproxy-1.dll', '.'),
     ]
     gio_modules = [
         ('C:/msys64/ucrt64/lib/gio/modules/giomodule.cache',
-         'lib/gio/modules'),
+         'gio_modules'),
     ]
 elif sys.platform == 'darwin':
     prefix = subprocess.run(
@@ -55,14 +55,14 @@ elif sys.platform == 'darwin':
     ).stdout.strip()
     binaries = [
         (f'{prefix}/lib/gio/modules/libgiognutls.so',
-         'lib/gio/modules'),
+         'gio_modules'),
         (f'{prefix}/lib/libgnutls.30.dylib', '.'),
         (f'{prefix}/lib/libintl.8.dylib', '.'),
         (f'{prefix}/lib/libproxy.1.dylib', '.'),
     ]
     gio_modules = [
         (f'{prefix}/lib/gio/modules/giomodule.cache',
-         'lib/gio/modules'),
+         'gio_modules'),
     ]
 
 a = Analysis(['ghini'],

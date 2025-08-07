@@ -101,12 +101,6 @@ if hasattr(DynamicImporter, "load_module"):
 # <<< END
 
 if __name__ == "__main__":
-    # required for OsmGpsMap or can't retrieve openstreetmaps tiles
-    if getattr(sys, "frozen", False):
-        # pylint: disable=protected-access
-        os.environ["GIO_EXTRA_MODULES"] = os.path.join(
-            sys._MEIPASS, "lib", "gio", "modules"  # type:ignore [attr-defined]
-        )
     freeze_support()
 
     from bauble import main
