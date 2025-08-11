@@ -1,9 +1,6 @@
 # vim:ft=python
 # pylint: disable=undefined-variable,missing-module-docstring
 
-import sys
-import sysconfig
-import subprocess
 from pathlib import Path
 
 import pyproj
@@ -25,45 +22,7 @@ configs = [(f'{i}/*.cfg', f'{i.relative_to(root)}') for i in
 
 block_cipher = None
 
-binaries = []
-gio_modules = []
-
-if 'mingw' in sysconfig.get_platform():
-    binaries = [
-        ('C:/msys64/ucrt64/lib/gio/modules/libgiognomeproxy.dll',
-         'gio_modules'),
-        ('C:/msys64/ucrt64/lib/gio/modules/libgiolibproxy.dll',
-         'gio_modules'),
-        ('C:/msys64/ucrt64/lib/gio/modules/libgiognutls.dll',
-         'gio_modules'),
-        ('C:/msys64/ucrt64/lib/gio/modules/libgioopenssl.dll',
-         'gio_modules'),
-        ('C:/msys64/ucrt64/bin/libgnutls-30.dll', '.'),
-        ('C:/msys64/ucrt64/bin/libintl-8.dll', '.'),
-        ('C:/msys64/ucrt64/bin/libproxy-1.dll', '.'),
-    ]
-    gio_modules = [
-        ('C:/msys64/ucrt64/lib/gio/modules/giomodule.cache',
-         'gio_modules'),
-    ]
-elif sys.platform == 'darwin':
-    prefix = subprocess.run(
-        ["brew", "--prefix"],
-        capture_output=True,
-        text=True,
-        check=True,
-    ).stdout.strip()
-    binaries = [
-        (f'{prefix}/lib/gio/modules/libgiognutls.so',
-         'gio_modules'),
-        (f'{prefix}/lib/libgnutls.30.dylib', '.'),
-        (f'{prefix}/lib/libintl.8.dylib', '.'),
-        (f'{prefix}/lib/libproxy.1.dylib', '.'),
-    ]
-    gio_modules = [
-        (f'{prefix}/lib/gio/modules/giomodule.cache',
-         'gio_modules'),
-    ]
+binaries: list[str] = []
 
 a = Analysis(['ghini'],
              pathex=[root],
@@ -85,7 +44,7 @@ a = Analysis(['ghini'],
                  ('../bauble/plugins/report/xsl/stylesheets',
                   'bauble/plugins/report/xsl/stylesheets'),
                  (pyproj.datadir.get_data_dir(), 'share/proj'),
-             ] + glade_files + configs + gio_modules,  # noqa
+             ] + glade_files + configs,  # noqa
              hiddenimports=[
                  'sqlalchemy.dialects.sqlite',
                  'sqlalchemy.dialects.postgresql',
@@ -103,7 +62,6 @@ a = Analysis(['ghini'],
                  'pyproj',
                  'pyodbc',
              ],   # noqa
-             hookspath=['./scripts/extra-hooks/'],
              hooksconfig={"gi": {
                  "icons": ["Adwaita"],
                  "themes": ["Adwaita"],
