@@ -66,14 +66,12 @@ for:
   install:
     - if not exist jre\ choco install openjdk -y
     - bash -lc "uname -a"
-    # - bash -lc "pacman --noconfirm -Syuu"  # Core update.  see: https://msys2.org/docs/ci/
-    # - bash -lc "pacman --noconfirm -Syuu"  # Normal update
+    - bash -lc "pacman --noconfirm -Syuu"  # Core update.  see: https://msys2.org/docs/ci/
+    - bash -lc "pacman --noconfirm -Syuu"  # Normal update
     - bash -lc "pacman --noconfirm --needed -S - < ./scripts/mingw64_pkglist.txt"
     - bash -lc "python --version"
     - dir %WINDIR%\System32\msodbcsql*.dll
     # wheels cache
-    - if not exist wheels\ bash -lc "pip wheel git+https://github.com/RoDuth/pyodbc --wheel-dir wheels"
-    - bash -lc "pip wheel pyproj --wheel-dir wheels --find-links wheels"
     - bash -lc "pip wheel dukpy --wheel-dir wheels --find-links wheels"
     - bash -lc "pip wheel 'SQLAlchemy<2.0' --wheel-dir wheels --find-links wheels"
     - bash -lc "pip install git+https://github.com/pyinstaller/pyinstaller.git@develop"
@@ -118,8 +116,6 @@ for:
     - bash -lc "python --version"
     - dir %WINDIR%\System32\msodbcsql*.dll
     # wheels cache
-    - if not exist wheels\ bash -lc "pip wheel git+https://github.com/RoDuth/pyodbc --wheel-dir wheels"
-    - bash -lc "pip wheel pyproj --wheel-dir wheels --find-links wheels"
     - bash -lc "pip wheel dukpy --wheel-dir wheels --find-links wheels"
     - bash -lc "pip wheel 'SQLAlchemy<2.0' --wheel-dir wheels --find-links wheels"
     - dir wheels
