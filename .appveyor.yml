@@ -64,6 +64,9 @@ for:
     - bash -lc "pacman --noconfirm -Syuu"  # Core update.  see: https://msys2.org/docs/ci/
     - bash -lc "pacman --noconfirm -Syuu"  # Normal update
     - bash -lc "pacman --noconfirm --needed -S - < ./scripts/mingw64_pkglist.txt"
+    # TEMP fix osmgpsmap https://github.com/msys2/MINGW-packages/issues/25223
+    - bash -lc "curl -O https://raw.githubusercontent.com/RoDuth/MINGW-packages/refs/heads/osm-gps-map-fix/mingw-w64-osm-gps-map/PKGBUILD"
+    - bash -lc "makepkg-mingw --cleanbuild --syncdeps --force --install --noconfirm"
     - bash -lc "python --version"
     - dir %WINDIR%\System32\msodbcsql*.dll
     # wheels cache
@@ -108,6 +111,9 @@ for:
     - bash -lc "pacman --noconfirm -Syuu"  # Core update.  see: https://msys2.org/docs/ci/
     - bash -lc "pacman --noconfirm -Syuu"  # Normal update
     - bash -lc "pacman --noconfirm --needed -S - < ./scripts/mingw64_pkglist.txt"
+    # TEMP fix osmgpsmap https://github.com/msys2/MINGW-packages/issues/25223
+    - bash -lc "curl -O https://raw.githubusercontent.com/RoDuth/MINGW-packages/refs/heads/osm-gps-map-fix/mingw-w64-osm-gps-map/PKGBUILD"
+    - bash -lc "makepkg-mingw --cleanbuild --syncdeps --force --install --noconfirm"
     - bash -lc "python --version"
     - dir %WINDIR%\System32\msodbcsql*.dll
     # wheels cache
