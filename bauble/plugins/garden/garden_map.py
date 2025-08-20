@@ -48,7 +48,6 @@ from gi.repository import Gtk
 from gi.repository import OsmGpsMap  # NOTE mypy [attr-defined] only on file
 from sqlalchemy import Table
 from sqlalchemy import case
-from sqlalchemy import engine
 from sqlalchemy import event
 from sqlalchemy import select
 

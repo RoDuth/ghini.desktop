@@ -1539,7 +1539,10 @@ class GenericEditorPresenter:
                 self.remove_problem(f"BAD_VALUE_{attr}")
             except ValidatorError as e:
                 logger.debug("GenericEditorPresenter.set_model_attr %s", e)
-                self.add_problem(f"BAD_VALUE_{attr}")
+                for widget, field in self.widget_to_field_map.items():
+                    if field == attr:
+                        self.add_problem(f"BAD_VALUE_{attr}", widget)
+                        break
             else:
                 setattr(self.model, attr, value)
         else:
