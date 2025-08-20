@@ -530,6 +530,7 @@ class PropagationTabPresenter(editor.GenericEditorPresenter):
                 label.props.label = prop.get_summary()
                 self._dirty = True
             self.parent_ref().refresh_sensitivity()
+            self._expander_set_label_from_prop(expander, propagation)
 
         vbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
         button_box = Gtk.Box(spacing=5)
@@ -550,6 +551,13 @@ class PropagationTabPresenter(editor.GenericEditorPresenter):
         )
         button_box.pack_start(remove_button, False, False, 0)
 
+        self._expander_set_label_from_prop(expander, propagation)
+
+        hbox.show_all()
+        return hbox
+
+    @staticmethod
+    def _expander_set_label_from_prop(expander, propagation):
         # TODO: add a * to the propagation label for uncommitted propagations
         prop_type = prop_type_values[propagation.prop_type]
 
@@ -563,9 +571,6 @@ class PropagationTabPresenter(editor.GenericEditorPresenter):
             prop_type=prop_type, prop_date=date_str
         )
         expander.set_label(title)
-
-        hbox.show_all()
-        return hbox
 
     def on_remove_clicked(self, _button, propagation, box):
         count = len(propagation.accessions)
