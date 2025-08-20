@@ -3,9 +3,9 @@
 # for pygobject-stubs may need to use --no-cache-dir e.g.:
 # $ pip install --no-cache-dir -r dev-requirements.txt
 mypy
-pygobject-stubs --config-settings=config=Gtk3,Gdk3,Soup2
+pygobject-stubs<2.13 --config-settings="config=Gtk3,Gdk3"
 types-python-dateutil
-sqlalchemy[mypy] < 2.0
+sqlalchemy[mypy]<2.0
 Babel
 lxml-stubs
 types-psycopg2
