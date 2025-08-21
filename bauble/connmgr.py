@@ -474,7 +474,7 @@ class ConnectionBox(editor.GenericPresenter[ConnectionModel], Gtk.Box):
     def on_file_btnbrowse_clicked(self, *_args) -> None:
         self.btnbrowse_clicked(
             self.file_entry,
-            Gtk.FileChooserAction.OPEN,
+            Gtk.FileChooserAction.SAVE,
         )
 
     @Gtk.Template.Callback()
