@@ -24,6 +24,7 @@ import logging
 import os
 import re
 import textwrap
+import threading
 import traceback
 import weakref
 from ast import literal_eval
@@ -1450,7 +1451,11 @@ class DistributionPresenter(editor.GenericEditorPresenter):
         self.parent_ref = weakref.ref(parent)
         self._dirty = False
 
-        self.init_menu_btn()
+        self.init_geo_menu_btn()
+
+        self.geo_menu = None
+        self.geo_menu_thread = threading.Thread(target=self.init_geo_menu)
+        GLib.idle_add(self.geo_menu_thread.start)
 
         self.remove_menu_model = Gio.Menu()
         action = Gio.SimpleAction.new(
@@ -1479,21 +1484,21 @@ class DistributionPresenter(editor.GenericEditorPresenter):
         )
 
         self.view.widgets.sp_dist_add_button.set_sensitive(False)
-        self.geo_menu = None
 
+    def init_geo_menu(self) -> None:
+        """Initialise the add distribution menu."""
         add_button = self.view.widgets.sp_dist_add_button
         self.geo_menu = GeographyMenu.new_menu(
             self.on_activate_add_menu_item, add_button
         )
-        self.geo_menu.attach_to_widget(add_button)
-        add_button.set_sensitive(True)
 
-    def init_menu_btn(self) -> None:
+    def init_geo_menu_btn(self) -> None:
         """Initialise the distribution menu button.
 
         Create the ActionGroup and Menu, set the MenuButton menu model to the
         Menu and insert the ActionGroup.
         """
+
         menu = Gio.Menu()
         action_group = Gio.SimpleActionGroup()
         menu_items = (
@@ -1663,7 +1668,10 @@ class DistributionPresenter(editor.GenericEditorPresenter):
 
     def cleanup(self):
         super().cleanup()
-        self.geo_menu.destroy()
+        if self.geo_menu_thread.is_alive():
+            self.geo_menu_thread.join()
+        if self.geo_menu is not None:
+            self.geo_menu.destroy()
 
     def refresh_view(self) -> None:
         label = self.view.widgets.sp_dist_label

@@ -25,6 +25,7 @@ import logging
 import threading
 import traceback
 from collections import OrderedDict
+from collections.abc import Callable
 from collections.abc import Iterable
 from collections.abc import Iterator
 from collections.abc import Sequence
@@ -128,81 +129,139 @@ def get_species_in_geography(geo):
 
 
 class GeographyMenu(Gio.Menu):
-    ACTION_NAME = "geography_activated"
+    """Menu that attaches to a button for geography selection.
 
-    def __init__(self):
+    Usage example (using a thread to prevent hanging the presenter)::
+
+        def __init__(self):
+            self.add_button = Gtk.Button(label=_("Add Geography"))
+            self.geo_menu = None
+            self.geo_menu_thread = threading.Thread(target=self.init_geo_menu)
+            GLib.idle_add(self.geo_menu_thread.start)
+
+        # create menu with an 'activate' signal handler and button to attach to
+        def init_geo_menu(self):
+            self.geo_menu = GeographyMenu.new_menu(
+                self.on_activate_add_menu_item, self.add_button
+            )
+
+        # signal handler for the menu item activation
+        def on_activate_add_menu_item(self, action, geo_id): ...
+
+        # destroy it with the presenter
+        def cleanup(self):
+            if self.geo_menu_thread.is_alive():
+                self.geo_menu_thread.join()
+            if self.geo_menu is not None:
+                self.geo_menu.destroy()
+
+    """
+
+    ACTION_NAME = "geography_activated"
+    _geos_ordered: dict[int | None, list[tuple[int, str]]] = {}
+
+    def __init__(self) -> None:
         super().__init__()
-        geography_table = Geography.__table__
-        self.geos = (
-            select(
+        self._populate()
+
+    @classmethod
+    def new_menu(
+        cls,
+        handler: Callable[[Gio.SimpleAction, str], None],
+        button: Gtk.Button,
+    ) -> Gtk.Menu:
+        logger.debug("new geography menu %s", button)
+        menu_model = cls()
+        menu_model._attach_action_group(handler, button)
+        menu = Gtk.Menu.new_from_model(menu_model)
+        menu.attach_to_widget(button)
+        button.set_sensitive(True)
+
+        return menu
+
+    @property
+    def geos_ordered(self) -> dict[int | None, list[tuple[int, str]]]:
+        if not self._geos_ordered:
+            geography_table = Geography.__table__
+            stmt = select(
                 [
                     geography_table.c.id,
                     geography_table.c.name,
                     geography_table.c.parent_id,
                 ]
             )
-            .execute()
-            .fetchall()
-        )
-        self.geos_hash = {}
-        self.populate()
+            with db.engine.begin() as connection:
+                geos = connection.execute(stmt).all()
 
-    @classmethod
-    def new_menu(cls, callback, button):
-        logger.debug("new geography menu %s", button)
-        menu = cls()
-        menu.attach_action_group(callback, button)
+            geos_ordered: dict[int | None, list[tuple[int, str]]] = {}
+            for id_, name, parent_id in geos:
+                geos_ordered.setdefault(parent_id, []).append((id_, name))
 
-        return Gtk.Menu.new_from_model(menu)
+            for kids in geos_ordered.values():
+                kids.sort(key=itemgetter(1))  # sort by name
 
-    def attach_action_group(self, callback, button):
+            type(self)._geos_ordered = geos_ordered
+        return self._geos_ordered
+
+    def _attach_action_group(
+        self,
+        handler: Callable[[Gio.SimpleAction, str], None],
+        button: Gtk.Button,
+    ) -> None:
         action = Gio.SimpleAction.new(self.ACTION_NAME, GLib.VariantType("s"))
-        action.connect("activate", callback)
+        action.connect("activate", handler)
         action_group = Gio.SimpleActionGroup()
         action_group.add_action(action)
         button.insert_action_group("geo", action_group)
 
-    def get_geos_hash(self):
-        geos_hash = {}
-        for geo_id, name, parent_id in self.geos:
-            geos_hash.setdefault(parent_id, []).append((geo_id, name))
+    def _build_menu(self, geo_id: int, name: str) -> Gio.MenuItem | Gio.Menu:
+        next_level = self.geos_ordered.get(geo_id)
 
-        for kids in geos_hash.values():
-            kids.sort(key=itemgetter(1))  # sort by name
-
-        return geos_hash
-
-    def build_menu(self, geo_id, name):
-        if next_level := self.geos_hash.get(geo_id):
+        if next_level:
             submenu = Gio.Menu()
             item = Gio.MenuItem.new(name, f"geo.{self.ACTION_NAME}::{geo_id}")
             submenu.append_item(item)
             section = Gio.Menu()
             submenu.append_section(None, section)
             for id_, name_ in next_level:
-                item = self.build_menu(id_, name_)
-                if isinstance(item, Gio.MenuItem):
-                    section.append_item(item)
+                next_item = self._build_menu(id_, name_)
+                if isinstance(next_item, Gio.MenuItem):
+                    section.append_item(next_item)
                 else:
-                    section.append_submenu(name_, item)
+                    section.append_submenu(name_, next_item)
+            # result
             return submenu
 
-        item = Gio.MenuItem.new(name, f"geo.{self.ACTION_NAME}::{geo_id}")
-        return item
+        # base case
+        return Gio.MenuItem.new(name, f"geo.{self.ACTION_NAME}::{geo_id}")
 
-    def populate(self):
+    def _populate(self) -> None:
         """add geography value to the menu, any top level items that don't
         have any kids are appended to the bottom of the menu
         """
-        self.geos_hash = self.get_geos_hash()
 
-        if not self.geos_hash:
-            # we would get here if the geos_hash isn't populated, usually
+        if not self.geos_ordered:
+            # we would get here if the geos_ordered isn't populated, usually
             # during a unit test
             return
 
-        for geo_id, geo_name in self.geos_hash[None]:
-            self.append_submenu(geo_name, self.build_menu(geo_id, geo_name))
+        no_kids = []
+
+        for geo_id, geo_name in self.geos_ordered[None]:
+            menu = self._build_menu(geo_id, geo_name)
+
+            if isinstance(menu, Gio.Menu):
+                self.append_submenu(geo_name, menu)
+            else:
+                no_kids.append(menu)
+
+        for item in no_kids:
+            # append to the end of the menu
+            self.append_item(item)
+
+    @classmethod
+    def reset(cls) -> None:
+        cls._geos_ordered = {}
 
 
 class Geography(db.Domain):
@@ -1139,6 +1198,22 @@ def geography_before_update(_mapper, _connection, target: Geography) -> None:
 @event.listens_for(Geography, "before_insert")
 def geography_before_insert(_mapper, _connection, target: Geography) -> None:
     target.approx_area = target.get_approx_area()
+
+
+# update the menu in the event of any changes (should be rare)
+@event.listens_for(Geography, "after_update")
+def geography_after_update(_mapper, _connection, _target) -> None:
+    GeographyMenu.reset()
+
+
+@event.listens_for(Geography, "after_insert")
+def geography_after_insert(_mapper, _connection, _target) -> None:
+    GeographyMenu.reset()
+
+
+@event.listens_for(Geography, "after_delete")
+def geography_after_delete(_mapper, _connection, _target) -> None:
+    GeographyMenu.reset()
 
 
 def update_all_approx_areas_task(*_args: Any) -> Iterator[None]:

@@ -24,6 +24,7 @@ Source and associated tables, etc.
 import logging
 import os
 import re
+import threading
 import traceback
 import weakref
 from pathlib import Path
@@ -31,6 +32,7 @@ from typing import TYPE_CHECKING
 
 logger = logging.getLogger(__name__)
 
+from gi.repository import GLib
 from gi.repository import Gtk
 from sqlalchemy import Column
 from sqlalchemy import Float
@@ -602,16 +604,23 @@ class CollectionPresenter(editor.ChildPresenter):
             "add_region_button", "button-press-event", on_add_button_pressed
         )
 
-        add_button = self.view.widgets.add_region_button
-        self.geo_menu = GeographyMenu.new_menu(self.set_region, add_button)
-        self.geo_menu.attach_to_widget(add_button, None)
-        add_button.set_sensitive(True)
+        self.geo_menu = None
+        self.geo_menu_thread = threading.Thread(target=self.init_geo_menu)
+        GLib.idle_add(self.geo_menu_thread.start)
 
         self._dirty = False
 
+    def init_geo_menu(self):
+
+        add_button = self.view.widgets.add_region_button
+        self.geo_menu = GeographyMenu.new_menu(self.set_region, add_button)
+
     def cleanup(self):
         # garbage collect
-        self.geo_menu.destroy()
+        if self.geo_menu_thread.is_alive():
+            self.geo_menu_thread.join()
+        if self.geo_menu is not None:
+            self.geo_menu.destroy()
         super().cleanup()
 
     def collector_get_completions(self, text):

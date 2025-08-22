@@ -85,6 +85,7 @@ from .geography import DistMapInfoExpanderMixin
 from .geography import DistributionMap
 from .geography import GeneralGeographyExpander
 from .geography import Geography
+from .geography import GeographyMenu
 from .geography import _coord_string
 from .geography import _path_string
 from .geography import calculate_zoom_buffer
@@ -4510,6 +4511,103 @@ class GeographyTests2(TestCase):
         self.assertRaises(ValueError, get_viewbox, -180, -10, 50, 90, 2)
 
 
+class GeographyMenuTests(BaubleTestCase):
+    def test_resets_after_changes(self):
+        """Test that no geographies returns empty list."""
+        # start empty
+        menu = GeographyMenu()
+
+        self.assertEqual(menu._geos_ordered, {})
+        self.assertEqual(menu.geos_ordered, {})
+
+        # insert
+        geo1 = Geography(
+            name="EUROPE",
+            code="1",
+            level=1,
+        )
+        self.session.add(geo1)
+        self.session.commit()
+        geo2 = Geography(
+            name="Eastern Europe",
+            code="14",
+            level=2,
+            parent_id=geo1.id,
+        )
+        self.session.add(geo2)
+        self.session.commit()
+
+        self.assertEqual(menu._geos_ordered, {})
+        self.assertEqual(
+            menu.geos_ordered,
+            {
+                None: [(geo1.id, "EUROPE")],
+                geo1.id: [(geo2.id, "Eastern Europe")],
+            },
+        )
+        self.assertEqual(
+            menu._geos_ordered,
+            {
+                None: [(geo1.id, "EUROPE")],
+                geo1.id: [(geo2.id, "Eastern Europe")],
+            },
+        )
+
+        # update
+        geo1.name = "Europe"
+        self.session.commit()
+
+        self.assertEqual(
+            menu.geos_ordered,
+            {
+                None: [(geo1.id, "Europe")],
+                geo1.id: [(geo2.id, "Eastern Europe")],
+            },
+        )
+        self.assertEqual(
+            menu._geos_ordered,
+            {
+                None: [(geo1.id, "Europe")],
+                geo1.id: [(geo2.id, "Eastern Europe")],
+            },
+        )
+
+        # delete
+        self.session.delete(geo2)
+        self.session.commit()
+
+        self.assertEqual(
+            menu.geos_ordered,
+            {None: [(geo1.id, "Europe")]},
+        )
+        self.assertEqual(
+            menu._geos_ordered,
+            {None: [(geo1.id, "Europe")]},
+        )
+
+        menu.reset()
+
+    def test_single_geography_appends_as_menu_item(self):
+        """Test that a single geography is added as a menu item."""
+        geo = Geography(
+            name="EUROPE",
+            code="1",
+            level=1,
+        )
+        self.session.add(geo)
+        self.session.commit()
+
+        menu = GeographyMenu()
+
+        with mock.patch.object(menu, "append_submenu") as mock_append:
+            self.assertEqual(len(menu.geos_ordered), 1)
+            self.assertEqual(menu.get_n_items(), 1)
+            # confirm its not a submenu
+            mock_append.assert_not_called()
+
+        menu.reset()
+
+
 class DistributionMapTests(BaubleClassTestCase):
     @classmethod
     def setUpClass(cls):
@@ -5654,6 +5752,7 @@ class SpeciesEditorTests(BaubleTestCase):
         # edit_species(model=Species(genus=gen, sp='sp'))
         update_gui()
         editor.start()
+        editor.presenter.cleanup()
         del editor
         self.assertEqual(utils.gc_objects_by_type("SpeciesEditor"), [])
         self.assertEqual(
@@ -5666,6 +5765,7 @@ class SpeciesEditorTests(BaubleTestCase):
         editor = SpeciesEditor(model=Species())
         update_gui()
         self.assertIsNone(editor.start())
+        editor.presenter.cleanup()
         del editor
         update_gui()
         mock_dialog.assert_called()
@@ -5729,6 +5829,7 @@ class SpeciesEditorTests(BaubleTestCase):
         self.session.expire_all()
         self.assertEqual(sp.sp, "sp")
 
+        editor.presenter.cleanup()
         del editor
         update_gui()
         self.assertEqual(utils.gc_objects_by_type("SpeciesEditor"), [])
@@ -5756,6 +5857,7 @@ class SpeciesEditorTests(BaubleTestCase):
         self.session.expire_all()
         self.assertEqual(committed1.id, sp.id)
 
+        editor.presenter.cleanup()
         del editor
         update_gui()
         self.assertEqual(utils.gc_objects_by_type("SpeciesEditor"), [])
@@ -5770,8 +5872,10 @@ class SpeciesEditorPresenterTests(PlantTestCase):
         sp = Species()
         self.session.add(sp)
         presenter = SpeciesEditorPresenter(sp, SpeciesEditorView())
+        update_gui()
         result = presenter.gen_get_completions("Cy")
         self.assertEqual([str(i) for i in result], ["Cynodon"])
+        presenter.cleanup()
         del presenter
 
     def test_sp_species_tpl_callback_not_found(self):
@@ -5782,12 +5886,14 @@ class SpeciesEditorPresenterTests(PlantTestCase):
         self.session.commit()
         view = SpeciesEditorView()
         presenter = SpeciesEditorPresenter(sp, view)
+        update_gui()
 
         presenter.sp_species_tpl_callback(None, None)
         self.assertEqual(
             [i.message for i in presenter.species_check_messages],
             ["No match found on ThePlantList.org"],
         )
+        presenter.cleanup()
         del presenter
 
     def test_sp_species_tpl_callback_match(self):
@@ -5798,6 +5904,7 @@ class SpeciesEditorPresenterTests(PlantTestCase):
         self.session.commit()
         view = SpeciesEditorView()
         presenter = SpeciesEditorPresenter(sp, view)
+        update_gui()
 
         presenter.sp_species_tpl_callback(
             {
@@ -5816,6 +5923,7 @@ class SpeciesEditorPresenterTests(PlantTestCase):
             [i.message for i in presenter.species_check_messages],
             ["your data finely matches ThePlantList.org"],
         )
+        presenter.cleanup()
         del presenter
 
     def test_sp_species_tpl_callback_found(self):
@@ -5826,6 +5934,7 @@ class SpeciesEditorPresenterTests(PlantTestCase):
         self.session.commit()
         view = SpeciesEditorView()
         presenter = SpeciesEditorPresenter(sp, view)
+        update_gui()
 
         presenter.sp_species_tpl_callback(
             {
@@ -5872,6 +5981,7 @@ class SpeciesEditorPresenterTests(PlantTestCase):
         self.assertIn(
             "better_name", presenter.species_check_messages[0].message
         )
+        presenter.cleanup()
         del presenter
 
     def test_sp_species_tpl_callback_found_accepted(self):
@@ -5882,6 +5992,7 @@ class SpeciesEditorPresenterTests(PlantTestCase):
         self.session.commit()
         view = SpeciesEditorView()
         presenter = SpeciesEditorPresenter(sp, view)
+        update_gui()
 
         presenter.sp_species_tpl_callback(
             {
@@ -5920,6 +6031,7 @@ class SpeciesEditorPresenterTests(PlantTestCase):
         self.assertIn(
             "even_better_name", presenter.species_check_messages[1].message
         )
+        presenter.cleanup()
         del presenter
 
     def test_sp_species_tpl_callback_found_accepted_on_response(self):
@@ -5933,6 +6045,7 @@ class SpeciesEditorPresenterTests(PlantTestCase):
         self.session.commit()
         view = SpeciesEditorView()
         presenter = SpeciesEditorPresenter(sp, view)
+        update_gui()
 
         presenter.sp_species_tpl_callback(
             {
@@ -5977,6 +6090,7 @@ class SpeciesEditorPresenterTests(PlantTestCase):
             update_gui()
 
         presenter.session.commit()
+        presenter.cleanup()
         del presenter
 
         self.session.expire_all()
@@ -6004,6 +6118,7 @@ class SpeciesEditorPresenterTests(PlantTestCase):
         self.session.commit()
         view = SpeciesEditorView()
         presenter = SpeciesEditorPresenter(sp, view)
+        update_gui()
 
         presenter.sp_species_tpl_callback(
             {
@@ -6058,6 +6173,7 @@ class SpeciesEditorPresenterTests(PlantTestCase):
             "Could not resolve the family",
             presenter.species_check_messages[0].message,
         )
+        presenter.cleanup()
         del presenter
 
     def test_sp_species_tpl_callback_changed_family(self):
@@ -6072,6 +6188,7 @@ class SpeciesEditorPresenterTests(PlantTestCase):
         self.session.commit()
         view = SpeciesEditorView()
         presenter = SpeciesEditorPresenter(sp, view)
+        update_gui()
 
         presenter.sp_species_tpl_callback(
             {
@@ -6116,6 +6233,7 @@ class SpeciesEditorPresenterTests(PlantTestCase):
             "The family of the genus has been changed",
             presenter.species_check_messages[1].message,
         )
+        presenter.cleanup()
         del presenter
 
     def test_sp_species_tpl_callback_unresolved_genus(self):
@@ -6132,6 +6250,7 @@ class SpeciesEditorPresenterTests(PlantTestCase):
         self.session.commit()
         view = SpeciesEditorView()
         presenter = SpeciesEditorPresenter(sp, view)
+        update_gui()
 
         presenter.sp_species_tpl_callback(
             {
@@ -6186,6 +6305,7 @@ class SpeciesEditorPresenterTests(PlantTestCase):
             "Could not resolve the genus",
             presenter.species_check_messages[0].message,
         )
+        presenter.cleanup()
         del presenter
 
     def test_sp_species_tpl_callback_new_genus(self):
@@ -6197,6 +6317,7 @@ class SpeciesEditorPresenterTests(PlantTestCase):
         # id_ = sp.id
         view = SpeciesEditorView()
         presenter = SpeciesEditorPresenter(sp, view)
+        update_gui()
 
         presenter.sp_species_tpl_callback(
             {
@@ -6237,6 +6358,7 @@ class SpeciesEditorPresenterTests(PlantTestCase):
             "An entirely new genus has been generated.",
             presenter.species_check_messages[0].message,
         )
+        presenter.cleanup()
         del presenter
 
     def test_sp_species_tpl_callback_new_species(self):
@@ -6251,6 +6373,7 @@ class SpeciesEditorPresenterTests(PlantTestCase):
         self.session.commit()
         view = SpeciesEditorView()
         presenter = SpeciesEditorPresenter(sp, view)
+        update_gui()
 
         presenter.sp_species_tpl_callback(
             {
@@ -6305,6 +6428,7 @@ class SpeciesEditorPresenterTests(PlantTestCase):
             "An entirely new species has been generated.",
             presenter.species_check_messages[0].message,
         )
+        presenter.cleanup()
         del presenter
 
     @mock.patch("bauble.plugins.plants.ask_tpl.AskTPL")
@@ -6313,10 +6437,12 @@ class SpeciesEditorPresenterTests(PlantTestCase):
         self.session.add(sp)
         view = SpeciesEditorView()
         presenter = SpeciesEditorPresenter(sp, view)
+        update_gui()
         presenter.on_sp_species_button_clicked(None)
         self.assertEqual(len(presenter.species_check_messages), 0)
         self.assertEqual(len(view.boxes), 1)
         self.assertIn("querying the plant list", list(view.boxes)[0].message)
+        presenter.cleanup()
         del presenter
 
     def test_on_expand_cv_button_clicked(self):
@@ -6324,6 +6450,7 @@ class SpeciesEditorPresenterTests(PlantTestCase):
         self.session.add(sp)
         view = SpeciesEditorView()
         presenter = SpeciesEditorPresenter(sp, view)
+        update_gui()
 
         presenter.on_expand_cv_button_clicked()
         icon = view.widgets.expand_btn_icon.get_icon_name()[0]
@@ -6335,6 +6462,7 @@ class SpeciesEditorPresenterTests(PlantTestCase):
         self.assertEqual("pan-end-symbolic", icon)
         self.assertFalse(view.widgets.cv_extras_grid.get_visible())
 
+        presenter.cleanup()
         del presenter
 
     def test_on_entry_changed_clear_boxes(self):
@@ -6342,12 +6470,14 @@ class SpeciesEditorPresenterTests(PlantTestCase):
         self.session.add(sp)
         view = SpeciesEditorView()
         presenter = SpeciesEditorPresenter(sp, view)
+        update_gui()
         box = view.add_message_box(utils.MESSAGE_BOX_INFO)
         presenter.species_check_messages.append(box)
 
         presenter.on_entry_changed_clear_boxes(None)
         self.assertEqual(len(presenter.species_check_messages), 0)
 
+        presenter.cleanup()
         del presenter
 
     def test_on_habit_entry_changed(self):
@@ -6366,6 +6496,7 @@ class SpeciesEditorPresenterTests(PlantTestCase):
         self.session.add(sp)
         view = SpeciesEditorView()
         presenter = SpeciesEditorPresenter(sp, view)
+        update_gui()
 
         combo = view.widgets.sp_habit_comboentry
         self.assertEqual(combo.get_active(), -1)
@@ -6380,6 +6511,7 @@ class SpeciesEditorPresenterTests(PlantTestCase):
         presenter.on_habit_entry_changed(entry, combo)
         self.assertEqual(combo.get_active(), 34)
 
+        presenter.cleanup()
         del presenter
 
     def test_refresh_fullname_label(self):
@@ -6397,6 +6529,7 @@ class SpeciesEditorPresenterTests(PlantTestCase):
         sp.label_markup = "Test markup"
         view = SpeciesEditorView()
         presenter = SpeciesEditorPresenter(sp, view)
+        update_gui()
         # on init if a label_markup exists then the label should set and the
         # expander expand
         self.assertTrue(
@@ -6438,6 +6571,7 @@ class SpeciesEditorPresenterTests(PlantTestCase):
 
         view = SpeciesEditorView()
         presenter = SpeciesEditorPresenter(sp, view)
+        update_gui()
 
         presenter._warn_double_ups()
         self.assertIsNone(presenter.omonym_box)
@@ -6453,6 +6587,7 @@ class SpeciesEditorPresenterTests(PlantTestCase):
         presenter._warn_double_ups()
         self.assertIsNotNone(presenter.omonym_box)
 
+        presenter.cleanup()
         del presenter
 
     def test_on_markup_entry_changed(self):
@@ -6463,6 +6598,7 @@ class SpeciesEditorPresenterTests(PlantTestCase):
         )
         view = SpeciesEditorView()
         presenter = SpeciesEditorPresenter(sp, view)
+        update_gui()
 
         markup_entry = presenter.view.widgets.sp_label_markup_entry
         markup_label = presenter.view.widgets.label_markup_label
@@ -6500,6 +6636,7 @@ class SpeciesEditorPresenterTests(PlantTestCase):
 
         view = SpeciesEditorView()
         presenter = SpeciesEditorPresenter(sp, view)
+        update_gui()
 
         button = presenter.view.widgets.label_markup_btn
         markup_entry = presenter.view.widgets.sp_label_markup_entry
@@ -6516,10 +6653,12 @@ class SpeciesEditorPresenterTests(PlantTestCase):
         sp = self.session.query(Species).get(17)
         view = SpeciesEditorView()
         presenter = SpeciesEditorPresenter(sp, view)
+        update_gui()
         self.assertEqual(
             view.widgets.cites_label.get_text(), "Family: II, Genus: I"
         )
 
+        presenter.cleanup()
         del presenter
 
     def test_custom_fields(self):
@@ -6546,6 +6685,7 @@ class SpeciesEditorPresenterTests(PlantTestCase):
         self.assertEqual(sp._sp_custom1, "vulnerable")
         view = SpeciesEditorView()
         presenter = SpeciesEditorPresenter(sp, view)
+        update_gui()
         self.assertEqual(
             view.widgets._sp_custom1_label.get_text(), "NCA Status"
         )
@@ -6554,6 +6694,7 @@ class SpeciesEditorPresenterTests(PlantTestCase):
             "vulnerable",
         )
 
+        presenter.cleanup()
         del presenter
         self.session.delete(meta)
         self.session.commit()
@@ -6563,6 +6704,7 @@ class SpeciesEditorPresenterTests(PlantTestCase):
         sp = self.session.query(Species).get(3)
         view = SpeciesEditorView()
         presenter = SpeciesEditorPresenter(sp, view)
+        update_gui()
         self.assertFalse(view.widgets.infragen_expander.get_expanded())
 
         presenter.cleanup()
@@ -6571,6 +6713,7 @@ class SpeciesEditorPresenterTests(PlantTestCase):
         sp = self.session.query(Species).get(30)
         view = SpeciesEditorView()
         presenter = SpeciesEditorPresenter(sp, view)
+        update_gui()
         self.assertTrue(view.widgets.infragen_expander.get_expanded())
         self.assertEqual(view.widgets.subgenus_entry.get_text(), "Banksia")
         self.assertEqual(view.widgets.series_entry.get_text(), "Dryandra")
@@ -6582,6 +6725,7 @@ class SpeciesEditorPresenterTests(PlantTestCase):
         sp = self.session.query(Species).get(31)
         view = SpeciesEditorView()
         presenter = SpeciesEditorPresenter(sp, view)
+        update_gui()
         # wrong genus
         self.assertEqual(presenter.subgenus_get_completions("Epi"), [])
         # right genus
@@ -6599,6 +6743,7 @@ class SpeciesEditorPresenterTests(PlantTestCase):
         sp = self.session.query(Species).get(31)
         view = SpeciesEditorView()
         presenter = SpeciesEditorPresenter(sp, view)
+        update_gui()
         # wrong subgenus
         self.assertEqual(presenter.section_get_completions("Pla"), [])
         # right subgenus
@@ -6616,6 +6761,7 @@ class SpeciesEditorPresenterTests(PlantTestCase):
         sp = self.session.query(Species).get(31)
         view = SpeciesEditorView()
         presenter = SpeciesEditorPresenter(sp, view)
+        update_gui()
         # wrong section
         self.assertEqual(presenter.subsection_get_completions("Um"), [])
         # right section
@@ -6633,6 +6779,7 @@ class SpeciesEditorPresenterTests(PlantTestCase):
         sp = self.session.query(Species).get(31)
         view = SpeciesEditorView()
         presenter = SpeciesEditorPresenter(sp, view)
+        update_gui()
         # wrong subsection
         self.assertEqual(presenter.series_get_completions("Dry"), [])
         # right subsection
@@ -6650,6 +6797,7 @@ class SpeciesEditorPresenterTests(PlantTestCase):
         sp = self.session.query(Species).get(31)
         view = SpeciesEditorView()
         presenter = SpeciesEditorPresenter(sp, view)
+        update_gui()
         # wrong series
         self.assertEqual(presenter.subseries_get_completions("Dry"), [])
         # right series
@@ -6860,10 +7008,14 @@ class DistributionPresenterTests(BaubleClassTestCase):
         mock_parent.model = sp
         mock_parent.session = self.session
         presenter = DistributionPresenter(mock_parent)
+        update_gui()
         presenter.refresh_view()
         text = presenter.view.widgets.sp_dist_label.get_text()
         self.assertEqual(text[-4:], " ...")
         self.assertTrue(490 < len(text) < 510)
+
+        presenter.cleanup()
+        del presenter
 
     def test_on_remove_button_pressed(self):
         qld = (
@@ -6889,6 +7041,7 @@ class DistributionPresenterTests(BaubleClassTestCase):
         mock_parent.session = self.session
 
         presenter = DistributionPresenter(mock_parent)
+        update_gui()
         presenter.remove_menu_model = mock.Mock()
         presenter.remove_menu = mock.Mock()
 
@@ -6898,6 +7051,7 @@ class DistributionPresenterTests(BaubleClassTestCase):
         self.assertEqual(presenter.remove_menu_model.append_item.call_count, 2)
         self.assertEqual(presenter.remove_menu.popup_at_pointer.call_count, 1)
 
+        presenter.cleanup()
         del presenter
 
     def test_on_activate_add_menu_item(self):
@@ -6917,11 +7071,13 @@ class DistributionPresenterTests(BaubleClassTestCase):
         mock_parent.session = self.session
 
         presenter = DistributionPresenter(mock_parent)
+        update_gui()
         mock_geo = mock.Mock()
         mock_geo.unpack.return_value = qld.id
         presenter.on_activate_add_menu_item(None, mock_geo)
         self.assertEqual([dist.geography for dist in sp.distribution], [qld])
 
+        presenter.cleanup()
         del presenter
 
     def test_on_activate_remove_menu_item(self):
@@ -6948,11 +7104,13 @@ class DistributionPresenterTests(BaubleClassTestCase):
         mock_parent.session = self.session
 
         presenter = DistributionPresenter(mock_parent)
+        update_gui()
         mock_geo = mock.Mock()
         mock_geo.unpack.return_value = qld.id
         presenter.on_activate_remove_menu_item(None, mock_geo)
         self.assertEqual([dist.geography for dist in sp.distribution], [nsw])
 
+        presenter.cleanup()
         del presenter
 
     def test_on_clear_all(self):
@@ -6979,9 +7137,11 @@ class DistributionPresenterTests(BaubleClassTestCase):
         mock_parent.session = self.session
 
         presenter = DistributionPresenter(mock_parent)
+        update_gui()
         presenter.on_clear_all()
         self.assertEqual(sp.distribution, [])
 
+        presenter.cleanup()
         del presenter
 
     @mock.patch("bauble.utils.message_dialog")
@@ -6999,6 +7159,7 @@ class DistributionPresenterTests(BaubleClassTestCase):
         mock_parent.session = self.session
 
         presenter = DistributionPresenter(mock_parent)
+        update_gui()
         # empty str
         txt = ""
         presenter.append_dists_from_text(txt)
@@ -7105,6 +7266,7 @@ class DistributionPresenterTests(BaubleClassTestCase):
         )
         mock_dialog.assert_not_called()
 
+        presenter.cleanup()
         del presenter
 
     @mock.patch("bauble.gui")
@@ -7134,6 +7296,7 @@ class DistributionPresenterTests(BaubleClassTestCase):
         mock_parent.session = self.session
 
         presenter = DistributionPresenter(mock_parent)
+        update_gui()
         result = (
             self.session.query(Geography)
             .filter(Geography.id.in_([1, 5]))
@@ -7142,6 +7305,7 @@ class DistributionPresenterTests(BaubleClassTestCase):
         presenter.on_consolidate()
         self.assertCountEqual(result, [i.geography for i in sp.distribution])
 
+        presenter.cleanup()
         del presenter
 
     @mock.patch("bauble.gui")
@@ -7168,6 +7332,7 @@ class DistributionPresenterTests(BaubleClassTestCase):
         mock_parent.session = self.session
 
         presenter = DistributionPresenter(mock_parent)
+        update_gui()
         presenter.on_paste_append()
         result = (
             self.session.query(Geography)
@@ -7176,6 +7341,7 @@ class DistributionPresenterTests(BaubleClassTestCase):
         )
         self.assertCountEqual(result, [i.geography for i in sp.distribution])
 
+        presenter.cleanup()
         del presenter
 
     @mock.patch("bauble.gui")
@@ -7202,6 +7368,7 @@ class DistributionPresenterTests(BaubleClassTestCase):
         mock_parent.session = self.session
 
         presenter = DistributionPresenter(mock_parent)
+        update_gui()
         presenter.on_paste_replace()
         result = (
             self.session.query(Geography)
@@ -7210,6 +7377,7 @@ class DistributionPresenterTests(BaubleClassTestCase):
         )
         self.assertCountEqual(result, [i.geography for i in sp.distribution])
 
+        presenter.cleanup()
         del presenter
 
     @mock.patch("bauble.gui")
@@ -7240,6 +7408,7 @@ class DistributionPresenterTests(BaubleClassTestCase):
         mock_parent.session = self.session
 
         presenter = DistributionPresenter(mock_parent)
+        update_gui()
         presenter.on_copy_codes()
 
         mock_clipboard.set_text.assert_called_with("QLD, NSW", -1)
@@ -7251,6 +7420,7 @@ class DistributionPresenterTests(BaubleClassTestCase):
             "Queensland, New South Wales", -1
         )
 
+        presenter.cleanup()
         del presenter
 
 

@@ -43,6 +43,7 @@ from bauble.test import BaubleTestCase
 from bauble.test import check_dupids
 from bauble.test import mockfunc
 from bauble.test import update_gui
+from bauble.test import wait_on_threads
 from bauble.view import PrefsView
 from bauble.view import get_search_view
 
@@ -2348,6 +2349,7 @@ class SourcePresenterTests(GardenTestCase):
             view,
             self.session,
         )
+        update_gui()
 
         view.widgets.sources_code_entry.set_text("")
         self.assertIsNone(model.sources_code)
@@ -2364,6 +2366,7 @@ class SourcePresenterTests(GardenTestCase):
             view,
             self.session,
         )
+        update_gui()
 
         view.widgets.source_notes_textbuffer.set_text("")
         self.assertIsNone(model.notes)
@@ -2380,6 +2383,7 @@ class SourcePresenterTests(GardenTestCase):
             view,
             self.session,
         )
+        update_gui()
 
         self.assertFalse(view.widgets.source_garden_prop_box.get_visible())
         utils.set_widget_value(view.widgets.source_type_combo, "garden_prop")
@@ -2400,6 +2404,7 @@ class SourcePresenterTests(GardenTestCase):
             view,
             self.session,
         )
+        update_gui()
 
         self.assertIsNone(model.collection)
         self.assertTrue(view.widgets.source_coll_add_button.get_sensitive())
@@ -2434,6 +2439,7 @@ class SourcePresenterTests(GardenTestCase):
             view,
             self.session,
         )
+        update_gui()
 
         self.assertIsNone(model.propagation)
         self.assertTrue(view.widgets.source_prop_add_button.get_sensitive())
@@ -2474,6 +2480,7 @@ class SourcePresenterTests(GardenTestCase):
             view,
             self.session,
         )
+        update_gui()
         utils.set_widget_value(view.widgets.source_type_combo, "Commercial")
 
         def mock_start():
@@ -2506,6 +2513,7 @@ class SourcePresenterTests(GardenTestCase):
             view,
             self.session,
         )
+        update_gui()
 
         mock_completion = unittest.mock.Mock()
         mock_completion.get_model.return_value = [["test nursery name"]]
@@ -2836,6 +2844,7 @@ class AccessionTests(GardenTestCase):
 
         acc = Accession(code="code", species=self.species, quantity_recvd=2)
         editor = AccessionEditor(acc)
+        update_gui()
         # normally called by editor.presenter.start() but we don't call it here
         editor.presenter.source_presenter.start()
         widgets = editor.presenter.view.widgets
@@ -2967,6 +2976,7 @@ class AccessionTests(GardenTestCase):
         # commit so the presenter can use the object_session
         self.session.commit()
         presenter = AccessionEditorPresenter(acc, AccessionEditorView())
+        update_gui()
         mock_entry = unittest.mock.Mock()
         # saves as cents
         mock_entry.get_text.return_value = "1.00"
@@ -2986,6 +2996,7 @@ class AccessionTests(GardenTestCase):
         # commit so the presenter can use the object_session
         self.session.commit()
         presenter = AccessionEditorPresenter(acc, AccessionEditorView())
+        update_gui()
         mock_entry = unittest.mock.Mock()
         # set value
         mock_entry.get_text.return_value = "AU$"
@@ -3005,6 +3016,7 @@ class AccessionTests(GardenTestCase):
         # commit so the presenter can use the object_session
         self.session.commit()
         presenter = AccessionEditorPresenter(acc, AccessionEditorView())
+        update_gui()
         mock_combo = unittest.mock.Mock()
         mock_entry = unittest.mock.MagicMock()
         mock_combo.get_child.return_value = mock_entry
@@ -3050,6 +3062,8 @@ class AccessionTests(GardenTestCase):
         self.session.commit()
 
         editor = AccessionEditor(model=acc)
+        update_gui()
+        wait_on_threads()
         editor.start()
         del editor
 
@@ -4937,6 +4951,7 @@ class CollectionTests(GardenTestCase):
         presenter = CollectionPresenter(
             mock_parent, Collection(), view, self.session
         )
+        update_gui()
         # dms
         value = "27°28'55\"S 152°58'24.2\"E"
         view.widgets.lon_entry.set_text(value)
@@ -4995,6 +5010,7 @@ class CollectionTests(GardenTestCase):
         presenter = CollectionPresenter(
             mock_parent, Collection(), view, self.session
         )
+        update_gui()
 
         # blank
         view.widgets.lon_entry.set_text("")
@@ -5041,6 +5057,7 @@ class CollectionTests(GardenTestCase):
         presenter = CollectionPresenter(
             mock_parent, Collection(), view, self.session
         )
+        update_gui()
 
         # blank
         view.widgets.lat_entry.set_text("")
@@ -5086,6 +5103,7 @@ class CollectionTests(GardenTestCase):
         model = Collection()
         mock_parent = unittest.mock.MagicMock()
         presenter = CollectionPresenter(mock_parent, model, view, self.session)
+        update_gui()
         geo = self.session.query(Geography).get(5)
         mock_var = unittest.mock.Mock()
         mock_var.unpack.return_value = 5
@@ -5099,6 +5117,7 @@ class CollectionTests(GardenTestCase):
         presenter = CollectionPresenter(
             unittest.mock.MagicMock(), model, view, self.session
         )
+        update_gui()
         presenter.refresh_view()
         self.assertTrue(view.widgets.north_radio.get_active())
         self.assertTrue(view.widgets.east_radio.get_active())
@@ -5115,6 +5134,7 @@ class CollectionTests(GardenTestCase):
         presenter = CollectionPresenter(
             unittest.mock.MagicMock(), model, view, self.session
         )
+        update_gui()
         self.assertCountEqual(
             presenter.collector_get_completions("some"),
             ["Someone", "Someone Else"],
@@ -5123,6 +5143,7 @@ class CollectionTests(GardenTestCase):
             presenter.collector_get_completions("me"),
             ["Someone", "Someone Else", "me"],
         )
+        presenter.cleanup()
 
     def test_pictures(self):
         collection = self.session.query(Collection).first()
