@@ -1730,7 +1730,7 @@ class TestSearchViewMapPresenter(BaubleTestCase):
         update_gui()
         # check we did populate and flags are not set
         self.assertEqual(len(results), len(presenter.plt_items))
-        plt1 = self.session.query(Plant).get(1)
+        plt1 = self.session.query(Plant).get(3)
         self.assertIn(plt1.id, presenter.plt_items)
         self.assertIsInstance(presenter.plt_items[plt1.id], MapPoint)
 
