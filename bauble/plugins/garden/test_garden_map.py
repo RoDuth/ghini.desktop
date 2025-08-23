@@ -658,6 +658,22 @@ class LocationSearchMapTests(BaubleTestCase):
                 mock_gui.send_command.call_args.args,
             )
 
+    def test_update_worker_doesnt_block_app_shutdown(self):
+        map_ = LocationSearchMap()
+        map_.update()
+        wait_on_threads()
+        update_gui()
+        self.assertEqual(len(map_.loc_items), 3)
+        with mock.patch("threading.main_thread") as mock_main_thread:
+            mock_main_thread().is_alive.return_value = False
+            map_._update_worker()
+            with self.assertLogs(level="DEBUG") as logs:
+                map_._update_worker()
+                self.assertIn(
+                    "main thread no longer alive, stopping",
+                    logs.output[0],
+                )
+
 
 class TestSearchViewMapPresenter(BaubleTestCase):
     def setUp(self):
