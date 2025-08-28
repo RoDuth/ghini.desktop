@@ -1639,7 +1639,7 @@ class SearchTests3(BaubleClassTestCase):
             results.extend(i)
         self.assertEqual(len(results), 0)
 
-    def test_complex_query_parenthised(self):
+    def test_complex_query_parenthesised(self):
         # parenthesised
         string = "plant where (quantity > 1 or geojson = None) and id > 3"
         results = search.search(string, self.session)
@@ -1966,6 +1966,18 @@ class SearchTests3(BaubleClassTestCase):
         string = "species where epithet like '% %'"
         results = search.search(string, self.session)
         self.assertCountEqual([i.id for i in results], [27])
+
+    def test_chained_or_statements(self):
+        # chained `or` statements (the `or` parts outside the parenthesised
+        # tests Query type inside tests Select type)
+        string = (
+            "species where id = 31 or id = 32 or id = 33 or "
+            "(epithet like gil% or epithet like noct% or epithet like asp%)"
+        )
+
+        results = search.search(string, self.session)
+
+        self.assertCountEqual([i.id for i in results], [31, 32, 33])
 
 
 class SubQueryTests(BaubleClassTestCase):

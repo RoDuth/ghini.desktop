@@ -301,22 +301,27 @@ class OrTerm(BinaryLogicalTerm):
     def evaluate(self, handler: QueryHandler) -> Query | Select:
         logger.debug("%s::evaluate %s", self.__class__.__name__, self)
         handler.query = self.operands[0].evaluate(handler)
-        for operand in self.operands[1:]:
-            # start a new query
-            if isinstance(handler.query, Query):
-                query = handler.session.query(handler.domain)
-                handler.query = handler.query.union(
+        # start a new query
+        if isinstance(handler.query, Query):
+            query = handler.session.query(handler.domain)
+            handler.query = handler.query.union(
+                *(
                     operand.evaluate(
                         QueryHandler(handler.session, handler.domain, query)
                     )
+                    for operand in self.operands[1:]
                 )
-            else:
-                select_ = select(handler.domain.id)
-                handler.query = handler.query.union(
+            )
+        else:
+            select_ = select(handler.domain.id)
+            handler.query = handler.query.union(
+                *(
                     operand.evaluate(
                         QueryHandler(handler.session, handler.domain, select_)
                     )
+                    for operand in self.operands[1:]
                 )
+            )
 
         return handler.query
 
