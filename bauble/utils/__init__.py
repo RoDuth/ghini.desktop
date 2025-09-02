@@ -1003,7 +1003,7 @@ def format_combo_entry_text(combo, path):
 
     Connect this to the "format-entry-text" signal of the combobox.
 
-    :param combo: the Gtk.ComboBox widget with attached Gtk.Liststore(object)
+    :param combo: the Gtk.ComboBox widget with attached Gtk.ListStore(object)
         model and Gtk.Entry
     :param path: the Gtk.TreePath string
     """
