@@ -66,6 +66,7 @@ from bauble.i18n import _
 from bauble.view import View
 
 from ..tag.ui import menu_manager
+from .clone import TOOLS_MENU_CATEGORY
 from .clone import DBCloner
 
 RESPONSE_QUIT = 1
@@ -798,7 +799,7 @@ class ResolveCommandHandler(pluginmgr.CommandHandler):
 
 
 class DBSyncTool(pluginmgr.Tool):
-    category = _("Sync or clone")
+    category = TOOLS_MENU_CATEGORY
     label = _("Sync")
 
     @classmethod
@@ -831,7 +832,7 @@ class DBSyncTool(pluginmgr.Tool):
 
 
 class DBResolveSyncTool(pluginmgr.Tool):
-    category = _("Sync or clone")
+    category = TOOLS_MENU_CATEGORY
     label = _("Resolution Centre")
 
     @classmethod

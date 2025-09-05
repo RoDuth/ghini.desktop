@@ -45,6 +45,8 @@ from bauble import utils
 from bauble.connmgr import start_connection_manager
 from bauble.i18n import _
 
+TOOLS_MENU_CATEGORY = _("Sync or Clone")
+
 
 class DBCloner:
     """Make a clone of the current database."""
@@ -256,7 +258,7 @@ class DBCloner:
 
 # pylint: disable=too-few-public-methods
 class DBCloneTool(pluginmgr.Tool):
-    category = _("Sync or clone")
+    category = TOOLS_MENU_CATEGORY
     label = _("Clone")
 
     @classmethod
