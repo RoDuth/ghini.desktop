@@ -44,8 +44,6 @@ from bauble.test import check_dupids
 from bauble.test import mockfunc
 from bauble.test import update_gui
 from bauble.test import wait_on_threads
-from bauble.view import PrefsView
-from bauble.view import get_search_view
 
 from ..plants import test_plants as plants_test
 from ..plants.family import Family
@@ -55,8 +53,6 @@ from ..plants.species_model import Species
 from ..plants.species_model import SpeciesDistribution
 from ..plants.species_model import _remove_zws as remove_zws
 from ..plants.species_model import update_all_full_names_task
-from . import SORT_BY_PREF
-from . import GardenPlugin
 from . import get_plant_completions
 from .accession import INTENDED_ACTIONGRP_NAME
 from .accession import Accession
@@ -6572,52 +6568,6 @@ class RetrieveTests(GardenTestCase):
 
 
 class GlobalActionTests(BaubleTestCase):
-    @unittest.mock.patch("bauble.gui")
-    def test_on_inactive_toggled(self, mock_gui):
-        search_view = get_search_view()
-        prefs_view = PrefsView()
-        prefs_view.update = unittest.mock.Mock()
-        mock_gui.get_view.return_value = prefs_view
-        mock_action = unittest.mock.Mock()
-        mock_variant = unittest.mock.Mock()
-
-        mock_variant.get_boolean.return_value = True
-
-        with unittest.mock.patch.object(
-            search_view, "rerun_last_search"
-        ) as mock_rerun:
-            GardenPlugin.on_inactive_toggled(mock_action, mock_variant)
-            mock_rerun.assert_called()
-
-        self.assertTrue(prefs.prefs.get(prefs.exclude_inactive_pref))
-
-        mock_gui.get_view.reset_mock()
-        mock_variant.get_boolean.return_value = False
-        GardenPlugin.on_inactive_toggled(mock_action, mock_variant)
-        prefs_view.update.assert_called()
-
-        self.assertFalse(prefs.prefs.get(prefs.exclude_inactive_pref))
-
-    @unittest.mock.patch("bauble.gui")
-    def test_on_sort_toggled(self, mock_gui):
-        search_view = get_search_view()
-        mock_gui.get_view.return_value = search_view
-        mock_action = unittest.mock.Mock()
-        mock_variant = unittest.mock.Mock()
-        mock_variant.get_boolean.return_value = True
-
-        with unittest.mock.patch.object(
-            search_view, "rerun_last_search"
-        ) as mock_rerun:
-            GardenPlugin.on_sort_toggled(mock_action, mock_variant)
-            mock_rerun.assert_called()
-
-        self.assertTrue(prefs.prefs.get(SORT_BY_PREF))
-
-        mock_gui.get_view.reset_mock()
-        mock_variant.get_boolean.return_value = False
-        GardenPlugin.on_sort_toggled(mock_action, mock_variant)
-        self.assertFalse(prefs.prefs.get(SORT_BY_PREF))
 
     def test_set_code_format_default(self):
         with unittest.mock.patch(

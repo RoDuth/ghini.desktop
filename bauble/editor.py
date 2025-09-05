@@ -41,7 +41,6 @@ from gi.repository import GLib
 from gi.repository import GObject
 from gi.repository import Gtk
 from lxml import etree
-from sqlalchemy.orm import Session
 from sqlalchemy.orm import object_mapper
 from sqlalchemy.orm import object_session
 
@@ -856,7 +855,7 @@ class GenericPresenter[T]:
             def __init__(self, model: FooModel) -> None:
                 super().__init__(model, self)
                 # connect here on in .ui file
-                self.connect('problems-changed', on_problems_changed)
+                self.connect('problems-changed', self.on_problems_changed)
 
             # signal handlers defined in the .ui file
             @Gtk.Template.Callback()
@@ -1011,7 +1010,7 @@ class GenericPresenter[T]:
         return value
 
     def on_non_empty_text_entry_changed(self, entry: Gtk.Entry) -> None:
-        """If the entry is not empty adds PROBLEM_EMPTY to self.problems.
+        """If the entry is empty adds PROBLEM_EMPTY to self.problems.
 
         If addition functionality is required you can overide this method and
         use the private version to get widgets value. e.g.::
@@ -1028,7 +1027,7 @@ class GenericPresenter[T]:
     def on_unique_text_entry_changed(
         self, entry: Gtk.Entry, /, non_empty: bool = True
     ) -> None:
-        """If the entry is not not unique adds PROBLEM_NOT_UNIQUE to problems.
+        """If the entry is not unique adds PROBLEM_NOT_UNIQUE to problems.
 
         If the value is permitted to be empty, call with ``non_empty=False``
         When used with Gtk.Template and @Gtk.Template.Callback() decorator, to
@@ -1052,9 +1051,9 @@ class GenericPresenter[T]:
         class_ = self.model.__class__
         column = getattr(class_, field)
 
-        session = object_session(self.model)
+        with db.Session() as session:
 
-        if isinstance(session, Session):
+            session.merge(self.model)
             exists = session.query(class_).filter(column == value).first()
             if exists is not None and exists is not self.model:
                 self.add_problem(self.PROBLEM_NOT_UNIQUE, entry)
@@ -1071,6 +1070,36 @@ class GenericPresenter[T]:
             getattr(self.model, field),
             value,
         )
+        setattr(self.model, field, value)
+
+    def on_non_empty_text_buffer_changed(
+        self,
+        buffer: Gtk.TextBuffer,
+        text_view: Gtk.TextView,
+    ) -> None:
+        """If the buffer is empty adds PROBLEM_EMPTY against the text_view to
+        self.problems.
+
+        Note: the associated TextView widget must be supplied to add/remove the
+        problem class to/from.
+
+        :param buffer: the Gtk.TextBuffer that changed
+        :param text_view: the Gtk.TextView associated with the buffer
+        """
+        value = buffer.get_text(*buffer.get_bounds(), False)
+        field = self.widgets_to_model_map[buffer]
+        logger.debug(
+            "on_text_buffer_changed(%s, %s) - %s -> %s",
+            buffer,
+            field,
+            getattr(self.model, field),
+            value,
+        )
+        if not value:
+            self.add_problem(self.PROBLEM_EMPTY, text_view)
+        else:
+            self.remove_problem(self.PROBLEM_EMPTY, text_view)
+
         setattr(self.model, field, value)
 
     def on_combobox_changed(self, combobox: Gtk.ComboBox) -> None:

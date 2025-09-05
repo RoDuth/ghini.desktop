@@ -47,9 +47,9 @@ from bauble import utils
 from bauble.i18n import _
 from bauble.paths import lib_dir
 from bauble.search.query_builder import ExpressionRow
+from bauble.search.stored_queries import StoredQueriesButtonBox
 from bauble.view import DefaultView
 from bauble.view import HistoryView
-from bauble.view import PrefsView
 from bauble.view import SearchView
 from bauble.view import View
 
@@ -84,7 +84,6 @@ from .species import get_binomial_completions
 from .species import species_context_menu
 from .species import vernname_context_menu
 from .species_model import update_all_full_names_handler
-from .stored_queries import StoredQueryEditorTool
 
 # imported by clients of the module
 __all__ = ["Familia", "SpeciesDistribution"]
@@ -284,7 +283,6 @@ class HomeInfoBox(View, Gtk.Box):
 
     __gtype_name__ = "HomeInfoBox"
 
-    home_stqr_button = Gtk.Template.Child()
     home_nlocnot = Gtk.Template.Child()
     home_nlocuse = Gtk.Template.Child()
     home_nloctot = Gtk.Template.Child()
@@ -304,18 +302,9 @@ class HomeInfoBox(View, Gtk.Box):
     home_nfamuse = Gtk.Template.Child()
     home_nfamnot = Gtk.Template.Child()
 
-    for i in range(1, 11):
-        wname = f"stqr_{i:02d}_button"
-        locals()[wname] = Gtk.Template.Child()
-
     def __init__(self):
         logger.debug("HomeInfoBox::__init__")
         super().__init__()
-
-        for i in range(1, 11):
-            wname = f"stqr_{i:02d}_button"
-            widget = getattr(self, wname)
-            widget.connect("clicked", partial(self.on_sqb_clicked, i))
 
         self.name_tooltip_query = None
 
@@ -416,17 +405,11 @@ class HomeInfoBox(View, Gtk.Box):
             on_clicked_search,
             "location where plants is Empty or sum(plants.quantity)=0",
         )
-
-        for i in range(1, 11):
-            wname = f"stqr_{i:02d}_button"
-            widget = getattr(self, wname)
-            widget.connect("clicked", partial(self.on_sqb_clicked, i))
-
-        self.home_stqr_button.connect(
-            "clicked", self.on_home_stqr_button_clicked
-        )
+        self.stored_queries_button_box = StoredQueriesButtonBox()
+        self.pack_start(self.stored_queries_button_box, True, True, 0)
 
     def update(self, *_args):
+        self.stored_queries_button_box.refresh()
         # desensitise links that wont work.
         sensitive = not prefs.prefs.get(prefs.exclude_inactive_pref)
         for widget in [
@@ -444,26 +427,6 @@ class HomeInfoBox(View, Gtk.Box):
         sbcontext_id = statusbar.get_context_id("searchview.nresults")
         statusbar.pop(sbcontext_id)
         bauble.gui.widgets.main_comboentry.get_child().set_text("")
-
-        session = db.Session()
-        query = session.query(bauble.meta.BaubleMeta).filter(
-            bauble.meta.BaubleMeta.name.startswith("stqr")
-        )
-        name_tooltip_query = dict(
-            (int(i.name[5:]), (i.value.split(":", 2))) for i in query.all()
-        )
-        session.close()
-
-        for i in range(1, 11):
-            wname = f"stqr_{i:02d}_button"
-            widget = getattr(self, wname)
-            name, tooltip, _query = name_tooltip_query.get(
-                i, (_("<empty>"), "", "")
-            )
-            widget.set_label(name)
-            widget.set_tooltip_text(tooltip)
-
-        self.name_tooltip_query = name_tooltip_query
 
         self.start_thread(
             LabelUpdater(
@@ -558,21 +521,8 @@ class HomeInfoBox(View, Gtk.Box):
             )
         )
 
-    def on_sqb_clicked(self, btn_no, _widget):
-        query = self.name_tooltip_query.get(btn_no)
-        if query:
-            bauble.gui.widgets.main_comboentry.get_child().set_text(query[2])
-            bauble.gui.widgets.go_button.emit("clicked")
-
-    @staticmethod
-    def on_home_stqr_button_clicked(_widget):
-        from .stored_queries import edit_callback
-
-        edit_callback()
-
 
 class PlantsPlugin(pluginmgr.Plugin):
-    tools = [StoredQueryEditorTool]
     prefs_change_handler = None
     options_menu_set = False
 
@@ -586,20 +536,6 @@ class PlantsPlugin(pluginmgr.Plugin):
     def init(cls):
         if not cls.options_menu_set:
             cls.options_menu_set = True
-            accptd_action = Gio.SimpleAction.new_stateful(
-                "accepted_toggled",
-                None,
-                GLib.Variant.new_boolean(
-                    prefs.prefs.get(prefs.return_accepted_pref, True)
-                ),
-            )
-            accptd_action.connect(
-                "change-state", cls.on_return_syns_chkbx_toggled
-            )
-
-            ret_accptd_item = Gio.MenuItem.new(
-                _("Return Accepted"), "win.accepted_toggled"
-            )
 
             full_names_item = Gio.MenuItem.new(
                 _("Update All Species Full Names"), "win.update_full_name"
@@ -663,26 +599,7 @@ class PlantsPlugin(pluginmgr.Plugin):
                 cls.register_custom_column("_sp_custom2")
                 db.open_conn(db.engine.url)
 
-            def prefs_ls_changed(model, path, _itr):
-                key, _repr_str, _type_str = model[path]
-                if key == prefs.return_accepted_pref:
-                    accptd_action.set_state(
-                        GLib.Variant.new_boolean(
-                            prefs.prefs.get(prefs.return_accepted_pref)
-                        )
-                    )
-
-            def on_view_box_added(_container, obj):
-                if isinstance(obj, PrefsView):
-                    if cls.prefs_change_handler:
-                        obj.prefs_ls.disconnect(cls.prefs_change_handler)
-                    cls.prefs_change_handler = obj.prefs_ls.connect(
-                        "row-changed", prefs_ls_changed
-                    )
-
             if bauble.gui:
-                bauble.gui.window.add_action(accptd_action)
-                bauble.gui.options_menu.append_item(ret_accptd_item)
                 bauble.gui.add_action(
                     "update_full_name", update_all_full_names_handler
                 )
@@ -695,9 +612,6 @@ class PlantsPlugin(pluginmgr.Plugin):
                     "setup_conservation_fields", setup_conservation_fields
                 )
                 bauble.gui.options_menu.append_item(custom_consv_item)
-                bauble.gui.widgets.view_box.connect(
-                    "set-focus-child", on_view_box_added
-                )
 
         if "GardenPlugin" in pluginmgr.plugins:
             if add_accession_action not in species_context_menu:
@@ -889,14 +803,6 @@ class PlantsPlugin(pluginmgr.Plugin):
             delattr(Species, getattr(column, "_custom_column_name"))
             delattr(column, "_custom_column_name")
             delattr(column, "_custom_column_short_hand")
-
-    @staticmethod
-    def on_return_syns_chkbx_toggled(action, value):
-        action.set_state(value)
-
-        prefs.prefs[prefs.return_accepted_pref] = value.get_boolean()
-        if isinstance(view := bauble.gui.get_view(), PrefsView):
-            view.update()
 
     @classmethod
     def install(cls, import_defaults=True):

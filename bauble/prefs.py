@@ -216,6 +216,11 @@ exclude_inactive_pref = "bauble.search.exclude_inactive"
 The preferences key for ignoring inactive (deaccessioned etc.) search results.
 """
 
+sort_by_pref = "bauble.search.sort_by_taxon"
+"""
+The preferences key for sorting search results by the related species string.
+"""
+
 query_builder_recurse = "bauble.query_builder.recurse"
 """
 The preferences key for allowing recurse in QueryBuilder's SchemaMenu.

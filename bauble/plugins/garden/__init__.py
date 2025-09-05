@@ -29,7 +29,6 @@ import re
 logger = logging.getLogger(__name__)
 
 from gi.repository import Gio
-from gi.repository import GLib
 from gi.repository import Gtk
 from sqlalchemy.orm import object_session
 
@@ -43,9 +42,7 @@ from bauble import utils
 from bauble.i18n import _
 from bauble.view import DefaultView
 from bauble.view import HistoryView
-from bauble.view import PrefsView
 from bauble.view import SearchView
-from bauble.view import get_search_view
 
 from .accession import BAUBLE_ACC_CODE_FORMAT
 from .accession import Accession
@@ -83,11 +80,6 @@ from .source import source_detail_edit_callback
 # other ideas:
 # - cultivation table
 # - conservation table
-
-SORT_BY_PREF = "bauble.search.sort_by_taxon"
-"""
-The preferences key for sorting search results by the related species string.
-"""
 
 
 def get_plant_completions(session, text):
@@ -165,7 +157,7 @@ class GardenPlugin(pluginmgr.Plugin):
             context_menu=acc_context_menu,
             sorter=lambda obj: (
                 (obj.species.full_sci_name or "", utils.natsort_key(obj))
-                if prefs.prefs.get(SORT_BY_PREF)
+                if prefs.prefs.get(prefs.sort_by_pref)
                 else utils.natsort_key(obj)
             ),
             activated_callback=acc_edit_callback,
@@ -195,7 +187,7 @@ class GardenPlugin(pluginmgr.Plugin):
                     obj.accession.species.full_sci_name or "",
                     utils.natsort_key(obj),
                 )
-                if prefs.prefs.get(SORT_BY_PREF)
+                if prefs.prefs.get(prefs.sort_by_pref)
                 else utils.natsort_key(obj)
             ),
             activated_callback=plant_edit_callback,
@@ -240,7 +232,7 @@ class GardenPlugin(pluginmgr.Plugin):
                     str(obj),
                     obj.id,
                 )
-                if prefs.prefs.get(SORT_BY_PREF)
+                if prefs.prefs.get(prefs.sort_by_pref)
                 else (str(obj), obj.id)
             ),
             activated_callback=collection_edit_callback,
@@ -371,32 +363,6 @@ class GardenPlugin(pluginmgr.Plugin):
         if not cls.options_menu_set:
             cls.options_menu_set = True
 
-            # exlude inactive
-            inactive_action = Gio.SimpleAction.new_stateful(
-                "inactive_toggled",
-                None,
-                GLib.Variant.new_boolean(
-                    prefs.prefs.get(prefs.exclude_inactive_pref, False)
-                ),
-            )
-            inactive_action.connect("change-state", cls.on_inactive_toggled)
-
-            inactive_item = Gio.MenuItem.new(
-                _("Exclude Inactive"), "win.inactive_toggled"
-            )
-
-            # sort by taxon name
-            sort_action = Gio.SimpleAction.new_stateful(
-                "sort_by_toggled",
-                None,
-                GLib.Variant.new_boolean(prefs.prefs.get(SORT_BY_PREF, False)),
-            )
-            sort_action.connect("change-state", cls.on_sort_toggled)
-
-            sort_item = Gio.MenuItem.new(
-                _("Sort by Taxon Name"), "win.sort_by_toggled"
-            )
-
             # global delimiter
             delimiter_item = Gio.MenuItem.new(
                 _("Set Global Delimiter"), "win.set_delimiter"
@@ -406,11 +372,6 @@ class GardenPlugin(pluginmgr.Plugin):
             )
 
             if bauble.gui:
-                bauble.gui.window.add_action(inactive_action)
-                bauble.gui.options_menu.append_item(inactive_item)
-
-                bauble.gui.window.add_action(sort_action)
-                bauble.gui.options_menu.append_item(sort_item)
 
                 bauble.gui.add_action("set_delimiter", Plant.set_delimiter)
                 bauble.gui.options_menu.append_item(delimiter_item)
@@ -435,32 +396,6 @@ class GardenPlugin(pluginmgr.Plugin):
             else:
                 logger.debug("removing garden map")
                 DefaultView.main_widget = None
-
-    @staticmethod
-    def on_inactive_toggled(action, value):
-        action.set_state(value)
-
-        prefs.prefs[prefs.exclude_inactive_pref] = value.get_boolean()
-
-        view = bauble.gui.get_view()
-
-        if isinstance(view, (PrefsView, DefaultView)):
-            view.update()
-
-        get_search_view().rerun_last_search()
-
-    @staticmethod
-    def on_sort_toggled(action, value):
-        action.set_state(value)
-
-        prefs.prefs[SORT_BY_PREF] = value.get_boolean()
-
-        view = bauble.gui.get_view()
-
-        if isinstance(view, PrefsView):
-            view.update()
-
-        get_search_view().rerun_last_search()
 
 
 def init_location_comboentry(presenter, combo, on_select):

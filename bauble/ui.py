@@ -56,9 +56,13 @@ from bauble import utils
 from bauble.i18n import _
 from bauble.prefs import datetime_format_pref
 from bauble.search.query_builder import QueryBuilder
+from bauble.search.stored_queries import StoredQueriesDialog
 from bauble.utils import desktop
+from bauble.view import DefaultView
 from bauble.view import HomeCommandHandler
+from bauble.view import PrefsView
 from bauble.view import SearchView
+from bauble.view import get_search_view
 
 from .connmgr import start_connection_manager
 
@@ -243,11 +247,157 @@ class GUI:
         label = msg_area.get_children()[0]
         label.set_selectable(True)
         msg_area.pack_end(self.progressbar, False, True, 15)
+        self.build_search_menu()
 
         combo.grab_focus()
 
     def destroy(self) -> None:
         self.window.destroy()
+
+    def build_search_menu(self) -> None:
+        search_menu = Gio.Menu()
+
+        action_name = "edit_stored_queries"
+        self.add_action(action_name, self.on_edit_stored_queries_activated)
+        search_menu.append_item(
+            Gio.MenuItem.new(_("Edit stored queries"), f"win.{action_name}")
+        )
+
+        action_name = "open_query_builder"
+        self.add_action(action_name, self.on_open_query_builder_activated)
+        search_menu.append_item(
+            Gio.MenuItem.new(_("Query builder"), f"win.{action_name}")
+        )
+
+        options_section = Gio.Menu()
+
+        # exlude inactive
+        action_name = "inactive_toggled"
+        inactive_action = Gio.SimpleAction.new_stateful(
+            action_name,
+            None,
+            GLib.Variant.new_boolean(
+                prefs.prefs.get(prefs.exclude_inactive_pref, False)
+            ),
+        )
+        self.window.add_action(inactive_action)
+        inactive_action.connect("change-state", self.on_inactive_toggled)
+
+        options_section.append_item(
+            Gio.MenuItem.new(_("Exclude Inactive"), f"win.{action_name}")
+        )
+
+        # return accepted
+        action_name = "accepted_toggled"
+        accptd_action = Gio.SimpleAction.new_stateful(
+            action_name,
+            None,
+            GLib.Variant.new_boolean(
+                prefs.prefs.get(prefs.return_accepted_pref, True)
+            ),
+        )
+        self.window.add_action(accptd_action)
+        accptd_action.connect("change-state", self.on_return_syns_toggled)
+
+        options_section.append_item(
+            Gio.MenuItem.new(_("Return Accepted"), f"win.{action_name}")
+        )
+
+        # sort by taxon name
+        action_name = "sort_by_toggled"
+        sort_action = Gio.SimpleAction.new_stateful(
+            action_name,
+            None,
+            GLib.Variant.new_boolean(
+                prefs.prefs.get(prefs.sort_by_pref, False)
+            ),
+        )
+        self.window.add_action(sort_action)
+        sort_action.connect("change-state", self.on_sort_toggled)
+
+        options_section.append_item(
+            Gio.MenuItem.new(_("Sort by Taxon Name"), f"win.{action_name}")
+        )
+
+        search_menu.append_section(None, options_section)
+
+        self.add_menu(_("Search"), search_menu)
+
+    @staticmethod
+    def on_edit_stored_queries_activated(
+        _action: Gio.SimpleAction,
+        _param: GLib.Variant | None,
+    ) -> None:
+        dialog = StoredQueriesDialog()
+
+        if dialog.run() == Gtk.ResponseType.OK:
+            dialog.session.commit()
+
+        dialog.session.close()
+        dialog.destroy()
+
+        HomeCommandHandler.get_view().update()
+
+    def on_open_query_builder_activated(
+        self,
+        _action: Gio.SimpleAction,
+        _param: GLib.Variant | None,
+    ) -> None:
+        query_builder = QueryBuilder(transient_for=self.window)
+        query_builder.set_query(
+            self.widgets.main_comboentry.get_child().get_text()
+        )
+        logger.debug("query builder about to run")
+        response = query_builder.run()
+        logger.debug("query builder run returned %s", response)
+
+        if response == Gtk.ResponseType.OK:
+            logger.debug("query builder OK")
+            query = query_builder.get_query()
+            self.widgets.main_comboentry.get_child().set_text(query)
+            logger.debug("query builder returned: %s", repr(query))
+            self.widgets.go_button.emit("clicked")
+
+        query_builder.destroy()
+
+    @staticmethod
+    def on_return_syns_toggled(action, value):
+        action.set_state(value)
+
+        prefs.prefs[prefs.return_accepted_pref] = value.get_boolean()
+
+        view = bauble.gui.get_view()
+
+        if isinstance(view, PrefsView):
+            view.update()
+
+        get_search_view().rerun_last_search()
+
+    @staticmethod
+    def on_inactive_toggled(action, value):
+        action.set_state(value)
+
+        prefs.prefs[prefs.exclude_inactive_pref] = value.get_boolean()
+
+        view = bauble.gui.get_view()
+
+        if isinstance(view, (PrefsView, DefaultView)):
+            view.update()
+
+        get_search_view().rerun_last_search()
+
+    @staticmethod
+    def on_sort_toggled(action, value):
+        action.set_state(value)
+
+        prefs.prefs[prefs.sort_by_pref] = value.get_boolean()
+
+        view = bauble.gui.get_view()
+
+        if isinstance(view, PrefsView):
+            view.update()
+
+        get_search_view().rerun_last_search()
 
     def add_action(
         self,
@@ -337,7 +487,7 @@ class GUI:
 
     def send_command(self, command: str) -> None:
         self.widgets.main_comboentry.get_child().set_text(command)
-        self.widgets.go_button.emit("clicked")
+        GLib.idle_add(self.widgets.go_button.emit, "clicked")
 
     def on_main_combo_changed(self, combo: Gtk.ComboBox) -> None:
         entry = cast(Gtk.Entry, combo.get_child())

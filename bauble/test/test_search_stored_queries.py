@@ -1,0 +1,285 @@
+# Copyright (c) 2025 Ross Demuth <rossdemuth123@gmail.com>
+#
+# This file is part of ghini.desktop.
+#
+# ghini.desktop is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# ghini.desktop is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with ghini.desktop. If not, see <http://www.gnu.org/licenses/>.
+from unittest import mock
+
+from gi.repository import Gtk
+
+from bauble.search.stored_queries import StoredQueriesButtonBox
+from bauble.search.stored_queries import StoredQueriesDialog
+from bauble.search.stored_queries import StoredQuery
+from bauble.search.stored_queries import StoredQueryEditorDialog
+from bauble.test import BaubleTestCase
+
+
+class StoredQueryTests(BaubleTestCase):
+    def test_stored_query_editor_dialog(self):
+        sq = StoredQuery(
+            name="Test",
+            description="Test description",
+            query="plant where id=0",
+        )
+        self.session.add(sq)
+        self.session.commit()
+        editor = StoredQueryEditorDialog(sq)
+        editor.query_textbuffer.set_text("plant where id=1")
+        editor.name_entry.set_text("New Name")
+        editor.description_textbuffer.set_text("New Description")
+
+        self.assertEqual(sq.name, "New Name")
+        self.assertEqual(sq.description, "New Description")
+        self.assertEqual(sq.query, "plant where id=1")
+        editor.destroy()
+
+    def test_stored_queries_dialog(self):
+        # pylint: disable=not-an-iterable
+        sq1 = StoredQuery(
+            name="Test1",
+            description="Test description 1",
+            query="plant where id=0",
+        )
+        sq2 = StoredQuery(
+            name="Test2",
+            description="Test description 2",
+            query="plant where id=1",
+        )
+        self.session.add(sq1)
+        self.session.add(sq2)
+        self.session.commit()
+        dialog = StoredQueriesDialog()
+
+        self.assertEqual(len(dialog.list_store), 2)
+        self.assertCountEqual(
+            [i[0].name for i in dialog.list_store], [sq1.name, sq2.name]
+        )
+
+    @mock.patch("bauble.search.stored_queries.StoredQueryEditorDialog")
+    def test_on_new_button_clicked(self, mock_editor):
+        dialog = StoredQueriesDialog()
+        self.assertEqual(len(dialog.list_store), 0)
+        mock_editor().run.return_value = Gtk.ResponseType.CANCEL
+
+        dialog.on_new_button_clicked(None)
+
+        self.assertTrue(mock_editor.called)
+        self.assertEqual(len(dialog.list_store), 0)
+
+        mock_editor().run.return_value = Gtk.ResponseType.OK
+
+        dialog.on_new_button_clicked(None)
+
+        self.assertTrue(mock_editor.called)
+        self.assertEqual(len(dialog.list_store), 1)
+        self.assertTrue(dialog.ok_button.get_sensitive())
+
+        dialog.destroy()
+
+    @mock.patch("bauble.search.stored_queries.StoredQueryEditorDialog")
+    def test_on_edit_button_clicked(self, mock_editor):
+        # pylint: disable=unsubscriptable-object,no-value-for-parameter
+        sq1 = StoredQuery(
+            name="Test1",
+            description="Test description 1",
+            query="plant where id=0",
+        )
+        self.session.add(sq1)
+        self.session.commit()
+        dialog = StoredQueriesDialog()
+        dialog.refresh()
+
+        self.assertEqual(len(dialog.list_store), 1)
+        self.assertEqual(dialog.list_store[0][0].name, "Test1")
+
+        # nothing selected
+        dialog.on_edit_button_clicked(None)
+        self.assertFalse(mock_editor.called)
+
+        # edit but cancel
+        dialog.selection.select_path(Gtk.TreePath.new_first())
+        mock_editor().run.return_value = Gtk.ResponseType.CANCEL
+        # make a change
+        dialog.list_store[0][0].name = "Changed Name"
+        self.assertTrue(dialog.session.is_modified(dialog.list_store[0][0]))
+        dialog.on_edit_button_clicked(None)
+
+        self.assertTrue(mock_editor.called)
+        self.assertEqual(len(dialog.list_store), 1)
+        self.assertEqual(dialog.list_store[0][0].name, "Test1")
+        self.assertFalse(dialog.ok_button.get_sensitive())
+        # change is undone
+        self.assertFalse(dialog.session.is_modified(dialog.list_store[0][0]))
+
+        # edit and ok
+        dialog.selection.select_path(Gtk.TreePath.new_first())
+        mock_editor().run.return_value = Gtk.ResponseType.OK
+
+        # make a change
+        dialog.list_store[0][0].name = "Changed Name"
+        self.assertTrue(dialog.session.is_modified(dialog.list_store[0][0]))
+        dialog.on_edit_button_clicked(None)
+
+        self.assertTrue(mock_editor.called)
+        self.assertEqual(len(dialog.list_store), 1)
+        self.assertEqual(dialog.list_store[0][0].name, "Changed Name")
+        self.assertTrue(dialog.ok_button.get_sensitive())
+        # change not undone
+        self.assertTrue(dialog.session.is_modified(dialog.list_store[0][0]))
+
+        dialog.destroy()
+
+    def test_on_delete_button_clicked(self):
+        # pylint: disable=unsubscriptable-object,no-value-for-parameter
+        sq1 = StoredQuery(
+            name="Test1",
+            description="Test description 1",
+            query="plant where id=0",
+        )
+        self.session.add(sq1)
+        self.session.commit()
+        dialog = StoredQueriesDialog()
+        dialog.refresh()
+
+        self.assertEqual(len(dialog.list_store), 1)
+        self.assertEqual(dialog.list_store[0][0].name, "Test1")
+
+        # nothing selected
+        dialog.on_delete_button_clicked(None)
+        self.assertEqual(len(dialog.list_store), 1)
+        self.assertFalse(dialog.ok_button.get_sensitive())
+
+        # delete selected
+        dialog.selection.select_path(Gtk.TreePath.new_first())
+        dialog.on_delete_button_clicked(None)
+
+        self.assertIn(dialog.list_store[0][0], dialog.session.deleted)
+        self.assertTrue(dialog.ok_button.get_sensitive())
+
+        dialog.destroy()
+
+    def test_cell_data_func(self):
+        sq1 = StoredQuery(
+            name="Test1",
+            description="Test description 1",
+            query="plant where id=0",
+        )
+        self.session.add(sq1)
+        self.session.commit()
+        dialog = StoredQueriesDialog()
+        sq1 = dialog.session.merge(sq1)
+        mock_cell = mock.Mock()
+        model = Gtk.ListStore(object)
+        model.append([sq1])
+        dialog.cell_data_func(
+            None,
+            mock_cell,
+            model,
+            model.get_iter_first(),
+            "name",
+        )
+
+        # nothing changed
+        self.assertEqual(
+            mock_cell.set_property.call_args_list,
+            [
+                mock.call("text", "Test1"),
+                mock.call("foreground", None),
+            ],
+        )
+
+        sq1.name = "Changed Name"
+        mock_cell.reset_mock()
+        dialog.cell_data_func(
+            None,
+            mock_cell,
+            model,
+            model.get_iter_first(),
+            "name",
+        )
+
+        # after change
+        self.assertEqual(
+            mock_cell.set_property.call_args_list,
+            [
+                mock.call("text", "Changed Name"),
+                mock.call("foreground", None),
+                mock.call("foreground", "blue"),
+            ],
+        )
+
+        dialog.session.delete(sq1)
+        mock_cell.reset_mock()
+        dialog.cell_data_func(
+            None,
+            mock_cell,
+            model,
+            model.get_iter_first(),
+            "name",
+        )
+        print(mock_cell.set_property.call_args_list)
+
+        # after change and delete
+        self.assertEqual(
+            mock_cell.set_property.call_args_list,
+            [
+                mock.call("text", "Changed Name"),
+                mock.call("foreground", None),
+                mock.call("foreground", "blue"),
+                mock.call("foreground", "red"),
+            ],
+        )
+
+        dialog.destroy()
+
+
+class StoredQueriesButtonBoxTests(BaubleTestCase):
+
+    @mock.patch("bauble.search.stored_queries.StoredQueriesDialog")
+    def test_on_edit_button_clicked_calls_dialog(self, mock_dialog):
+        # pylint: disable=no-self-use
+        button_box = StoredQueriesButtonBox()
+        mock_dialog().run.return_value = Gtk.ResponseType.CANCEL
+        button_box.on_edit_button_clicked(None)
+
+        mock_dialog.assert_called()
+        mock_dialog().session.commit.assert_not_called()
+
+        mock_dialog().run.return_value = Gtk.ResponseType.OK
+        button_box.on_edit_button_clicked(None)
+
+        mock_dialog.assert_called()
+        mock_dialog().session.commit.assert_called()
+
+    def test_refresh(self):
+        button_box = StoredQueriesButtonBox()
+        button_box.refresh()
+
+        self.assertEqual(len(button_box.query_button_box.get_children()), 0)
+
+        sq1 = StoredQuery(
+            name="Test1",
+            description="Test description 1",
+            query="plant where id=0",
+        )
+        self.session.add(sq1)
+        self.session.commit()
+        button_box.refresh()
+
+        self.assertEqual(len(button_box.query_button_box.get_children()), 1)
+
+        # test signal handler
+        with mock.patch("bauble.gui") as mock_gui:
+            button_box.query_button_box.get_children()[0].emit("clicked")
+            mock_gui.send_command.assert_called_with(sq1.query)

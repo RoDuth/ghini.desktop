@@ -29,13 +29,16 @@ from bauble import prefs
 from bauble import task
 from bauble import view
 from bauble.test import BaubleTestCase
+from bauble.test import update_gui
 from bauble.ui import GUI
 from bauble.view import DefaultView
 from bauble.view import HistoryView
+from bauble.view import PrefsView
+from bauble.view import get_search_view
 
 
 class GUITests(BaubleTestCase):
-    def test_actions(self):
+    def test_add_remove_lookup_actions(self):
         gui = GUI()
         mock_handler = mock.Mock()
         self.assertIsNone(gui.lookup_action("test"))
@@ -84,13 +87,18 @@ class GUITests(BaubleTestCase):
         mock_combo = mock.Mock()
         mock_entry = mock.Mock()
         mock_btn = mock.Mock()
+        mock_btn.emit.return_value = None
         mock_combo.get_child.return_value = mock_entry
 
         gui.widgets.main_comboentry = mock_combo
         gui.widgets.go_button = mock_btn
         gui.send_command("test command")
+        update_gui()
+
         mock_entry.set_text.assert_called_once()
         mock_entry.set_text.assert_called_with("test command")
+        mock_btn.emit.assert_called_with("clicked")
+
         gui.destroy()
 
     def test_om_main_combo_changed(self):
@@ -777,4 +785,125 @@ class GUITests(BaubleTestCase):
         gui.window = mock.Mock()
         gui.on_quit(None, None)
         gui.window.destroy.assert_called_once()
+        gui.destroy()
+
+    @mock.patch("bauble.gui")
+    def test_on_inactive_toggled(self, mock_gui):
+        search_view = get_search_view()
+        prefs_view = PrefsView()
+        prefs_view.update = mock.Mock()
+        mock_gui.get_view.return_value = prefs_view
+        mock_action = mock.Mock()
+        mock_variant = mock.Mock()
+
+        mock_variant.get_boolean.return_value = True
+
+        with mock.patch.object(search_view, "rerun_last_search") as mock_rerun:
+            GUI.on_inactive_toggled(mock_action, mock_variant)
+            mock_rerun.assert_called()
+
+        self.assertTrue(prefs.prefs.get(prefs.exclude_inactive_pref))
+
+        mock_gui.get_view.reset_mock()
+        mock_variant.get_boolean.return_value = False
+        GUI.on_inactive_toggled(mock_action, mock_variant)
+        prefs_view.update.assert_called()
+
+        self.assertFalse(prefs.prefs.get(prefs.exclude_inactive_pref))
+
+    @mock.patch("bauble.gui")
+    def test_on_sort_toggled(self, mock_gui):
+        search_view = get_search_view()
+        prefs_view = PrefsView()
+        prefs_view.update = mock.Mock()
+        mock_gui.get_view.return_value = prefs_view
+        mock_action = mock.Mock()
+        mock_variant = mock.Mock()
+        mock_variant.get_boolean.return_value = True
+
+        with mock.patch.object(search_view, "rerun_last_search") as mock_rerun:
+            GUI.on_sort_toggled(mock_action, mock_variant)
+            mock_rerun.assert_called()
+
+        self.assertTrue(prefs.prefs.get(prefs.sort_by_pref))
+
+        mock_gui.get_view.reset_mock()
+        mock_variant.get_boolean.return_value = False
+        GUI.on_sort_toggled(mock_action, mock_variant)
+        prefs_view.update.assert_called()
+
+        self.assertFalse(prefs.prefs.get(prefs.sort_by_pref))
+
+    @mock.patch("bauble.gui")
+    def test_on_return_syns_toggled(self, mock_gui):
+        search_view = get_search_view()
+        prefs_view = PrefsView()
+        prefs_view.update = mock.Mock()
+        mock_gui.get_view.return_value = prefs_view
+        mock_action = mock.Mock()
+        mock_variant = mock.Mock()
+        mock_variant.get_boolean.return_value = True
+
+        with mock.patch.object(search_view, "rerun_last_search") as mock_rerun:
+            GUI.on_return_syns_toggled(mock_action, mock_variant)
+            mock_rerun.assert_called()
+
+        self.assertTrue(prefs.prefs.get(prefs.return_accepted_pref))
+
+        mock_gui.get_view.reset_mock()
+        mock_variant.get_boolean.return_value = False
+        GUI.on_return_syns_toggled(mock_action, mock_variant)
+        prefs_view.update.assert_called()
+
+        self.assertFalse(prefs.prefs.get(prefs.return_accepted_pref))
+
+    @mock.patch("bauble.ui.HomeCommandHandler.get_view")
+    @mock.patch("bauble.ui.StoredQueriesDialog")
+    def test_on_edit_stored_queries_activated(
+        self,
+        mock_dialog,
+        mock_get_view,
+    ):
+        gui = GUI()
+        mock_dialog().run.return_value = Gtk.ResponseType.OK
+        gui.on_edit_stored_queries_activated(None, None)
+
+        mock_dialog().session.commit.assert_called_once()
+        mock_dialog().session.close.assert_called_once()
+        mock_dialog().destroy.assert_called_once()
+        mock_get_view().update.assert_called_once()
+
+        mock_dialog.reset_mock()
+        mock_get_view.reset_mock()
+        mock_dialog().run.return_value = Gtk.ResponseType.CANCEL
+        gui.on_edit_stored_queries_activated(None, None)
+
+        mock_dialog().session.commit.assert_not_called()
+        mock_dialog().session.close.assert_called_once()
+        mock_dialog().destroy.assert_called_once()
+        mock_get_view().update.assert_called_once()
+
+        gui.destroy()
+
+    @mock.patch("bauble.ui.QueryBuilder.run")
+    @mock.patch("bauble.ui.QueryBuilder.get_query")
+    def test_on_open_query_builder_activated(self, mock_get_query, mock_run):
+        gui = GUI()
+        query = "plant where id = 1"
+        gui.widgets.main_comboentry.get_child().set_text(query)
+        mock_run.return_value = Gtk.ResponseType.OK
+        return_query = "plant where id = 10"
+        mock_get_query.return_value = return_query
+
+        with mock.patch.object(gui, "on_go_button_clicked") as mock_go_clicked:
+            gui.init()
+            gui.on_open_query_builder_activated(None, None)
+            update_gui()
+
+            mock_go_clicked.assert_called_once()
+            self.assertEqual(
+                gui.widgets.main_comboentry.get_child().get_text(),
+                return_query,
+            )
+
         gui.destroy()
