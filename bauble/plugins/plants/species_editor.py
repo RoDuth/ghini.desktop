@@ -1453,9 +1453,8 @@ class DistributionPresenter(editor.GenericEditorPresenter):
 
         self.init_geo_menu_btn()
 
-        self.geo_menu = None
-        self.geo_menu_thread = threading.Thread(target=self.init_geo_menu)
-        GLib.idle_add(self.geo_menu_thread.start)
+        add_button = self.view.widgets.sp_dist_add_button
+        GeographyMenu.attach_new(self.on_activate_add_menu_item, add_button)
 
         self.remove_menu_model = Gio.Menu()
         action = Gio.SimpleAction.new(
@@ -1473,24 +1472,12 @@ class DistributionPresenter(editor.GenericEditorPresenter):
         self.remove_menu.attach_to_widget(remove_button, None)
 
         self.view.connect(
-            "sp_dist_add_button",
-            "button-press-event",
-            self.on_add_button_pressed,
-        )
-        self.view.connect(
             "sp_dist_remove_button",
             "button-press-event",
             self.on_remove_button_pressed,
         )
 
         self.view.widgets.sp_dist_add_button.set_sensitive(False)
-
-    def init_geo_menu(self) -> None:
-        """Initialise the add distribution menu."""
-        add_button = self.view.widgets.sp_dist_add_button
-        self.geo_menu = GeographyMenu.new_menu(
-            self.on_activate_add_menu_item, add_button
-        )
 
     def init_geo_menu_btn(self) -> None:
         """Initialise the distribution menu button.
@@ -1666,20 +1653,10 @@ class DistributionPresenter(editor.GenericEditorPresenter):
             )
             clipboard.set_text(txt, -1)
 
-    def cleanup(self):
-        super().cleanup()
-        if self.geo_menu_thread.is_alive():
-            self.geo_menu_thread.join()
-        if self.geo_menu is not None:
-            self.geo_menu.destroy()
-
     def refresh_view(self) -> None:
         label = self.view.widgets.sp_dist_label
         txt = ", ".join(str(d) for d in self.model.distribution)
         label.set_text(textwrap.shorten(txt, width=500, placeholder=" ..."))
-
-    def on_add_button_pressed(self, _button, event):
-        self.geo_menu.popup_at_pointer(event)
 
     def on_remove_button_pressed(self, _button, event):
         # clear the menu first

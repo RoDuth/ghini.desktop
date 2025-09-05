@@ -131,29 +131,17 @@ def get_species_in_geography(geo):
 class GeographyMenu(Gio.Menu):
     """Menu that attaches to a button for geography selection.
 
-    Usage example (using a thread to prevent hanging the presenter)::
+    NOTE: the menu is populated in a thread.  The button supplied to
+    ``attach_new`` should be set insensitive and will be set sensitive when the
+    menu is ready and attached.
+
+    Usage example::
 
         def __init__(self):
-            self.add_button = Gtk.Button(label=_("Add Geography"))
-            self.geo_menu = None
-            self.geo_menu_thread = threading.Thread(target=self.init_geo_menu)
-            GLib.idle_add(self.geo_menu_thread.start)
-
-        # create menu with an 'activate' signal handler and button to attach to
-        def init_geo_menu(self):
-            self.geo_menu = GeographyMenu.new_menu(
-                self.on_activate_add_menu_item, self.add_button
-            )
+            GeographyMenu.attach_new(self.on_activate_menu_item, geo_button)
 
         # signal handler for the menu item activation
-        def on_activate_add_menu_item(self, action, geo_id): ...
-
-        # destroy it with the presenter
-        def cleanup(self):
-            if self.geo_menu_thread.is_alive():
-                self.geo_menu_thread.join()
-            if self.geo_menu is not None:
-                self.geo_menu.destroy()
+        def on_activate_menu_item(self, action, geo_id): ...
 
     """
 
@@ -165,19 +153,44 @@ class GeographyMenu(Gio.Menu):
         self._populate()
 
     @classmethod
-    def new_menu(
+    def attach_new(
         cls,
         handler: Callable[[Gio.SimpleAction, str], None],
         button: Gtk.Button,
-    ) -> Gtk.Menu:
+    ) -> None:
+
+        threading.Thread(
+            target=cls._create,
+            args=(handler, button),
+            daemon=True,
+        ).start()
+
+    @classmethod
+    def _create(
+        cls,
+        handler: Callable[[Gio.SimpleAction, str], None],
+        button: Gtk.Button,
+    ) -> None:
+
         logger.debug("new geography menu %s", button)
         menu_model = cls()
-        menu_model._attach_action_group(handler, button)
-        menu = Gtk.Menu.new_from_model(menu_model)
-        menu.attach_to_widget(button)
-        button.set_sensitive(True)
+        GLib.idle_add(menu_model._attach, handler, button)
 
-        return menu
+    def _attach(
+        self,
+        handler: Callable[[Gio.SimpleAction, str], None],
+        button: Gtk.Button,
+    ) -> None:
+        self._attach_action_group(handler, button)
+        menu = Gtk.Menu.new_from_model(self)
+        menu.attach_to_widget(button)
+
+        button.connect(
+            "button-press-event",
+            lambda w, e: menu.popup_at_pointer(e),
+        )
+
+        button.set_sensitive(True)
 
     @property
     def geos_ordered(self) -> dict[int | None, list[tuple[int, str]]]:

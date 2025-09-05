@@ -526,7 +526,6 @@ class CollectionPresenter(editor.ChildPresenter):
         super().__init__(model, view, session=session)
         self.parent_ref = weakref.ref(parent)
         self.refresh_view()
-        self.geo_menu = None
         self.view.attach_completion("collector_entry")
 
         self.assign_completions_handler(
@@ -597,31 +596,10 @@ class CollectionPresenter(editor.ChildPresenter):
 
         self.view.widgets.add_region_button.set_sensitive(False)
 
-        def on_add_button_pressed(_widget, event):
-            self.geo_menu.popup_at_pointer(event)
-
-        self.view.connect(
-            "add_region_button", "button-press-event", on_add_button_pressed
-        )
-
-        self.geo_menu = None
-        self.geo_menu_thread = threading.Thread(target=self.init_geo_menu)
-        GLib.idle_add(self.geo_menu_thread.start)
+        add_button = self.view.widgets.add_region_button
+        GeographyMenu.attach_new(self.set_region, add_button)
 
         self._dirty = False
-
-    def init_geo_menu(self):
-
-        add_button = self.view.widgets.add_region_button
-        self.geo_menu = GeographyMenu.new_menu(self.set_region, add_button)
-
-    def cleanup(self):
-        # garbage collect
-        if self.geo_menu_thread.is_alive():
-            self.geo_menu_thread.join()
-        if self.geo_menu is not None:
-            self.geo_menu.destroy()
-        super().cleanup()
 
     def collector_get_completions(self, text):
         query = (
