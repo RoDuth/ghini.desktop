@@ -1053,9 +1053,10 @@ class GenericPresenter[T]:
 
         with db.Session() as session:
 
-            session.merge(self.model)
+            model = session.merge(self.model)
             exists = session.query(class_).filter(column == value).first()
-            if exists is not None and exists is not self.model:
+
+            if exists is not None and exists is not model:
                 self.add_problem(self.PROBLEM_NOT_UNIQUE, entry)
             else:
                 self.remove_problem(self.PROBLEM_NOT_UNIQUE, entry)
