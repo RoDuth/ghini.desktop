@@ -364,7 +364,7 @@ def is_code_unique(plant, code):
 class PlantSearch(SearchStrategy):
     """Supports searches of the form: `plant operator value`
 
-    This strategy overides DomainSearch as plants are slightly more complex to
+    This strategy overrides DomainSearch as plants are slightly more complex to
     query.
     """
 

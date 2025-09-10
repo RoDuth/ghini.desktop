@@ -10,7 +10,7 @@ version = "1.3.15"  # :bump
 application = "./dist/Ghini.app"
 appname = Path(application).name
 
-# overide output file
+# override output file
 filename = f"dist/Ghini-v{version}-installer.dmg"
 
 # override the output volume name

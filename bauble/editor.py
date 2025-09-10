@@ -1012,7 +1012,7 @@ class GenericPresenter[T]:
     def on_non_empty_text_entry_changed(self, entry: Gtk.Entry) -> None:
         """If the entry is empty adds PROBLEM_EMPTY to self.problems.
 
-        If addition functionality is required you can overide this method and
+        If addition functionality is required you can override this method and
         use the private version to get widgets value. e.g.::
 
             @Gtk.Template.Callback()

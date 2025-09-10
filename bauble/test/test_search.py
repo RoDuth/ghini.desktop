@@ -1179,6 +1179,10 @@ class SearchTests2(BaubleTestCase):
             results.extend(i)
         self.assertEqual(results, [p2])
 
+        # invalid raises
+        s = "accession where date_recvd on None"
+        self.assertRaises(ValueError, mapper_search.search, s, self.session)
+
     def test_search_by_datestring_query_tz_limits(self):
 
         family2 = Family(family="family2")

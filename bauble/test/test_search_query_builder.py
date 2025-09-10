@@ -1,5 +1,5 @@
 # Copyright (c) 2017 Mario Frasca <mario@anche.no>
-# Copyright (c) 2021-2024 Ross Demuth <rossdemuth123@gmail.com>
+# Copyright (c) 2021-2025 Ross Demuth <rossdemuth123@gmail.com>
 #
 # This file is part of ghini.desktop.
 #
@@ -38,7 +38,7 @@ from bauble.search.tokens import EmptyToken
 from bauble.test import BaubleTestCase
 
 
-class ParseTypedValue(BaubleTestCase):
+class ParseTypedValueTests(BaubleTestCase):
     def test_parse_typed_value_floats(self):
         from sqlalchemy import Float
 

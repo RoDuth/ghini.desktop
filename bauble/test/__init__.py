@@ -45,7 +45,7 @@ from bauble.error import BaubleError
 uri = "sqlite:///file:testdb?mode=memory&cache=shared&uri=true"
 # uri = 'postgresql://test:test@localhost/test'
 
-# allow user to overide uri via an envar
+# allow user to override uri via an envar
 # e.g. to run tests on postgresql:
 # BAUBLE_TEST_DB_URI=postgresql://test:test@localhost/test pytest
 if os.environ.get("BAUBLE_TEST_DB_URI"):

@@ -1151,7 +1151,7 @@ def get_create_or_update(session, model, create_one_to_one=False, **kwargs):
 
 
 class CurrentUserFunctor:
-    """implement the current_user function, and allow overriding.
+    """Implement the current_user function, and allow overriding.
 
     invoke the current_user object as a function.
     invoke current_user.override(user_name) to set user name.
@@ -1202,14 +1202,6 @@ class CurrentUserFunctor:
                 user = result.fetchone()[0]
         elif engine.name.startswith("sqlite"):
             user = utils.get_user_display_name()
-        if not user:
-            logger.debug("retrieving user name from system")
-            user = (
-                os.getenv("USER")
-                or os.getenv("USERNAME")
-                or os.getenv("LOGNAME")
-                or os.getenv("LNAME")
-            )
 
         return user
 
