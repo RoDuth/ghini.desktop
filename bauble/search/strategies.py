@@ -42,6 +42,7 @@ import typing
 from abc import ABC
 from abc import abstractmethod
 from collections.abc import Callable
+from enum import Enum
 from functools import lru_cache
 
 from pyparsing import Forward
@@ -73,8 +74,18 @@ value_token = (
 )
 
 
+class UseStrategy(Enum):
+    """Whether to include, exclude or only use this strategy when chosing the
+    list of strategies to run the search.
+    """
+
+    INCLUDE = "include"
+    EXCLUDE = "exclude"
+    ONLY = "only"
+
+
 class SearchStrategy(ABC):
-    """interface for adding search strategies to a view."""
+    """Interface for adding search strategies to a view."""
 
     domains: dict[str, tuple[type[Domain], list[str]]] = {}
     shorthand: dict[str, str] = {}
@@ -90,7 +101,10 @@ class SearchStrategy(ABC):
         self.session = None
 
     def add_meta(
-        self, domain: tuple[str, ...], cls: type[Domain], properties: list[str]
+        self,
+        domain: tuple[str, ...],
+        cls: type[Domain],
+        properties: list[str],
     ) -> None:
         """Add a domain to the search space
 
@@ -144,7 +158,7 @@ class SearchStrategy(ABC):
 
     @staticmethod
     @abstractmethod
-    def use(text: str) -> typing.Literal["include", "exclude", "only"]:
+    def use(text: str) -> UseStrategy:
         """How does this search stratergy apply to the provided text.
 
         i.e.:
@@ -176,11 +190,11 @@ class MapperSearch(SearchStrategy):
     """
 
     @staticmethod
-    def use(text: str) -> typing.Literal["include", "exclude", "only"]:
+    def use(text: str) -> UseStrategy:
         atomised = text.split()
         if len(atomised) > 2 and atomised[1] == "where":
-            return "include"
-        return "exclude"
+            return UseStrategy.INCLUDE
+        return UseStrategy.EXCLUDE
 
     def search(self, text: str, session: Session) -> list[Query]:
         """Returns list of queries for the text search string."""
@@ -264,16 +278,16 @@ class DomainSearch(SearchStrategy):
 
     @staticmethod
     @lru_cache(maxsize=8)
-    def use(text: str) -> typing.Literal["include", "exclude", "only"]:
+    def use(text: str) -> UseStrategy:
         # cache the result to avoid calling multiple times...
         DomainSearch.update_domains()
         try:
             DomainSearch.statement.parse_string(text)
             logger.debug("including DomainSearch in strategies")
-            return "include"
+            return UseStrategy.INCLUDE
         except ParseException:
             pass
-        return "exclude"
+        return UseStrategy.EXCLUDE
 
     @classmethod
     def update_domains(cls) -> None:
@@ -323,16 +337,16 @@ class ValueListSearch(SearchStrategy):
     )
 
     @staticmethod
-    def use(text: str) -> typing.Literal["include", "exclude", "only"]:
+    def use(text: str) -> UseStrategy:
         for strategy in _search_strategies.values():
             if isinstance(strategy, ValueListSearch):
                 continue
             if strategy.excludes_value_list_search and strategy.use(text) in (
-                "include",
-                "only",
+                UseStrategy.INCLUDE,
+                UseStrategy.ONLY,
             ):
-                return "exclude"
-        return "include"
+                return UseStrategy.EXCLUDE
+        return UseStrategy.INCLUDE
 
     def search(self, text: str, session: Session) -> list[Query]:
         """Returns list of queries for the text search string."""
@@ -376,14 +390,19 @@ def get_strategies(text: str) -> list[SearchStrategy]:
     """
     all_strategies = _search_strategies.values()
     selected_strategies: list[SearchStrategy] = []
+
     for strategy in all_strategies:
         logger.debug("strategy: %s", strategy)
         use = strategy.use(text)
-        if use == "only":
+
+        if use == UseStrategy.ONLY:
             logger.debug("filtered strategies [%s]", strategy)
             return [strategy]
-        if use == "include":
+
+        if use == UseStrategy.INCLUDE:
             selected_strategies.append(strategy)
+
         # NOTE skip any other response
     logger.debug("filtered strategies %s", selected_strategies)
+
     return selected_strategies

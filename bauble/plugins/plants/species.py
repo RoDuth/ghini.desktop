@@ -26,7 +26,6 @@ import logging
 import os
 import re
 import traceback
-import typing
 from ast import literal_eval
 
 logger = logging.getLogger(__name__)
@@ -53,6 +52,7 @@ from bauble.i18n import _
 from bauble.search.search import result_cache
 from bauble.search.statements import StatementAction
 from bauble.search.strategies import SearchStrategy
+from bauble.search.strategies import UseStrategy
 from bauble.view import Action
 from bauble.view import InfoBox
 from bauble.view import InfoExpander
@@ -278,12 +278,12 @@ class BinomialSearch(SearchStrategy):
     ).set_parse_action(BinomialStatement)("statement")
 
     @staticmethod
-    def use(text: str) -> typing.Literal["include", "exclude", "only"]:
+    def use(text: str) -> UseStrategy:
         logger.debug("Use called with %s", text)
         if _BINOMIAL_RGX.match(text):
             logger.debug("including BinomialSearch in strategies")
-            return "include"
-        return "exclude"
+            return UseStrategy.INCLUDE
+        return UseStrategy.EXCLUDE
 
     def search(self, text: str, session: Session) -> list[Query]:
         """Search for a synonym for each item in the results and add to the
@@ -375,11 +375,11 @@ class SynonymSearch(SearchStrategy):
             prefs.prefs.save()
 
     @staticmethod
-    def use(_text: str) -> typing.Literal["include", "exclude", "only"]:
+    def use(_text: str) -> UseStrategy:
         if prefs.prefs.get(prefs.return_accepted_pref):
             logger.debug("including SynonymSearch in strategies")
-            return "include"
-        return "exclude"
+            return UseStrategy.INCLUDE
+        return UseStrategy.EXCLUDE
 
     @staticmethod
     def get_ids(

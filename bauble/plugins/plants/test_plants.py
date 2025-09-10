@@ -48,6 +48,7 @@ from bauble import prefs
 from bauble import search
 from bauble import utils
 from bauble.meta import BaubleMeta
+from bauble.search.strategies import UseStrategy
 from bauble.test import BaubleClassTestCase
 from bauble.test import BaubleTestCase
 from bauble.test import check_dupids
@@ -3809,34 +3810,34 @@ class BinomialSearchTests(BaubleTestCase):
         self.assertTrue(isinstance(strategy, BinomialSearch))
 
         s = "ixora coccinea"
-        self.assertEqual(strategy.use(s), "exclude")
+        self.assertEqual(strategy.use(s), UseStrategy.EXCLUDE)
 
         s = "i c"
-        self.assertEqual(strategy.use(s), "exclude")
+        self.assertEqual(strategy.use(s), UseStrategy.EXCLUDE)
 
         s = "I "
-        self.assertEqual(strategy.use(s), "exclude")
+        self.assertEqual(strategy.use(s), UseStrategy.EXCLUDE)
 
         s = "I "
-        self.assertEqual(strategy.use(s), "exclude")
+        self.assertEqual(strategy.use(s), UseStrategy.EXCLUDE)
 
         s = "I c"
-        self.assertEqual(strategy.use(s), "include")
+        self.assertEqual(strategy.use(s), UseStrategy.INCLUDE)
 
         s = "Ixora coccinea"
-        self.assertEqual(strategy.use(s), "include")
+        self.assertEqual(strategy.use(s), UseStrategy.INCLUDE)
 
         s = "Gre 'Roby"
-        self.assertEqual(strategy.use(s), "include")
+        self.assertEqual(strategy.use(s), UseStrategy.INCLUDE)
 
         s = "Grevillea 'Robyn Gordon'"
-        self.assertEqual(strategy.use(s), "include")
+        self.assertEqual(strategy.use(s), UseStrategy.INCLUDE)
 
         s = "Hibiscus rosa-sinensis"
-        self.assertEqual(strategy.use(s), "include")
+        self.assertEqual(strategy.use(s), UseStrategy.INCLUDE)
 
         s = "Cyn dac 'DT-1"
-        self.assertEqual(strategy.use(s), "include")
+        self.assertEqual(strategy.use(s), UseStrategy.INCLUDE)
 
     def test_sp_cultivar_also_matches(self):
         strategy = search.strategies.get_strategy("BinomialSearch")

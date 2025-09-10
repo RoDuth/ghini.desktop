@@ -26,7 +26,6 @@ Defines the plant table and handled editing plants
 import logging
 import os
 import traceback
-import typing
 from collections.abc import Generator
 from collections.abc import Sequence
 from datetime import datetime
@@ -101,6 +100,7 @@ from bauble.editor import Problem
 from bauble.error import CheckConditionError
 from bauble.i18n import _
 from bauble.search.strategies import SearchStrategy
+from bauble.search.strategies import UseStrategy
 from bauble.utils.geo import KMLMapCallbackFunctor
 from bauble.view import Action
 from bauble.view import InfoBox
@@ -384,15 +384,15 @@ class PlantSearch(SearchStrategy):
 
     @staticmethod
     @lru_cache(maxsize=8)
-    def use(text: str) -> typing.Literal["include", "exclude", "only"]:
+    def use(text: str) -> UseStrategy:
         # cache the result to avoid calling multiple times...
         try:
             PlantSearch.domain_expression.parse_string(text)
             logger.debug("reducing strategies to PlantSearch")
-            return "only"
+            return UseStrategy.ONLY
         except ParseException:
             pass
-        return "exclude"
+        return UseStrategy.EXCLUDE
 
     def search(self, text: str, session: Session) -> list[Query]:
         # pylint: disable=too-many-branches,too-many-locals,too-many-statements
