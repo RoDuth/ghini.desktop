@@ -799,14 +799,14 @@ class GUITests(BaubleTestCase):
         mock_variant.get_boolean.return_value = True
 
         with mock.patch.object(search_view, "rerun_last_search") as mock_rerun:
-            GUI.on_inactive_toggled(mock_action, mock_variant)
+            GUI.on_inactive_toggled(mock_gui, mock_action, mock_variant)
             mock_rerun.assert_called()
 
         self.assertTrue(prefs.prefs.get(prefs.exclude_inactive_pref))
 
         mock_gui.get_view.reset_mock()
         mock_variant.get_boolean.return_value = False
-        GUI.on_inactive_toggled(mock_action, mock_variant)
+        GUI.on_inactive_toggled(mock_gui, mock_action, mock_variant)
         prefs_view.update.assert_called()
 
         self.assertFalse(prefs.prefs.get(prefs.exclude_inactive_pref))
@@ -822,14 +822,14 @@ class GUITests(BaubleTestCase):
         mock_variant.get_boolean.return_value = True
 
         with mock.patch.object(search_view, "rerun_last_search") as mock_rerun:
-            GUI.on_sort_toggled(mock_action, mock_variant)
+            GUI.on_sort_toggled(mock_gui, mock_action, mock_variant)
             mock_rerun.assert_called()
 
         self.assertTrue(prefs.prefs.get(prefs.sort_by_pref))
 
         mock_gui.get_view.reset_mock()
         mock_variant.get_boolean.return_value = False
-        GUI.on_sort_toggled(mock_action, mock_variant)
+        GUI.on_sort_toggled(mock_gui, mock_action, mock_variant)
         prefs_view.update.assert_called()
 
         self.assertFalse(prefs.prefs.get(prefs.sort_by_pref))
@@ -845,14 +845,14 @@ class GUITests(BaubleTestCase):
         mock_variant.get_boolean.return_value = True
 
         with mock.patch.object(search_view, "rerun_last_search") as mock_rerun:
-            GUI.on_return_syns_toggled(mock_action, mock_variant)
+            GUI.on_return_syns_toggled(mock_gui, mock_action, mock_variant)
             mock_rerun.assert_called()
 
         self.assertTrue(prefs.prefs.get(prefs.return_accepted_pref))
 
         mock_gui.get_view.reset_mock()
         mock_variant.get_boolean.return_value = False
-        GUI.on_return_syns_toggled(mock_action, mock_variant)
+        GUI.on_return_syns_toggled(mock_gui, mock_action, mock_variant)
         prefs_view.update.assert_called()
 
         self.assertFalse(prefs.prefs.get(prefs.return_accepted_pref))

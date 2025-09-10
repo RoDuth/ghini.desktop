@@ -360,39 +360,48 @@ class GUI:
 
         query_builder.destroy()
 
-    @staticmethod
-    def on_return_syns_toggled(action, value):
+    def on_return_syns_toggled(
+        self,
+        action: Gio.SimpleAction,
+        value: GLib.Variant,
+    ) -> None:
         action.set_state(value)
 
         prefs.prefs[prefs.return_accepted_pref] = value.get_boolean()
 
-        view = bauble.gui.get_view()
+        view = self.get_view()
 
         if isinstance(view, PrefsView):
             view.update()
 
         get_search_view().rerun_last_search()
 
-    @staticmethod
-    def on_inactive_toggled(action, value):
+    def on_inactive_toggled(
+        self,
+        action: Gio.SimpleAction,
+        value: GLib.Variant,
+    ) -> None:
         action.set_state(value)
 
         prefs.prefs[prefs.exclude_inactive_pref] = value.get_boolean()
 
-        view = bauble.gui.get_view()
+        view = self.get_view()
 
         if isinstance(view, (PrefsView, DefaultView)):
             view.update()
 
         get_search_view().rerun_last_search()
 
-    @staticmethod
-    def on_sort_toggled(action, value):
+    def on_sort_toggled(
+        self,
+        action: Gio.SimpleAction,
+        value: GLib.Variant,
+    ) -> None:
         action.set_state(value)
 
         prefs.prefs[prefs.sort_by_pref] = value.get_boolean()
 
-        view = bauble.gui.get_view()
+        view = self.get_view()
 
         if isinstance(view, PrefsView):
             view.update()
