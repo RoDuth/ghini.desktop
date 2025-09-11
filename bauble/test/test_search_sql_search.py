@@ -127,8 +127,15 @@ class DialogTests(BaubleTestCase):
 
         self.assertEqual(dialog.domain, "species")
         self.assertTrue(dialog.sql.startswith("SELECT species"))
+        sql = "FROM species \nWHERE species.sp = 'eggs'"
+        mssql = "FROM species \nWHERE species.sp = N'eggs'"
         self.assertTrue(
-            dialog.sql.endswith("FROM species \nWHERE species.sp = 'eggs'")
+            any(
+                (
+                    dialog.sql.endswith(sql),
+                    dialog.sql.endswith(mssql),
+                )
+            )
         )
         self.assertTrue(dialog.ok_button.get_sensitive())
         dialog.destroy()
@@ -140,10 +147,21 @@ class DialogTests(BaubleTestCase):
         dialog.set_query(string)
 
         self.assertTrue(dialog.sql.startswith("SELECT location"))
-        string = (
+        sql = (
             "FROM location \nWHERE location.name = 'eggs' OR "
             "location.code = 'eggs'"
         )
-        self.assertTrue(dialog.sql.endswith(string))
+        mssql = (
+            "FROM location \nWHERE location.name = N'eggs' OR "
+            "location.code = N'eggs'"
+        )
+        self.assertTrue(
+            any(
+                (
+                    dialog.sql.endswith(sql),
+                    dialog.sql.endswith(mssql),
+                )
+            )
+        )
         self.assertTrue(dialog.ok_button.get_sensitive())
         dialog.destroy()
