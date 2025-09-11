@@ -46,6 +46,7 @@ from sqlalchemy.engine import URL
 from sqlalchemy.engine import Engine
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.hybrid import hybrid_property
+from sqlalchemy.orm import Mapper
 from sqlalchemy.orm import Session as SASession
 from sqlalchemy.orm import declarative_base
 from sqlalchemy.orm import object_session
@@ -249,6 +250,8 @@ class Domain(Base):
     """
 
     __abstract__ = True
+
+    __mapper__: Mapper
 
     @classmethod
     def top_level_count(

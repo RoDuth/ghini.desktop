@@ -56,6 +56,7 @@ from bauble import utils
 from bauble.i18n import _
 from bauble.prefs import datetime_format_pref
 from bauble.search.query_builder import QueryBuilder
+from bauble.search.sql_search import SQLSearchDialog
 from bauble.search.stored_queries import StoredQueriesDialog
 from bauble.utils import desktop
 from bauble.view import DefaultView
@@ -269,6 +270,16 @@ class GUI:
             Gio.MenuItem.new(_("Query builder"), f"win.{action_name}")
         )
 
+        sql_enabled = prefs.prefs.get(prefs.enable_raw_sql_search_pref, False)
+        is_admin = db.current_user.is_admin
+
+        if sql_enabled and is_admin:
+            action_name = "raw_sql_search"
+            self.add_action(action_name, self.on_raw_sql_search_activated)
+            search_menu.append_item(
+                Gio.MenuItem.new(_("SQL Search"), f"win.{action_name}")
+            )
+
         options_section = Gio.Menu()
 
         # exlude inactive
@@ -343,6 +354,9 @@ class GUI:
         _action: Gio.SimpleAction,
         _param: GLib.Variant | None,
     ) -> None:
+        self._run_query_builder()
+
+    def _run_query_builder(self) -> None:
         query_builder = QueryBuilder(transient_for=self.window)
         query_builder.set_query(
             self.widgets.main_comboentry.get_child().get_text()
@@ -359,6 +373,25 @@ class GUI:
             self.widgets.go_button.emit("clicked")
 
         query_builder.destroy()
+
+    def on_raw_sql_search_activated(
+        self,
+        _action: Gio.SimpleAction,
+        _param: GLib.Variant | None,
+    ) -> None:
+        self._run_raw_sql_search()
+
+    def _run_raw_sql_search(self) -> None:
+        dialog = SQLSearchDialog(transient_for=self.window)
+        dialog.set_query(self.widgets.main_comboentry.get_child().get_text())
+
+        if dialog.run() == Gtk.ResponseType.OK and dialog.domain:
+            query = dialog.get_query()
+            self.widgets.main_comboentry.get_child().set_text(query)
+            logger.debug("SQL search returned: %s", repr(query))
+            self.widgets.go_button.emit("clicked")
+
+        dialog.destroy()
 
     def on_return_syns_toggled(
         self,
@@ -564,21 +597,19 @@ class GUI:
 
         if self.save_history:
             self.add_to_history(text)
+
         self.save_history = True
 
     def on_query_button_clicked(self, _button: Gtk.Button) -> None:
-        query_builder = QueryBuilder(transient_for=self.window)
-        query_builder.set_query(
-            self.widgets.main_comboentry.get_child().get_text()
-        )
-        response = query_builder.run()
+        current = self.widgets.main_comboentry.get_child().get_text()
 
-        if response == Gtk.ResponseType.OK:
-            query = query_builder.get_query()
-            self.widgets.main_comboentry.get_child().set_text(query)
-            self.widgets.go_button.emit("clicked")
+        sql_enabled = prefs.prefs.get(prefs.enable_raw_sql_search_pref, False)
+        is_admin = db.current_user.is_admin
 
-        query_builder.destroy()
+        if is_admin and sql_enabled and current.startswith(":SQL"):
+            self._run_raw_sql_search()
+        else:
+            self._run_query_builder()
 
     def on_history_pinned_clicked(
         self,

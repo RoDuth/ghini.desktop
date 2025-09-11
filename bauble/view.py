@@ -1326,6 +1326,7 @@ class SearchView(View, Gtk.Box):
 
     def search(self, text: str) -> None:
         """search the database using :param text:"""
+
         logger.debug("SearchView.search(%s)", repr(text))
         self.last_search = text
         self.no_result = False
@@ -1353,6 +1354,10 @@ class SearchView(View, Gtk.Box):
             self.update_statusbar([])
             self.on_selection_changed(None)
             return
+
+        self.populate(text, results)
+
+    def populate(self, text: str, results: Sequence[db.Domain]) -> None:
 
         if len(results) > 30000:
             msg = _(
@@ -2648,7 +2653,7 @@ def select_in_search_results(obj) -> Gtk.TreeIter:
 
 
 class DefaultCommandHandler(pluginmgr.CommandHandler):
-    command = [None]
+    command = (None, "SQL")
     view: SearchView | None = None
 
     @classmethod
@@ -2657,7 +2662,11 @@ class DefaultCommandHandler(pluginmgr.CommandHandler):
             cls.view = SearchView()
         return cls.view
 
-    def __call__(self, cmd: str, arg: str | None) -> None:
+    def __call__(self, cmd: str | None, arg: str | None) -> None:
+
+        if cmd:
+            arg = f"{cmd}:{arg or ''}"
+
         self.get_view().search(arg or "")
 
 

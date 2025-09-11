@@ -54,6 +54,7 @@ from bauble.plugins.plants.species_model import SpeciesPicture
 from bauble.plugins.plants.species_model import VernacularName
 from bauble.plugins.plants.test_plants import setup_geographies
 from bauble.search.search import result_cache
+from bauble.search.strategies import UseStrategy
 from bauble.test import BaubleClassTestCase
 from bauble.test import BaubleTestCase
 from bauble.test import get_setUp_data_funcs
@@ -1982,6 +1983,67 @@ class SearchTests3(BaubleClassTestCase):
         results = search.search(string, self.session)
 
         self.assertCountEqual([i.id for i in results], [31, 32, 33])
+
+
+class RawSQLSearchTests(BaubleClassTestCase):
+    @classmethod
+    def setUpClass(cls):
+        # setup once for all tests
+        super().setUpClass()
+        for func in get_setUp_data_funcs():
+            func()
+
+    @patch("bauble.search.strategies.current_user")
+    def test_use(self, mock_cur_usr):
+        strategy = search.strategies.get_strategy("RawSQLSearch")
+        self.assertTrue(isinstance(strategy, search.strategies.RawSQLSearch))
+        string = "SQL: species 'SELECT * FROM species WHERE id = 1'"
+        mock_cur_usr.is_admin = True
+        # no pref but is admin
+        self.assertEqual(strategy.use(string), UseStrategy.EXCLUDE)
+
+        mock_cur_usr.is_admin = False
+        # pref but not admin
+        self.assertEqual(strategy.use(string), UseStrategy.EXCLUDE)
+
+        mock_cur_usr.is_admin = True
+        prefs.prefs[prefs.enable_raw_sql_search_pref] = True
+        # pref and is admin
+        self.assertEqual(strategy.use(string), UseStrategy.ONLY)
+        # pref and is admin but wrong string
+        self.assertEqual(
+            strategy.use("plant where id = 1"),
+            UseStrategy.EXCLUDE,
+        )
+
+    def test_search(self):
+        strategy = search.strategies.get_strategy("RawSQLSearch")
+        self.assertTrue(isinstance(strategy, search.strategies.RawSQLSearch))
+        string = "SQL: species 'SELECT * FROM species WHERE id = 1'"
+        results = []
+        for i in strategy.search(string, self.session):
+            results.extend(i)
+        self.assertEqual([i.id for i in results], [1])
+
+        string = (
+            'SQL: species "SELECT * FROM species WHERE sp like '
+            "'%gill%' or sp like '%noct%' or sp like '%asp%'\""
+        )
+        results = []
+        for i in strategy.search(string, self.session):
+            results.extend(i)
+        self.assertTrue(all(i.__tablename__ == "species" for i in results))
+        self.assertCountEqual([i.id for i in results], [31, 32, 33])
+
+        string = (
+            'SQL: location "SELECT location.id\nFROM location \nWHERE '
+            "lower(location.code) LIKE lower('%RBW') ESCAPE '\\'\""
+        )
+        results = []
+        for i in strategy.search(string, self.session):
+            results.extend(i)
+        self.assertTrue(all(i.__tablename__ == "location" for i in results))
+        self.assertCountEqual([i.id for i in results], [1, 2])
 
 
 class SubQueryTests(BaubleClassTestCase):

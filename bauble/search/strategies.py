@@ -1,6 +1,6 @@
 # Copyright 2008, 2009, 2010 Brett Adams
 # Copyright 2014-2015 Mario Frasca <mario@anche.no>.
-# Copyright 2021-2024 Ross Demuth <rossdemuth123@gmail.com>
+# Copyright 2021-2025 Ross Demuth <rossdemuth123@gmail.com>
 #
 # This file is part of ghini.desktop.
 #
@@ -38,6 +38,7 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+import shlex
 import typing
 from abc import ABC
 from abc import abstractmethod
@@ -53,10 +54,14 @@ from pyparsing import ParseException
 from pyparsing import delimited_list
 from pyparsing import one_of
 from pyparsing import string_end
+from sqlalchemy import select
+from sqlalchemy import text as sa_text
 from sqlalchemy.orm import Query
 from sqlalchemy.orm import Session
 
+from bauble import prefs
 from bauble.db import Domain
+from bauble.db import current_user
 from bauble.error import check
 from bauble.i18n import _
 
@@ -241,6 +246,55 @@ class MapperSearch(SearchStrategy):
         return queries
 
 
+class RawSQLSearch(SearchStrategy):
+    """Supports a query of the form: `SQL: <domain> "<raw SQL string>"`
+
+    Gives full control to the user to provide a raw SQL statement.
+    USE WITH CAUTION!
+
+    NOTE: Does not support search options such as excluding inactive records.
+
+    e.g.: `SQL: location "SELECT * FROM location WHERE code = 'LOC1'"`
+    """
+
+    @staticmethod
+    def use(text: str) -> UseStrategy:
+
+        sql_enabled = prefs.prefs.get(prefs.enable_raw_sql_search_pref, False)
+
+        if not (sql_enabled and current_user.is_admin):
+            return UseStrategy.EXCLUDE
+
+        if text.startswith("SQL:"):
+            return UseStrategy.ONLY
+
+        return UseStrategy.EXCLUDE
+
+    def search(self, text: str, session: Session) -> list[Query]:
+        """Returns list of queries for the text search string."""
+        super().search(text, session)
+        self.session = session
+        text = text.removeprefix("SQL:")
+        domain_name, raw_sql = shlex.split(text)
+        logger.debug("domain: %s, raw_sql: %s", domain_name, raw_sql)
+
+        raw_sql = (
+            raw_sql.replace("'\\'", "'\\\\'")
+            .replace("\\_", "\\\\_")
+            .replace("\\%", "\\\\%")
+            .encode("raw_unicode_escape")
+            .decode("unicode_escape")
+        )
+
+        domain = self.get_domain_classes()[domain_name]
+
+        select_stmt = select(domain)
+        sql = sa_text(raw_sql).columns(*domain.__mapper__.primary_key)
+        query = self.session.execute(select_stmt.from_statement(sql)).scalars()
+
+        return [query]
+
+
 class DomainSearch(SearchStrategy):
     """Supports searches of the form: `<domain|shorthand> <operator> <value>`
 
@@ -362,6 +416,7 @@ class ValueListSearch(SearchStrategy):
 # search strategies to be tried on each search string
 _search_strategies: dict[str, SearchStrategy] = {
     "MapperSearch": MapperSearch(),
+    "RawSQLSearch": RawSQLSearch(),
     "DomainSearch": DomainSearch(),
     "ValueListSearch": ValueListSearch(),
 }

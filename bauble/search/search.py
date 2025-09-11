@@ -65,7 +65,9 @@ def search(text: str, session: Session) -> list:
 
         result: list[Query] = []
         for query in queries:
-            if prefs.prefs.get(prefs.exclude_inactive_pref):
+            if prefs.prefs.get(
+                prefs.exclude_inactive_pref
+            ) and not text.startswith("SQL:"):
                 table = query.column_descriptions[0]["type"]
                 if hasattr(table, "active"):
                     query = query.filter(table.active.is_(True))

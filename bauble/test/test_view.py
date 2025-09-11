@@ -3545,7 +3545,13 @@ class GlobalFunctionsTests(BaubleTestCase):
         search_view = get_search_view()
         with mock.patch.object(search_view, "search") as mock_search:
             DefaultCommandHandler()(None, "fam = *")
+
         mock_search.assert_called_with("fam = *")
+
+        with mock.patch.object(search_view, "search") as mock_search:
+            DefaultCommandHandler()("SQL", " species 'SELECT * FROM SPECIES'")
+
+        mock_search.assert_called_with("SQL: species 'SELECT * FROM SPECIES'")
 
     def test_select_in_search_results_not_search_view_raises(self):
         mock_view = mock.Mock()

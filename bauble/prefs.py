@@ -238,6 +238,13 @@ The preferences key for which columns to exclude from the SchemaMenu in basic
 view.
 """
 
+enable_raw_sql_search_pref = "bauble.search.enable_raw_sql"
+"""
+The preferences key for enabling raw SQL searches from the main search entry.
+
+Values: True, False
+"""
+
 # althought these relate to plugins they are only strings and best placed here.
 QB_EXCLUDE_DEFAULTS = [
     "Genus.genus",

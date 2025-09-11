@@ -247,7 +247,7 @@ class GUITests(BaubleTestCase):
         bauble.gui = None
 
     @mock.patch("bauble.ui.QueryBuilder")
-    def test_on_query_button_clicked(self, mock_builder):
+    def test_on_query_button_clicked_query_builder(self, mock_builder):
         gui = GUI()
         mock_combo = mock.Mock()
         mock_entry = mock.Mock()
@@ -265,6 +265,32 @@ class GUITests(BaubleTestCase):
         mock_entry.set_text.assert_called_with("sp = sp.")
         mock_btn.emit.assert_called_with("clicked")
         mock_builder().destroy.assert_called_once()
+        gui.destroy()
+
+    @mock.patch("bauble.ui.db.current_user")
+    @mock.patch("bauble.ui.SQLSearchDialog")
+    def test_on_query_button_clicked_sql_search(self, mock_dialog, mock_user):
+        gui = GUI()
+        mock_combo = mock.Mock()
+        mock_entry = mock.Mock()
+        string = ":SQL = species 'SELECT * FROM species'"
+        mock_entry.get_text.return_value = string
+        mock_combo.get_child.return_value = mock_entry
+        prefs.prefs[prefs.enable_raw_sql_search_pref] = True
+        mock_user.is_admin = True
+        mock_btn = mock.Mock()
+        gui.widgets.go_button = mock_btn
+
+        gui.widgets.main_comboentry = mock_combo
+        gui.widgets.go_button = mock_btn
+        mock_dialog().run.return_value = Gtk.ResponseType.OK
+        mock_dialog().get_query.return_value = string
+
+        gui.on_query_button_clicked(None)
+
+        mock_entry.set_text.assert_called_with(string)
+        mock_btn.emit.assert_called_with("clicked")
+        mock_dialog().destroy.assert_called_once()
         gui.destroy()
 
     def test_on_history_pinned_clicked(self):
@@ -904,6 +930,33 @@ class GUITests(BaubleTestCase):
             self.assertEqual(
                 gui.widgets.main_comboentry.get_child().get_text(),
                 return_query,
+            )
+
+        gui.destroy()
+
+    @mock.patch("bauble.ui.db.current_user")
+    @mock.patch("bauble.ui.SQLSearchDialog.run")
+    def test_on_raw_sql_search_activated(
+        self,
+        mock_run,
+        mock_user,
+    ):
+        prefs.prefs[prefs.enable_raw_sql_search_pref] = True
+        mock_user.is_admin = True
+        gui = GUI()
+        mock_run.return_value = Gtk.ResponseType.OK
+
+        with mock.patch.object(gui, "on_go_button_clicked") as mock_go_clicked:
+            gui.init()
+            query = ":SQL = species 'SELECT * FROM species'"
+            gui.widgets.main_comboentry.get_child().set_text(query)
+            update_gui()
+            gui.on_raw_sql_search_activated(None, None)
+
+            mock_go_clicked.assert_called_once()
+            self.assertEqual(
+                gui.widgets.main_comboentry.get_child().get_text(),
+                query,
             )
 
         gui.destroy()
