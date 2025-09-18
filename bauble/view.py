@@ -2147,7 +2147,7 @@ class NotesBottomPage(Gtk.ScrolledWindow):
 
         for note in sorted(notes, key=lambda note: note.date, reverse=True):
             date = note.date.strftime(prefs.prefs.get(prefs.date_format_pref))
-            self.liststore.append((date, note.user, note.category, note.note))
+            self.liststore.append((note.category, note.note, note.user, date))
 
         if notes:
             self.label.set_use_markup(True)
