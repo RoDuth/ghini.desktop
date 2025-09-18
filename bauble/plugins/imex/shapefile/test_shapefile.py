@@ -2322,6 +2322,8 @@ class ImportSettingsBoxTests(ShapefileTestCase):
         settings_box = ImpSetBox(shape_reader)
         first_widget = settings_box.grid.get_child_at(0, 0)
         self.assertEqual(first_widget.get_label(), "<b>name</b>")
+        second_name_widget = settings_box.grid.get_child_at(0, 1)
+        self.assertEqual(second_name_widget.get_label(), "plt_id")
         last_name_widget = settings_box.grid.get_child_at(0, len(plant_fields))
         self.assertEqual(last_name_widget.get_label(), "vernacular")
         for i, field in enumerate(plant_fields):

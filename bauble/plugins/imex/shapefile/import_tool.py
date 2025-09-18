@@ -405,6 +405,12 @@ class ShapefileImportSettingsBox(Gtk.ScrolledWindow):
                     label = Gtk.Label()
                     label.set_text(str(value))
                     self.grid.attach(label, column, row, 1, 1)
+                    logger.debug(
+                        "attaching %s label at column: %s; row: %s",
+                        str(value),
+                        column,
+                        row,
+                    )
 
                 name = field[0]
                 type_ = field[1]
