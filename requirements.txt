@@ -4,7 +4,7 @@ Pillow; sys_platform != 'darwin'  # use brew installed Pillow on macOS
 lxml
 mako
 pyparsing
-pyshp
+pyshp == 2.3.1
 pyproj
 filelock
 python-dateutil

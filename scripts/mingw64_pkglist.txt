@@ -22,4 +22,3 @@ mingw-w64-ucrt-x86_64-python-filelock
 mingw-w64-ucrt-x86_64-python-certifi
 mingw-w64-ucrt-x86_64-python-dateutil
 mingw-w64-ucrt-x86_64-python-six
-mingw-w64-ucrt-x86_64-python-pyshp
