@@ -1,3 +1,4 @@
+# pylint: disable=no-self-use,protected-access,too-many-public-methods
 # Copyright 2023-2025 Ross Demuth <rossdemuth123@gmail.com>
 #
 # This file is part of ghini.desktop.
@@ -26,10 +27,12 @@ from sqlalchemy import create_engine
 from sqlalchemy import select
 from sqlalchemy.engine import make_url
 from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.orm import sessionmaker
 
 import bauble
 from bauble import db
 from bauble import error
+from bauble import meta
 from bauble import utils
 from bauble.plugins.garden import Accession
 from bauble.plugins.garden import Location
@@ -54,6 +57,9 @@ from .sync import ResolveCommandHandler
 from .sync import ResolverDialog
 from .sync import SyncRow
 from .sync import ToSync
+from .sync import _get_batch_number
+from .sync import _get_clone_history_id
+from .sync import _rebase
 
 
 class DBClonerTests(BaubleTestCase):
@@ -346,8 +352,8 @@ class DBSyncTests(BaubleTestCase):
 
     def add_clone_history(self, clone_engine, history_id, values):
         # add clone_history_id
-        meta = bauble.meta.BaubleMeta.__table__
-        meta_stmt = meta.insert().values(
+        table = bauble.meta.BaubleMeta.__table__
+        meta_stmt = table.insert().values(
             {"name": "clone_history_id", "value": history_id}
         )
         # add a history entry
@@ -362,9 +368,9 @@ class DBSyncTests(BaubleTestCase):
 
     def test_to_sync_add_batch_succeeds(self):
         # use a file here so it is persistent
-        # add a history entry
         temp_dir = tempfile.mkdtemp()
         clone_uri = f"sqlite:///{temp_dir}/test.db"
+        # add a history entry
         values = {
             "table_name": "family",
             "table_id": 100,
@@ -2066,10 +2072,10 @@ class ResolutionCentreViewTests(BaubleTestCase):
         self.assertEqual(len(rows), 0)
 
     @mock.patch("bauble.utils.yes_no_dialog")
-    @mock.patch("bauble.plugins.synclone.sync.DBCloner")
+    @mock.patch("bauble.plugins.synclone.sync._rebase")
     @mock.patch("bauble.plugins.synclone.sync.command_handler")
     def test_on_sync_selected_btn_clicked_succeeds_all(
-        self, mock_handler, mock_cloner, mock_dlog
+        self, mock_handler, mock_rebase, mock_dlog
     ):
         loc = Location(code="LOC1")
         self.session.add(loc)
@@ -2149,9 +2155,11 @@ class ResolutionCentreViewTests(BaubleTestCase):
         to_sync = ToSync.__table__
         in_stmt = to_sync.insert(data)
         out_stmt = select(to_sync).order_by(to_sync.c.id.desc())
+
         with db.engine.begin() as conn:
             conn.execute(in_stmt)
             rows = conn.execute(out_stmt).all()
+
         view = ResolutionCentreView()
         view.uri = "sqlite:///:memory:"
         self.assertEqual(len(rows), 4)
@@ -2159,10 +2167,14 @@ class ResolutionCentreViewTests(BaubleTestCase):
             view.add_row(row)
 
         view.on_select_all()
-        view.on_sync_selected_btn_clicked()
+        with mock.patch(
+            "bauble.plugins.synclone.sync._get_clone_history_id",
+            mock.Mock(return_value=0),
+        ):
+            view.on_sync_selected_btn_clicked()
 
         mock_dlog.assert_called()
-        mock_cloner.assert_called()
+        mock_rebase.assert_called()
         mock_handler.assert_called_with("home", None)
 
         with db.engine.begin() as conn:
@@ -2183,10 +2195,10 @@ class ResolutionCentreViewTests(BaubleTestCase):
         self.assertEqual(loc.description, "the first location")
 
     @mock.patch("bauble.utils.yes_no_dialog")
-    @mock.patch("bauble.plugins.synclone.sync.DBCloner")
+    @mock.patch("bauble.plugins.synclone.sync._rebase")
     @mock.patch("bauble.plugins.synclone.sync.command_handler")
     def test_on_sync_selected_btn_clicked_succeeds_one(
-        self, mock_handler, mock_cloner, mock_dlog
+        self, mock_handler, mock_rebase, mock_dlog
     ):
         bauble.pluginmgr.register_command(bauble.ui.HomeCommandHandler)
         mock_dlog.return_value = Gtk.ResponseType.YES
@@ -2249,10 +2261,14 @@ class ResolutionCentreViewTests(BaubleTestCase):
             view.add_row(row)
 
         view.sync_tv.set_cursor(2)
-        view.on_sync_selected_btn_clicked()
+        with mock.patch(
+            "bauble.plugins.synclone.sync._get_clone_history_id",
+            mock.Mock(return_value=0),
+        ):
+            view.on_sync_selected_btn_clicked()
 
         mock_dlog.assert_called()
-        mock_cloner.assert_called()
+        mock_rebase.assert_called()
         mock_handler.assert_called_with("home", None)
 
         with db.engine.begin() as conn:
@@ -2263,6 +2279,86 @@ class ResolutionCentreViewTests(BaubleTestCase):
         self.assertEqual(
             [str(i) for i in self.session.query(Family)], ["Sterculiaceae"]
         )
+
+    @mock.patch("bauble.utils.yes_no_dialog")
+    @mock.patch("bauble.plugins.synclone.sync._rebase")
+    @mock.patch("bauble.plugins.synclone.sync.DBCloner")
+    @mock.patch("bauble.plugins.synclone.sync.command_handler")
+    def test_on_sync_selected_btn_clicked_falls_back_to_cloner_if_rebase_fails(
+        self, mock_handler, mock_cloner, mock_rebase, mock_dlog
+    ):
+        mock_rebase.side_effect = Exception
+        bauble.pluginmgr.register_command(bauble.ui.HomeCommandHandler)
+        mock_dlog.return_value = Gtk.ResponseType.YES
+        data = [
+            {
+                "batch_number": 1,
+                "table_name": "family",
+                "table_id": 1,
+                "values": {
+                    "id": 1,
+                    "family": "Sterculiaceae",
+                    "_created": 0,
+                    "_last_updated": 0,
+                },
+                "operation": "insert",
+                "user": "test",
+                "timestamp": datetime(2023, 1, 1),
+            },
+            {
+                "batch_number": 1,
+                "table_name": "genus",
+                "table_id": 1,
+                "values": {
+                    "id": 1,
+                    "genus": "Sterculia",
+                    "family_id": 1,
+                    "_created": 0,
+                    "_last_updated": 0,
+                },
+                "operation": "insert",
+                "user": "test",
+                "timestamp": datetime(2023, 1, 1),
+            },
+            {
+                "batch_number": 1,
+                "table_name": "family",
+                "table_id": 1,
+                "values": {
+                    "id": 1,
+                    "family": ["Malvaceae", "Sterculiaceae"],
+                    "_created": 0,
+                    "_last_updated": 0,
+                },
+                "operation": "update",
+                "user": "test",
+                "timestamp": datetime(2023, 1, 1),
+            },
+        ]
+
+        to_sync = ToSync.__table__
+        in_stmt = to_sync.insert(data)
+        out_stmt = select(to_sync).order_by(to_sync.c.id.desc())
+        with db.engine.begin() as conn:
+            conn.execute(in_stmt)
+            rows = conn.execute(out_stmt).all()
+        view = ResolutionCentreView()
+        view.uri = make_url("sqlite:///:memory:")
+        self.assertEqual(len(rows), 3)
+        for row in rows:
+            view.add_row(row)
+
+        view.sync_tv.set_cursor(2)
+        with mock.patch(
+            "bauble.plugins.synclone.sync._get_clone_history_id",
+            mock.Mock(return_value=0),
+        ):
+            view.on_sync_selected_btn_clicked()
+
+        mock_dlog.assert_called()
+        mock_rebase.assert_called()
+        mock_cloner.assert_called()
+        mock_handler.assert_called_with("home", None)
 
     @mock.patch("bauble.plugins.synclone.sync.DBSyncroniser")
     def test_on_sync_selected_btn_clicked_fails_all(self, mock_sync):
@@ -2335,6 +2431,31 @@ class ResolutionCentreViewTests(BaubleTestCase):
         )
         self.assertEqual(selected[1]["values"]["genus"], "Sterculia")
 
+    def test_on_rebase_btn_clicked(self):
+        view = ResolutionCentreView()
+        view._rebase = mock.Mock()
+        view.on_rebase_btn_clicked()
+        view._rebase.assert_called_once()
+
+    @mock.patch("bauble.plugins.synclone.sync._get_clone_history_id")
+    def test_update_rebase_btn(self, mock_clone_id):
+        # add 2 records
+        loc1 = Location(code="LOC1")
+        loc2 = Location(code="LOC2")
+        self.session.add_all([loc1, loc2])
+        self.session.commit()
+
+        mock_clone_id.return_value = 3
+        view = ResolutionCentreView()
+        view.uri = make_url("sqlite:///:memory:")
+        view.update()
+
+        self.assertFalse(view.rebase_btn.get_sensitive())
+
+        mock_clone_id.return_value = 1
+
+        self.assertFalse(view.rebase_btn.get_sensitive())
+
     def test_on_sync_selection_changed_single(self):
         mock_selection = mock.Mock()
         mock_selection.count_selected_rows.return_value = 1
@@ -2395,7 +2516,9 @@ class ResolutionCentreViewTests(BaubleTestCase):
         self.assertFalse(view.sync_selected_btn.get_sensitive())
         self.assertFalse(view.resolve_btn.get_sensitive())
 
-    def test_update_w_batch_num_uri(self):
+    @mock.patch("bauble.plugins.synclone.sync._get_clone_history_id")
+    def test_update_w_batch_num_uri(self, mock_clone_id):
+        mock_clone_id.return_value = 0
         data = [
             {
                 "batch_number": 1,
@@ -2452,6 +2575,7 @@ class ResolutionCentreViewTests(BaubleTestCase):
         for row in rows:
             view.add_row(row)
         view.update(["2", "sqlite:///:memory:"])
+
         self.assertEqual(str(view.uri), "sqlite:///:memory:")
         self.assertEqual(len(view.liststore), 3)
         self.assertEqual(len(view.get_selected_rows()), 2)
@@ -2506,3 +2630,99 @@ class SyncToolTests(BaubleTestCase):
         tool = DBSyncTool()
         tool.start()
         mock_handler.assert_called_with("resolve", [1, make_url(test_uri)])
+
+
+class GlobalFunctionsTests(BaubleTestCase):
+    def test_get_batch_number_no_meta_entry(self):
+        start_meta = self.session.query(meta.BaubleMeta.id).count()
+        start = self.session.query(db.History.id).count()
+
+        self.assertEqual(_get_batch_number(), "1")
+
+        end = self.session.query(db.History.id).count()
+        end_meta = self.session.query(meta.BaubleMeta.id).count()
+
+        self.assertEqual(start, end)
+        self.assertEqual(start_meta + 1, end_meta)
+
+    def test_get_batch_number_w_meta_entry(self):
+        meta_table = meta.BaubleMeta.__table__
+        with db.engine.begin() as connection:
+            connection.execute(
+                meta_table.insert({"name": "sync_batch_num", "value": "10"})
+            )
+
+        start = self.session.query(db.History.id).count()
+        self.assertEqual(_get_batch_number(), "10")
+        end = self.session.query(db.History.id).count()
+        self.assertEqual(start, end)
+
+    def test_rebase(self):
+        # add a family to current db
+        fam = Family(epithet="spam")
+        self.session.add(fam)
+        self.session.commit()
+        # clone to temp_db
+        cloner = DBCloner()
+        temp_dir = tempfile.mkdtemp()
+        clone_uri = make_url(f"sqlite:///{temp_dir}/test.db")
+        cloner.uri = clone_uri
+        bauble.task.queue(cloner.run())
+        clone_engine = cloner.clone_engine
+        with clone_engine.begin() as conn:
+            start_hist_id = _get_clone_history_id(conn)
+        CloneSession = sessionmaker(bind=clone_engine)
+        clone_session = CloneSession()
+        # add a location to temp_db
+        #   change its name
+        loc = Location(code="LOC1")
+        clone_session.add(loc)
+        clone_session.commit()
+        loc.name = "Location One"
+        clone_session.commit()
+        # delete the family from temp_db
+        clone_fam = (
+            clone_session.query(Family).filter(Family.epithet == "spam").one()
+        )
+        clone_session.delete(clone_fam)
+        clone_session.commit()
+        # sync back
+        ToSync.add_batch_from_uri(clone_uri)
+        to_sync = ToSync.__table__
+        out_stmt = select(to_sync).order_by(to_sync.c.id.desc())
+        with db.engine.begin() as conn:
+            rows = conn.execute(out_stmt).all()
+        synchroniser = DBSyncroniser(rows)
+        failed = synchroniser.sync()
+        self.assertEqual(len(failed), 0)
+        # rebase
+        _rebase(clone_uri)
+        with clone_engine.begin() as conn:
+            end_hist_id = _get_clone_history_id(conn)
+
+        # check clone_history_id is updated
+        self.assertNotEqual(start_hist_id, end_hist_id)
+        # check the history tables are equal
+        hist = self.session.query(db.History).order_by(db.History.id)
+        clone_hist = clone_session.query(db.History).order_by(db.History.id)
+
+        for clone_row, row in zip(clone_hist, hist):
+
+            self.assertEqual(clone_row.id, row.id)
+            self.assertEqual(clone_row.values, row.values)
+            self.assertEqual(clone_row.table_name, row.table_name)
+
+        fam = (
+            self.session.query(Family).filter(Family.epithet == "spam").first()
+        )
+
+        self.assertIsNone(fam)
+
+        clone_loc = clone_session.query(Location).first()
+        loc = self.session.query(Location).first()
+
+        self.assertEqual(clone_loc.name, "Location One")
+        self.assertEqual(clone_loc.name, loc.name)
+        self.assertEqual(clone_loc._last_updated, loc._last_updated)
+
+        clone_session.close()

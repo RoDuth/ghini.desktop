@@ -99,23 +99,16 @@ class ToSync(db.HistoryBase):
 
         logger.debug("adding batch form uri: %s", uri)
         clone_engine: Engine = create_engine(uri)
-        batch_num_meta = meta.get_default("sync_batch_num", "1")
 
-        batch_num = batch_num_meta.value or "" if batch_num_meta else ""
+        batch_num = _get_batch_number()
 
         history: Table = db.History.__table__
-        meta_table: Table = meta.BaubleMeta.__table__
         with clone_engine.begin() as connection:
-            start = connection.execute(
-                select(meta_table.c.value).where(
-                    meta_table.c.name == "clone_history_id"
-                )
-            ).scalar()
-            logger.debug("start = %s", start)
-            if not start:
-                raise error.BaubleError(_("Does not seem to be a clone."))
+            start = _get_clone_history_id(connection)
+
             select_stmt = select(history.c).where(history.c.id > start)
             rows = connection.execute(select_stmt).all()
+
         clone_engine.dispose()
         logger.debug("got %s rows", len(rows))
 
@@ -134,6 +127,7 @@ class ToSync(db.HistoryBase):
                 )
                 connection.execute(stmt)
             # update the batch number
+            meta_table = meta.BaubleMeta.__table__
             connection.execute(
                 meta_table.update()
                 .where(meta_table.c.name == "sync_batch_num")
@@ -147,6 +141,28 @@ class ToSync(db.HistoryBase):
         table: Table = cls.__table__
         stmt = table.delete().where(table.c.id == row.id)
         connection.execute(stmt)
+
+
+def _get_batch_number() -> str:
+    # avoid a history entry
+    meta_table = meta.BaubleMeta.__table__
+    batch_num = "1"
+    with db.engine.begin() as connection:
+        batch_num_meta = connection.execute(
+            select(meta_table.c.value).where(
+                meta_table.c.name == "sync_batch_num"
+            )
+        ).scalar()
+
+        if batch_num_meta:
+            batch_num = batch_num_meta
+        else:
+            # sqlite does not support RETURNING
+            connection.execute(
+                meta_table.insert({"name": "sync_batch_num", "value": "1"})
+            )
+
+    return batch_num
 
 
 class SyncRow:  # pylint: disable=too-many-instance-attributes
@@ -329,6 +345,94 @@ class SyncRow:  # pylint: disable=too-many-instance-attributes
         )
 
 
+def _get_clone_history_id(connection: Connection) -> str:
+    """Get the value of clone_history_id from the meta table."""
+
+    meta_table = meta.BaubleMeta.__table__
+    start = connection.execute(
+        select(meta_table.c.value).where(
+            meta_table.c.name == "clone_history_id"
+        )
+    ).scalar()
+    logger.debug("clone_history_id = %s", start)
+
+    if not start:
+        raise error.BaubleError(_("Does not seem to be a clone."))
+
+    return start
+
+
+def _rebase(uri: URL | str) -> None:
+    """Revert the history on the clone to where they diverged then reinstate
+    all changes from the current database
+    """
+
+    clone_engine = create_engine(uri)
+
+    # from the clone get the start point and revert to it
+    with clone_engine.begin() as connection:
+        start = _get_clone_history_id(connection)
+        db.History.revert_to(int(start), clone_engine)
+        # for postgres need to reset the sequences
+        for table in db.metadata.sorted_tables:
+            for col in table.c:
+                utils.reset_sequence(col, clone_engine)
+
+    history = db.History.__table__
+
+    # get the history changes from the current db
+    with db.engine.begin() as connection:
+
+        select_stmt = select(history.c).where(history.c.id >= start)
+        rows = connection.execute(select_stmt).all()
+        logger.debug("rows to rebase = %s", len(rows))
+
+    # apply history changes to the clone
+    with clone_engine.begin() as connection:
+        stmt: Executable
+        last_hist_id = 1
+
+        for row in rows:
+            table = db.metadata.tables[row["table_name"]]
+
+            if row["operation"] == "insert":
+                stmt = table.insert().values(**row["values"])
+            elif row["operation"] == "delete":
+                stmt = table.delete().where(table.c.id == row["table_id"])
+            elif row["operation"] == "update":
+                # reverse of revert (i.e. first value)
+                values = {
+                    k: v[0]
+                    for k, v in row["values"].items()
+                    if isinstance(v, list)
+                }
+                logger.debug("update values = %s", values)
+                stmt = (
+                    table.update()
+                    .where(table.c.id == row["table_id"])
+                    .values(**values)
+                )
+
+            logger.debug("rebase values: %s", row["values"])
+            logger.debug("%s rebase stmt: %s", row["operation"], stmt)
+            connection.execute(stmt)
+            # pylint: disable=protected-access
+            stmt = history.insert().values(**row._mapping)
+            connection.execute(stmt)
+            last_hist_id = row["id"]
+
+        # update clone_history_id
+        meta_table = meta.BaubleMeta.__table__
+        stmt = (
+            meta_table.update()
+            .where(meta_table.c.name == "clone_history_id")
+            .values({"name": "clone_history_id", "value": last_hist_id})
+        )
+        connection.execute(stmt)
+
+    clone_engine.dispose()
+
+
 @Gtk.Template(
     filename=str(Path(__file__).resolve().parent / "resolver_window.ui")
 )
@@ -486,6 +590,7 @@ class ResolutionCentreView(View, Gtk.Box):
     resolve_btn = cast(Gtk.Button, Gtk.Template.Child())
     remove_selected_btn = cast(Gtk.Button, Gtk.Template.Child())
     sync_selected_btn = cast(Gtk.Button, Gtk.Template.Child())
+    rebase_btn = cast(Gtk.Button, Gtk.Template.Child())
 
     TVC_OBJ = 0
     TVC_BATCH = 1
@@ -660,11 +765,17 @@ class ResolutionCentreView(View, Gtk.Box):
             raise error.DatabaseError("Not connected to a database")
 
         table = ToSync.__table__
+
         for row in self.get_selected_rows():
             with db.engine.begin() as connection:
                 stmt = table.delete().where(table.c.id == row.id)
                 connection.execute(stmt)
+
         self.update()
+
+    @Gtk.Template.Callback()
+    def on_rebase_btn_clicked(self, *_args) -> None:
+        self._rebase()
 
     @Gtk.Template.Callback()
     def on_sync_selected_btn_clicked(self, *_args) -> None:
@@ -679,17 +790,39 @@ class ResolutionCentreView(View, Gtk.Box):
             for row in self.liststore:
                 if row[self.TVC_OBJ].id in failed:
                     selection.select_iter(row.iter)
-        elif self.uri:
+        else:
+            self._rebase()
+
+    def _rebase(self) -> None:
+        if self.uri:
             msg = _(
-                "Would you like to clone to the syncing database to keep "
-                "them in sync?"
+                "Would you like to rebase the cloned database to keep them in "
+                "sync?"
             )
             parent = bauble.gui.window if bauble.gui else None
             if utils.yes_no_dialog(msg=msg, parent=parent):
-                logger.debug("cloning back to %s", repr(self.uri))
+                logger.debug("rebase back into %s", repr(self.uri))
+
+                try:
+                    _rebase(self.uri)
+                # pylint: disable=broad-exception-caught
+                except Exception as e:
+                    logger.debug("%s(%s)", type(e).__name__, e)
+                    self._reclone()
+
+                command_handler("home", None)
+
+    def _reclone(self) -> None:
+        if self.uri:
+            msg = _(
+                "Rebasing failed.  This can usually be repaired by recloning  "
+                "\nWould you like to reclone?\n(if problems persist please "
+                "report the issue)"
+            )
+            parent = bauble.gui.window if bauble.gui else None
+            if utils.yes_no_dialog(msg=msg, parent=parent):
                 cloner = DBCloner()
                 cloner.start(self.uri)
-                command_handler("home", None)
 
     @Gtk.Template.Callback()
     def on_sync_selection_changed(self, selection: Gtk.TreeSelection) -> None:
@@ -781,6 +914,26 @@ class ResolutionCentreView(View, Gtk.Box):
             for tree_row in self.liststore:
                 if tree_row[self.TVC_BATCH] == batch_num:
                     selection.select_iter(tree_row.iter)
+
+        self._update_rebase_btn()
+
+    def _update_rebase_btn(self) -> None:
+
+        if self.uri:
+            clone_engine = create_engine(self.uri)
+
+            with clone_engine.begin() as connection:
+                clone_point = int(_get_clone_history_id(connection))
+
+            history = db.History.__table__
+            with db.engine.begin() as connection:
+                current_point = connection.execute(
+                    select(func.max(history.c.id))
+                ).scalar_one()
+
+            self.rebase_btn.set_sensitive(clone_point < (current_point or 0))
+
+            clone_engine.dispose()
 
 
 class ResolveCommandHandler(pluginmgr.CommandHandler):

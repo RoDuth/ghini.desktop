@@ -182,6 +182,23 @@
             <property name="position">2</property>
           </packing>
         </child>
+        <child>
+          <object class="GtkButton" id="rebase_btn">
+            <property name="label" translatable="yes">Rebase</property>
+            <property name="visible">True</property>
+            <property name="sensitive">False</property>
+            <property name="can-focus">True</property>
+            <property name="receives-default">True</property>
+            <property name="tooltip-text" translatable="yes">Rebase the cloned database from the current database bring them back into sync.
+(Reverts the clone back to back to when it was first cloned, losing any changes it may have, and adds all subsequent changes in the current database to the clone.)</property>
+            <signal name="clicked" handler="on_rebase_btn_clicked" swapped="no"/>
+          </object>
+          <packing>
+            <property name="expand">True</property>
+            <property name="fill">True</property>
+            <property name="position">3</property>
+          </packing>
+        </child>
       </object>
       <packing>
         <property name="expand">False</property>
