@@ -1088,6 +1088,7 @@ class GUI:
             return
 
         bauble.command_handler("home", None)
+
         try:
             self.insert_menu.remove_all()
             db.create()
@@ -1099,6 +1100,10 @@ class GUI:
             traceb = utils.xml_safe(traceback.format_exc())
             utils.message_details_dialog(msg, traceb, Gtk.MessageType.ERROR)
             return
+
+        view = self.get_view()
+        if view:
+            view.update()
 
     def on_file_menu_open(
         self,
