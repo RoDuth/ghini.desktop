@@ -54,6 +54,7 @@ from sqlalchemy.orm import sessionmaker
 from sqlalchemy.orm import synonym as sa_synonym
 from sqlalchemy.orm.attributes import get_history
 from sqlalchemy.orm.exc import MultipleResultsFound
+from sqlalchemy.sql import Executable
 from sqlalchemy.sql import Select
 from sqlalchemy.sql.elements import ColumnElement
 
@@ -554,20 +555,39 @@ class History(HistoryBase):
         connection.execute(stmt)
 
     @classmethod
-    def revert_to(cls, id_):
-        """Revert history to the history line with id."""
+    def revert_to(
+        cls,
+        id_: int,
+        db_engine: sa.engine.Engine | None = None,
+    ) -> None:
+        """Revert history to the history line with the provided id.
+
+        If `db_engine` is provided it is used instead of current system engine
+        and callbacks are not called.
+        """
         logger.debug("reverting to id: %s", id_)
-        session = Session()
-        rows = session.query(cls).filter(cls.id >= id_).order_by(cls.id.desc())
-        session.close()
-        with engine.begin() as connection:
+
+        history = cls.__table__
+        stmt: Executable = (
+            select(history)
+            .where(history.c.id >= id_)
+            .order_by(history.c.id.desc())
+        )
+
+        do_callbacks = False
+        if not db_engine:
+            db_engine = engine
+            do_callbacks = True
+
+        with db_engine.begin() as connection:
+            rows = connection.execute(stmt)
             for row in rows:
-                table = metadata.tables[row.table_name]
-                if row.operation == "insert":
-                    stmt = table.delete().where(table.c.id == row.table_id)
-                elif row.operation == "delete":
-                    stmt = table.insert().values(**row.values)
-                elif row.operation == "update":
+                table = metadata.tables[row["table_name"]]
+                if row["operation"] == "insert":
+                    stmt = table.delete().where(table.c.id == row["table_id"])
+                elif row["operation"] == "delete":
+                    stmt = table.insert().values(**row["values"])
+                elif row["operation"] == "update":
                     # an insert and update in the one flush/commit can create a
                     # scenario where history.sum() stores a single item list
                     # (where the second entry would normally be None.)  Best to
@@ -575,21 +595,25 @@ class History(HistoryBase):
                     # len check here as a boots and braces approach
                     values = {
                         k: v[1] if len(v) == 2 else None
-                        for k, v in row.values.items()
+                        for k, v in row["values"].items()
                         if isinstance(v, list)
                     }
                     stmt = (
                         table.update()
-                        .where(table.c.id == row.table_id)
+                        .where(table.c.id == row["table_id"])
                         .values(**values)
                     )
-                logger.debug("history revert values: %s", row.values)
-                logger.debug("%s history revert stmt: %s", row.operation, stmt)
+                logger.debug("history revert values: %s", row["values"])
+                logger.debug(
+                    "%s history revert stmt: %s", row["operation"], stmt
+                )
                 connection.execute(stmt)
-                for callback in cls.history_revert_callbacks:
-                    callback(table)
-                table = cls.__table__
-                stmt = table.delete().where(table.c.id == row.id)
+
+                if do_callbacks:
+                    for callback in cls.history_revert_callbacks:
+                        callback(table)
+
+                stmt = history.delete().where(history.c.id == row["id"])
                 connection.execute(stmt)
 
 
