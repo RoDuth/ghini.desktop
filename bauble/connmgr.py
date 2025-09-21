@@ -1076,6 +1076,9 @@ def start_connection_manager(
             con_mgr.destroy()
 
             if not dont_ask:
+                con_mgr.destroy()
                 return start_connection_manager(msg)
+
+    con_mgr.destroy()
 
     return result
