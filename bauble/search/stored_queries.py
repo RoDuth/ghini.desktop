@@ -21,6 +21,10 @@ Provides a database model and GUI to manage stored queries.
 Stored queries are saved in the database and can be quickly accessed
 from the home view by all users.
 """
+import logging
+
+logger = logging.getLogger(__name__)
+
 from pathlib import Path
 from typing import Self
 from typing import cast
@@ -30,10 +34,15 @@ from sqlalchemy import Column
 from sqlalchemy import String
 from sqlalchemy import Text
 from sqlalchemy import func
+from sqlalchemy import inspect
+from sqlalchemy import select
+from sqlalchemy.engine import Row
+from sqlalchemy.exc import SQLAlchemyError
 
 import bauble
 from bauble import db
 from bauble import editor
+from bauble.meta import BaubleMeta
 
 
 class StoredQuery(db.Base):  # pylint: disable=too-few-public-methods
@@ -224,6 +233,74 @@ class StoredQueriesDialog(Gtk.Dialog):
             cell.set_property("foreground", "red")
 
 
+def _get_meta_stored_queries() -> list[Row]:
+
+    meta_stqrs = []
+    with db.engine.begin() as connection:
+        meta = BaubleMeta.__table__
+        meta_stqrs = connection.execute(
+            select(meta.c.id, meta.c.value).where(meta.c.name.like("stqr_%"))
+        ).all()
+
+    logger.debug("found meta stored queries: %s", meta_stqrs)
+
+    return meta_stqrs
+
+
+def _upgrade_stored_queries() -> None:
+    """If it appears that the stored_queries table is missing, create it.
+
+    If there are stored queries in the bauble (BaubleMeta table) migrate them.
+    If anything errors just abort and log the error.
+    """
+    # NOTE provides an upgrade path for versions prior to 1.3.16, may be remove
+    # in future when safe to do so.
+
+    inspector = inspect(db.engine)
+    has_stored_queries = inspector.has_table(StoredQuery.__tablename__)
+
+    if not has_stored_queries:
+        try:
+            StoredQuery.__table__.create(db.engine)
+        except SQLAlchemyError as e:
+            logger.debug("%s(%s)", type(e).__name__, e)
+            return
+
+    meta_stqrs = _get_meta_stored_queries()
+
+    if meta_stqrs:
+        logger.debug("found meta_stqrs")
+        migrated_queries = []
+        meta_ids = []
+
+        try:
+            for id_, value in meta_stqrs:
+                name, description, query = value.split(":", 2)
+                stqr = StoredQuery(
+                    name=name, description=description, query=query
+                )
+                migrated_queries.append(stqr)
+                meta_ids.append(id_)
+
+            logger.debug("found meta_stqrs with ids %s", meta_ids)
+        except (ValueError, SQLAlchemyError) as e:
+            logger.debug("%s(%s)", type(e).__name__, e)
+            return
+
+        try:
+            with db.Session() as session:
+                session.add_all(migrated_queries)
+
+                for obj in session.query(BaubleMeta).filter(
+                    BaubleMeta.id.in_(meta_ids)
+                ):
+                    session.delete(obj)
+
+                session.commit()
+        except SQLAlchemyError as e:
+            logger.debug("%s(%s)", type(e).__name__, e)
+
+
 @Gtk.Template(
     filename=str(
         Path(__file__).resolve().parent / "stored_queries_button_box.ui"
@@ -257,23 +334,27 @@ class StoredQueriesButtonBox(Gtk.Box):
 
     def refresh(self) -> None:
         self.query_button_box.foreach(self.query_button_box.remove)
-        with db.Session() as session:
-            for stored_query in session.query(StoredQuery).order_by(
-                func.lower(StoredQuery.name)
-            ):
-                button = Gtk.Button(label=stored_query.name)
+        try:
+            with db.Session() as session:
+                for stored_query in session.query(StoredQuery).order_by(
+                    func.lower(StoredQuery.name)
+                ):
+                    button = Gtk.Button(label=stored_query.name)
 
-                if stored_query.description:
-                    button.set_tooltip_text(stored_query.description)
+                    if stored_query.description:
+                        button.set_tooltip_text(stored_query.description)
 
-                button.connect(
-                    "clicked",
-                    self.on_stored_query_button_clicked,
-                    stored_query.query or "",
-                )
+                    button.connect(
+                        "clicked",
+                        self.on_stored_query_button_clicked,
+                        stored_query.query or "",
+                    )
 
-                self.query_button_box.add(button)
-        self.query_button_box.show_all()
+                    self.query_button_box.add(button)
+            self.query_button_box.show_all()
+        except SQLAlchemyError as e:
+            logger.debug("%s(%s)", type(e).__name__, e)
+            _upgrade_stored_queries()
 
     @staticmethod
     def on_stored_query_button_clicked(

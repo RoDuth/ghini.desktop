@@ -17,11 +17,16 @@
 from unittest import mock
 
 from gi.repository import Gtk
+from sqlalchemy import inspect
+from sqlalchemy.exc import SQLAlchemyError
 
+from bauble import db
+from bauble.meta import BaubleMeta
 from bauble.search.stored_queries import StoredQueriesButtonBox
 from bauble.search.stored_queries import StoredQueriesDialog
 from bauble.search.stored_queries import StoredQuery
 from bauble.search.stored_queries import StoredQueryEditorDialog
+from bauble.search.stored_queries import _upgrade_stored_queries
 from bauble.test import BaubleTestCase
 
 
@@ -283,3 +288,112 @@ class StoredQueriesButtonBoxTests(BaubleTestCase):
         with mock.patch("bauble.gui") as mock_gui:
             button_box.query_button_box.get_children()[0].emit("clicked")
             mock_gui.send_command.assert_called_with(sq1.query)
+
+    def test_refresh_upgrades(self):
+        # prior to v1.3.16 there was no stored_queries table, queries where in
+        # the bauble meta table
+        stored_queries = self.session.query(StoredQuery).all()
+
+        self.assertEqual(len(stored_queries), 0)
+
+        meta_stqr = BaubleMeta(name="stqr_01", value="test:spam:Mel vim")
+        self.session.add(meta_stqr)
+        self.session.commit()
+        StoredQuery.__table__.drop()
+        button_box = StoredQueriesButtonBox()
+        button_box.refresh()
+        stored_queries = self.session.query(StoredQuery).all()
+
+        self.assertEqual(len(stored_queries), 1)
+        self.assertEqual(stored_queries[0].name, "test")
+        self.assertEqual(stored_queries[0].description, "spam")
+        self.assertEqual(stored_queries[0].query, "Mel vim")
+
+    @mock.patch("bauble.search.stored_queries._get_meta_stored_queries")
+    def test_upgrade_stored_queries_errors(self, mock_get):
+        # prior to v1.3.16 there was no stored_queries table, queries where in
+        # the bauble meta table
+        stored_queries = self.session.query(StoredQuery).all()
+
+        self.assertEqual(len(stored_queries), 0)
+
+        meta_stqr = BaubleMeta(name="stqr_01", value="test:spam:Mel vim")
+        self.session.add(meta_stqr)
+        self.session.commit()
+        mock_get.return_value = [(meta_stqr.id, meta_stqr.value)]
+
+        # FAILS TO CREATE TABLE:
+        StoredQuery.__table__.drop()
+        with mock.patch(
+            "bauble.search.stored_queries.StoredQuery.__table__"
+        ) as mock_table:
+            mock_table.create.side_effect = SQLAlchemyError
+            _upgrade_stored_queries()
+        # still
+        self.assertFalse(
+            inspect(db.engine).has_table(StoredQuery.__tablename__)
+        )
+        # left meta_stqr in place
+        meta_queries = (
+            self.session.query(BaubleMeta)
+            .filter(BaubleMeta.name.like("stqr_%"))
+            .all()
+        )
+
+        self.assertEqual(len(meta_queries), 1)
+        self.assertEqual(meta_queries[0].id, meta_stqr.id)
+
+        # FAILS TO MIGRATE (ValueError):
+        mock_get.return_value = [(meta_stqr.value,)]
+        # add table back
+        StoredQuery.__table__.create()
+        self.assertTrue(
+            inspect(db.engine).has_table(StoredQuery.__tablename__)
+        )
+        _upgrade_stored_queries()
+        # left meta_stqr in place and didn't add anything to StoredQuery table
+        meta_queries = (
+            self.session.query(BaubleMeta)
+            .filter(BaubleMeta.name.like("stqr_%"))
+            .all()
+        )
+        stored_queries = self.session.query(StoredQuery).all()
+
+        self.assertEqual(len(meta_queries), 1)
+        self.assertEqual(meta_queries[0].id, meta_stqr.id)
+        self.assertEqual(len(stored_queries), 0)
+
+        # FAILS TO COMMIT:
+        mock_get.return_value = [(meta_stqr.id, meta_stqr.value)]
+        with mock.patch(
+            "bauble.search.stored_queries.db.Session"
+        ) as mock_sess:
+            mock_sess().__enter__().commit.side_effect = SQLAlchemyError
+            with self.assertLogs(level="DEBUG") as logs:
+                _upgrade_stored_queries()
+            self.assertTrue(any("SQLAlchemyError" in i for i in logs.output))
+        meta_queries = (
+            self.session.query(BaubleMeta)
+            .filter(BaubleMeta.name.like("stqr_%"))
+            .all()
+        )
+        stored_queries = self.session.query(StoredQuery).all()
+
+        self.assertEqual(len(meta_queries), 1)
+        self.assertEqual(meta_queries[0].id, meta_stqr.id)
+        self.assertEqual(len(stored_queries), 0)
+
+        # NO ERROR
+        _upgrade_stored_queries()
+        meta_queries = (
+            self.session.query(BaubleMeta)
+            .filter(BaubleMeta.name.like("stqr_%"))
+            .all()
+        )
+        stored_queries = self.session.query(StoredQuery).all()
+
+        self.assertEqual(len(meta_queries), 0)
+        self.assertEqual(len(stored_queries), 1)
+        self.assertEqual(stored_queries[0].name, "test")
+        self.assertEqual(stored_queries[0].description, "spam")
+        self.assertEqual(stored_queries[0].query, "Mel vim")
