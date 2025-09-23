@@ -693,17 +693,28 @@ class GUITests(BaubleTestCase):
     @mock.patch("bauble.ui.bauble.command_handler")
     def test_on_file_menu_new(self, mock_handler, mock_dialog, mock_create):
         gui = GUI()
+        mock_view = mock.Mock()
+        gui.get_view = mock.Mock(return_value=mock_view)
         # user backs out
         mock_dialog.return_value = False
         gui.on_file_menu_new(None, None)
         mock_dialog.assert_called()
         mock_handler.assert_not_called()
         mock_create.assert_not_called()
+        gui.get_view.assert_not_called()
         # user backs out
         mock_dialog.return_value = True
         gui.on_file_menu_new(None, None)
         mock_handler.assert_called()
         mock_create.assert_called()
+        gui.get_view.assert_called()
+        with mock.patch(
+            "bauble.ui.utils.message_details_dialog"
+        ) as mock_details_dialog:
+            mock_create.side_effect = Exception("Boom")
+            gui.on_file_menu_new(None, None)
+            mock_details_dialog.assert_called()
+
         gui.destroy()
 
     @mock.patch("bauble.ui.start_connection_manager")
@@ -737,6 +748,17 @@ class GUITests(BaubleTestCase):
         self.assertFalse(stbar_style.has_class("not-default"))
         mock_handler.assert_called()
         mock_open.assert_called()
+
+        with mock.patch(
+            "bauble.ui.utils.message_details_dialog"
+        ) as mock_details_dialog:
+            mock_start.side_effect = [
+                ("test2", "test_conn2"),
+                ("test", "test_conn"),
+            ]
+            mock_open.side_effect = [Exception("Boom"), None]
+            gui.on_file_menu_open(None, None)
+            mock_details_dialog.assert_called()
 
         gui.destroy()
 
@@ -784,8 +806,17 @@ class GUITests(BaubleTestCase):
         mock_dialog.return_value = True
         self.assertFalse(gui.on_delete_event(None, None))
         mock_dialog.assert_called()
+        mock_dialog.reset_mock()
         # have to use getattr to avoid name mangling
         self.assertTrue(getattr(task, "__kill"))
+
+        # user cancels task but backs out of closing ghini
+        mock_running.return_value = True
+        mock_dialog.side_effect = [True, False]
+        self.assertTrue(gui.on_delete_event(None, None))
+        self.assertEqual(mock_dialog.call_count, 2)
+        mock_dialog.reset_mock()
+
         gui.destroy()
 
     def test_on_destroy(self):
