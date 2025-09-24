@@ -180,9 +180,9 @@ class ConnectionManagerTests(BaubleTestCase):
         prefs.prefs[bauble.CONN_LIST_PREF] = {
             "btuu": {
                 "default": False,
-                "directory": "btuu",
+                "directory": "./btuu",
                 "type": "SQLite",
-                "file": "btuu.db",
+                "file": "./btuu.db",
             },
             "nugkui": {
                 "default": True,
