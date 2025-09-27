@@ -1223,10 +1223,9 @@ class CurrentUserFunctor:
             with engine.connect() as conn:
                 result = conn.execute("select current_user;")
                 user = result.fetchone()[0]
-        elif engine.name.startswith("mysql"):
+        elif engine.name.startswith("mssql"):
             with engine.connect() as conn:
-                result = conn.execute("select current_user();")
-                user = result.fetchone()[0]
+                user = conn.execute("select ORIGINAL_LOGIN();").scalar()
         elif engine.name.startswith("sqlite"):
             user = utils.get_user_display_name()
 
