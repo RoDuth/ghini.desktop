@@ -7859,6 +7859,8 @@ class GlobalFunctionsTest(PlantTestCase):
             .filter(Species.epithet == "lobata")
             .one()
         )
+        # set the default
+        sp1.default_vernacular_name = sp1.vernacular_names[0]
         first, second = sp1.search_view_markup_pair()
         self.assertTrue(
             remove_zws(first).startswith(
@@ -7872,7 +7874,13 @@ class GlobalFunctionsTest(PlantTestCase):
             "(L.) Lemée</span>"
         )
         self.assertEqual(remove_zws(first), expect)
-        self.assertEqual(second, "Orchidaceae -- SomeName, SomeName 2")
+        print(second)
+        self.assertEqual(
+            second,
+            "Orchidaceae -- "
+            "SomeName, "
+            '<span foreground="#555555" weight="light">SomeName 2</span>',
+        )
         first, second = sp2.search_view_markup_pair()
         self.assertEqual(remove_zws(first), "<i>Laelia</i> <i>lobata</i>")
         self.assertEqual(second, "Orchidaceae")

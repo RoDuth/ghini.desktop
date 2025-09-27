@@ -542,7 +542,16 @@ class Species(db.Domain, db.WithNotes):
         """provide the two lines describing object for SearchView row."""
         try:
             if len(self.vernacular_names) > 0:
-                vnames = ", ".join([str(v) for v in self.vernacular_names])
+                vernacular_names = []
+                for vernacular_name in sorted(self.vernacular_names, key=str):
+                    if vernacular_name is not self.default_vernacular_name:
+                        vernacular_name = (
+                            '<span foreground="#555555" weight="light">'
+                            f"{vernacular_name}</span>"
+                        )
+                    vernacular_names.append(str(vernacular_name))
+
+                vnames = ", ".join([str(v) for v in vernacular_names])
                 substring = f"{self.genus.family} -- {vnames}"
             else:
                 substring = f"{self.genus.family}"
