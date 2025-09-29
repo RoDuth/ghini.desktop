@@ -2678,6 +2678,9 @@ class GlobalFunctionsTests(BaubleTestCase):
         loc = Location(code="LOC1")
         clone_session.add(loc)
         clone_session.commit()
+        # operating without delay is unlikely to record an update for
+        # _last_updated (also, because of multiple changes in one commit `name`
+        # is likely to be a single item list, but that doesn't affect the test)
         loc.name = "Location One"
         clone_session.commit()
         # delete the family from temp_db

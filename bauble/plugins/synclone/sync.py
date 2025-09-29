@@ -406,6 +406,12 @@ def _rebase(uri: URL | str) -> None:
                     for k, v in row["values"].items()
                     if isinstance(v, list)
                 }
+
+                if "_last_updated" not in values:
+                    # ensure _last_updated is always recorded, even when not
+                    # a list (i.e. tests or otherwise generated rapidly)
+                    values["_last_updated"] = row["values"]["_last_updated"]
+
                 logger.debug("update values = %s", values)
                 stmt = (
                     table.update()
