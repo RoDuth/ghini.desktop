@@ -45,49 +45,6 @@ from bauble.test import wait_on_threads
 
 
 class UtilsTest(TestCase):
-    def test_topological_sort_total(self):
-        self.assertEqual(
-            utils.topological_sort([1, 2, 3], [(2, 1), (3, 2)]), [3, 2, 1]
-        )
-
-    def test_topological_sort_partial(self):
-        self.assertEqual(
-            utils.topological_sort([1, 2, 3, 4], [(2, 1)]), [4, 3, 2, 1]
-        )
-
-    def test_topological_sort_loop(self):
-        self.assertEqual(
-            utils.topological_sort([1, 2], [(2, 1), (1, 2)]), []
-        )
-
-    def test_topological_empty_dependencies(self):
-        # list contain same elements, no dependancies so order doesn't matter
-        self.assertCountEqual(
-            utils.topological_sort(["a", "b", "c"], []), ["c", "b", "a"]
-        )
-
-    def test_topological_full_dependencies(self):
-        # list is ordered
-        self.assertEqual(
-            utils.topological_sort(["a", "b", "c"], [("a", "b"), ("b", "c")]),
-            ["a", "b", "c"],
-        )
-
-    def test_topological_partial_dependencies(self):
-        # 'e' has no dependencies so comes before or after
-        self.assertEqual(
-            utils.topological_sort(
-                ["b", "e"], [("a", "b"), ("b", "c"), ("b", "d")]
-            ),
-            ["a", "b", "d", "c", "e"],
-        )
-
-    def test_topological_empty_input_full_dependencies(self):
-        # could return empty
-        self.assertEqual(
-            utils.topological_sort([], [("a", "b"), ("b", "c"), ("b", "d")]),
-            ["a", "b", "d", "c"],
-        )
 
     def test_create_message_details_dialog(self):
         details = "these are the lines that I want to test\n2nd line\n3rd Line"

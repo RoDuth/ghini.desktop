@@ -30,6 +30,7 @@ import os
 import re
 import tempfile
 import traceback
+from graphlib import TopologicalSorter
 from pathlib import Path
 from typing import Generator
 
@@ -256,8 +257,6 @@ class CSVRestore:
                     bauble.task.queue(upgrader(*args))
 
         bauble.task.queue(self.run(filenames, metadata, force))
-
-
 
     @staticmethod
     def tdwg_geo_upgrader(filenames):
@@ -776,24 +775,26 @@ class CSVRestore:
             reader = UnicodeReader(
                 f, quotechar=QUOTE_CHAR, quoting=QUOTE_STYLE
             )
+            fields = reader.reader.fieldnames
 
             # create a dictionary of the lines mapped to the child field
             bychild = {}
             for line in reader:
-                for parent, child in key_pairs:
+                for _parent, child in key_pairs:
                     bychild[line[child]] = line
-            fields = reader.reader.fieldnames
 
         # create pairs from the values in the lines where pair[0]
         # should come before pair[1] when the lines are sorted
-        pairs = []
+        graph = {}
         for line in list(bychild.values()):
             for parent, child in key_pairs:
+                graph.setdefault(line[child], set())
                 if line[parent] and line[child]:
-                    pairs.append((line[parent], line[child]))
+                    graph[line[child]].add(line[parent])
 
         # sort the keys and flatten the lines back into a list
-        sorted_keys = utils.topological_sort(list(bychild.keys()), pairs)
+        sorted_keys = TopologicalSorter(graph).static_order()
+
         sorted_lines = []
         for key in sorted_keys:
             sorted_lines.append(bychild[key])

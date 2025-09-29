@@ -46,6 +46,8 @@ import types
 from abc import ABC
 from abc import abstractmethod
 from collections.abc import Sequence
+from graphlib import CycleError
+from graphlib import TopologicalSorter
 from importlib import import_module
 from inspect import getfile
 from pathlib import Path
@@ -99,21 +101,22 @@ def register_command(handler: type[CommandHandler]) -> None:
 
 def _create_dependency_pairs(
     plugs: Sequence[Plugin],
-) -> tuple[list[tuple[Plugin, Plugin]], dict[str, list[str]]]:
+) -> tuple[dict[Plugin, set[Plugin]], dict[str, list[str]]]:
     """Calculate plugin dependencies, met and unmet.
 
-    Returned value is a pair, the first item is the dependency pairs that
-    can be passed to ``utils.topological_sort``.  The second item is a
-    dictionary associating plugin names (from :param plugs:) with the list of
-    unmet dependencies.
+    Returned value is a pair, the first item is the dependency graph that can
+    be passed to ``TopologicalSorter``.  The second item is a dictionary
+    associating plugin names (from :param plugs:) with the list of unmet
+    dependencies.
     """
-    depends: list[tuple[Plugin, Plugin]] = []
+    graph: dict[Plugin, set[Plugin]] = {}
     unmet: dict[str, list[str]] = {}
 
     for plug in plugs:
+        graph.setdefault(plug, set())
         for dep in plug.depends:
             try:
-                depends.append((plugins[dep], plug))
+                graph[plug].add(plugins[dep])
             except KeyError:
                 logger.debug(
                     "no dependency %s for %s", dep, type(plug).__name__
@@ -121,7 +124,7 @@ def _create_dependency_pairs(
                 unmet_val = unmet.setdefault(type(plug).__name__, [])
                 unmet_val.append(dep)
 
-    return depends, unmet
+    return graph, unmet
 
 
 def load(path: str | None = None) -> None:
@@ -205,7 +208,8 @@ def init(force: bool = False) -> None:
         return
 
     deps, _unmet = _create_dependency_pairs(registered)
-    registered = utils.topological_sort(registered, deps)
+
+    registered = list(TopologicalSorter(deps).static_order())
 
     # call init() for each of the plugins
     failed: list[str] = []
@@ -387,17 +391,18 @@ def install(
         logger.warning("unmet dependencies: %s", str(unmet))
         raise BaubleError("unmet dependencies")
 
-    to_install = utils.topological_sort(to_install, depends)
-    logger.debug("%s - this is after topological sort", str(to_install))
-
-    if not to_install:
+    try:
+        ordered = TopologicalSorter(depends).static_order()
+    except CycleError as e:
         raise BaubleError(
             "The plugins contain a dependency loop. This means that two "
             "plugins (possibly indirectly) rely on each other"
-        )
+        ) from e
+
+    logger.debug("%s - this is after topological sort", str(ordered))
 
     try:
-        for plugin in to_install:
+        for plugin in ordered:
             logger.debug("install: %s", plugin)
             plugin.install(import_defaults=import_defaults)
             # NOTE consider, here we make sure we don't add the plugin to the

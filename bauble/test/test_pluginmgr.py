@@ -24,14 +24,16 @@ test plugin manager
 """
 
 import logging
+
+logger = logging.getLogger(__name__)
+
 import os
+from graphlib import CycleError
 from pathlib import Path
 from tempfile import mkdtemp
 from types import SimpleNamespace
 from unittest import TestCase
 from unittest import mock
-
-logger = logging.getLogger(__name__)
 
 from gi.repository import Gtk
 from sqlalchemy.engine import make_url
@@ -207,7 +209,10 @@ class GlobalFunctionsTests(TestCase):
         dep, unmet = pluginmgr._create_dependency_pairs(
             [plug_a, plug_b, plug_c]
         )
-        self.assertEqual(dep, [(plug_a, plug_b), (plug_b, plug_c)])
+
+        self.assertEqual(
+            dep, {plug_a: set(), plug_b: {plug_a}, plug_c: {plug_b}}
+        )
         self.assertEqual(unmet, {})
 
     def test_create_dependency_pairs_missing_base(self):
@@ -216,7 +221,8 @@ class GlobalFunctionsTests(TestCase):
         pluginmgr.plugins[C.__name__] = plug_c
         pluginmgr.plugins[B.__name__] = plug_b
         dep, unmet = pluginmgr._create_dependency_pairs([plug_b, plug_c])
-        self.assertEqual(dep, [(plug_b, plug_c)])
+
+        self.assertEqual(dep, {plug_b: set(), plug_c: {plug_b}})
         self.assertEqual(unmet, {"B": ["A"]})
 
     def test_find_plugins_no_plugins(self):
@@ -412,8 +418,8 @@ class StandalonePluginMgrTests(TestCase):
         db.metadata.drop_all(db.engine, checkfirst=True)
         db.metadata.create_all(db.engine)
         mock_unreg.return_value = ([], [])
-        mock_deps.return_value = ([], {})
         plug_a = A()
+        mock_deps.return_value = ({plug_a: set()}, {})
         pluginmgr.plugins[A.__name__] = plug_a
 
         with self.assertLogs(level="WARNING") as logs:
@@ -535,15 +541,15 @@ class StandalonePluginMgrTests(TestCase):
             pluginmgr.install((plug_a, plug_b, plug_c))
         self.assertIn("unmet dependencies", str(cm.exception))
 
-    @mock.patch("bauble.pluginmgr.utils.topological_sort")
-    def test_install_no_to_install_raise(self, mock_sort):
+    @mock.patch("bauble.pluginmgr.TopologicalSorter")
+    def test_install_dependancy_loop_raises(self, mock_sort):
         plug_a = A()
         plug_b = B()
         plug_c = C()
         pluginmgr.plugins[C.__name__] = plug_c
         pluginmgr.plugins[B.__name__] = plug_b
         pluginmgr.plugins[A.__name__] = plug_a
-        mock_sort.return_value = []
+        mock_sort().static_order.side_effect = CycleError("BOOM")
 
         with self.assertRaises(BaubleError) as cm:
             pluginmgr.install((plug_a, plug_b, plug_c))
