@@ -85,6 +85,7 @@ class Application(Gtk.Application):
 
         if not self._post_loop(open_exc):
             self.quit()
+            prefs.prefs[bauble.CONN_DONT_ASK_PREF] = False
             return
 
         logger.info(
@@ -157,6 +158,7 @@ class Application(Gtk.Application):
                     msg, traceback.format_exc(), Gtk.MessageType.ERROR
                 )
                 uri = None
+                prefs.prefs[bauble.CONN_DONT_ASK_PREF] = False
         ConnectionManagerDialog.first_run = False
         return open_exc
 

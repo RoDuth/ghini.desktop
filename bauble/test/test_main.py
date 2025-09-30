@@ -47,13 +47,11 @@ uri = make_url("sqlite:///:memory:")
 
 def setup_prefs():
     handle, temp = mkstemp(suffix=".cfg", text=True)
-    prefs.default_prefs_file = temp
-    prefs.prefs = prefs._prefs()
+    prefs.prefs = prefs._prefs(filename=temp)
     prefs.prefs.init()
     prefs.prefs[prefs.web_proxy_prefs] = "no_proxies"
     prefs.prefs[prefs.debug_logging_prefs] = ["bauble"]
     prefs.prefs.save()
-    prefs.prefs = prefs._prefs()
     os.close(handle)
 
 
@@ -103,6 +101,7 @@ def connect_empty_db_dont_populate(que):
 def post_loop_fails_quits(que):
     bauble.gui = ui.GUI()
     setup_prefs()
+    prefs.prefs[bauble.CONN_DONT_ASK_PREF] = True
     with (
         mock.patch("bauble.main.Application._post_loop") as mock_post_loop,
         mock.patch("bauble.utils.message_dialog") as mock_dialog,
@@ -117,6 +116,7 @@ def post_loop_fails_quits(que):
         que.put(mock_post_loop.called)
     que.put(bauble.conn_name)
     que.put(err)
+    que.put(prefs.prefs[bauble.CONN_DONT_ASK_PREF])
     app.quit()
 
 
@@ -177,6 +177,7 @@ class NewDBTests(TestCase):
         self.assertTrue(que.get(), "post_loop not called")
         self.assertEqual("test", que.get())
         self.assertEqual(0, que.get())
+        self.assertFalse(que.get())
 
     def test_app_connect_empty_db_populate(self):
         que = run_in_prcess(connect_empty_populate)
@@ -271,6 +272,7 @@ class MethodTests(TestCase):
     def test_get_connection_open_conn_fails(
         self, mock_open, mock_connmgr, mock_dialog
     ):
+        setup_prefs()
         db.engine = None
         mock_connmgr.return_value = "test", "test_uri"
         exc = bauble.error.DatabaseError()
@@ -282,6 +284,7 @@ class MethodTests(TestCase):
             bauble.error.VersionError(1.0),
             None,
         ]
+
         self.assertEqual(exc, bauble.main.Application._get_connection(None))
         mock_dialog.assert_called()
 
