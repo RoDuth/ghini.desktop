@@ -2031,6 +2031,13 @@ class SpeciesEditor(editor.GenericModelViewPresenterEditor):
         self._committed = []
 
         view = SpeciesEditorView(parent=self.parent)
+
+        if self.model.full_sci_name:
+            title = _("Species Editor")
+            view.widgets.species_dialog.set_title(
+                f"{title} - {self.model.full_sci_name}"
+            )
+
         self.presenter = SpeciesEditorPresenter(self.model, view)
         self.presenter.set_visible_buttons(not is_dependent_window)
 
