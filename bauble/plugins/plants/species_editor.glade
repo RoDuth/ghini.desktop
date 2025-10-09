@@ -1393,16 +1393,14 @@
                                     <property name="visible">True</property>
                                     <property name="can-focus">True</property>
                                     <property name="headers-clickable">False</property>
-                                    <property name="fixed-height-mode">True</property>
+                                    <property name="enable-grid-lines">both</property>
                                     <child internal-child="selection">
                                       <object class="GtkTreeSelection"/>
                                     </child>
                                     <child>
                                       <object class="GtkTreeViewColumn" id="vn_name_column">
                                         <property name="resizable">True</property>
-                                        <property name="sizing">fixed</property>
-                                        <property name="fixed-width">20</property>
-                                        <property name="min-width">50</property>
+                                        <property name="min-width">100</property>
                                         <property name="title">Name</property>
                                         <property name="expand">True</property>
                                         <child>
@@ -1415,10 +1413,8 @@
                                     <child>
                                       <object class="GtkTreeViewColumn" id="vn_lang_column">
                                         <property name="resizable">True</property>
-                                        <property name="sizing">fixed</property>
-                                        <property name="min-width">20</property>
+                                        <property name="min-width">40</property>
                                         <property name="title">Language</property>
-                                        <property name="expand">True</property>
                                         <child>
                                           <object class="GtkCellRendererText" id="vn_lang_cell">
                                             <property name="editable">True</property>
@@ -1428,13 +1424,11 @@
                                     </child>
                                     <child>
                                       <object class="GtkTreeViewColumn" id="vn_default_column">
-                                        <property name="resizable">True</property>
                                         <property name="sizing">fixed</property>
-                                        <property name="fixed-width">20</property>
-                                        <property name="min-width">20</property>
-                                        <property name="max-width">20</property>
+                                        <property name="fixed-width">50</property>
+                                        <property name="min-width">50</property>
+                                        <property name="max-width">50</property>
                                         <property name="title">Default</property>
-                                        <property name="expand">True</property>
                                         <child>
                                           <object class="GtkCellRendererToggle" id="vn_default_cell"/>
                                         </child>
