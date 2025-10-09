@@ -49,6 +49,7 @@
         <child>
           <object class="GtkTreeViewColumn">
             <property name="title">Note</property>
+            <property name="expand">True</property>
             <child>
               <object class="GtkCellRendererText">
                 <property name="xalign">0</property>
