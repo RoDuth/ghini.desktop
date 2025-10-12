@@ -4614,6 +4614,13 @@ class DistributionMapTests(BaubleClassTestCase):
     def setUpClass(cls):
         super().setUpClass()
         setup_geographies()
+        cls.geo = cls.session.query(Geography).filter_by(id=682).one()
+        fam = Family(epithet="Cyatheaceae")
+        gen = Genus(epithet="Sphaeropteris", family=fam)
+        cls.sp = Species(epithet="robusta", genus=gen)
+        cls.sp.distribution.append(SpeciesDistribution(geography=cls.geo))
+        cls.session.add(cls.sp)
+        cls.session.commit()
 
     def setUp(self):
         DistributionMap._world = ""
@@ -4702,24 +4709,17 @@ class DistributionMapTests(BaubleClassTestCase):
         self.assertIsNone(cache.get(2))
 
     def test_dist_map_does_not_cause_history_entries(self):
-        geo = self.session.query(Geography).filter_by(id=682).one()
-        fam = Family(epithet="Cyatheaceae")
-        gen = Genus(epithet="Sphaeropteris", family=fam)
-        sp = Species(epithet="robusta", genus=gen)
-        sp.distribution.append(SpeciesDistribution(geography=geo))
-        self.session.add(sp)
-        self.session.commit()
         # incase of history triggered by update to approx area
         # (depends on system, pyproj/proj version)
         start = (
             self.session.query(db.History)
             .filter(db.History.table_name == "geography")
-            .filter(db.History.table_id == geo.id)
+            .filter(db.History.table_id == self.geo.id)
             .count()
         )
-        dist_map = sp.distribution_map()
+        dist_map = self.sp.distribution_map()
         self.assertTrue(dist_map.map)
-        editor = SpeciesEditor(model=sp)
+        editor = SpeciesEditor(model=self.sp)
         update_gui()
         editor.commit_changes()
         editor.presenter.cleanup()
@@ -4730,7 +4730,7 @@ class DistributionMapTests(BaubleClassTestCase):
         hist = (
             self.session.query(db.History.values)
             .filter(db.History.table_name == "geography")
-            .filter(db.History.table_id == geo.id)
+            .filter(db.History.table_id == self.geo.id)
             .all()
         )
         self.assertEqual(len(hist), start, hist)

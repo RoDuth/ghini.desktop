@@ -1778,9 +1778,11 @@ class VernacularNamePresenter(editor.GenericEditorPresenter):
     def on_default_toggled(self, cell, path):
         """Default column callback."""
         active = cell.get_active()
+
         if not active:  # then it's becoming active
             vernacular = self.treeview.get_model()[path][0]
             self.set_model_attr("default_vernacular_name", vernacular)
+
         self._dirty = True
         self.parent_ref().refresh_sensitivity()
 
@@ -1877,6 +1879,7 @@ class VernacularNamePresenter(editor.GenericEditorPresenter):
         tree_model = self.treeview.get_model()
         vernacular_names = self.model.vernacular_names
         default_vernacular_name = self.model.default_vernacular_name
+
         if len(vernacular_names) > 0 and default_vernacular_name is None:
             msg = _(
                 "This species has vernacular names but none of them are "

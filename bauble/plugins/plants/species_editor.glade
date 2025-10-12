@@ -1430,7 +1430,9 @@
                                         <property name="max-width">50</property>
                                         <property name="title">Default</property>
                                         <child>
-                                          <object class="GtkCellRendererToggle" id="vn_default_cell"/>
+                                          <object class="GtkCellRendererToggle" id="vn_default_cell">
+                                            <property name="radio">True</property>
+                                          </object>
                                         </child>
                                       </object>
                                     </child>
