@@ -108,6 +108,7 @@ from .species import SpeciesNote
 from .species import SpeciesSynonym
 from .species import VernacularName
 from .species import get_binomial_completions
+from .species_editor import CAPITALISE_VNAMES_ON_PASTE_PREF_KEY
 from .species_editor import DistributionPresenter
 from .species_editor import InfraspPresenter
 from .species_editor import InfraspRow
@@ -7569,7 +7570,8 @@ class VernacularNamePresenterTests(PlantTestCase):
         self.assertEqual(len(sp.vernacular_names), 1)
         self.assertEqual(sp.default_vernacular_name, name)
 
-        presenter.on_cell_edited(None, 0, "New name", "name")
+        # check is stripped
+        presenter.on_cell_edited(None, 0, "New name  \n", "name")
         presenter.on_cell_edited(None, 0, "XYZ", "language")
 
         self.assertEqual(sp.default_vernacular_name.name, "New name")
@@ -7577,6 +7579,22 @@ class VernacularNamePresenterTests(PlantTestCase):
         self.assertTrue(presenter.is_dirty())
 
         del presenter
+
+    def test_on_vernacular_name_paste(self):
+        entry = Gtk.Entry()
+        entry.set_text("spam-eggs ham")
+        prefs.prefs[CAPITALISE_VNAMES_ON_PASTE_PREF_KEY] = True
+        VernacularNamePresenter.on_vernacular_name_paste(entry)
+        update_gui()
+
+        self.assertEqual(entry.get_text(), "Spam-eggs Ham")
+
+        entry.set_text("spam-eggs ham")
+        prefs.prefs[CAPITALISE_VNAMES_ON_PASTE_PREF_KEY] = False
+        VernacularNamePresenter.on_vernacular_name_paste(entry)
+        update_gui()
+
+        self.assertEqual(entry.get_text(), "spam-eggs ham")
 
     def test_generic_data_func(self):
         mock_parent = mock.Mock()

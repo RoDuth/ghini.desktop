@@ -24,10 +24,10 @@ import logging
 import os
 import re
 import textwrap
-import threading
 import traceback
 import weakref
 from ast import literal_eval
+from string import capwords
 
 logger = logging.getLogger(__name__)
 
@@ -45,6 +45,7 @@ from sqlalchemy.orm.session import object_session
 import bauble
 from bauble import editor
 from bauble import paths
+from bauble import prefs
 from bauble import utils
 from bauble.i18n import _
 
@@ -229,6 +230,7 @@ class SpeciesEntry(Gtk.Entry, Gtk.Editable):
 
 
 SPECIES_WEB_BUTTON_DEFS_PREFS = "web_button_defs.species"
+CAPITALISE_VNAMES_ON_PASTE_PREF_KEY = "species_editor.cap_vnames_on_paste"
 
 
 class SpeciesEditorPresenter(
@@ -1789,8 +1791,13 @@ class VernacularNamePresenter(editor.GenericEditorPresenter):
     def on_cell_edited(self, _cell, path, new_text, prop):
         treemodel = self.treeview.get_model()
         vernacular = treemodel[path][0]
+
         if getattr(vernacular, prop) == new_text:
             return  # didn't change
+
+        if new_text:
+            new_text = new_text.strip()
+
         setattr(vernacular, prop, utils.nstr(new_text))
         self._dirty = True
         self.parent_ref().refresh_sensitivity()
@@ -1817,6 +1824,19 @@ class VernacularNamePresenter(editor.GenericEditorPresenter):
             logger.debug("AttributeError %s", e)
         cell.set_property("active", False)
 
+    @staticmethod
+    def on_vernacular_name_paste(entry):
+
+        def _cap(entry):
+            string = entry.get_text()
+            cap_string = capwords(string)
+
+            if string != cap_string:
+                entry.set_text(cap_string)
+
+        if prefs.prefs.get(CAPITALISE_VNAMES_ON_PASTE_PREF_KEY, True):
+            GLib.idle_add(_cap, entry)
+
     def init_treeview(self, model):
         """Initialized the list of vernacular names.
 
@@ -1831,6 +1851,11 @@ class VernacularNamePresenter(editor.GenericEditorPresenter):
         self.view.widgets.vn_name_column.set_cell_data_func(
             cell, self.generic_data_func, "name"
         )
+
+        def _name_edit_start(_renderer, entry, _path):
+            entry.connect("paste-clipboard", self.on_vernacular_name_paste)
+
+        cell.connect("editing-started", _name_edit_start)
         self.view.connect(cell, "edited", self.on_cell_edited, "name")
 
         cell = self.view.widgets.vn_lang_cell
