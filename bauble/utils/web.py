@@ -90,7 +90,7 @@ def get_formatted_url_for_obj(
     if fields:
         for key in fields:
             value = attrgetter(key)(obj)
-            values[key] = urllib.parse.quote(str(value))
+            values[key] = urllib.parse.quote(str(value or ""))
         uri = base_uri.format(v=values)
     else:
         # remove any zws (species string)

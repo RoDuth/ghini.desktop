@@ -352,15 +352,27 @@ class Genus(db.Domain, db.WithNotes):
         return Genus.string(self)
 
     @staticmethod
-    def string(genus, author=False):
+    def string(genus, author=False, sensu=True):
         if genus.genus is None:
             return ""
-        parts = [genus.hybrid, genus.genus, genus.qualifier]
+        parts = [genus.hybrid, genus.genus]
+        if sensu:
+            parts.append(genus.qualifier)
         if author and genus.author:
-            parts.append(utils.xml_safe(genus.author))
+            parts.append(genus.author)
         return " ".join([s for s in parts if s not in ("", None)]).strip()
 
-    def markup(self, authors=False, for_search_view=False):
+    @property
+    def str_basic(self):
+        """Return the base string, without authors or qualifiers. i.e. just the
+        name part (including the hybrid flag).
+
+        Handy for link buttons (where a species qualifier can cause issues with
+        searches), reports, etc.
+        """
+        return Genus.string(self, author=False, sensu=False)
+
+    def markup(self, authors=False, for_search_view=False, sensu=True):
         escape = utils.xml_safe
         string = ""
         if self.hybrid:
@@ -369,7 +381,7 @@ class Genus(db.Domain, db.WithNotes):
             string += escape(self.genus)
         else:
             string += f"<i>{escape(self.genus)}</i>"
-        if self.qualifier:
+        if self.qualifier and sensu:
             string += " " + self.qualifier
         if authors and self.author:
             author = escape(self.author)
@@ -1264,7 +1276,7 @@ class SynonymsExpander(InfoExpander):
             label = Gtk.Label()
             label.set_xalign(0.0)
             label.set_yalign(0.5)
-            label.set_markup(Genus.string(row.accepted, author=True))
+            label.set_markup(row.accepted.markup(authors=True))
             box.add(label)
             utils.make_label_clickable(label, on_clicked, row.accepted)
             syn_box.pack_start(box, False, False, 0)
@@ -1278,7 +1290,7 @@ class SynonymsExpander(InfoExpander):
                 label = Gtk.Label()
                 label.set_xalign(0.0)
                 label.set_yalign(0.5)
-                label.set_markup(Genus.string(syn, author=True))
+                label.set_markup(syn.markup(authors=True))
                 box.add(label)
                 utils.make_label_clickable(label, on_clicked, syn)
                 syn_box.pack_start(box, False, False, 0)

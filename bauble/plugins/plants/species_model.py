@@ -877,6 +877,7 @@ class Species(db.Domain, db.WithNotes):
         markup=False,
         remove_zws=True,
         genus=True,
+        sensu=True,
         qualification=None,
         for_search_view=False,
     ):
@@ -888,6 +889,7 @@ class Species(db.Domain, db.WithNotes):
         :param remove_zws: flag to toggle zero width spaces, helping
             semantically correct lexicographic order.
         :param genus: flag to toggle leading genus name.
+        :param sensu: flag to toggle inclusion of 'sensu' qualifier.
         :param qualification: pair or None. if specified, first is the
             qualified rank, second is the qualification.
         :param for_search_view: in search view authorship is in light text
@@ -908,9 +910,9 @@ class Species(db.Domain, db.WithNotes):
             if qual_rank == "genus":
                 genus = qualifier + " "
             if markup:
-                genus += self.genus.markup()
-            else:
-                genus += str(self.genus)
+                genus += self.genus.markup(sensu=sensu)
+            elif self.genus:
+                genus += self.genus.string(self.genus, sensu=sensu)
         else:
             genus = ""
         if session:
@@ -1037,12 +1039,22 @@ class Species(db.Domain, db.WithNotes):
         tail = []
         if not qual_rank and qualifier:
             tail.append(f"({qualifier})")
-        if self.sp_qual:
+        if sensu and self.sp_qual:
             tail.append(self.sp_qual)
 
         parts = chain(binomial, infrasp_parts, tail)
         string = " ".join(i for i in parts if i)
         return string
+
+    @property
+    def str_basic(self):
+        """Return the base string, without markup, sp_qual, authors or
+        qualifiers. i.e. just the name part.
+
+        Handy for link buttons (where a species qualifier can cause issues with
+        searches), reports, etc.
+        """
+        return self.string(sensu=False)
 
     @hybrid_property
     def active(self):

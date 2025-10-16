@@ -507,7 +507,8 @@ species_test_data = (
         "series": "Subulatae",
         "subseries": "Decussatae",
         "sp": "gillii",
-        "full_sci_name": "Eucalyptus gillii",
+        "sp_qual": "s. lat.",
+        "full_sci_name": "Eucalyptus gillii s. lat.",
     },
 )
 
@@ -522,6 +523,16 @@ species_note_test_data = (
     {"id": 8, "species_id": 18, "category": "{dict_var:l}", "note": "def"},
     {"id": 9, "species_id": 18, "category": "{dict_var:m}", "note": "xyz"},
 )
+
+genus_str_map = {
+    1: "Maxillaria s. str",
+    2: "Encyclia",
+}
+
+genus_str_author_map = {
+    1: "Maxillaria s. str Ruiz & Pav.",
+    2: "Encyclia",
+}
 
 species_str_map = {
     1: "Maxillaria s. str variabilis",
@@ -545,6 +556,7 @@ species_str_map = {
     27: "Cynodon dactylon × transvaalensis 'DT-1' (PBR) TIFTUF™",
     28: "Abrus precatorius subsp. africanus",
     29: "Paphiopedilum Jim Kie 'Springwater'",
+    33: "Eucalyptus gillii s. lat.",
 }
 
 species_markup_map = {
@@ -1609,7 +1621,28 @@ class GenusTests(PlantTestCase):
         """
         Test that the Genus string functions works as expected
         """
-        pass
+        for gid, expected in genus_str_map.items():
+            gen = self.session.query(Genus).get(gid)
+
+            self.assertEqual(str(gen), expected)
+
+            self.assertTrue(
+                all(i not in gen.str_basic for i in ("s. lat", "s. str"))
+            )
+
+        for gid, expected in genus_str_author_map.items():
+            gen = self.session.query(Genus).get(gid)
+
+            self.assertEqual(gen.string(gen, author=True), expected)
+
+        self.assertEqual(str(Genus()), "")
+
+        self.assertEqual(Genus(genus="SPAM").markup(), "SPAM")
+
+        self.assertEqual(
+            Genus(genus="Spam", qualifier="s. lat.").markup(),
+            "<i>Spam</i> s. lat.",
+        )
 
     def test_can_use_epithet_field(self):
         family = Family(epithet="family")
@@ -2459,6 +2492,12 @@ class SpeciesTests(PlantTestCase):
             self.assertEqual(species_str_map[sid], printable_name)
             spstr = get_sp_str(sid)
             self.assertEqual(remove_zws(spstr), expect)
+
+            self.assertTrue(
+                all(
+                    i not in sp.str_basic for i in ("s. lat", "s. str", "agg.")
+                )
+            )
 
         for sid, expect in species_str_authors_map.items():
             spstr = get_sp_str(sid, authors=True)
@@ -7892,7 +7931,6 @@ class GlobalFunctionsTest(PlantTestCase):
             "(L.) Lemée</span>"
         )
         self.assertEqual(remove_zws(first), expect)
-        print(second)
         self.assertEqual(
             second,
             "Orchidaceae -- "
