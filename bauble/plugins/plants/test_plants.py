@@ -4874,6 +4874,20 @@ class DistributionMapTests(BaubleClassTestCase):
         dist.zoom_to_level(8.0)
         dist.replace_image.assert_called_with("TEST -138.25 -36.203 45.0 22.5")
 
+    def test_detach_image(self):
+        rocas_alijos = 657
+        dist = DistributionMap([rocas_alijos])
+        # covers no image
+        dist.detach_image()
+        box = Gtk.Box()
+        box.add(dist.as_image())
+
+        self.assertEqual(dist._image.get_parent(), box)
+
+        dist.detach_image()
+
+        self.assertIsNone(dist._image.get_parent())
+
 
 class DistMapInfoExpanderMixinTests(BaubleTestCase):
     def test_on_map_button_release(self):

@@ -830,6 +830,15 @@ class DistributionMap:
         svg = self.zoom_map.format(viewbox=self.get_zoom_viewbox(zoom))
         self.replace_image(svg)
 
+    def detach_image(self) -> None:
+
+        if not self._image:
+            return
+
+        parent = self._image.get_parent()
+        if parent and hasattr(parent, "remove"):
+            parent.remove(self._image)
+
     def as_image(self) -> Gtk.Image:
         """Map as a Gtk.Image.
 
@@ -839,15 +848,12 @@ class DistributionMap:
             if self._image_cache_key in self._image_cache:
                 logger.debug("using cache image key=%s", self._image_cache_key)
                 self._image = self._image_cache[self._image_cache_key]
+                self.detach_image()
             else:
                 logger.debug("creating image key=%s", self._image_cache_key)
                 self._image = Gtk.Image.new_from_pixbuf(self.world_pixbuf)
                 self._image_cache[self._image_cache_key] = self._image
                 threading.Thread(target=self._generate_image).start()
-
-        parent = self._image.get_parent()
-        if parent and hasattr(parent, "remove"):
-            parent.remove(self._image)
 
         return self._image
 
