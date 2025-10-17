@@ -48,7 +48,7 @@ from bauble import db
 from bauble import pb_set_fraction
 from bauble import pluginmgr
 from bauble import utils
-from bauble.connmgr import compare_version
+from bauble.connmgr import comparable_version
 from bauble.i18n import _
 
 # TODO: i've also had a problem with bad insert statements, e.g. importing a
@@ -172,7 +172,7 @@ class CSVRestore:
                         logger.debug("importing version %s data", version)
                         break
 
-                if compare_version(version) < compare_version("1.3.0-b"):
+                if comparable_version(version) < comparable_version("1.3.0-b"):
                     msg = (
                         _(
                             "You are importing data from a version prior "
@@ -210,7 +210,9 @@ class CSVRestore:
                             filenames,
                         )
 
-                if compare_version(version) < compare_version("1.3.0-b3"):
+                if comparable_version(version) < comparable_version(
+                    "1.3.0-b3"
+                ):
                     msg = (
                         _(
                             "You are importing data from a version prior "
@@ -232,9 +234,9 @@ class CSVRestore:
                         upgraders["accession"] = (self.acc_upgrader, filenames)
 
                 if (
-                    compare_version("1.3.1")
-                    <= compare_version(version)
-                    < compare_version("1.3.8")
+                    comparable_version("1.3.1")
+                    <= comparable_version(version)
+                    < comparable_version("1.3.8")
                 ):
                     msg = (
                         _(

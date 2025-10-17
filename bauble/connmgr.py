@@ -112,7 +112,7 @@ class ComparableVersion:
     build: str = "z"
 
 
-def compare_version(version: str) -> ComparableVersion:
+def comparable_version(version: str) -> ComparableVersion:
     as_list: list = version.replace("-", ".").split(".")
 
     for i in range(3):
@@ -140,8 +140,8 @@ def check_new_release(github_release_data: dict) -> Literal[False] | dict:
     release_date = dateutil.parser.isoparse(release_date)
     bauble.release_date = release_date.astimezone(tz=None)
 
-    github_version = compare_version(github_release.split()[0][1:])
-    current_version = compare_version(bauble.version)
+    github_version = comparable_version(github_release.split()[0][1:])
+    current_version = comparable_version(bauble.version)
     logger.debug("latest release on github is release: %s", github_release)
     logger.debug(
         "latest release on github is a prerelease?: %s", github_prerelease

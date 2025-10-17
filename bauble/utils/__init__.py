@@ -35,7 +35,6 @@ import time
 from collections import UserDict
 from collections.abc import Callable
 from collections.abc import Iterable
-from collections.abc import Sequence
 from functools import singledispatch
 from functools import wraps
 from pathlib import Path
