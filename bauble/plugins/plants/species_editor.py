@@ -27,7 +27,9 @@ import textwrap
 import traceback
 import weakref
 from ast import literal_eval
+from dataclasses import dataclass
 from string import capwords
+from typing import cast
 
 logger = logging.getLogger(__name__)
 
@@ -178,6 +180,54 @@ def species_cell_data_func(_column, renderer, model, treeiter):
         renderer.set_property(
             "text", f"{sp.string(authors=True)} ({sp.genus.family})"
         )
+
+
+@dataclass
+class Taxon:
+    genus: str
+    species: str
+    genus_hybrid: str | None = None
+    species_hybrid: str | None = None
+    species_author: str | None = None
+    infrasp_rank: str | None = None
+    infrasp_epithet: str | None = None
+    infrasp_author: str | None = None
+
+
+_RE_TAXON = re.compile(
+    r"""
+    (?P<genus_hybrid>[×+])?\s?
+    (?P<genus>[A-Z][\w\-]+)\s
+    (?P<species_hybrid>[×+])?\s?
+    (?P<species>[\w\-]+)?
+    (?:\s(?P<species_author>(
+        .*(?=\s(subsp\.|var\.|subvar\.|forma|f\.|subf\.)\s)|
+        (?!subsp\.)(?!var\.)(?!subvar\.)(?!forma.)(?!f\.)(?!subf\.).*$)
+    ))?
+    (?:\s?(?P<infrasp_rank>subsp\.|var\.|forma|f\.)?\s?
+    (?P<infrasp_epithet>[\w\.\-\(\)]+))?
+    (?:\s+(?P<infrasp_author>.+?))?$
+    """,
+    re.VERBOSE,
+)
+
+
+def split_taxon_full_name(full_name: str) -> Taxon | None:
+    """Splits a full taxon name into its parts and returns it as a Taxon obj.
+
+    NOTE: Not expected to handle all edge cases, just bi/trinomials with
+    authors and hybrid flags.
+
+    :param full_name: the full taxon name to split
+    """
+    match = _RE_TAXON.match(full_name.strip())
+
+    if not match:
+        return None
+
+    matchdict = match.groupdict()
+
+    return Taxon(**matchdict)
 
 
 # This, rather than insert-text signal handler, due to a bug in PyGObject, see:
@@ -364,6 +414,9 @@ class SpeciesEditorPresenter(
             self.gen_get_completions,
             on_select=self.gen_on_select,
         )
+        self.view.connect(
+            "sp_genus_entry", "paste-clipboard", self.on_genus_entry_paste
+        )
         self.assign_completions_handler(
             "subgenus_entry", self.subgenus_get_completions, set_problems=False
         )
@@ -470,6 +523,40 @@ class SpeciesEditorPresenter(
         self._setup_custom_field("_sp_custom2")
 
         self.init_links_menu()
+
+    def on_genus_entry_paste(self, entry: Gtk.Entry) -> None:
+
+        def _split() -> None:
+            text = entry.get_text().strip()
+            entry.set_text(text)
+            split = split_taxon_full_name(text)
+
+            if not split:
+                return
+
+            entry.set_text(
+                f"{split.genus_hybrid} {split.genus}"
+                if split.genus_hybrid
+                else split.genus
+            )
+            self.view.widget_set_value("sp_hybrid_combo", split.species_hybrid)
+            self.view.widget_set_value("sp_species_entry", split.species)
+            self.view.widget_set_value("sp_author_entry", split.species_author)
+
+            self.infrasp_presenter.clear_rows()
+
+            rank = split.infrasp_rank
+            if rank:
+                rank = rank.replace("forma", "f.")
+                model = cast(Species, self.model)
+                model.infrasp1_rank = rank
+                model.infrasp1 = split.infrasp_epithet
+                model.infrasp1_author = split.infrasp_author
+
+            self.infrasp_presenter.refresh_rows()
+            self.refresh_fullname_label()
+
+        GLib.idle_add(_split)
 
     def subgenus_get_completions(self, text):
         query = self.session.query(Species.subgenus)
@@ -1921,7 +2008,10 @@ class VernacularNamePresenter(editor.GenericEditorPresenter):
 
 class SpeciesEditorView(editor.GenericEditorView):
     _tooltips = {
-        "sp_genus_entry": _("Genus"),
+        "sp_genus_entry": _(
+            "Genus eptihet, if a full name is pasted here it will be split "
+            "into its parts and used to fill other fields, when possible."
+        ),
         "sp_species_entry": _(
             "Species epithet should not be capitilised (to "
             'include a hybrid formula typing a "*" '

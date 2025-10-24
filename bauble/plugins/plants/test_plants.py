@@ -115,11 +115,13 @@ from .species_editor import InfraspRow
 from .species_editor import SpeciesEditorPresenter
 from .species_editor import SpeciesEditorView
 from .species_editor import SpeciesEntry
+from .species_editor import Taxon
 from .species_editor import VernacularNamePresenter
 from .species_editor import generic_sp_get_completions
 from .species_editor import species_cell_data_func
 from .species_editor import species_match_func
 from .species_editor import species_to_string_matcher
+from .species_editor import split_taxon_full_name
 from .species_model import SpeciesPicture
 from .species_model import _remove_zws as remove_zws
 from .species_model import infrasp_rank_values
@@ -6867,6 +6869,107 @@ class SpeciesEditorPresenterTests(PlantTestCase):
         presenter.cleanup()
         del presenter
 
+    def test_on_genus_entry_paste(self):
+        view = SpeciesEditorView()
+        model = Species()
+        self.session.add(model)
+        presenter = SpeciesEditorPresenter(model, view)
+
+        genus_entry = view.widgets.sp_genus_entry
+        genus_entry.set_text(" Encyclia ")
+        presenter.on_genus_entry_paste(genus_entry)
+        update_gui()
+
+        self.assertEqual(genus_entry.get_text(), "Encyclia")
+        self.assertEqual(model.genus.epithet, "Encyclia")
+
+        genus_entry = view.widgets.sp_genus_entry
+        genus_entry.set_text("Encyclia cochleata var. cochleata")
+        presenter.on_genus_entry_paste(genus_entry)
+        update_gui()
+
+        self.assertEqual(genus_entry.get_text(), "Encyclia")
+        self.assertEqual(model.genus.epithet, "Encyclia")
+        self.assertEqual(model.sp, "cochleata")
+        self.assertEqual(model.infrasp1_rank, "var.")
+        self.assertEqual(model.infrasp1, "cochleata")
+
+        genus_entry = view.widgets.sp_genus_entry
+        genus_entry.set_text(
+            "Banksia spinulosa var. collina (R.Br.) A.S.George"
+        )
+        presenter.on_genus_entry_paste(genus_entry)
+        update_gui()
+
+        self.assertEqual(genus_entry.get_text(), "Banksia")
+        self.assertEqual(model.genus.epithet, "Banksia")
+        self.assertEqual(model.sp, "spinulosa")
+        self.assertEqual(model.infrasp1_rank, "var.")
+        self.assertEqual(model.infrasp1, "collina")
+        self.assertEqual(model.infrasp1_author, "(R.Br.) A.S.George")
+
+        genus_entry = view.widgets.sp_genus_entry
+        genus_entry.set_text("Abelia × grandiflora (Rovelli ex André) Rehder")
+        presenter.on_genus_entry_paste(genus_entry)
+        update_gui()
+
+        self.assertEqual(genus_entry.get_text(), "Abelia")
+        self.assertEqual(model.hybrid, "×")
+        self.assertEqual(model.sp, "grandiflora")
+        self.assertEqual(model.sp_author, "(Rovelli ex André) Rehder")
+
+        genus_entry = view.widgets.sp_genus_entry
+        genus_entry.set_text("+ Crataegomespilus dardarii")
+        presenter.on_genus_entry_paste(genus_entry)
+        update_gui()
+
+        self.assertEqual(genus_entry.get_text(), "+ Crataegomespilus")
+        self.assertIsNone(model.hybrid)
+        self.assertEqual(model.sp, "dardarii")
+        self.assertEqual(model.sp_author, "")
+
+        genus_entry = view.widgets.sp_genus_entry
+        genus_entry.set_text(
+            "\nFicus rubiginosa Desf. ex Vent. forma rubiginosa\n"
+        )
+        presenter.on_genus_entry_paste(genus_entry)
+        update_gui()
+
+        self.assertEqual(genus_entry.get_text(), "Ficus")
+        self.assertEqual(model.sp, "rubiginosa")
+        self.assertEqual(model.sp_author, "Desf. ex Vent.")
+        self.assertEqual(model.infrasp1_rank, "f.")
+        self.assertEqual(model.infrasp1, "rubiginosa")
+
+        genus_entry = view.widgets.sp_genus_entry
+        genus_entry.set_text("some random string with no meaning")
+        presenter.on_genus_entry_paste(genus_entry)
+        update_gui()
+
+        self.assertEqual(
+            genus_entry.get_text(), "some random string with no meaning"
+        )
+        # doesn't change the other fields
+        self.assertEqual(model.sp, "rubiginosa")
+        self.assertEqual(model.sp_author, "Desf. ex Vent.")
+        self.assertEqual(model.infrasp1_rank, "f.")
+        self.assertEqual(model.infrasp1, "rubiginosa")
+
+        genus_entry = view.widgets.sp_genus_entry
+        genus_entry.set_text("Melaleuca viminalis")
+        presenter.on_genus_entry_paste(genus_entry)
+        update_gui()
+
+        self.assertEqual(genus_entry.get_text(), "Melaleuca")
+        self.assertEqual(model.sp, "viminalis")
+        # resets other fields
+        self.assertEqual(model.sp_author, "")
+        self.assertIsNone(model.infrasp1_rank)
+        self.assertIsNone(model.infrasp1)
+
+        presenter.cleanup()
+        del presenter
+
 
 class InfraspPresenterTests(TestCase):
     def test_init_with_model_no_infras_doesnt_populate(self):
@@ -8110,6 +8213,115 @@ class GlobalFunctionsTest(PlantTestCase):
             {
                 "Butyagrus nabonnandii",
             },
+        )
+
+    def test_split_taxon_full_name(self):
+        self.assertIsNone(
+            split_taxon_full_name(""),
+        )
+        self.assertIsNone(
+            split_taxon_full_name("Encyclia "),
+        )
+        self.assertIsNone(
+            split_taxon_full_name(" cochleata"),
+        )
+        self.assertEqual(
+            split_taxon_full_name("Encyclia cochleata"),
+            Taxon(
+                genus="Encyclia",
+                species="cochleata",
+            ),
+        )
+        self.assertEqual(
+            split_taxon_full_name("Campyloneurum × alapense"),
+            Taxon(
+                genus="Campyloneurum",
+                species_hybrid="×",
+                species="alapense",
+            ),
+        )
+        self.assertEqual(
+            split_taxon_full_name("Campyloneurum ×alapense"),
+            Taxon(
+                species="alapense",
+                species_hybrid="×",
+                genus="Campyloneurum",
+            ),
+        )
+        self.assertEqual(
+            split_taxon_full_name("Encyclia cochleata var. cochleata"),
+            Taxon(
+                genus="Encyclia",
+                species="cochleata",
+                infrasp_rank="var.",
+                infrasp_epithet="cochleata",
+            ),
+        )
+        self.assertEqual(
+            split_taxon_full_name("+ Crataegomespilus dardarii"),
+            Taxon(
+                genus="Crataegomespilus",
+                genus_hybrid="+",
+                species="dardarii",
+            ),
+        )
+        self.assertEqual(
+            split_taxon_full_name("+Crataegomespilus dardarii"),
+            Taxon(
+                genus="Crataegomespilus",
+                genus_hybrid="+",
+                species="dardarii",
+            ),
+        )
+        self.assertEqual(
+            split_taxon_full_name(
+                "Acmella grandiflora var. discoidea R.K.Jansen"
+            ),
+            Taxon(
+                genus="Acmella",
+                species="grandiflora",
+                infrasp_rank="var.",
+                infrasp_epithet="discoidea",
+                infrasp_author="R.K.Jansen",
+            ),
+        )
+        self.assertEqual(
+            split_taxon_full_name(
+                "Camellia pingguoensis var. terminalis (J.Y.Liang & Z.M.Su) "
+                "T.L.Ming & W.J.Zhang"
+            ),
+            Taxon(
+                genus="Camellia",
+                species="pingguoensis",
+                infrasp_rank="var.",
+                infrasp_epithet="terminalis",
+                infrasp_author="(J.Y.Liang & Z.M.Su) T.L.Ming & W.J.Zhang",
+            ),
+        )
+        self.assertEqual(
+            split_taxon_full_name(
+                "Acmena hemilampra (F.Muell. ex F.M.Bailey) Merr. & "
+                "L.M.Perry subsp. hemilampra"
+            ),
+            Taxon(
+                genus="Acmena",
+                species="hemilampra",
+                species_author="(F.Muell. ex F.M.Bailey) Merr. & L.M.Perry",
+                infrasp_rank="subsp.",
+                infrasp_epithet="hemilampra",
+            ),
+        )
+        self.assertEqual(
+            split_taxon_full_name(
+                "× Hesperotropsis leylandii "
+                "(A.B.Jacks. & Dallim.) Garland & Gerry Moore"
+            ),
+            Taxon(
+                genus_hybrid="×",
+                genus="Hesperotropsis",
+                species="leylandii",
+                species_author="(A.B.Jacks. & Dallim.) Garland & Gerry Moore",
+            ),
         )
 
 
