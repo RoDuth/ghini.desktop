@@ -524,6 +524,38 @@ class SpeciesEditorPresenter(
 
         self.init_links_menu()
 
+    def on_genus_add_button_clicked(self, _widget) -> None:
+        new_genus = Genus()
+
+        if not cast(Species, self.model).genus:
+            genus_str = self.view.widgets.sp_genus_entry.get_text()
+            if genus_str:
+                new_genus.epithet = genus_str
+
+        from .genus import GenusEditor
+
+        genus_editor = GenusEditor(
+            model=new_genus,
+            parent=self.view.get_window(),
+        )
+        committed = genus_editor.start()
+
+        if not committed:
+            return
+
+        new_genus = committed[0]
+        self.session.add(new_genus)
+
+        # populate the completions model so it will match
+        completion = self.view.widgets.sp_genus_entry.get_completion()
+        utils.clear_model(completion)
+        model = Gtk.ListStore(object)
+        model.append([new_genus])
+        completion.set_model(model)
+        # toggle the text to get the completion to match
+        self.view.widget_set_value("sp_genus_entry", "")
+        self.view.widget_set_value("sp_genus_entry", new_genus.epithet)
+
     def on_genus_entry_paste(self, entry: Gtk.Entry) -> None:
 
         def _split() -> None:

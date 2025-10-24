@@ -1534,6 +1534,20 @@ class FamilyEditorTests(PlantTestCase):
         self.assertEqual(fam.qualifier, "s. lat.")
         self.assertTrue(presenter._dirty)
 
+    def test_is_sensitive_new_w_family(self):
+        fam = Family()
+        self.session.add(fam)
+        view = FamilyEditorView()
+        FamilyEditorPresenter(fam, view)
+
+        self.assertFalse(view.widgets.fam_ok_button.get_sensitive())
+
+        fam.family = "Spamaceae"
+        view = FamilyEditorView()
+        FamilyEditorPresenter(fam, view)
+
+        self.assertTrue(view.widgets.fam_ok_button.get_sensitive())
+
 
 class GenusTests(PlantTestCase):
     def test_synonyms(self):
@@ -2349,6 +2363,43 @@ class GenusEditorTests(PlantTestCase):
         # wrong tribe
         gen.tribe = "Zamieae"
         self.assertEqual(presenter.subtribe_get_completions("Enc"), [])
+
+        presenter.cleanup()
+        del presenter
+
+    @mock.patch("bauble.plugins.plants.family.FamilyEditor")
+    def test_on_family_add_button_clicked(self, mock_fam_editor):
+        # test bails
+        mock_fam_editor().start.return_value = None
+        mock_fam_editor.reset_mock()
+        gen = Genus(epithet="genus")
+        self.session.add(gen)
+
+        view = GenusEditorView()
+        view.start = mock.Mock()
+        view.start.return_value = gen
+        presenter = GenusEditorPresenter(gen, view)
+        presenter.on_family_add_button_clicked(None)
+
+        mock_fam_editor.assert_called_once()
+        self.assertEqual(view.widgets.gen_family_entry.get_text(), "")
+
+        # test success
+        mock_fam_editor.reset_mock()
+        gen = Genus(epithet="Genus")
+        self.session.add(gen)
+
+        view = GenusEditorView()
+        view.start = mock.Mock()
+        view.start.return_value = gen
+        presenter = GenusEditorPresenter(gen, view)
+        view.widgets.gen_family_entry.set_text("Eg")
+        mock_fam_editor().start.return_value = [Family(epithet="Spamaceae")]
+        mock_fam_editor.reset_mock()
+        presenter.on_family_add_button_clicked(None)
+
+        mock_fam_editor.assert_called_once()
+        self.assertEqual(view.widgets.gen_family_entry.get_text(), "Spamaceae")
 
         presenter.cleanup()
         del presenter
@@ -6966,6 +7017,43 @@ class SpeciesEditorPresenterTests(PlantTestCase):
         self.assertEqual(model.sp_author, "")
         self.assertIsNone(model.infrasp1_rank)
         self.assertIsNone(model.infrasp1)
+
+        presenter.cleanup()
+        del presenter
+
+    @mock.patch("bauble.plugins.plants.genus.GenusEditor")
+    def test_on_genus_add_button_clicked(self, mock_gen_editor):
+        # test bails
+        mock_gen_editor().start.return_value = None
+        mock_gen_editor.reset_mock()
+        sp = Species(epithet="spam")
+        self.session.add(sp)
+
+        view = SpeciesEditorView()
+        view.start = mock.Mock()
+        view.start.return_value = sp
+        presenter = SpeciesEditorPresenter(sp, view)
+        presenter.on_genus_add_button_clicked(None)
+
+        mock_gen_editor.assert_called_once()
+        self.assertEqual(view.widgets.sp_genus_entry.get_text(), "")
+
+        # test success
+        mock_gen_editor.reset_mock()
+        sp = Species(epithet="spam")
+        self.session.add(sp)
+
+        view = SpeciesEditorView()
+        view.start = mock.Mock()
+        view.start.return_value = sp
+        presenter = SpeciesEditorPresenter(sp, view)
+        view.widgets.sp_genus_entry.set_text("Eg")
+        mock_gen_editor().start.return_value = [Genus(epithet="Eggs")]
+        mock_gen_editor.reset_mock()
+        presenter.on_genus_add_button_clicked(None)
+
+        mock_gen_editor.assert_called_once()
+        self.assertEqual(view.widgets.sp_genus_entry.get_text(), "Eggs")
 
         presenter.cleanup()
         del presenter

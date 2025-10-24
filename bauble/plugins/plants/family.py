@@ -610,10 +610,13 @@ class FamilyEditorPresenter(
         if any(getattr(self.model, i) for i in ("order", "suborder")):
             self.view.widget_set_expanded("suprafam_expander", True)
 
-        # for each widget register a signal handler to be notified when the
-        # value in the widget changes, that way we can do things like sensitize
-        # the ok button
-        self._dirty = False
+        if self.model in self.session.new and self.model.family:
+            # new model with family already set (e.g. GenusEditor add family)
+            self._dirty = True
+            self.refresh_sensitivity()
+        else:
+            self._dirty = False
+
         self.init_links_menu()
 
     def order_get_completions(self, text):

@@ -902,6 +902,34 @@ class GenusEditorPresenter(
         self._dirty = False
         self.init_links_menu()
 
+    def on_family_add_button_clicked(self, _widget) -> None:
+        from .family import FamilyEditor
+
+        new_fam = Family()
+
+        if self.view.widgets.gen_family_entry.get_text():
+            new_fam.epithet = self.view.widgets.gen_family_entry.get_text()
+
+        fam_editor = FamilyEditor(model=new_fam, parent=self.view.get_window())
+
+        committed = fam_editor.start()
+        if not committed:
+            return
+
+        family = committed[0]
+        self.session.add(family)
+        # populate the completions model so it will match
+        completion = self.view.widgets.gen_family_entry.get_completion()
+        utils.clear_model(completion)
+        model = Gtk.ListStore(object)
+        model.append([family])
+        completion.set_model(model)
+        # toggle the text to get the completion to match
+        self.view.widget_set_value("gen_family_entry", "")
+        self.view.widget_set_value("gen_family_entry", family.epithet)
+
+        self.refresh_cites_label()
+
     def subfam_get_completions(self, text):
         query = self.session.query(Genus.subfamily)
         if self.model.family:

@@ -233,7 +233,6 @@ class StoredQueryTests(BaubleTestCase):
             model.get_iter_first(),
             "name",
         )
-        print(mock_cell.set_property.call_args_list)
 
         # after change and delete
         self.assertEqual(
