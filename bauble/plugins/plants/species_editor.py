@@ -193,6 +193,12 @@ class Taxon:
     infrasp_epithet: str | None = None
     infrasp_author: str | None = None
 
+    def __post_init__(self):
+        if self.infrasp_rank == "ssp.":
+            self.infrasp_rank = "subsp."
+        elif self.infrasp_rank == "forma":
+            self.infrasp_rank = "f."
+
 
 _RE_TAXON = re.compile(
     r"""
@@ -201,10 +207,10 @@ _RE_TAXON = re.compile(
     (?P<species_hybrid>[×+])?\s?
     (?P<species>[\w\-]+)?
     (?:\s(?P<species_author>(
-        .*(?=\s(subsp\.|var\.|subvar\.|forma|f\.|subf\.)\s)|
-        (?!subsp\.)(?!var\.)(?!subvar\.)(?!forma.)(?!f\.)(?!subf\.).*$)
+      .*(?=\s(ssp\.|subsp\.|var\.|subvar\.|forma|f\.|subf\.)\s)|
+      (?!ssp\.)(?!subsp\.)(?!var\.)(?!subvar\.)(?!forma.)(?!f\.)(?!subf\.).*$)
     ))?
-    (?:\s?(?P<infrasp_rank>subsp\.|var\.|forma|f\.)?\s?
+    (?:\s?(?P<infrasp_rank>ssp\.|subsp\.|var\.|subvar\.|forma|f\.|subf\.)?\s?
     (?P<infrasp_epithet>[\w\.\-\(\)]+))?
     (?:\s+(?P<infrasp_author>.+?))?$
     """,
@@ -579,7 +585,6 @@ class SpeciesEditorPresenter(
 
             rank = split.infrasp_rank
             if rank:
-                rank = rank.replace("forma", "f.")
                 model = cast(Species, self.model)
                 model.infrasp1_rank = rank
                 model.infrasp1 = split.infrasp_epithet

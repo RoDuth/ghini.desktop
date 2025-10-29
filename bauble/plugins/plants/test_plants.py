@@ -8438,6 +8438,28 @@ class GlobalFunctionsTest(PlantTestCase):
                 species_author="(A.B.Jacks. & Dallim.) Garland & Gerry Moore",
             ),
         )
+        # translates
+        self.assertEqual(
+            split_taxon_full_name(
+                "Ficus rubiginosa Desf. ex Vent. forma rubiginosa"
+            ),
+            Taxon(
+                genus="Ficus",
+                species="rubiginosa",
+                species_author="Desf. ex Vent.",
+                infrasp_rank="f.",
+                infrasp_epithet="rubiginosa",
+            ),
+        )
+        self.assertEqual(
+            split_taxon_full_name("Acmena hemilampra ssp. hemilampra"),
+            Taxon(
+                genus="Acmena",
+                species="hemilampra",
+                infrasp_rank="subsp.",
+                infrasp_epithet="hemilampra",
+            ),
+        )
 
 
 class GenusCompletionTests(PlantTestCase):
