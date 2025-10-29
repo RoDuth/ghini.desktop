@@ -2605,11 +2605,14 @@ class HistoryCommandHandler(pluginmgr.CommandHandler):
 pluginmgr.register_command(HistoryCommandHandler)
 
 
-def select_in_search_results(obj) -> Gtk.TreeIter:
+def select_in_search_results(obj, expand_current_first=False) -> Gtk.TreeIter:
     """Search the tree model for obj if it exists then select it if not
     then add it and select it.
 
     :param obj: the object the select
+    :param expand_current_first: if True and the current selection has
+        children then expand it first before searching/adding obj (intended for
+        use in infoboxes where the current selection is known)
     :return: a Gtk.TreeIter to the selected row
     """
     check(obj is not None, "select_in_search_results: arg is None")
@@ -2621,6 +2624,20 @@ def select_in_search_results(obj) -> Gtk.TreeIter:
             "select_in_search_results called when current view is not "
             "SearchView."
         )
+
+    if expand_current_first:
+        selected = view.get_selected_values()
+        if (
+            selected
+            and len(selected) == 1
+            and view.row_meta[type(selected[0])].children is not None
+        ):
+            model = view.results_view.get_model()
+            found = utils.search_tree_model(model, selected[0])
+            if found and model:
+                path = model.get_path(found[0])
+                view.on_test_expand_row(view.results_view, found[0], path)
+                view.results_view.expand_to_path(path)
 
     logger.debug(
         "select_in_search_results %s is in session %s",

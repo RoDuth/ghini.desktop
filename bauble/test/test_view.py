@@ -3590,6 +3590,29 @@ class GlobalFunctionsTests(BaubleTestCase):
         self.assertEqual(end[0].id, obj.id)
         search_view.cancel_threads()
 
+    def test_select_in_search_results_selects_expand_first(self):
+        for func in get_setUp_data_funcs():
+            func()
+        search_view = get_search_view()
+        search_view.history_action = mock.Mock()
+        search_view.search("genus where id <= 3")
+        start = search_view.get_selected_values()
+        obj = self.session.query(start[0].__class__).get(3)
+        sp = obj.species[0]
+        with mock.patch("bauble.gui") as mock_gui:
+            mock_gui.get_view.return_value = search_view
+            obj_iter = select_in_search_results(obj)
+            select_in_search_results(sp, expand_current_first=True)
+
+        path = search_view.results_view.get_model().get_path(obj_iter)
+        end = search_view.get_selected_values()
+
+        self.assertTrue(search_view.results_view.row_expanded(path))
+        self.assertNotEqual(start, end)
+        self.assertEqual(end[0].id, sp.id)
+
+        search_view.cancel_threads()
+
     def test_select_in_search_results_adds_not_existing(self):
         for func in get_setUp_data_funcs():
             func()

@@ -5725,6 +5725,33 @@ class GeneralSpeciesExpanderTests(BaubleTestCase):
                     f" <big>{sp.markup(authors=True, genus=False)}</big>",
                 )
 
+    @mock.patch("bauble.plugins.plants.species.select_in_search_results")
+    def test_plant_selector_selects_plant(self, mock_select):
+        for func in get_setUp_data_funcs():
+            func()
+
+        from ..garden import Accession
+
+        sp = self.session.query(Species).join(Accession).join(Plant).first()
+
+        filename = os.path.join(
+            paths.lib_dir(), "plugins", "plants", "infoboxes.glade"
+        )
+        widgets = utils.BuilderWidgets(filename)
+        with mock.patch("bauble.gui"):
+            expander = GeneralSpeciesExpander(widgets)
+            expander.update(sp)
+            first_ebox = expander.widgets.plant_locations_box.get_children()[0]
+            first_ebox.emit("button_press_event", None)
+            first_ebox.emit("button_release_event", None)
+            calls = mock_select.call_args_list
+
+            self.assertEqual(len(calls), 2)
+            self.assertEqual(calls[0].args, (sp.accessions[0],))
+            self.assertEqual(calls[0].kwargs, {"expand_current_first": True})
+            self.assertEqual(calls[1].args, (sp.accessions[0].plants[0],))
+            self.assertEqual(calls[1].kwargs, {"expand_current_first": True})
+
     def test_on_areas_expanded(self):
         self.assertFalse(
             prefs.prefs.get(GeneralSpeciesExpander.AREAS_EXPANDED_PREF)

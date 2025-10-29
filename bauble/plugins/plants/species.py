@@ -810,14 +810,48 @@ class GeneralSpeciesExpander(DistMapInfoExpanderMixin, InfoExpander):
                 "sp_nplants_data", f"{nplants} in {nacc_in_plants} accessions"
             )
 
-        living_plants = sum(
-            i.quantity
-            for i in session.query(Plant)
+        plants = (
+            session.query(Plant)
             .join("accession", "species")
             .filter_by(id=row.id)
             .all()
         )
+
+        living_plants = sum(i.quantity for i in plants)
         self.widget_set_value("living_plants_count", living_plants)
+
+        self.widgets.plant_locations_box.foreach(
+            self.widgets.plant_locations_box.remove
+        )
+
+        def plant_selector(data):
+            acc, plt = data
+            select_in_search_results(acc, expand_current_first=True)
+            select_in_search_results(plt, expand_current_first=True)
+
+        on_clicked = utils.generate_on_clicked(plant_selector)
+
+        sep = ""
+
+        for plant in plants:
+            if sep:
+                label = Gtk.Label(label=sep)
+                self.widgets.plant_locations_box.pack_start(
+                    label, False, False, 0
+                )
+            loc = plant.location
+            event_box = Gtk.EventBox()
+            label = Gtk.Label(label=f"{loc.code}")
+            label.set_halign(Gtk.Align.START)
+            event_box.add(label)
+
+            utils.make_label_clickable(
+                label, on_clicked, (plant.accession, plant)
+            )
+            self.widgets.plant_locations_box.pack_start(
+                event_box, False, False, 0
+            )
+            sep = ", "
 
         for column in self.custom_columns:
             self.widget_set_value(column + "_data", getattr(row, column))
