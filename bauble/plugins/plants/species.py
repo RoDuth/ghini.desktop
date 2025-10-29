@@ -813,6 +813,7 @@ class GeneralSpeciesExpander(DistMapInfoExpanderMixin, InfoExpander):
         plants = (
             session.query(Plant)
             .join("accession", "species")
+            .filter(Plant.quantity > 0)
             .filter_by(id=row.id)
             .all()
         )
