@@ -275,14 +275,21 @@ class TagMenuTests(BaubleTestCase):
 
         query = self.session.query(Tag)
         apply, remove = _TagsMenuManager._apply_remove_tags([fam, fam2], query)
-        self.assertCountEqual(remove, [tag1])
-        self.assertCountEqual(apply, [tag1, tag2, tag3])
+        self.assertEqual(remove, [tag1])
+        self.assertEqual(apply, [tag2, tag3, tag1])
 
         tag1.tag_objects([fam2])
         self.session.commit()
         apply, remove = _TagsMenuManager._apply_remove_tags([fam, fam2], query)
-        self.assertCountEqual(remove, [tag1])
-        self.assertCountEqual(apply, [tag2, tag3])
+        self.assertEqual(remove, [tag1])
+        self.assertEqual(apply, [tag2, tag3])
+
+        tag3.tag_objects([fam2])
+        self.session.commit()
+        apply, remove = _TagsMenuManager._apply_remove_tags([fam, fam2], query)
+        print([i.tag for i in apply])
+        self.assertEqual(remove, [tag3, tag1])
+        self.assertEqual(apply, [tag2, tag3])
 
     @mock.patch("bauble.gui")
     def test_toggle_tag_not_search_view_bails(self, mock_gui):

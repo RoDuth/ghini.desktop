@@ -241,7 +241,7 @@ class _TagsMenuManager:
     @staticmethod
     def _apply_remove_tags(
         selected: Sequence[db.Domain], query: Query
-    ) -> tuple[set[Tag], set[Tag]]:
+    ) -> tuple[list[Tag], list[Tag]]:
         all_tagged = None
         remove_tags = set()
         for item in selected:
@@ -260,7 +260,10 @@ class _TagsMenuManager:
         for tag in query:
             apply_tags.add(tag)
 
-        return apply_tags, remove_tags
+        def lower(tag: Tag) -> str:
+            return tag.tag.lower()
+
+        return sorted(apply_tags, key=lower), sorted(remove_tags, key=lower)
 
     def build_menu(self) -> Gio.Menu:
         """build tags menu based on current data."""
@@ -319,7 +322,7 @@ class _TagsMenuManager:
     def append_sections(self, tags_menu: Gio.Menu, query: Query) -> None:
         section = Gio.Menu()
 
-        for tag in query.order_by(Tag.tag):
+        for tag in query.order_by(func.lower(Tag.tag)):
             menu_item = Gio.MenuItem.new(
                 tag.tag.replace("_", "__"),
                 f"win.{self.ACTIVATED_ACTION_NAME}::{tag.tag}",
