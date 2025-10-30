@@ -31,7 +31,7 @@
 ; /D=PATH   Set $INSTDIR
 ;
 ; EXAMPLE:
-; ghini.desktop-1.0.??-setup.exe /S /AllUsers /C=A
+; Ghini-?.?.?-setup.exe /S /AllUsers /C=A
 ; A silent, system wide install, in the default location, with all components
 ;
 
@@ -56,18 +56,18 @@ Unicode true
 ;  GENERAL
 
 ; Global
-Name "ghini.desktop"
+!define PRODUCT_NAME "Ghini"
+Name "${PRODUCT_NAME}"
 !define VERSION "1.3.15" ; :bump
 !define SRC_DIR "..\dist\ghini"
 !define JRE_SRC_DIR "..\jre"
 !define FOP_SRC_DIR "..\fop-$%fop_ver%"
 
-!define PRODUCT_NAME "ghini.desktop"
 Outfile "..\dist\${PRODUCT_NAME}-${VERSION}-setup.exe"
 !define PROGEXE "ghini.exe"
 !define LICENSE_FILE "LICENSE"
 !define README "README.rst"
-!define START_MENU "$SMPROGRAMS\${PRODUCT_NAME}"
+!define START_MENU_LINK "$SMPROGRAMS\${PRODUCT_NAME}.lnk"
 ; !define UNINSTALL_FILENAME "uninstall.exe"  ; is default value
 
 
@@ -180,13 +180,8 @@ Section "!ghini.desktop" SecMain
 
     ; add registry keys
     !insertmacro MULTIUSER_RegistryAddInstallInfo
-    ; create shortcuts
-    CreateDirectory "${START_MENU}"
-    CreateShortcut "${START_MENU}\${PRODUCT_NAME}.lnk" "$INSTDIR\${PROGEXE}" \
-        "" "$INSTDIR\${PROGEXE}" "" SW_SHOWNORMAL \
-        "" "Ghini biodiversity collection manager"
-    ; desktop shortcut
-    CreateShortCut "$DESKTOP\${PRODUCT_NAME}.lnk" "$INSTDIR\${PROGEXE}" \
+    ; menu shortcut
+    CreateShortcut "${START_MENU_LINK}" "$INSTDIR\${PROGEXE}" \
         "" "$INSTDIR\${PROGEXE}" "" SW_SHOWNORMAL \
         "" "Ghini biodiversity collection manager"
 
@@ -248,11 +243,9 @@ UninstallText "This will uninstall ${PRODUCT_NAME}."
 Section "Uninstall" SecUnMain
     ; Remove registry keys
     !insertmacro MULTIUSER_RegistryRemoveInstallInfo
-    Delete "${START_MENU}\*.*"
-    Delete "$DESKTOP\${PRODUCT_NAME}.lnk"
+    Delete "${START_MENU_LINK}"
     SetOutPath $TEMP
     RMDir /r "$INSTDIR"
-    RMDir /r "${START_MENU}"
 SectionEnd
 
 ; should be the last section
@@ -266,9 +259,8 @@ SectionEnd
 ;  SECTION DESCRIPTIONS
 
 ; Language Strings
-LangString DESC_SecMain ${LANG_ENGLISH} "Ghini.desktop - biodiversity collection manager - this is the main component \
-                                        (required)"
-LangString DESC_SecOPs ${LANG_ENGLISH} "Optional extras that you may need to get the most out of ghini.desktop."
+LangString DESC_SecMain ${LANG_ENGLISH} "Ghini - biodiversity collection manager - this is the main component (required)"
+LangString DESC_SecOPs ${LANG_ENGLISH} "Optional extras that you may need to get the most out of Ghini."
 LangString DESC_SecFOP ${LANG_ENGLISH} "Apache FOP is required for XSL report templates. (Java RE is required to use)"
 LangString DESC_SecJRE ${LANG_ENGLISH} "A minimal Java RE as required by FOP XSL report formatter. If you already have \
                                         java installed you do not need this."
