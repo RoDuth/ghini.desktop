@@ -38,6 +38,7 @@ from collections.abc import Iterable
 from functools import singledispatch
 from functools import wraps
 from pathlib import Path
+from string import capwords
 from typing import Any
 from typing import Literal
 from typing import Union
@@ -1942,3 +1943,44 @@ def get_temp_path():
     handle, name = tempfile.mkstemp()
     os.close(handle)
     return Path(name)
+
+
+SMALLS_WORDS = [
+    "A",
+    "An",
+    "And",
+    "As",
+    "At",
+    "By",
+    "Del",
+    "For",
+    "If",
+    "In",
+    "Of",
+    "On",
+    "Or",
+    "The",
+    "To",
+]
+
+
+SMALL_WORDS_MAP = {w: w.lower() for w in SMALLS_WORDS}
+
+
+def title_case(string: str) -> str:
+    """Return a string in title case."""
+    cap_string = capwords(string)
+    words = cap_string.split(" ")
+    print(words)
+
+    final = []
+
+    final.append(words[0])
+
+    if len(words) > 1:
+        final.extend([SMALL_WORDS_MAP.get(word, word) for word in words[1:-1]])
+        final.append(words[-1])
+
+    print(final)
+
+    return " ".join(final)

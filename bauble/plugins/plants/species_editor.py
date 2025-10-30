@@ -286,7 +286,13 @@ class SpeciesEntry(Gtk.Entry, Gtk.Editable):
 
 
 SPECIES_WEB_BUTTON_DEFS_PREFS = "web_button_defs.species"
+
 CAPITALISE_VNAMES_ON_PASTE_PREF_KEY = "species_editor.cap_vnames_on_paste"
+"""Preference key for capitalising vernacular names on paste.
+
+Values: 'title', 'capword'
+(Defaults to 'title', any other value, e.g. 'off', disables capitalisation)
+"""
 
 
 class SpeciesEditorPresenter(
@@ -1949,17 +1955,33 @@ class VernacularNamePresenter(editor.GenericEditorPresenter):
         cell.set_property("active", False)
 
     @staticmethod
-    def on_vernacular_name_paste(entry):
+    def on_vernacular_name_paste(entry: Gtk.Entry) -> None:
+        """Handler for pasting into the vernacular name entry.
+
+        Capitalises the pasted text according to user preferences.
+        If user has disabled capitilisation the text is left exactly as is
+        otherwise removes erroneous whitespace and capitalise the text.
+        """
+
+        capitalise = prefs.prefs.get(
+            CAPITALISE_VNAMES_ON_PASTE_PREF_KEY,
+            "title",
+        )
+
+        if capitalise not in ("title", "capwords"):
+            return
 
         def _cap(entry):
             string = entry.get_text()
-            cap_string = capwords(string)
+            if capitalise == "title":
+                cap_string = utils.title_case(string)
+            else:
+                cap_string = capwords(string)
 
             if string != cap_string:
                 entry.set_text(cap_string)
 
-        if prefs.prefs.get(CAPITALISE_VNAMES_ON_PASTE_PREF_KEY, True):
-            GLib.idle_add(_cap, entry)
+        GLib.idle_add(_cap, entry)
 
     def init_treeview(self, model):
         """Initialized the list of vernacular names.

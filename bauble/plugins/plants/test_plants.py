@@ -7852,20 +7852,67 @@ class VernacularNamePresenterTests(PlantTestCase):
         del presenter
 
     def test_on_vernacular_name_paste(self):
+        # title_case default
         entry = Gtk.Entry()
         entry.set_text("spam-eggs ham")
-        prefs.prefs[CAPITALISE_VNAMES_ON_PASTE_PREF_KEY] = True
         VernacularNamePresenter.on_vernacular_name_paste(entry)
         update_gui()
 
         self.assertEqual(entry.get_text(), "Spam-eggs Ham")
 
-        entry.set_text("spam-eggs ham")
-        prefs.prefs[CAPITALISE_VNAMES_ON_PASTE_PREF_KEY] = False
+        entry.set_text("spam, eggs and ham on toast")
         VernacularNamePresenter.on_vernacular_name_paste(entry)
         update_gui()
 
-        self.assertEqual(entry.get_text(), "spam-eggs ham")
+        self.assertEqual(entry.get_text(), "Spam, Eggs and Ham on Toast")
+
+        # disabled
+        entry.set_text(" spam-eggs\n ham ")
+        prefs.prefs[CAPITALISE_VNAMES_ON_PASTE_PREF_KEY] = "off"
+        VernacularNamePresenter.on_vernacular_name_paste(entry)
+        update_gui()
+
+        self.assertEqual(entry.get_text(), " spam-eggs\n ham ")
+
+        # capwords
+        entry.set_text(" spam, eggs and   ham\n on toast ")
+        prefs.prefs[CAPITALISE_VNAMES_ON_PASTE_PREF_KEY] = "capwords"
+        VernacularNamePresenter.on_vernacular_name_paste(entry)
+        update_gui()
+
+        self.assertEqual(entry.get_text(), "Spam, Eggs And Ham On Toast")
+
+        # title_case set
+        prefs.prefs[CAPITALISE_VNAMES_ON_PASTE_PREF_KEY] = "title"
+        entry.set_text(" spam, eggs and \n ham on ")
+        VernacularNamePresenter.on_vernacular_name_paste(entry)
+        update_gui()
+
+        self.assertEqual(entry.get_text(), "Spam, Eggs and Ham On")
+
+        entry.set_text(" spam ")
+        VernacularNamePresenter.on_vernacular_name_paste(entry)
+        update_gui()
+
+        self.assertEqual(entry.get_text(), "Spam")
+
+        entry.set_text("spam and")
+        VernacularNamePresenter.on_vernacular_name_paste(entry)
+        update_gui()
+
+        self.assertEqual(entry.get_text(), "Spam And")
+
+        entry.set_text("and spam")
+        VernacularNamePresenter.on_vernacular_name_paste(entry)
+        update_gui()
+
+        self.assertEqual(entry.get_text(), "And Spam")
+
+        entry.set_text("if")
+        VernacularNamePresenter.on_vernacular_name_paste(entry)
+        update_gui()
+
+        self.assertEqual(entry.get_text(), "If")
 
     def test_generic_data_func(self):
         mock_parent = mock.Mock()
