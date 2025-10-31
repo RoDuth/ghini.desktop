@@ -68,7 +68,7 @@ Outfile "..\dist\${PRODUCT_NAME}-${VERSION}-setup.exe"
 !define LICENSE_FILE "LICENSE"
 !define README "README.rst"
 !define START_MENU_LINK "$SMPROGRAMS\${PRODUCT_NAME}.lnk"
-; !define UNINSTALL_FILENAME "uninstall.exe"  ; is default value
+!define UNINSTALL_KEY "SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall"
 
 
 ;------------------------------
@@ -167,6 +167,18 @@ InstType "Full"
 Section "!ghini.desktop" SecMain
 
     SectionIN 1 2
+
+    ; Uninstall any previous versions silently
+    ReadRegStr $R0 SHCTX "${UNINSTALL_KEY}\${PRODUCT_NAME}" "UninstallString"
+    ${IfNot} ${Errors}
+        ExecWait '"$R0" /S'
+        ClearErrors
+    ${EndIf}
+    ReadRegStr $R0 SHCTX "${UNINSTALL_KEY}\ghini.desktop" "UninstallString"
+    ${IfNot} ${Errors}
+        ExecWait '"$R0" /S'
+        ClearErrors
+    ${EndIf}
 
     ; Install Files
     SetOutPath "$INSTDIR"
