@@ -35,6 +35,20 @@
 ; A silent, system wide install, in the default location, with all components
 ;
 
+; NOTE TO SELF for debugging something like this can be useful
+; define a variable towards top:
+;
+; Var logfile
+;
+; Then where you want to know a value (e.g. $R0 here):
+;
+;    FileOpen $logfile "nsislog.txt" a
+;    fileWrite $logfile "value :"
+;    FileWrite $logfile $R0
+;    FileClose $logfile
+;
+; should leave a nsislog.txt file next to the installer
+
 ;---
 ; Generate a unicode installer, best set first
 Unicode true
