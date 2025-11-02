@@ -169,16 +169,7 @@ Section "!ghini.desktop" SecMain
     SectionIN 1 2
 
     ; Uninstall any previous versions silently
-    ReadRegStr $R0 SHCTX "${UNINSTALL_KEY}\${PRODUCT_NAME}" "UninstallString"
-    ${IfNot} ${Errors}
-        ExecWait '"$R0" /S'
-        ClearErrors
-    ${EndIf}
-    ReadRegStr $R0 SHCTX "${UNINSTALL_KEY}\ghini.desktop" "UninstallString"
-    ${IfNot} ${Errors}
-        ExecWait '"$R0" /S'
-        ClearErrors
-    ${EndIf}
+    Call UninstallPrevious
 
     ; Install Files
     SetOutPath "$INSTDIR"
@@ -298,6 +289,27 @@ FunctionEnd
 Function SkipFOPLicense
     ${IfNot} ${SectionIsSelected} ${SecFOP}
         Abort ;skip license if FOP not selected
+    ${EndIf}
+FunctionEnd
+
+Function UninstallPrevious
+    ; new
+    ReadRegStr $R0 SHCTX "${UNINSTALL_KEY}\${PRODUCT_NAME}" "QuietUninstallString"
+    ${IfNot} ${Errors}
+        ReadRegStr $R1 SHCTX "${UNINSTALL_KEY}\${PRODUCT_NAME}" "InstallLocation"
+        ${If} ${FileExists} "$R1\uninstall.exe"
+            ExecWait '$R0 _?=$R1'
+            RMDir /r "$R1"
+        ${EndIf}
+    ${EndIf}
+    ; old
+    ReadRegStr $R0 SHCTX "${UNINSTALL_KEY}\ghini.desktop" "QuietUninstallString"
+    ${IfNot} ${Errors}
+        ReadRegStr $R1 SHCTX "${UNINSTALL_KEY}\ghini.desktop" "InstallLocation"
+        ${If} ${FileExists} "$R1\uninstall.exe"
+            ExecWait '$R0 _?=$R1'
+            RMDir /r "$R1"
+        ${EndIf}
     ${EndIf}
 FunctionEnd
 
