@@ -183,7 +183,8 @@ Section "!ghini.desktop" SecMain
 
     ; add registry keys
     !insertmacro MULTIUSER_RegistryAddInstallInfo
-    ; menu shortcut
+
+    ; add menu shortcut
     CreateShortcut "${START_MENU_LINK}" "$INSTDIR\${PROGEXE}" \
         "" "$INSTDIR\${PROGEXE}" "" SW_SHOWNORMAL \
         "" "Ghini biodiversity collection manager"
@@ -247,8 +248,12 @@ Section "Uninstall" SecUnMain
     ; Remove registry keys
     !insertmacro MULTIUSER_RegistryRemoveInstallInfo
     Delete "${START_MENU_LINK}"
+    ; remove components, XXX if this changes will need to be updated
+    Delete "$INSTDIR\ghini.exe"
+    RMDir /r "$INSTDIR\_internal"
     SetOutPath $TEMP
-    RMDir /r "$INSTDIR"
+    Delete "$INSTDIR\uninstall.exe"
+    RMDir "$INSTDIR"
 SectionEnd
 
 ; should be the last section
@@ -262,7 +267,8 @@ SectionEnd
 ;  SECTION DESCRIPTIONS
 
 ; Language Strings
-LangString DESC_SecMain ${LANG_ENGLISH} "Ghini - biodiversity collection manager - this is the main component (required)"
+LangString DESC_SecMain ${LANG_ENGLISH} "Ghini - biodiversity collection manager - this is the main component \
+                                         (required)"
 LangString DESC_SecOPs ${LANG_ENGLISH} "Optional extras that you may need to get the most out of Ghini."
 LangString DESC_SecFOP ${LANG_ENGLISH} "Apache FOP is required for XSL report templates. (Java RE is required to use)"
 LangString DESC_SecJRE ${LANG_ENGLISH} "A minimal Java RE as required by FOP XSL report formatter. If you already have \
@@ -299,7 +305,9 @@ Function UninstallPrevious
         ReadRegStr $R1 SHCTX "${UNINSTALL_KEY}\${PRODUCT_NAME}" "InstallLocation"
         ${If} ${FileExists} "$R1\uninstall.exe"
             ExecWait '$R0 _?=$R1'
-            RMDir /r "$R1"
+            Delete "$R1\uninstall.exe"
+            RMDir "$R1"
+            Sleep 100  ; wait for RMDir
         ${EndIf}
     ${EndIf}
     ; old
@@ -308,7 +316,8 @@ Function UninstallPrevious
         ReadRegStr $R1 SHCTX "${UNINSTALL_KEY}\ghini.desktop" "InstallLocation"
         ${If} ${FileExists} "$R1\uninstall.exe"
             ExecWait '$R0 _?=$R1'
-            RMDir /r "$R1"
+            Delete "$R1\uninstall.exe"
+            RMDir "$R1"
         ${EndIf}
     ${EndIf}
 FunctionEnd
