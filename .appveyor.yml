@@ -39,7 +39,6 @@ for:
   build_script:
     - python3.13 -m venv --system-site-packages ~/venv3.13
     - . ~/venv3.13/bin/activate
-    - pip install git+https://github.com/pyinstaller/pyinstaller.git@develop
     - pip install '.[ci]'
     - pyinstaller --clean --noconfirm scripts/ghini.spec
     - pip install dmgbuild==1.6.1
@@ -69,7 +68,6 @@ for:
     # wheels cache
     - bash -lc "pip wheel dukpy --wheel-dir wheels --find-links wheels"
     - bash -lc "pip wheel 'SQLAlchemy<2.0' --wheel-dir wheels --find-links wheels"
-    - bash -lc "pip install git+https://github.com/pyinstaller/pyinstaller.git@develop"
     - dir wheels
 
   build_script:
