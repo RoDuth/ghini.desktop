@@ -34,6 +34,7 @@ import gi
 
 gi.require_version("Gdk", "3.0")
 gi.require_version("Gtk", "3.0")
+gi.require_version("Gspell", "1")
 
 from bauble import paths
 from bauble.version import version

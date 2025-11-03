@@ -5,6 +5,8 @@ mingw-w64-ucrt-x86_64-python-wheel
 mingw-w64-ucrt-x86_64-python-lxml
 mingw-w64-ucrt-x86_64-python-pillow
 mingw-w64-ucrt-x86_64-gtk3
+mingw-w64-ucrt-x86_64-gspell
+mingw-w64-ucrt-x86_64-aspell-en
 mingw-w64-ucrt-x86_64-python-gobject
 mingw-w64-ucrt-x86_64-python-psycopg2
 mingw-w64-ucrt-x86_64-python-pyproj

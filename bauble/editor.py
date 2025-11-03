@@ -39,6 +39,7 @@ from gi.repository import GdkPixbuf
 from gi.repository import Gio
 from gi.repository import GLib
 from gi.repository import GObject
+from gi.repository import Gspell
 from gi.repository import Gtk
 from lxml import etree
 from sqlalchemy.orm import object_mapper
@@ -2304,6 +2305,21 @@ class NoteBox(GenericNoteBox, Gtk.Box):
     note_textview = Gtk.Template.Child()
 
     note_attr = "note"
+
+    def __init__(self, presenter, model=None):
+        super().__init__(presenter, model)
+        spell_view = Gspell.TextView.get_from_gtk_text_view(self.note_textview)
+        spell_view.basic_setup()
+        # pylint: disable=no-value-for-parameter
+        logger.debug(
+            "Available Gspell languages %s",
+            ", ".join(i.get_code() for i in Gspell.language_get_available()),
+        )
+        logger.debug(
+            "Default language = %s",
+            Gspell.language_get_default()
+            and Gspell.language_get_default().get_code(),
+        )
 
     def set_content(self, text):
         buff = Gtk.TextBuffer()

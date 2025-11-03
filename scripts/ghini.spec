@@ -62,6 +62,7 @@ a = Analysis(['ghini'],
                  'pyproj',
                  'pyodbc',
              ],   # noqa
+             hookspath=['./scripts/extra-hooks/'],
              hooksconfig={"gi": {
                  "icons": ["Adwaita"],
                  "themes": ["Adwaita"],
