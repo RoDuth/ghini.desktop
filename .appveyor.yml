@@ -73,6 +73,9 @@ for:
   build_script:
     - bash -lc "pip install '.[ci]' --find-links wheels"
     - bash -lc "python -m PyInstaller --clean --noconfirm scripts/ghini.spec"
+    # account for libenchant's need for providers being in ../lib/enchant-2 relative to itself
+    - bash -lc "mkdir dist/ghini/lib"
+    - bash -lc "mv dist/ghini/_internal/lib/enchant-2 dist/ghini/lib"
     - if not exist jre\ for /f %%i in ('dir "C:\Program Files\OpenJDK\jdk*" /b') do "C:\Program Files"\OpenJDK\%%i\bin\jlink --output jre --add-modules java.base,java.logging,java.desktop,java.xml
     - dir jre
     - if not exist fop-%fop_ver%\ bash -lc "scripts/get_fop.sh"

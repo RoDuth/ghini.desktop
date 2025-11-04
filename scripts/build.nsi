@@ -265,6 +265,7 @@ Section "Uninstall" SecUnMain
     ; remove components, XXX if this changes will need to be updated
     Delete "$INSTDIR\ghini.exe"
     RMDir /r "$INSTDIR\_internal"
+    RMDir /r "$INSTDIR\lib"
     SetOutPath $TEMP
     Delete "$INSTDIR\uninstall.exe"
     RMDir "$INSTDIR"

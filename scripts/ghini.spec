@@ -68,7 +68,7 @@ a = Analysis(['ghini'],
                  "themes": ["Adwaita"],
                  "languages": ["en_GB", "en_AU", "en_US"]
              }},
-             runtime_hooks=[],
+             runtime_hooks=['./scripts/extra-hooks/pyi_rth_gspell.py'],
              excludes=[],
              win_no_prefer_redirects=False,
              win_private_assemblies=False,
