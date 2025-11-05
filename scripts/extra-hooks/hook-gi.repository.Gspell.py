@@ -13,6 +13,7 @@ if module_info.available:
         # windows will look for providers in ../lib/enchant-2 relative to the
         # enchant library. Pyinstaller puts libs in the root of the bundle. So
         # we will need to move them manually later for this to work.
+        # enchant_set_prefix_dir() is not working in the current mingw version.
         enchant_plugin_dir = os.path.join(msystem_prefix, "lib", "enchant-2")
         for f in glob.glob(os.path.join(enchant_plugin_dir, "*.dll")):
             binaries.append((f, "lib/enchant-2"))
@@ -27,9 +28,34 @@ if module_info.available:
             "enchant.ordering",
         )
         if os.path.isfile(enchant_ordering):
-            datas.append((enchant_ordering, "lib/enchant-2"))
+            datas.append((enchant_ordering, "share/enchant-2"))
 
         # Collect aspell dictionaries
         aspell_data_path = os.path.join(msystem_prefix, "lib", "aspell-0.60")
+        for f in glob.glob(os.path.join(aspell_data_path, "*.*")):
+            datas.append((f, "lib/aspell-0.60"))
+    else:
+        # Collect enchant providers
+        enchant_plugin_dir = os.path.join(
+            module_info.get_libdir(),
+            "enchant-2/",
+        )
+        for f in glob.glob(os.path.join(enchant_plugin_dir, "*.*")):
+            binaries.append((f, "lib/enchant-2"))
+
+        # Collect config files
+        enchant_configs = os.path.join(
+            module_info.get_libdir(),
+            "..",
+            "share",
+            "enchant-2",
+        )
+        for f in glob.glob(os.path.join(enchant_configs, "*.*")):
+            datas.append((f, "share/enchant-2"))
+
+        # Collect aspell dictionaries
+        aspell_data_path = os.path.join(
+            module_info.get_libdir(), "aspell-0.60"
+        )
         for f in glob.glob(os.path.join(aspell_data_path, "*.*")):
             datas.append((f, "lib/aspell-0.60"))
