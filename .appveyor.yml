@@ -63,6 +63,14 @@ for:
     - bash -lc "pacman --noconfirm -Syuu"  # Core update.  see: https://msys2.org/docs/ci/
     - bash -lc "pacman --noconfirm -Syuu"  # Normal update
     - bash -lc "pacman --noconfirm --needed -S - < ./scripts/mingw64_pkglist.txt"
+    # TEMP FIX for gspell - enchant
+    - bash -lc "mkdir enchant"
+    - bash -lc "cd enchant && curl -O https://raw.githubusercontent.com/RoDuth/MINGW-packages/refs/heads/enchant_set_prefix_dir_fix/mingw-w64-enchant/PKGBUILD"
+    - bash -lc "cd enchant && makepkg-mingw --cleanbuild --syncdeps --nocheck --force --install --noconfirm"
+    - bash -lc "mkdir gspell"
+    - bash -lc "cd gspell && curl -O https://raw.githubusercontent.com/RoDuth/MINGW-packages/refs/heads/enchant_set_prefix_dir_fix/mingw-w64-gspell/PKGBUILD"
+    - bash -lc "cd gspell && makepkg-mingw --cleanbuild --syncdeps --nocheck --force --install --noconfirm"
+    # END
     - bash -lc "python --version"
     - dir %WINDIR%\System32\msodbcsql*.dll
     # wheels cache
@@ -73,9 +81,6 @@ for:
   build_script:
     - bash -lc "pip install '.[ci]' --find-links wheels"
     - bash -lc "python -m PyInstaller --clean --noconfirm scripts/ghini.spec"
-    # account for libenchant's need for providers being in ../lib/enchant-2 relative to itself
-    - bash -lc "mkdir dist/ghini/lib"
-    - bash -lc "mv dist/ghini/_internal/lib/enchant-2 dist/ghini/lib"
     - if not exist jre\ for /f %%i in ('dir "C:\Program Files\OpenJDK\jdk*" /b') do "C:\Program Files"\OpenJDK\%%i\bin\jlink --output jre --add-modules java.base,java.logging,java.desktop,java.xml
     - dir jre
     - if not exist fop-%fop_ver%\ bash -lc "scripts/get_fop.sh"
