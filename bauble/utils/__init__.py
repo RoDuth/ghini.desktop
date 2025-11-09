@@ -1971,7 +1971,6 @@ def title_case(string: str) -> str:
     """Return a string in title case."""
     cap_string = capwords(string)
     words = cap_string.split(" ")
-    print(words)
 
     final = []
 
@@ -1980,7 +1979,5 @@ def title_case(string: str) -> str:
     if len(words) > 1:
         final.extend([SMALL_WORDS_MAP.get(word, word) for word in words[1:-1]])
         final.append(words[-1])
-
-    print(final)
 
     return " ".join(final)
