@@ -74,6 +74,7 @@ from bauble.view import SEARCH_REFRESH_PREF
 from bauble.view import BaubleLinkButton
 from bauble.view import DefaultCommandHandler
 from bauble.view import DefaultView
+from bauble.view import DocumentsBottomPage
 from bauble.view import HistoryView
 from bauble.view import HomeCommandHandler
 from bauble.view import InfoBox
@@ -3507,6 +3508,53 @@ class TestPicturesScroller(BaubleTestCase):
         mock_handler.assert_called_with(picture_scroller, mock_pic)
 
 
+class DocumentsBottomPageTests(BaubleTestCase):
+
+    def test_update_populates_makes_label_bold(self):
+        docs_page = DocumentsBottomPage()
+        now = datetime.now().date()
+
+        mock_note = mock.Mock(
+            date=now,
+            user="me",
+            category="foo",
+            note="bar",
+            document="test.pdf",
+        )
+        mock_row = mock.Mock(documents=[mock_note])
+
+        docs_page.update(mock_row)
+
+        self.assertEqual(len(docs_page.liststore), 1)
+        self.assertTrue(docs_page.label.get_use_markup())
+
+        mock_row = mock.Mock(documents=[])
+
+        docs_page.update(mock_row)
+
+        self.assertEqual(len(docs_page.liststore), 0)
+        self.assertFalse(docs_page.label.get_use_markup())
+
+    def test_on_note_row_activated(self):
+        docs_page = DocumentsBottomPage()
+        now = datetime.now().date()
+        mock_note = mock.Mock(
+            date=now,
+            user="me",
+            category="foo",
+            note="bar",
+            document="test.pdf",
+        )
+        mock_row = mock.Mock(documents=[mock_note])
+        docs_page.update(mock_row)
+        mock_send = mock.Mock()
+
+        docs_page.on_row_activated(None, 0, None, send_command=mock_send)
+        mock_send.assert_called_with(
+            "mock where documents.document='test.pdf'",
+        )
+
+
 class NotesBottomPageTests(BaubleTestCase):
 
     def test_update_populates_makes_label_bold(self):
@@ -3530,13 +3578,20 @@ class NotesBottomPageTests(BaubleTestCase):
 
     def test_on_note_row_activated(self):
         notes_page = NotesBottomPage()
-        notes_page.domain = "test"
-        notes_page.liststore.append([None, None, "cat", "note"])
+        now = datetime.now().date()
+        mock_note = mock.Mock(
+            date=now,
+            user="me",
+            category="spam",
+            note="eggs",
+        )
+        mock_row = mock.Mock(notes=[mock_note])
+        notes_page.update(mock_row)
         mock_send = mock.Mock()
 
         notes_page.on_row_activated(None, 0, None, send_command=mock_send)
         mock_send.assert_called_with(
-            "test where notes[category='cat'].note='note'",
+            "mock where notes[category='spam'].note='eggs'",
         )
 
 

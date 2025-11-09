@@ -2171,8 +2171,8 @@ class NotesBottomPage(Gtk.ScrolledWindow):
         send_command = send_command or bauble.gui.send_command
 
         row = self.liststore[path]  # pylint: disable=unsubscriptable-object
-        cat = None if row[2] == "" else repr(row[2])
-        note = repr(row[3])
+        cat = None if row[0] == "" else repr(row[0])
+        note = repr(row[1])
         logger.debug(
             "notes bottom page row_activated: domain=%s, cat=%s, note=%s",
             self.domain,
@@ -2185,6 +2185,93 @@ class NotesBottomPage(Gtk.ScrolledWindow):
 
 notes_bottom_page = NotesBottomPage()
 SearchView.bottom_pages.add((notes_bottom_page, notes_bottom_page.label))
+
+
+class Document(Protocol):  # pylint: disable=too-few-public-methods
+    date: datetime
+    user: str
+    category: str
+    note: str
+    document: str
+
+
+@Gtk.Template(filename=str(Path(paths.lib_dir(), "docs_page.ui")))
+class DocumentsBottomPage(Gtk.ScrolledWindow):
+    """Page to append to ``SearchView.bottom_notebook``, shows selected
+    object's documents.
+    """
+
+    __gtype_name__ = "DocumentsBottomPage"
+
+    treeview = cast(Gtk.TreeView, Gtk.Template.Child())
+    liststore = cast(Gtk.ListStore, Gtk.Template.Child())
+
+    LABEL_STR = _("Docs")
+    label = Gtk.Label(label=LABEL_STR)
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.domain: str = ""
+
+    def update(self, row: db.Domain) -> None:
+        logger.debug("update docs bottom page")
+
+        self.domain = row.__class__.__name__.lower() if row else ""
+
+        self.liststore.clear()
+
+        docs: list[Document] = []
+        if hasattr(row, "documents") and isinstance(row.documents, list):
+            docs = row.documents or docs
+
+        for doc in sorted(docs, key=lambda doc: doc.date, reverse=True):
+            date = doc.date.strftime(prefs.prefs.get(prefs.date_format_pref))
+            self.liststore.append(
+                (
+                    doc.category,
+                    doc.document,
+                    doc.note,
+                    doc.user,
+                    date,
+                )
+            )
+
+        if docs:
+            self.label.set_use_markup(True)
+            self.label.set_label(f"<b>{self.LABEL_STR}</b>")
+        else:
+            self.label.set_use_markup(False)
+            self.label.set_label(self.LABEL_STR)
+
+    @Gtk.Template.Callback()
+    def on_row_activated(
+        self,
+        _tree,
+        path: Gtk.TreePath,
+        _column,
+        *,
+        send_command: Callable[[str], None] | None = None,
+    ) -> None:
+        """When a row is double clicked run a search to find other items of the
+        same type with the same document.
+        """
+        send_command = send_command or bauble.gui.send_command
+
+        row = self.liststore[path]  # pylint: disable=unsubscriptable-object
+        cat = None if row[0] == "" else repr(row[0])
+        doc = repr(row[1])
+        logger.debug(
+            "docs bottom page row_activated: domain=%s, cat=%s, document=%s",
+            self.domain,
+            cat,
+            doc,
+        )
+
+        send_command(f"{self.domain} where documents.document={doc}")
+
+
+docs_bottom_page = DocumentsBottomPage()
+SearchView.bottom_pages.add((docs_bottom_page, docs_bottom_page.label))
 
 
 @Gtk.Template(filename=str(Path(paths.lib_dir(), "history_view.ui")))
