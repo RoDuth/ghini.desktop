@@ -729,6 +729,25 @@ class GeneralSpeciesExpander(DistMapInfoExpanderMixin, InfoExpander):
             habit = utils.nstr(row.habit)
         self.widget_set_value("sp_habit_data", habit)
 
+        if row.label_markup:
+            utils.unhide_widgets(
+                [
+                    self.widgets.sp_label_markup_label,
+                    self.widgets.sp_label_markup_data,
+                ]
+            )
+            self.widget_set_value(
+                "sp_label_markup_data", row.label_markup, markup=True
+            )
+        else:
+            utils.hide_widgets(
+                [
+                    self.widgets.sp_label_markup_label,
+                    self.widgets.sp_label_markup_data,
+                ]
+            )
+            self.widget_set_value("sp_label_markup_data", "--", markup=True)
+
         for child in self.widgets.dist_map_box.get_children():
             self.widgets.dist_map_box.remove(child)
         on_clicked = utils.generate_on_clicked(select_in_search_results)

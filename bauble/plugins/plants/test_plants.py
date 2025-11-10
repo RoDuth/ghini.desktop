@@ -5725,6 +5725,42 @@ class GeneralSpeciesExpanderTests(BaubleTestCase):
                     f" <big>{sp.markup(authors=True, genus=False)}</big>",
                 )
 
+    @mock.patch("bauble.gui")
+    def test_sp_label_markup(self, _mock_gui):
+        fam = Family(family="Asparagaceae")
+        gen = Genus(genus="Liriope", family=fam)
+        sp = Species(genus=gen, sp="muscari")
+        filename = os.path.join(
+            paths.lib_dir(), "plugins", "plants", "infoboxes.glade"
+        )
+        self.session.add(sp)
+        self.session.commit()
+        widgets = utils.BuilderWidgets(filename)
+        expander = GeneralSpeciesExpander(widgets)
+        markup = expander.widgets.sp_label_markup_data
+        full_sp_markup = expander.widgets.sp_epithet_data
+
+        expander.update(sp)
+
+        self.assertFalse(markup.get_visible())
+
+        sp.cultivar_epithet = "LIRF"
+        sp.trade_name = "Isabella"
+        sp.trademark_symbol = "®"
+        sp.label_markup = "<i>Liriope</i> I<small>SABELLA</small>®"
+
+        expander.update(sp)
+
+        self.assertTrue(markup.get_visible())
+        self.assertEqual(
+            full_sp_markup.get_label(),
+            " <big><i>muscari</i> 'LIRF' I<small>SABELLA</small>®</big>",
+        )
+        self.assertEqual(
+            markup.get_label(),
+            "<i>Liriope</i> I<small>SABELLA</small>®",
+        )
+
     @mock.patch("bauble.plugins.plants.species.select_in_search_results")
     def test_plant_selector_selects_plant(self, mock_select):
         for func in get_setUp_data_funcs():
