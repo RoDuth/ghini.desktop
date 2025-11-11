@@ -80,7 +80,6 @@ setUp_data.order = 2  # type: ignore [attr-defined]
 
 class TestPlugin(BaubleTestCase):
     def test_plugin_adds_bottom_page(self):
-        SearchView.bottom_pages.clear()
         plugin = TagPlugin()
 
         with mock.patch.object(SearchView, "bottom_pages") as mock_pages:

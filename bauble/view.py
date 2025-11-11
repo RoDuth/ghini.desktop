@@ -121,6 +121,8 @@ regularly
 EXPAND_ON_ACTIVATE_PREF = "bauble.search.expand_on_activate"
 """Preference key, should search view expand the item on double click"""
 
+BOTTOM_NOTEBOOK_PAGE_PREF = "bauble.search.bottom_page"
+
 
 class ViewThread(Protocol):
     def cancel(self) -> None: ...
@@ -958,7 +960,7 @@ class SearchView(View, Gtk.Box):
         # be cleared when we do a new search
         self.session = db.Session()
 
-        self._add_bottom_pages()
+        self._add_bottom_pages(prefs.prefs.get(BOTTOM_NOTEBOOK_PAGE_PREF, 0))
 
         self.actions: set[str] = set()
         self.context_menu_model = Gio.Menu()
@@ -986,11 +988,13 @@ class SearchView(View, Gtk.Box):
         widget = getattr(self, widget_name)
         widget.connect(signal, handler)
 
-    def _add_bottom_pages(self) -> None:
+    def _add_bottom_pages(self, selected_page: int = 0) -> None:
         for page, label in sorted(
             self.bottom_pages, key=lambda i: i[1].get_text()
         ):
             self.bottom_notebook.append_page(page, label)
+
+        self.bottom_notebook.set_current_page(selected_page)
 
     def _remove_bottom_pages(self) -> None:
         for page, _label in sorted(
@@ -2090,7 +2094,7 @@ class SearchView(View, Gtk.Box):
                     self._select_child_from_picture(picture, kid, model)
 
     def on_destroy(self, _info_pane) -> None:
-        """Save pic_pane size and selected page state."""
+        """Save bottom_notebook page and pic_pane size and page."""
 
         width = self.pic_pane.get_position()
         logger.debug("setting PIC_PANE_WIDTH_PREF to %s", width)
@@ -2099,6 +2103,10 @@ class SearchView(View, Gtk.Box):
         selected = self.pic_pane_notebook.get_current_page()
         logger.debug("setting PIC_PANE_PAGE_PREF to %s", selected)
         prefs.prefs[PIC_PANE_PAGE_PREF] = selected
+
+        bottom_page_num = self.bottom_notebook.get_current_page()
+        prefs.prefs[BOTTOM_NOTEBOOK_PAGE_PREF] = bottom_page_num
+        self._remove_bottom_pages()
 
 
 def get_search_view_selected() -> list[db.Domain] | None:

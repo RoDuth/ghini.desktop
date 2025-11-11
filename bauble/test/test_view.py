@@ -64,6 +64,7 @@ from bauble.test import update_gui
 from bauble.test import wait_on_threads
 from bauble.view import _MAINSTR_TMPL
 from bauble.view import _SUBSTR_TMPL
+from bauble.view import BOTTOM_NOTEBOOK_PAGE_PREF
 from bauble.view import EXPAND_ON_ACTIVATE_PREF
 from bauble.view import INFOBOXPAGE_WIDTH_PREF
 from bauble.view import PIC_PANE_PAGE_PREF
@@ -2106,12 +2107,28 @@ class TestSearchView(BaubleTestCase):
         search_view.pic_pane_notebook.show_all()
         # NOTE can't set current page until after show_all
         search_view.pic_pane_notebook.set_current_page(1)
+        search_view.bottom_notebook.set_current_page(1)
         search_view.destroy()
 
         self.assertEqual(prefs.prefs.get(PIC_PANE_WIDTH_PREF), 100)
         self.assertEqual(prefs.prefs.get(PIC_PANE_PAGE_PREF), 1)
+        self.assertEqual(prefs.prefs[BOTTOM_NOTEBOOK_PAGE_PREF], 1)
 
         # teardown
+        self.search_view._remove_bottom_pages()
+        self.search_view._add_bottom_pages()
+
+    def test_add_bottom_pages_sets_page(self):
+        # _remove_bottom_pages will reset the pref
+        self.search_view._remove_bottom_pages()
+        self.search_view._add_bottom_pages(1)
+
+        self.assertEqual(
+            self.search_view.bottom_notebook.get_current_page(),
+            1,
+        )
+        self.assertEqual(self.search_view.bottom_notebook.get_n_pages(), 3)
+
         self.search_view._remove_bottom_pages()
         self.search_view._add_bottom_pages()
 
