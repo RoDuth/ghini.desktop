@@ -151,48 +151,15 @@
                     <property name="orientation">vertical</property>
                     <property name="spacing">15</property>
                     <child>
-                      <object class="GtkBox">
+                      <object class="GtkLabel" id="sp_fullname_label">
                         <property name="visible">True</property>
                         <property name="can-focus">False</property>
-                        <child>
-                          <object class="GtkLabel" id="sp_fullname_label">
-                            <property name="visible">True</property>
-                            <property name="can-focus">False</property>
-                            <property name="xpad">3</property>
-                            <property name="ypad">15</property>
-                            <property name="label">--</property>
-                            <property name="wrap">True</property>
-                            <property name="selectable">True</property>
-                            <property name="xalign">0</property>
-                          </object>
-                          <packing>
-                            <property name="expand">True</property>
-                            <property name="fill">True</property>
-                            <property name="position">0</property>
-                          </packing>
-                        </child>
-                        <child>
-                          <object class="GtkMenuButton" id="link_menu_btn">
-                            <property name="visible">True</property>
-                            <property name="sensitive">False</property>
-                            <property name="can-focus">True</property>
-                            <property name="focus-on-click">False</property>
-                            <property name="receives-default">True</property>
-                            <property name="valign">center</property>
-                            <child>
-                              <object class="GtkImage">
-                                <property name="visible">True</property>
-                                <property name="can-focus">False</property>
-                                <property name="icon-name">open-menu-symbolic</property>
-                              </object>
-                            </child>
-                          </object>
-                          <packing>
-                            <property name="expand">False</property>
-                            <property name="fill">False</property>
-                            <property name="position">1</property>
-                          </packing>
-                        </child>
+                        <property name="xpad">3</property>
+                        <property name="ypad">15</property>
+                        <property name="label">--</property>
+                        <property name="wrap">True</property>
+                        <property name="selectable">True</property>
+                        <property name="xalign">0</property>
                       </object>
                       <packing>
                         <property name="expand">True</property>
@@ -1775,6 +1742,23 @@
                     <property name="position">3</property>
                     <property name="tab-fill">False</property>
                   </packing>
+                </child>
+                <child type="action-end">
+                  <object class="GtkMenuButton" id="link_menu_btn">
+                    <property name="visible">True</property>
+                    <property name="sensitive">False</property>
+                    <property name="can-focus">True</property>
+                    <property name="focus-on-click">False</property>
+                    <property name="receives-default">True</property>
+                    <property name="valign">center</property>
+                    <child>
+                      <object class="GtkImage">
+                        <property name="visible">True</property>
+                        <property name="can-focus">False</property>
+                        <property name="icon-name">open-menu-symbolic</property>
+                      </object>
+                    </child>
+                  </object>
                 </child>
               </object>
               <packing>

@@ -1895,6 +1895,15 @@ class PresenterLinksMixin:
             menu_has_items = True
 
         menu_btn: Gtk.MenuButton = self.view.widgets.link_menu_btn
+
+        menu_btn.set_tooltip_text(
+            "Links Menu - the items here are a selection of the Links "
+            "available in the search results view info box (right hand pane) "
+            "for the same type.  You can include others by adding:\n"
+            "\t'editor_button': True\n"
+            "to their definitions in the preferences."
+        )
+
         if menu_has_items:
             menu_btn.set_menu_model(menu)
             menu_btn.insert_action_group(action_name, action_group)
