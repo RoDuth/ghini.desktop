@@ -27,6 +27,7 @@ import os
 import re
 import traceback
 from ast import literal_eval
+from typing import cast
 
 logger = logging.getLogger(__name__)
 
@@ -36,7 +37,10 @@ from pyparsing import ParseResults
 from pyparsing import Regex
 from pyparsing import Word
 from pyparsing import srange
+from sqlalchemy import and_
+from sqlalchemy import func
 from sqlalchemy import or_
+from sqlalchemy import select
 from sqlalchemy.orm import Query
 from sqlalchemy.orm import Session
 from sqlalchemy.orm.session import object_session
@@ -558,6 +562,9 @@ class SynonymsExpander(InfoExpander):
             self.set_sensitive(True)
 
 
+on_clicked_search = utils.generate_on_clicked(bauble.gui.send_command)
+
+
 class GeneralSpeciesExpander(DistMapInfoExpanderMixin, InfoExpander):
     """expander to present general information about a species"""
 
@@ -663,7 +670,6 @@ class GeneralSpeciesExpander(DistMapInfoExpanderMixin, InfoExpander):
             ("ser.", "sp_series_detail", "series"),
             ("subser.", "sp_subseries_detail", "subseries"),
         )
-        on_clicked_search = utils.generate_on_clicked(bauble.gui.send_command)
         step = 0
         for abv, widget_name, attr in details:
             widget = self.widgets[widget_name]
@@ -877,6 +883,59 @@ class GeneralSpeciesExpander(DistMapInfoExpanderMixin, InfoExpander):
 
         for column in self.custom_columns:
             self.widget_set_value(column + "_data", getattr(row, column))
+
+        self.update_verifications(row)
+
+    def update_verifications(self, row: Species) -> None:
+        from ..garden.accession import Verification
+
+        box = self.widgets.verifications_box
+        box.foreach(box.remove)
+
+        new = 0
+        prev = 0
+        with db.engine.begin() as connection:
+            stmt = (
+                select(func.count())
+                .select_from(Verification.__table__)
+                .where(
+                    and_(
+                        Verification.prev_species_id == row.id,
+                        Verification.species_id != row.id,
+                    )
+                )
+            )
+            prev = cast(int, connection.execute(stmt).scalar())
+            stmt = (
+                select(func.count())
+                .select_from(Verification.__table__)
+                .where(Verification.species_id == row.id)
+            )
+            new = cast(int, connection.execute(stmt).scalar())
+
+        if new or prev:
+            event_box = Gtk.EventBox()
+            label = Gtk.Label(label=f"{prev} prev.")
+            event_box.add(label)
+            box.add(event_box)
+            utils.make_label_clickable(
+                label,
+                on_clicked_search,
+                f"accession where verifications.prev_species.id = {row.id}",
+            )
+            # coma
+            label = Gtk.Label(label=", ")
+            box.add(label)
+
+            event_box = Gtk.EventBox()
+            label = Gtk.Label(label=f"{new} new")
+            event_box.add(label)
+            box.add(event_box)
+            utils.make_label_clickable(
+                label,
+                on_clicked_search,
+                f"accession where verifications.species.id = {row.id}",
+            )
 
 
 class SpeciesInfoBox(InfoBox):

@@ -5843,6 +5843,76 @@ class GeneralSpeciesExpanderTests(BaubleTestCase):
         GeneralSpeciesExpander.select_all_areas(None, None, mock_sp)
         mock_select.assert_called_with("TEST")
 
+    @mock.patch("bauble.plugins.plants.species.on_clicked_search")
+    def test_verifications(self, mock_search):
+        for func in get_setUp_data_funcs():
+            func()
+
+        from ..garden import Accession
+        from ..garden.accession import Verification
+
+        sp = self.session.query(Species).get(3)
+        acc = sp.accessions[0]
+        filename = os.path.join(
+            paths.lib_dir(), "plugins", "plants", "infoboxes.glade"
+        )
+        widgets = utils.BuilderWidgets(filename)
+        with mock.patch("bauble.gui"):
+            expander = GeneralSpeciesExpander(widgets)
+            ver_box = expander.widgets.verifications_box
+
+            # base case
+            self.assertEqual(len(ver_box.get_children()), 0)
+
+            # no verifications
+            expander.update(sp)
+
+            self.assertEqual(len(ver_box.get_children()), 0)
+
+            # prev and new match should only count as new.
+            acc.verifications.append(
+                Verification(
+                    verifier="Jade Green",
+                    date=datetime.today(),
+                    level=2,
+                    species=sp,
+                    prev_species=sp,
+                )
+            )
+            self.session.commit()
+            expander.update(sp)
+            labels = []
+            for i in ver_box.get_children():
+                if isinstance(i, Gtk.EventBox):
+                    labels.append(i.get_children()[0].get_text())
+
+            self.assertEqual(len(labels), 2)
+            self.assertIn("0 prev", labels)
+            self.assertIn("1 new", labels)
+
+            # prev and new don't match
+            sp = self.session.query(Species).get(1)
+            expander.update(sp)
+            labels = []
+            for i in ver_box.get_children():
+                if isinstance(i, Gtk.EventBox):
+                    labels.append(i.get_children()[0].get_text())
+
+            self.assertEqual(len(labels), 2)
+            self.assertIn("1 prev", labels)
+            self.assertIn("0 new", labels)
+
+            sp = self.session.query(Species).get(2)
+            expander.update(sp)
+            labels = []
+            for i in ver_box.get_children():
+                if isinstance(i, Gtk.EventBox):
+                    labels.append(i.get_children()[0].get_text())
+
+            self.assertEqual(len(labels), 2)
+            self.assertIn("0 prev", labels)
+            self.assertIn("1 new", labels)
+
 
 class SpeciesEntryTests(TestCase):
     def test_blank_does_not_error(self):
