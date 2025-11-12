@@ -861,7 +861,7 @@ class GeneralSpeciesExpander(DistMapInfoExpanderMixin, InfoExpander):
 
         sep = ""
 
-        for plant in plants:
+        for plant in sorted(plants, key=lambda p: p.location.code):
             if sep:
                 label = Gtk.Label(label=sep)
                 self.widgets.plant_locations_box.pack_start(
