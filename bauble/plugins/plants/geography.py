@@ -853,6 +853,7 @@ class DistributionMap:
                 logger.debug("creating image key=%s", self._image_cache_key)
                 self._image = Gtk.Image.new_from_pixbuf(self.world_pixbuf)
                 self._image_cache[self._image_cache_key] = self._image
+                self._image.set_halign(Gtk.Align.START)
                 threading.Thread(target=self._generate_image).start()
 
         return self._image
