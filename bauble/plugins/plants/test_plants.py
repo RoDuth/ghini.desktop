@@ -3862,8 +3862,25 @@ class BinomialSearchTests(BaubleTestCase):
         g4 = Genus(family=f3, genus="Pachystachys")
         sp4 = Species(sp="coccinea", genus=g4)
         self.sp5 = Species(sp="rosa-sinensis", genus=g3)
+        sp6 = Species(sp="speciosa", genus=g3)
+        self.sp7 = Species(sp="sp.", genus=g3)
         self.session.add_all(
-            [f1, f2, g1, g2, f3, g3, sp, sp2, sp3, g4, sp4, self.sp5]
+            [
+                f1,
+                f2,
+                g1,
+                g2,
+                f3,
+                g3,
+                sp,
+                sp2,
+                sp3,
+                g4,
+                sp4,
+                self.sp5,
+                sp6,
+                self.sp7,
+            ]
         )
         self.session.commit()
         self.ixora, self.ic, self.pc = g3, sp, sp4
@@ -3930,6 +3947,9 @@ class BinomialSearchTests(BaubleTestCase):
         self.assertEqual(strategy.use(s), UseStrategy.INCLUDE)
 
         s = "Cyn dac 'DT-1"
+        self.assertEqual(strategy.use(s), UseStrategy.INCLUDE)
+
+        s = "Eryth sp."
         self.assertEqual(strategy.use(s), UseStrategy.INCLUDE)
 
     def test_sp_cultivar_also_matches(self):
@@ -4029,6 +4049,22 @@ class BinomialSearchTests(BaubleTestCase):
         for i in strategy.search(s, self.session):
             results.extend(i)
         self.assertEqual(results, [self.sp5])
+
+    def test_sp_dot_search(self):
+        strategy = search.strategies.get_strategy("BinomialSearch")
+        self.assertTrue(isinstance(strategy, BinomialSearch))
+
+        s = "Ixo sp."
+        results = []
+        for i in strategy.search(s, self.session):
+            results.extend(i)
+        self.assertEqual(results, [self.sp7])
+
+        s = "Ixo sp"
+        results = []
+        for i in strategy.search(s, self.session):
+            results.extend(i)
+        self.assertEqual(len(results), 2)
 
 
 class GeographyTests(BaubleClassTestCase):
