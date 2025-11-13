@@ -213,17 +213,13 @@ class BinomialStatement(StatementAction):
 
     def __init__(self, tokens: ParseResults) -> None:
         logger.debug("%s::__init__(%s)", self.__class__.__name__, tokens)
-        self.genus_epithet: str = tokens[0]
-        self.species_epithet: None | str
+        self.genus_epithet: str = tokens.genus
+        self.species_epithet: None | str = tokens.species or None
         self.cultivar_epithet: None | str
-        if tokens[1].startswith("'"):
-            self.cultivar_epithet = tokens[1].strip("'")
-            self.species_epithet = None
+        if tokens.cultivar == "'":
+            self.cultivar_epithet = tokens.cultivar
         else:
-            self.species_epithet = tokens[1]
-            self.cultivar_epithet = (
-                None if len(tokens) == 2 else tokens[2].strip("'")
-            )
+            self.cultivar_epithet = tokens.cultivar.strip("'") or None
 
     def __repr__(self) -> str:
         if self.species_epithet:
@@ -247,17 +243,27 @@ class BinomialStatement(StatementAction):
         if self.species_epithet:
             query = query.filter(Species.sp.startswith(self.species_epithet))
         if self.cultivar_epithet:
-            query = query.filter(
-                or_(
-                    Species.cultivar_epithet.startswith(self.cultivar_epithet),
-                    Species.trade_name.startswith(self.cultivar_epithet),
+            if self.cultivar_epithet == "'":
+                query = query.filter(
+                    or_(
+                        Species.cultivar_epithet.is_not(None),
+                        Species.trade_name.is_not(None),
+                    )
                 )
-            )
+            else:
+                query = query.filter(
+                    or_(
+                        Species.cultivar_epithet.startswith(
+                            self.cultivar_epithet
+                        ),
+                        Species.trade_name.startswith(self.cultivar_epithet),
+                    )
+                )
         return [query]
 
 
 _BINOMIAL_RGX = re.compile(
-    r"^[A-Z]+[a-z-]* +([a-z]*\.$|[a-z]+[a-z-]*$|'[A-Za-z0-9-]*$|"
+    r"^[A-Z]+[a-z-]* +([a-z]+\.$|[a-z]+[a-z-]*$|'[A-Za-z0-9-]*$|"
     r"'[A-Za-z0-9- ]*'$|[a-z]+[a-z-]* ('[A-Za-z0-9-]*$|'[A-Za-z0-9- ]*'$))"
 )
 
@@ -271,13 +277,14 @@ class BinomialSearch(SearchStrategy):
     caps = srange("[A-Z]")
     lowers = caps.lower() + "-"
 
-    genus = Word(caps, lowers).set_name("Genus epithet or partial epithet")
-    species = Regex(r"[a-z-]*\.?").set_name(
-        "species epithet or partial epithet"
-    )
-    cultivar = Regex("'[A-Za-z0-9- ]*'?").set_name(
-        "cultivar epithet or partial epithet"
-    )
+    genus = Word(caps, lowers)("genus")
+    genus.set_name("Genus epithet or partial epithet")
+
+    species = Regex(r"[a-z-]+\.?")("species")
+    species.set_name("species epithet or partial epithet")
+
+    cultivar = Regex("'[A-Za-z0-9- ]*'?")("cultivar")
+    cultivar.set_name("cultivar epithet or partial epithet")
 
     statement = (
         (genus + species + cultivar | genus + species | genus + cultivar)

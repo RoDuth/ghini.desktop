@@ -3952,6 +3952,12 @@ class BinomialSearchTests(BaubleTestCase):
         s = "Eryth sp."
         self.assertEqual(strategy.use(s), UseStrategy.INCLUDE)
 
+        s = "Eryth ."
+        self.assertEqual(strategy.use(s), UseStrategy.EXCLUDE)
+
+        s = "Grev '"
+        self.assertEqual(strategy.use(s), UseStrategy.INCLUDE)
+
     def test_sp_cultivar_also_matches(self):
         strategy = search.strategies.get_strategy("BinomialSearch")
         self.assertTrue(isinstance(strategy, BinomialSearch))
@@ -4065,6 +4071,22 @@ class BinomialSearchTests(BaubleTestCase):
         for i in strategy.search(s, self.session):
             results.extend(i)
         self.assertEqual(len(results), 2)
+
+    def test_all_cvs_search(self):
+        strategy = search.strategies.get_strategy("BinomialSearch")
+        self.assertTrue(isinstance(strategy, BinomialSearch))
+
+        s = "Ixo '"
+        results = []
+        for i in strategy.search(s, self.session):
+            results.extend(i)
+        self.assertCountEqual(results, [self.cv1, self.cv2])
+
+        s = "Pach '"
+        results = []
+        for i in strategy.search(s, self.session):
+            results.extend(i)
+        self.assertEqual(results, [])
 
 
 class GeographyTests(BaubleClassTestCase):
