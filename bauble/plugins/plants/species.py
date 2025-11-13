@@ -913,9 +913,9 @@ class GeneralSpeciesExpander(DistMapInfoExpanderMixin, InfoExpander):
             )
             new = cast(int, connection.execute(stmt).scalar())
 
-        if new or prev:
+        if prev:
             event_box = Gtk.EventBox()
-            label = Gtk.Label(label=f"{prev} prev.")
+            label = Gtk.Label(label=_("%s prev.") % prev)
             event_box.add(label)
             box.add(event_box)
             utils.make_label_clickable(
@@ -923,12 +923,14 @@ class GeneralSpeciesExpander(DistMapInfoExpanderMixin, InfoExpander):
                 on_clicked_search,
                 f"accession where verifications.prev_species.id = {row.id}",
             )
-            # coma
-            label = Gtk.Label(label=", ")
-            box.add(label)
+            if new:
+                # coma
+                label = Gtk.Label(label=", ")
+                box.add(label)
 
+        if new:
             event_box = Gtk.EventBox()
-            label = Gtk.Label(label=f"{new} new")
+            label = Gtk.Label(label=_("%s new") % new)
             event_box.add(label)
             box.add(event_box)
             utils.make_label_clickable(

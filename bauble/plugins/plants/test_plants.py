@@ -5886,8 +5886,32 @@ class GeneralSpeciesExpanderTests(BaubleTestCase):
                 if isinstance(i, Gtk.EventBox):
                     labels.append(i.get_children()[0].get_text())
 
+            self.assertEqual(len(labels), 1)
+            self.assertNotIn("0 prev.", labels)
+            self.assertIn("1 new", labels)
+
+            # both a previous and new
+            sp4 = self.session.query(Species).get(4)
+            acc.verifications.append(
+                Verification(
+                    verifier="Jade Green",
+                    date=datetime.today(),
+                    level=2,
+                    species=sp4,
+                    prev_species=sp,
+                )
+            )
+            self.session.commit()
+            expander.update(sp)
+            labels = []
+            for i in ver_box.get_children():
+                if isinstance(i, Gtk.EventBox):
+                    labels.append(i.get_children()[0].get_text())
+                else:
+                    self.assertEqual(i.get_text(), ", ")
+
             self.assertEqual(len(labels), 2)
-            self.assertIn("0 prev", labels)
+            self.assertIn("1 prev.", labels)
             self.assertIn("1 new", labels)
 
             # prev and new don't match
@@ -5898,9 +5922,9 @@ class GeneralSpeciesExpanderTests(BaubleTestCase):
                 if isinstance(i, Gtk.EventBox):
                     labels.append(i.get_children()[0].get_text())
 
-            self.assertEqual(len(labels), 2)
-            self.assertIn("1 prev", labels)
-            self.assertIn("0 new", labels)
+            self.assertEqual(len(labels), 1)
+            self.assertIn("1 prev.", labels)
+            self.assertNotIn("0 new", labels)
 
             sp = self.session.query(Species).get(2)
             expander.update(sp)
@@ -5909,8 +5933,8 @@ class GeneralSpeciesExpanderTests(BaubleTestCase):
                 if isinstance(i, Gtk.EventBox):
                     labels.append(i.get_children()[0].get_text())
 
-            self.assertEqual(len(labels), 2)
-            self.assertIn("0 prev", labels)
+            self.assertEqual(len(labels), 1)
+            self.assertNotIn("0 prev.", labels)
             self.assertIn("1 new", labels)
 
 
