@@ -1470,6 +1470,45 @@ class TestSearchView(BaubleTestCase):
         self.assertFalse(child3.cursor)
         self.assertFalse(child3.selected)
 
+    def test_node_string(self):
+        root = _Node(
+            db.Domain,
+            0,
+            0,
+            children=[
+                _Node(
+                    Family,
+                    3,
+                    depth=1,
+                    expanded=True,
+                    cursor=True,
+                    selected=True,
+                    children=[
+                        _Node(
+                            Genus,
+                            1,
+                            depth=2,
+                        )
+                    ],
+                ),
+                _Node(
+                    Family,
+                    2,
+                    depth=1,
+                    expanded=False,
+                    cursor=False,
+                    selected=True,
+                ),
+            ],
+        )
+        self.assertEqual(
+            str(root),
+            "> Domain (0)\n"
+            "\t> Family (3, expanded, cursor, selected)\n"
+            "\t\t> Genus (1)\n"
+            "\t> Family (2, selected)",
+        )
+
     @mock.patch("bauble.gui")
     def test_expand_from_tree_skips_if_unavailable(self, mock_gui):
         mock_gui.window.get_size().width = 100

@@ -794,6 +794,27 @@ class _Node:
     cursor: bool = False
     selected: bool = False
 
+    def __str__(self) -> str:
+        state = [str(self.id_)]
+        if self.expanded:
+            state.append("expanded")
+
+        if self.cursor:
+            state.append("cursor")
+
+        if self.selected:
+            state.append("selected")
+
+        string = (
+            f"{"\t" * self.depth}> {self.type_.__name__} "
+            f"({", ".join(state)})"
+        )
+
+        for child in self.children:
+            string += f"\n{str(child)}"
+
+        return string
+
 
 class ViewMeta(UserDict):
     """This class shouldn't need to be instantiated directly.  Access the
