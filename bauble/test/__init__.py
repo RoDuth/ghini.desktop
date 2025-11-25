@@ -70,7 +70,7 @@ def run_app():
 
     bauble.gui = ui.GUI()
 
-    app = Application()
+    app = Application(unittest.mock.Mock())
     app.run()
 
 
