@@ -969,6 +969,7 @@ class Species(db.Domain, db.WithNotes):
 
         if self.grex:
             infrasp_parts.append(self.grex)
+            infrasp_parts.append("grex")
 
         if self.cv_group:
             if self.cultivar_epithet:

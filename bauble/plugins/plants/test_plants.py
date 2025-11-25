@@ -228,6 +228,13 @@ genus_test_data = (
         "tribe": "Encephalarteae",
         "subtribe": "Macrozamiinae",
     },
+    {
+        "id": 16,
+        "hybrid": "×",
+        "genus": "Rhynchosophrocattleya",
+        "family_id": 1,
+    },
+    {"id": 17, "genus": "Bletilla", "family_id": 1},
 )
 
 genus_note_test_data = (
@@ -512,6 +519,26 @@ species_test_data = (
         "sp_qual": "s. lat.",
         "full_sci_name": "Eucalyptus gillii s. lat.",
     },
+    {
+        "id": 34,
+        "genus_id": 16,
+        "grex": "Marie Lemon Stick",
+        "cv_group": "Francis Suzuki",
+        "full_sci_name": (
+            "× Rhynchosophrocattleya Marie Lemon Stick grex "
+            "Francis Suzuki Group"
+        ),
+    },
+    {
+        "id": 35,
+        "genus_id": 17,
+        "grex": "Penway Prelude",
+        "cv_group": "Penway Dancer",
+        "cultivar_epithet": "Ballerina",
+        "full_sci_name": (
+            "Bletilla Penway Prelude grex (Penway Dancer Group) 'Ballerina'"
+        ),
+    },
 )
 
 species_note_test_data = (
@@ -557,8 +584,10 @@ species_str_map = {
     26: "× Butyagrus nabonnandii",
     27: "Cynodon dactylon × transvaalensis 'DT-1' (PBR) TIFTUF™",
     28: "Abrus precatorius subsp. africanus",
-    29: "Paphiopedilum Jim Kie 'Springwater'",
+    29: "Paphiopedilum Jim Kie grex 'Springwater'",
     33: "Eucalyptus gillii s. lat.",
+    34: "× Rhynchosophrocattleya Marie Lemon Stick grex Francis Suzuki Group",
+    35: "Bletilla Penway Prelude grex (Penway Dancer Group) 'Ballerina'",
 }
 
 species_markup_map = {
@@ -580,7 +609,12 @@ species_markup_map = {
         "<i>Cynodon</i> <i>dactylon</i> × <i>transvaalensis</i> 'DT-1' "
         "<small>(PBR)</small> T<small>IF</small>T<small>UF</small>™"
     ),
-    29: "<i>Paphiopedilum</i> Jim Kie 'Springwater'",
+    29: "<i>Paphiopedilum</i> Jim Kie grex 'Springwater'",
+    34: (
+        "× <i>Rhynchosophrocattleya</i> Marie Lemon Stick grex "
+        "Francis Suzuki Group"
+    ),
+    35: "<i>Bletilla</i> Penway Prelude grex (Penway Dancer Group) 'Ballerina'",
 }
 
 species_str_authors_map = {
@@ -1341,8 +1375,8 @@ class FamilyTopLevelCountTests(BaubleTestCase):
 
         expected = (
             "Families: 2, "
-            "Genera: 6, "
-            "Species: 25, "
+            "Genera: 8, "
+            "Species: 27, "
             "Accessions: 6, "
             "Plantings: 5, "
             "Living plants: 6, "
@@ -1359,8 +1393,8 @@ class FamilyTopLevelCountTests(BaubleTestCase):
 
         expected = (
             "Families: 2, "
-            "Genera: 5, "
-            "Species: 21, "
+            "Genera: 7, "
+            "Species: 23, "
             "Accessions: 4, "
             "Plantings: 3, "
             "Living plants: 3, "
@@ -1379,8 +1413,8 @@ class FamilyTopLevelCountTests(BaubleTestCase):
 
         expected = (
             "Families: 2, "
-            "Genera: 6, "
-            "Species: 24, "
+            "Genera: 8, "
+            "Species: 26, "
             "Accessions: 6, "
             "Plantings: 5, "
             "Living plants: 6, "
@@ -1399,8 +1433,8 @@ class FamilyTopLevelCountTests(BaubleTestCase):
 
         expected = (
             "Families: 2, "
-            "Genera: 5, "
-            "Species: 24, "
+            "Genera: 7, "
+            "Species: 26, "
             "Accessions: 5, "
             "Plantings: 4, "
             "Living plants: 6, "
@@ -1419,8 +1453,8 @@ class FamilyTopLevelCountTests(BaubleTestCase):
 
         expected = (
             "Families: 2, "
-            "Genera: 6, "
-            "Species: 25, "
+            "Genera: 8, "
+            "Species: 27, "
             "Accessions: 6, "
             "Plantings: 4, "
             "Living plants: 4, "
@@ -1439,8 +1473,8 @@ class FamilyTopLevelCountTests(BaubleTestCase):
 
         expected = (
             "Families: 2, "
-            "Genera: 6, "
-            "Species: 25, "
+            "Genera: 8, "
+            "Species: 27, "
             "Accessions: 5, "
             "Plantings: 2, "
             "Living plants: 4, "
@@ -5398,7 +5432,7 @@ class CitesStatus_test(PlantTestCase):
 
     def test_property_expression(self):
         qry = self.session.query(Genus).filter(Genus.cites == "II")
-        self.assertEqual([i.id for i in qry.all()], [1, 2, 6, 14])
+        self.assertEqual([i.id for i in qry.all()], [1, 2, 6, 14, 16, 17])
 
         qry = self.session.query(Species).filter(Species.cites == "III")
         self.assertEqual([i.id for i in qry.all()], [18])
@@ -6869,14 +6903,14 @@ class SpeciesEditorPresenterTests(PlantTestCase):
         sp.grex = "Test Grex"  # should not trigger change on the label yet
         self.assertEqual(
             view.widgets.sp_fullname_label.get_label(),
-            "<i>Paphiopedilum</i> Jim Kie 'Springwater'",
+            "<i>Paphiopedilum</i> Jim Kie grex 'Springwater'",
         )
         self.assertFalse(view.widgets.prev_sp_box.get_visible())
 
         presenter.refresh_fullname_label()
         self.assertEqual(
             view.widgets.sp_fullname_label.get_label(),
-            "<i>Paphiopedilum</i> Test Grex 'Springwater'",
+            "<i>Paphiopedilum</i> Test Grex grex 'Springwater'",
         )
         self.assertTrue(view.widgets.prev_sp_box.get_visible())
         self.assertIsNone(sp.label_markup)
@@ -8784,7 +8818,8 @@ class GenusCompletionTests(PlantTestCase):
 
         key = "×"
         self.assertCountEqual(
-            completion(key).all(), [self.session.query(Genus).get(9)]
+            completion(key).all(),
+            self.session.query(Genus).filter(Genus.id.in_([9, 16])).all(),
         )
 
         key = "Unknown"

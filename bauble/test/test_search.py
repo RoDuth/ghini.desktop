@@ -2148,7 +2148,7 @@ class SubQueryTests(BaubleClassTestCase):
             "(max(length(species.full_sci_name)))"
         )
         results = search.search(string, self.session)
-        self.assertCountEqual([i.id for i in results], [2])
+        self.assertCountEqual([i.id for i in results], [2, 16])
         # nested func
         string = (
             "species where sum(distribution.geography.approx_area) = "

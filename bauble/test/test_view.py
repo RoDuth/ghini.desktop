@@ -1377,6 +1377,10 @@ class TestSearchView(BaubleTestCase):
         for func in get_setUp_data_funcs():
             func()
 
+        with db.engine.begin() as conn:
+            conn.execute("DELETE FROM species WHERE genus_id = 17")
+            conn.execute("DELETE FROM genus WHERE id = 17")
+
         search_view = self.search_view
         search_string = "family where id < 5"
         search_view.search(search_string)
