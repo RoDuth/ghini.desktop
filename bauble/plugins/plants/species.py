@@ -569,7 +569,16 @@ class SynonymsExpander(InfoExpander):
             self.set_sensitive(True)
 
 
-on_clicked_search = utils.generate_on_clicked(bauble.gui.send_command)
+def send_command(call: str) -> None:
+    """Sends command to ``bauble.gui.send_command`` only if its available.
+
+    For the sake of tests.
+    """
+    if bauble.gui:
+        bauble.gui.send_command(call)
+
+
+on_clicked_search = utils.generate_on_clicked(send_command)
 
 
 class GeneralSpeciesExpander(DistMapInfoExpanderMixin, InfoExpander):
