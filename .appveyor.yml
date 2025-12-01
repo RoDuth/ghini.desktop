@@ -133,7 +133,7 @@ deploy:
   provider: GitHub
   on:
     branch: main
-  release: 'v1.3.15' # :bump
+  release: 'v1.3.16' # :bump
   description: ''
   auth_token:
     secure: vRyQLX1AmV3Sa+0u5ETtb6vLgBSkIvrxeFTSPMq1ZQfWX/4QaX0IVVmCWOrs5KA3

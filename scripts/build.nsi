@@ -72,7 +72,7 @@ Unicode true
 ; Global
 !define PRODUCT_NAME "Ghini"
 Name "${PRODUCT_NAME}"
-!define VERSION "1.3.15" ; :bump
+!define VERSION "1.3.16" ; :bump
 !define SRC_DIR "..\dist\ghini"
 !define JRE_SRC_DIR "..\jre"
 !define FOP_SRC_DIR "..\fop-$%fop_ver%"

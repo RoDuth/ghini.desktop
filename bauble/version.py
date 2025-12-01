@@ -20,7 +20,7 @@
 # The Ghini version.
 # major, minor, revision version tuple
 
-version = "1.3.15"  # :bump
+version = "1.3.16"  # :bump
 """
 The current version as a semantic version number MAJOR.MINOR.PATCH(-PRERELEASE)
 """

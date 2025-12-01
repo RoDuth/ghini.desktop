@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pyproj
 
-version = "1.3.15"  # :bump
+version = "1.3.16"  # :bump
 
 # this returns CWD.  Call script from repo root.
 root = Path().absolute()
