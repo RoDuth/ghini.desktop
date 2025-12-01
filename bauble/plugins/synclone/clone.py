@@ -185,7 +185,11 @@ class DBCloner:
                 values = []
                 logger.debug("start transaction")
                 try:
-                    for row in main_conn.execute(table.select()):
+                    stmt = table.select()
+                    if hasattr(table.c, "id"):
+                        stmt = stmt.order_by(table.c.id)
+
+                    for row in main_conn.execute(stmt):
                         values.append(dict(row))
 
                         steps_so_far += 1
