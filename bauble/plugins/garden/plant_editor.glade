@@ -158,7 +158,7 @@
                           <object class="GtkLabel">
                             <property name="visible">True</property>
                             <property name="can-focus">False</property>
-                            <property name="label" translatable="yes">Plant material</property>
+                            <property name="label" translatable="yes">Plant Material</property>
                             <property name="use-markup">True</property>
                             <property name="xalign">0</property>
                           </object>
@@ -478,7 +478,7 @@
                               <object class="GtkLabel">
                                 <property name="visible">True</property>
                                 <property name="can-focus">False</property>
-                                <property name="label" translatable="yes">Planting code</property>
+                                <property name="label" translatable="yes">Planting Code</property>
                                 <property name="use-markup">True</property>
                                 <property name="xalign">0</property>
                               </object>
@@ -754,7 +754,7 @@
                                 <child>
                                   <object class="GtkTreeViewColumn" id="changes_child_column">
                                     <property name="resizable">True</property>
-                                    <property name="title">child</property>
+                                    <property name="title">Child</property>
                                     <child>
                                       <object class="GtkCellRendererText" id="changes_child_cell"/>
                                     </child>
@@ -792,7 +792,7 @@
                           <object class="GtkLabel">
                             <property name="visible">True</property>
                             <property name="can-focus">False</property>
-                            <property name="label" translatable="yes">Change history (CAUTION!)</property>
+                            <property name="label" translatable="yes">Change History (CAUTION!)</property>
                             <attributes>
                               <attribute name="weight" value="bold"/>
                             </attributes>

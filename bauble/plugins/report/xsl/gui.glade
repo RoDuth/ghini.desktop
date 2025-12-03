@@ -97,7 +97,7 @@
                       <object class="GtkLabel">
                         <property name="visible">True</property>
                         <property name="can-focus">False</property>
-                        <property name="label" translatable="yes">Output format</property>
+                        <property name="label" translatable="yes">Output Format</property>
                         <attributes>
                           <attribute name="weight" value="bold"/>
                         </attributes>
@@ -156,7 +156,7 @@
                       <object class="GtkLabel">
                         <property name="visible">True</property>
                         <property name="can-focus">False</property>
-                        <property name="label" translatable="yes">Output file</property>
+                        <property name="label" translatable="yes">Output File</property>
                         <attributes>
                           <attribute name="weight" value="bold"/>
                         </attributes>
@@ -175,7 +175,7 @@
               <object class="GtkLabel">
                 <property name="visible">True</property>
                 <property name="can-focus">False</property>
-                <property name="label" translatable="yes">Advanced options</property>
+                <property name="label" translatable="yes">Advanced Options</property>
                 <attributes>
                   <attribute name="weight" value="bold"/>
                 </attributes>
@@ -215,7 +215,7 @@
               <object class="GtkLabel">
                 <property name="visible">True</property>
                 <property name="can-focus">False</property>
-                <property name="label" translatable="yes">Source type</property>
+                <property name="label" translatable="yes">Source Type</property>
               </object>
             </child>
           </object>
@@ -236,7 +236,7 @@
                 <property name="visible">True</property>
                 <property name="can-focus">False</property>
                 <property name="halign">start</property>
-                <property name="label" translatable="yes">Use author names</property>
+                <property name="label" translatable="yes">Use Author Names</property>
                 <property name="use-markup">True</property>
                 <attributes>
                   <attribute name="weight" value="bold"/>
@@ -265,7 +265,7 @@
                   <object class="GtkLabel">
                     <property name="visible">True</property>
                     <property name="can-focus">False</property>
-                    <property name="label" translatable="yes">Include data marked as private</property>
+                    <property name="label" translatable="yes">Include Data Marked as Private</property>
                     <property name="use-markup">True</property>
                     <attributes>
                       <attribute name="weight" value="bold"/>

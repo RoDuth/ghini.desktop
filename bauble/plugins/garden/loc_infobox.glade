@@ -76,7 +76,7 @@
                   <object class="GtkLabel">
                     <property name="visible">True</property>
                     <property name="can-focus">False</property>
-                    <property name="label" translatable="yes">Map item:</property>
+                    <property name="label" translatable="yes">Map Item:</property>
                     <property name="use-markup">True</property>
                     <property name="xalign">1</property>
                     <attributes>
@@ -104,7 +104,7 @@
                   <object class="GtkLabel">
                     <property name="visible">True</property>
                     <property name="can-focus">False</property>
-                    <property name="label" translatable="yes">Approx area:</property>
+                    <property name="label" translatable="yes">Approx. Area:</property>
                     <property name="use-markup">True</property>
                     <property name="xalign">1</property>
                     <attributes>

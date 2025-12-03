@@ -74,7 +74,7 @@
                         <property name="can-focus">False</property>
                         <child>
                           <object class="GtkRadioButton" id="rb_search_results">
-                            <property name="label" translatable="yes">search results</property>
+                            <property name="label" translatable="yes">Search Results</property>
                             <property name="use-action-appearance">False</property>
                             <property name="visible">True</property>
                             <property name="can-focus">True</property>
@@ -91,7 +91,7 @@
                         </child>
                         <child>
                           <object class="GtkRadioButton" id="rb_all_records">
-                            <property name="label" translatable="yes">all records</property>
+                            <property name="label" translatable="yes">All Records</property>
                             <property name="use-action-appearance">False</property>
                             <property name="visible">True</property>
                             <property name="can-focus">True</property>
@@ -120,7 +120,7 @@
                   <object class="GtkLabel">
                     <property name="visible">True</property>
                     <property name="can-focus">False</property>
-                    <property name="label" translatable="yes">export based on:</property>
+                    <property name="label" translatable="yes">Export Based On:</property>
                     <property name="xalign">0.49000000953674316</property>
                     <attributes>
                       <attribute name="weight" value="bold"/>
@@ -154,7 +154,7 @@
                         <property name="layout-style">expand</property>
                         <child>
                           <object class="GtkCheckButton" id="cb_locations">
-                            <property name="label" translatable="yes">locations</property>
+                            <property name="label" translatable="yes">Locations</property>
                             <property name="use-action-appearance">False</property>
                             <property name="visible">True</property>
                             <property name="can-focus">True</property>
@@ -171,7 +171,7 @@
                         </child>
                         <child>
                           <object class="GtkCheckButton" id="cb_plants">
-                            <property name="label" translatable="yes">plants</property>
+                            <property name="label" translatable="yes">Plants</property>
                             <property name="use-action-appearance">False</property>
                             <property name="visible">True</property>
                             <property name="can-focus">True</property>
@@ -188,7 +188,7 @@
                         </child>
                         <child>
                           <object class="GtkCheckButton" id="cb_include_private">
-                            <property name="label" translatable="yes">include private</property>
+                            <property name="label" translatable="yes">Include Private</property>
                             <property name="use-action-appearance">False</property>
                             <property name="visible">True</property>
                             <property name="can-focus">True</property>
@@ -215,7 +215,7 @@
                   <object class="GtkLabel">
                     <property name="visible">True</property>
                     <property name="can-focus">False</property>
-                    <property name="label" translatable="yes">export:</property>
+                    <property name="label" translatable="yes">Export:</property>
                     <property name="use-markup">True</property>
                     <attributes>
                       <attribute name="weight" value="bold"/>
@@ -283,7 +283,7 @@
                   <object class="GtkLabel">
                     <property name="visible">True</property>
                     <property name="can-focus">False</property>
-                    <property name="label" translatable="yes">output:</property>
+                    <property name="label" translatable="yes">Output:</property>
                     <property name="use-markup">True</property>
                     <attributes>
                       <attribute name="weight" value="bold"/>
@@ -317,7 +317,7 @@
               <object class="GtkLabel">
                 <property name="visible">True</property>
                 <property name="can-focus">False</property>
-                <property name="label" translatable="yes">advanced settings (CAUTION!)</property>
+                <property name="label" translatable="yes">Advanced Settings (CAUTION!)</property>
                 <property name="use-markup">True</property>
                 <attributes>
                   <attribute name="weight" value="bold"/>
@@ -406,7 +406,7 @@
               <object class="GtkLabel">
                 <property name="visible">True</property>
                 <property name="can-focus">False</property>
-                <property name="label" translatable="yes">options</property>
+                <property name="label" translatable="yes">Options</property>
                 <property name="use-markup">True</property>
                 <attributes>
                   <attribute name="weight" value="bold"/>
@@ -471,7 +471,7 @@
               <object class="GtkLabel">
                 <property name="visible">True</property>
                 <property name="can-focus">False</property>
-                <property name="label" translatable="yes">input:</property>
+                <property name="label" translatable="yes">Input:</property>
                 <property name="use-markup">True</property>
                 <attributes>
                   <attribute name="weight" value="bold"/>
@@ -529,7 +529,7 @@
                 </child>
                 <child>
                   <object class="GtkCheckButton" id="cb_always_xy">
-                    <property name="label" translatable="yes">always xy</property>
+                    <property name="label" translatable="yes">Always XY</property>
                     <property name="use-action-appearance">False</property>
                     <property name="visible">True</property>
                     <property name="can-focus">True</property>
@@ -550,7 +550,7 @@
               <object class="GtkLabel">
                 <property name="visible">True</property>
                 <property name="can-focus">False</property>
-                <property name="label" translatable="yes">projection:</property>
+                <property name="label" translatable="yes">Projection:</property>
                 <property name="use-markup">True</property>
                 <attributes>
                   <attribute name="weight" value="bold"/>
@@ -577,7 +577,7 @@
               <object class="GtkLabel">
                 <property name="visible">True</property>
                 <property name="can-focus">False</property>
-                <property name="label" translatable="yes">advanced settings (CAUTION!)</property>
+                <property name="label" translatable="yes">Advanced Settings (CAUTION!)</property>
                 <property name="use-markup">True</property>
                 <attributes>
                   <attribute name="weight" value="bold"/>

@@ -139,7 +139,7 @@
         <property name="layout-style">center</property>
         <child>
           <object class="GtkButton" id="resolve_btn">
-            <property name="label" translatable="yes">Resolve entry</property>
+            <property name="label" translatable="yes">Resolve Entry</property>
             <property name="visible">True</property>
             <property name="sensitive">False</property>
             <property name="can-focus">True</property>
@@ -154,7 +154,7 @@
         </child>
         <child>
           <object class="GtkButton" id="remove_selected_btn">
-            <property name="label" translatable="yes">Remove selected</property>
+            <property name="label" translatable="yes">Remove Selected</property>
             <property name="visible">True</property>
             <property name="sensitive">False</property>
             <property name="can-focus">True</property>
@@ -169,7 +169,7 @@
         </child>
         <child>
           <object class="GtkButton" id="sync_selected_btn">
-            <property name="label" translatable="yes">Sync selected</property>
+            <property name="label" translatable="yes">Sync Selected</property>
             <property name="visible">True</property>
             <property name="sensitive">False</property>
             <property name="can-focus">True</property>

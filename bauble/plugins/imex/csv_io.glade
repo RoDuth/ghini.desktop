@@ -201,7 +201,7 @@
                   <object class="GtkLabel">
                     <property name="visible">True</property>
                     <property name="can-focus">False</property>
-                    <property name="label" translatable="yes">options</property>
+                    <property name="label" translatable="yes">Options</property>
                     <property name="use-markup">True</property>
                     <attributes>
                       <attribute name="weight" value="bold"/>

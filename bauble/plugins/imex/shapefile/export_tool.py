@@ -164,7 +164,7 @@ class ShapefileExportSettingsBox(Gtk.ScrolledWindow):
         self,
     ):  # pylint: disable=too-many-locals,too-many-statements
         """Create the field grid layout."""
-        labels = ["name", "type", "length/places", "database field"]
+        labels = ["Name", "Type", "Length/Places", "Database Field"]
         for column, txt in enumerate(labels):
             label = Gtk.Label()
             label.set_markup(f"<b>{txt}</b>")

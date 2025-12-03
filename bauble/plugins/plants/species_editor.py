@@ -1621,12 +1621,12 @@ class DistributionPresenter(editor.GenericEditorPresenter):
         menu = Gio.Menu()
         action_group = Gio.SimpleActionGroup()
         menu_items = (
-            (_("Clear all"), "clear", self.on_clear_all),
+            (_("Clear All"), "clear", self.on_clear_all),
             (_("Consolidate"), "consolidate", self.on_consolidate),
             (_("Paste - append"), "append", self.on_paste_append),
             (_("Paste - replace all"), "replace", self.on_paste_replace),
-            (_("Copy codes"), "copy_codes", self.on_copy_codes),
-            (_("Copy names"), "copy_names", self.on_copy_names),
+            (_("Copy Codes"), "copy_codes", self.on_copy_codes),
+            (_("Copy Names"), "copy_names", self.on_copy_names),
         )
         for label, name, handler in menu_items:
             action = Gio.SimpleAction.new(name, None)

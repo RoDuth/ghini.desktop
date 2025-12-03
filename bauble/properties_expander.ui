@@ -47,7 +47,7 @@
           <object class="GtkLabel">
             <property name="visible">True</property>
             <property name="can-focus">False</property>
-            <property name="label" translatable="yes">Date created:</property>
+            <property name="label" translatable="yes">Date Created:</property>
             <property name="xalign">1</property>
             <attributes>
               <attribute name="weight" value="bold"/>
@@ -62,7 +62,7 @@
           <object class="GtkLabel">
             <property name="visible">True</property>
             <property name="can-focus">False</property>
-            <property name="label" translatable="yes">Last updated:</property>
+            <property name="label" translatable="yes">Last Updated:</property>
             <property name="xalign">1</property>
             <attributes>
               <attribute name="weight" value="bold"/>

@@ -270,7 +270,7 @@
                                   <object class="GtkLabel">
                                     <property name="visible">True</property>
                                     <property name="can-focus">False</property>
-                                    <property name="label" translatable="yes">Cutting length</property>
+                                    <property name="label" translatable="yes">Cutting Length</property>
                                     <property name="use-markup">True</property>
                                     <property name="xalign">0</property>
                                   </object>
@@ -341,7 +341,7 @@
                                   <object class="GtkLabel">
                                     <property name="visible">True</property>
                                     <property name="can-focus">False</property>
-                                    <property name="label" translatable="yes">Leaves reduced by</property>
+                                    <property name="label" translatable="yes">Leaves Reduced By</property>
                                     <property name="use-markup">True</property>
                                     <property name="xalign">0</property>
                                   </object>
@@ -393,7 +393,7 @@
                                   <object class="GtkLabel">
                                     <property name="visible">True</property>
                                     <property name="can-focus">False</property>
-                                    <property name="label" translatable="yes">Cutting type</property>
+                                    <property name="label" translatable="yes">Cutting Type</property>
                                     <property name="use-markup">True</property>
                                     <property name="xalign">0</property>
                                   </object>
@@ -433,7 +433,7 @@
                                   <object class="GtkLabel">
                                     <property name="visible">True</property>
                                     <property name="can-focus">False</property>
-                                    <property name="label" translatable="yes">Flower buds</property>
+                                    <property name="label" translatable="yes">Flower Buds</property>
                                     <property name="use-markup">True</property>
                                     <property name="xalign">0</property>
                                   </object>
@@ -655,7 +655,7 @@
                                       <object class="GtkLabel">
                                         <property name="visible">True</property>
                                         <property name="can-focus">False</property>
-                                        <property name="label" translatable="yes">Bottom heat</property>
+                                        <property name="label" translatable="yes">Bottom Heat</property>
                                         <property name="use-markup">True</property>
                                         <property name="xalign">0</property>
                                       </object>
@@ -748,7 +748,7 @@
                           <object class="GtkLabel">
                             <property name="visible">True</property>
                             <property name="can-focus">False</property>
-                            <property name="label" translatable="yes">Rooting conditions</property>
+                            <property name="label" translatable="yes">Rooting Conditions</property>
                             <property name="use-markup">True</property>
                             <attributes>
                               <attribute name="weight" value="bold"/>
@@ -841,7 +841,7 @@
                           <object class="GtkLabel">
                             <property name="visible">True</property>
                             <property name="can-focus">False</property>
-                            <property name="label" translatable="yes">Chemical treatment</property>
+                            <property name="label" translatable="yes">Chemical Treatment</property>
                             <property name="use-markup">True</property>
                             <attributes>
                               <attribute name="weight" value="bold"/>
@@ -1003,7 +1003,7 @@
                                     <property name="visible">True</property>
                                     <property name="can-focus">False</property>
                                     <property name="margin-end">5</property>
-                                    <property name="label" translatable="yes">Percent rooted</property>
+                                    <property name="label" translatable="yes">Percent Rooted</property>
                                     <property name="use-markup">True</property>
                                     <property name="xalign">0.10000000149011612</property>
                                   </object>
@@ -1053,7 +1053,7 @@
                           <object class="GtkLabel">
                             <property name="visible">True</property>
                             <property name="can-focus">False</property>
-                            <property name="label" translatable="yes">Rooted plants</property>
+                            <property name="label" translatable="yes">Rooted Plants</property>
                             <property name="use-markup">True</property>
                             <property name="yalign">0.49000000953674316</property>
                             <attributes>
@@ -1127,7 +1127,7 @@
                               <object class="GtkLabel">
                                 <property name="visible">True</property>
                                 <property name="can-focus">False</property>
-                                <property name="label" translatable="yes">Germination media</property>
+                                <property name="label" translatable="yes">Germination Media</property>
                                 <property name="use-markup">True</property>
                                 <property name="xalign">0</property>
                               </object>
@@ -1285,7 +1285,7 @@
                                   <object class="GtkLabel">
                                     <property name="visible">True</property>
                                     <property name="can-focus">False</property>
-                                    <property name="label" translatable="yes"># of seeds</property>
+                                    <property name="label" translatable="yes"># of Seeds</property>
                                     <property name="use-markup">True</property>
                                     <property name="xalign">0</property>
                                   </object>
@@ -1322,7 +1322,7 @@
                                   <object class="GtkLabel">
                                     <property name="visible">True</property>
                                     <property name="can-focus">False</property>
-                                    <property name="label" translatable="yes">Date sown</property>
+                                    <property name="label" translatable="yes">Date Sown</property>
                                     <property name="use-markup">True</property>
                                     <property name="xalign">0</property>
                                   </object>
@@ -1356,7 +1356,7 @@
                           <object class="GtkLabel">
                             <property name="visible">True</property>
                             <property name="can-focus">False</property>
-                            <property name="label" translatable="yes">Sowing data</property>
+                            <property name="label" translatable="yes">Sowing Data</property>
                             <property name="use-markup">True</property>
                             <attributes>
                               <attribute name="weight" value="bold"/>
@@ -1483,7 +1483,7 @@
                               <object class="GtkLabel">
                                 <property name="visible">True</property>
                                 <property name="can-focus">False</property>
-                                <property name="label" translatable="yes">Date planted</property>
+                                <property name="label" translatable="yes">Date Planted</property>
                                 <property name="use-markup">True</property>
                                 <property name="xalign">0</property>
                               </object>

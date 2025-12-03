@@ -70,7 +70,7 @@
             <property name="vexpand">True</property>
             <child>
               <object class="GtkCheckButton" id="usedefaults_chkbx">
-                <property name="label" translatable="yes">Use default locations</property>
+                <property name="label" translatable="yes">Use Default Locations</property>
                 <property name="visible">True</property>
                 <property name="can-focus">True</property>
                 <property name="receives-default">False</property>
@@ -149,7 +149,7 @@
                 <property name="visible">True</property>
                 <property name="can-focus">False</property>
                 <property name="halign">end</property>
-                <property name="label" translatable="yes">Root directory:</property>
+                <property name="label" translatable="yes">Root Directory:</property>
                 <property name="xalign">0</property>
               </object>
               <packing>
@@ -412,7 +412,7 @@ If left blank you can set a global directory in the database via the options men
                 <property name="visible">True</property>
                 <property name="can-focus">False</property>
                 <property name="halign">end</property>
-                <property name="label" translatable="yes">Root directory:</property>
+                <property name="label" translatable="yes">Root Directory:</property>
                 <property name="xalign">0</property>
               </object>
               <packing>

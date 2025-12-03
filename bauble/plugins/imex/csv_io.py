@@ -131,7 +131,7 @@ class CSVExportDialogPresenter(GenericEditorPresenter):
 
     def _construct_grid(self):  # pylint: disable=too-many-locals
         """Create the field grid layout."""
-        labels = ["column title", "database field"]
+        labels = ["Column Title", "Database Field"]
         for column, txt in enumerate(labels):
             label = Gtk.Label()
             label.set_markup(f"<b>{txt}</b>")
@@ -532,7 +532,7 @@ class CSVImportDialogPresenter(GenericEditorPresenter):
         domain_label = Gtk.Label()
         domain_label.set_markup(f"Domain:  <b>{self.domain.__tablename__}</b>")
         self.grid.attach(domain_label, 0, 0, 3, 1)
-        labels = ["column title", "database field", "match database", "option"]
+        labels = ["Column Title", "Database Field", "Match Database", "Option"]
         for column, txt in enumerate(labels):
             label = Gtk.Label()
             label.set_markup(f"<b>{txt}</b>")

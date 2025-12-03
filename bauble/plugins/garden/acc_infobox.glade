@@ -82,7 +82,7 @@
               <object class="GtkLabel" id="supplied_label">
                 <property name="visible">True</property>
                 <property name="can-focus">False</property>
-                <property name="label" translatable="yes">Supplied name:</property>
+                <property name="label" translatable="yes">Supplied Name:</property>
                 <property name="use-markup">True</property>
                 <property name="xalign">1</property>
                 <attributes>
@@ -111,7 +111,7 @@
               <object class="GtkLabel" id="plants_label">
                 <property name="visible">True</property>
                 <property name="can-focus">False</property>
-                <property name="label" translatable="yes">Plant groups:</property>
+                <property name="label" translatable="yes">Plant Groups:</property>
                 <property name="use-markup">True</property>
                 <property name="xalign">1</property>
                 <attributes>
@@ -174,7 +174,7 @@
               <object class="GtkLabel" id="date_accd_label">
                 <property name="visible">True</property>
                 <property name="can-focus">False</property>
-                <property name="label" translatable="yes">Date accessioned:</property>
+                <property name="label" translatable="yes">Date Accessioned:</property>
                 <property name="use-markup">True</property>
                 <property name="xalign">1</property>
                 <attributes>
@@ -209,7 +209,7 @@
               <object class="GtkLabel" id="date_received_label">
                 <property name="visible">True</property>
                 <property name="can-focus">False</property>
-                <property name="label" translatable="yes">Date received:</property>
+                <property name="label" translatable="yes">Date Received:</property>
                 <property name="use-markup">True</property>
                 <property name="xalign">1</property>
                 <attributes>
@@ -244,7 +244,7 @@
               <object class="GtkLabel" id="quantity_label">
                 <property name="visible">True</property>
                 <property name="can-focus">False</property>
-                <property name="label" translatable="yes">Quantity received:</property>
+                <property name="label" translatable="yes">Quantity Received:</property>
                 <property name="use-markup">True</property>
                 <property name="xalign">1</property>
                 <attributes>
@@ -272,7 +272,7 @@
               <object class="GtkLabel">
                 <property name="visible">True</property>
                 <property name="can-focus">False</property>
-                <property name="label" translatable="yes">Type of material:</property>
+                <property name="label" translatable="yes">Type of Material:</property>
                 <property name="use-markup">True</property>
                 <property name="xalign">1</property>
                 <attributes>
@@ -300,7 +300,7 @@
               <object class="GtkLabel">
                 <property name="visible">True</property>
                 <property name="can-focus">False</property>
-                <property name="label" translatable="yes">Purchase price:</property>
+                <property name="label" translatable="yes">Purchase Price:</property>
                 <property name="use-markup">True</property>
                 <property name="xalign">1</property>
                 <attributes>
@@ -380,7 +380,7 @@
               <object class="GtkLabel">
                 <property name="visible">True</property>
                 <property name="can-focus">False</property>
-                <property name="label" translatable="yes">Intended locations:</property>
+                <property name="label" translatable="yes">Intended Locations:</property>
                 <property name="use-markup">True</property>
                 <property name="xalign">1</property>
                 <property name="yalign">0</property>
@@ -409,7 +409,7 @@
               <object class="GtkLabel" id="living_plants_label">
                 <property name="visible">True</property>
                 <property name="can-focus">False</property>
-                <property name="label" translatable="yes">Living plants:</property>
+                <property name="label" translatable="yes">Living Plants:</property>
                 <property name="use-markup">True</property>
                 <property name="xalign">1</property>
                 <property name="yalign">0</property>
@@ -525,7 +525,7 @@
               <object class="GtkLabel" id="source_notes_label">
                 <property name="visible">True</property>
                 <property name="can-focus">False</property>
-                <property name="label" translatable="yes">Source notes:</property>
+                <property name="label" translatable="yes">Source Notes:</property>
                 <property name="use-markup">True</property>
                 <property name="xalign">1</property>
                 <attributes>
@@ -832,7 +832,7 @@
                       <object class="GtkLabel" id="date_label">
                         <property name="visible">True</property>
                         <property name="can-focus">False</property>
-                        <property name="label" translatable="yes">Date collected:</property>
+                        <property name="label" translatable="yes">Date Collected:</property>
                         <property name="xalign">1</property>
                         <attributes>
                           <attribute name="weight" value="bold"/>

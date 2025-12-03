@@ -554,7 +554,7 @@
                                   <object class="GtkLabel">
                                     <property name="visible">True</property>
                                     <property name="can-focus">False</property>
-                                    <property name="label" translatable="yes">Type of material</property>
+                                    <property name="label" translatable="yes">Type of Material</property>
                                     <property name="xalign">0</property>
                                   </object>
                                   <packing>
@@ -639,7 +639,7 @@
                                   <object class="GtkLabel">
                                     <property name="visible">True</property>
                                     <property name="can-focus">False</property>
-                                    <property name="label" translatable="yes">ID format</property>
+                                    <property name="label" translatable="yes">ID Format</property>
                                     <property name="xalign">0</property>
                                   </object>
                                   <packing>
@@ -857,7 +857,7 @@
                                   <object class="GtkLabel">
                                     <property name="visible">True</property>
                                     <property name="can-focus">False</property>
-                                    <property name="label" translatable="yes">Wild status</property>
+                                    <property name="label" translatable="yes">Wild Status</property>
                                     <property name="use-markup">True</property>
                                   </object>
                                   <packing>
@@ -1421,7 +1421,7 @@
                                                         <property name="visible">True</property>
                                                         <property name="can-focus">False</property>
                                                         <property name="margin-top">2</property>
-                                                        <property name="label" translatable="yes">Habitat description</property>
+                                                        <property name="label" translatable="yes">Habitat Description</property>
                                                         <property name="use-markup">True</property>
                                                       </object>
                                                       <packing>
@@ -2391,7 +2391,7 @@
                               <object class="GtkLabel">
                                 <property name="visible">True</property>
                                 <property name="can-focus">False</property>
-                                <property name="label" translatable="yes">Intended locations</property>
+                                <property name="label" translatable="yes">Intended Locations</property>
                                 <property name="xalign">0</property>
                                 <attributes>
                                   <attribute name="weight" value="bold"/>
@@ -2460,7 +2460,7 @@
                   <object class="GtkLabel">
                     <property name="visible">True</property>
                     <property name="can-focus">False</property>
-                    <property name="label" translatable="yes">Additional info</property>
+                    <property name="label" translatable="yes">Additional Info</property>
                   </object>
                   <packing>
                     <property name="position">2</property>
@@ -2644,7 +2644,7 @@
                               <object class="GtkLabel">
                                 <property name="visible">True</property>
                                 <property name="can-focus">False</property>
-                                <property name="label" translatable="yes">Voucher of parent material</property>
+                                <property name="label" translatable="yes">Voucher of Parent Material</property>
                                 <attributes>
                                   <attribute name="weight" value="bold"/>
                                 </attributes>

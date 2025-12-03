@@ -261,13 +261,13 @@ class GUI:
         action_name = "edit_stored_queries"
         self.add_action(action_name, self.on_edit_stored_queries_activated)
         search_menu.append_item(
-            Gio.MenuItem.new(_("Edit stored queries"), f"win.{action_name}")
+            Gio.MenuItem.new(_("Edit Stored Queries"), f"win.{action_name}")
         )
 
         action_name = "open_query_builder"
         self.add_action(action_name, self.on_open_query_builder_activated)
         search_menu.append_item(
-            Gio.MenuItem.new(_("Query builder"), f"win.{action_name}")
+            Gio.MenuItem.new(_("Query Builder"), f"win.{action_name}")
         )
 
         sql_enabled = prefs.prefs.get(prefs.enable_raw_sql_search_pref, False)

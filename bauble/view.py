@@ -2957,7 +2957,7 @@ class PrefsView(View, Gtk.Box):
 
         menu_items = (
             (_("Backup"), "backup", self.on_prefs_backup_clicked),
-            (_("Retore"), "restore", self.on_prefs_restore_clicked),
+            (_("Restore"), "restore", self.on_prefs_restore_clicked),
             (_("Reset defaults"), "defaults", self.on_prefs_reset_clicked),
             (_("Create share file"), "create", self.on_create_share_clicked),
             (_("Update from file"), "update", self.on_update_share_clicked),
