@@ -973,13 +973,9 @@ class Species(db.Domain, db.WithNotes):
 
         if self.cv_group:
             if self.cultivar_epithet:
-                infrasp_parts.append(
-                    _("(%(group)s Group)") % dict(group=self.cv_group)
-                )
+                infrasp_parts.append(f"({self.cv_group} Group)")
             else:
-                infrasp_parts.append(
-                    _("%(group)s Group") % dict(group=self.cv_group)
-                )
+                infrasp_parts.append(f"{self.cv_group} Group")
 
         if self.cultivar_epithet and qual_rank == "cv":
             infrasp_parts.append(qualifier)
