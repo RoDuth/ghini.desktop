@@ -143,6 +143,7 @@
         <child>
           <object class="GtkLabel" id="error_label">
             <property name="can-focus">False</property>
+            <property name="justify">center</property>
             <attributes>
               <attribute name="weight" value="bold"/>
             </attributes>

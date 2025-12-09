@@ -546,8 +546,21 @@ class TestSearchView(BaubleTestCase):
         self.assertTrue(search_view.error_box.get_visible())
         self.assertEqual(
             search_view.error_label.get_text(),
-            'Could not find anything for search: "genus where epithet = None"',
+            "Could not find anything for search: \n\n"
+            '"genus where epithet = None"',
         )
+
+        # wraps long
+        long_qry = (
+            "genus where epithet = 'Blah Blah Blah Blah Blah Blah Blah Blah "
+            "Blah Blah Blah Blah Blah Blah Blah Blah Blah Blah Blah Blah "
+            "Blah Blah Blah Blah Blah Blah Blah Blah Blah Blah Blah Blah "
+            "Blah Blah Blah Blah Blah Blah Blah Blah Blah Blah Blah Blah'"
+        )
+        search_view.search(long_qry)
+
+        result = search_view.error_label.get_text()
+        self.assertTrue(all(len(i) < 200 for i in result.split("\n")))
 
         # with exclude inactive warns
         prefs.prefs[prefs.exclude_inactive_pref] = True
@@ -557,7 +570,8 @@ class TestSearchView(BaubleTestCase):
         self.assertTrue(search_view.error_box.get_visible())
         self.assertEqual(
             search_view.error_label.get_text(),
-            'Could not find anything for search: "genus where epithet = None"'
+            "Could not find anything for search: \n\n"
+            '"genus where epithet = None"'
             "\n\n\n"
             "CONSIDER: uncheck 'Exclude Inactive' in options menu",
         )
@@ -1318,7 +1332,7 @@ class TestSearchView(BaubleTestCase):
         self.assertIsNone(model)
         self.assertEqual(
             search_view.error_label.get_text(),
-            f'Could not find anything for search: "{search_string}"',
+            f'Could not find anything for search: \n\n"{search_string}"',
         )
 
         search_view.rerun_last_search()
@@ -1326,7 +1340,7 @@ class TestSearchView(BaubleTestCase):
         self.assertIsNone(model)
         self.assertEqual(
             search_view.error_label.get_text(),
-            f'Could not find anything for search: "{search_string}"',
+            f'Could not find anything for search: \n\n"{search_string}"',
         )
 
     @mock.patch("bauble.gui")

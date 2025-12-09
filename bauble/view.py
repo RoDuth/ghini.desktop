@@ -1410,8 +1410,14 @@ class SearchView(View, Gtk.Box):
 
     def show_error(self, active: bool, search_text: str = "") -> None:
         self.no_result = active
+
+        if len(search_text) > 200:
+            search_text = "\n".join(textwrap.wrap(search_text, 150))
+
         if search_text:
-            msg = _('Could not find anything for search: "%s"') % search_text
+            msg = (
+                _('Could not find anything for search: \n\n"%s"') % search_text
+            )
 
             if prefs.prefs.get(prefs.exclude_inactive_pref):
                 msg += "\n\n\n"
