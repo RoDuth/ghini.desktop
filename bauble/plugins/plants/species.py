@@ -540,55 +540,53 @@ class VernacularExpander(InfoExpanderMixin[Species], Gtk.Expander):
         self.show_all()
 
 
-class SynonymsExpander(InfoExpander):
-    EXPANDED_PREF = "infobox.species_synonyms_expanded"
+class SynonymsExpander(InfoExpanderMixin[Species], Gtk.Expander):
 
-    def __init__(self, widgets):
-        super().__init__(_("Synonyms"), widgets)
-        synonyms_box = self.widgets.sp_synonyms_box
-        self.widgets.remove_parent(synonyms_box)
-        self.vbox.pack_start(synonyms_box, True, True, 0)
+    def __init__(self) -> None:
+        super().__init__()
+        self.connect("notify::expanded", self.on_expanded)
+        self.box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+        self.box.set_border_width(5)
+        self.add(self.box)
 
-    def update(self, row):
-        """Update the expander
+    def update(self, row: Species) -> None:
+        self.set_label(_("Synonyms"))
+        self.set_sensitive(False)
+        self.box.foreach(self.box.remove)
 
-        :param row: the row to get the values from
-        """
-        self.reset()
-        syn_box = self.widgets.sp_synonyms_box
-        # remove old labels
-        syn_box.foreach(syn_box.remove)
-        logger.debug(row.synonyms)
-        self.set_label(_("Synonyms"))  # reset default value
-        on_label_clicked = utils.generate_on_clicked(select_in_search_results)
         if row.accepted is not None:
             self.set_label(_("Accepted name"))
             # create clickable label that will select the synonym
             # in the search results
-            box = Gtk.EventBox()
-            label = Gtk.Label()
-            label.set_xalign(0.0)
-            label.set_yalign(0.5)
-            label.set_markup(row.accepted.string(markup=True, authors=True))
-            box.add(label)
-            utils.make_label_clickable(label, on_label_clicked, row.accepted)
-            syn_box.pack_start(box, False, False, 0)
-            self.show_all()
+            ebox = Gtk.EventBox()
+            label = Gtk.Label(
+                label=row.accepted.string(markup=True, authors=True),
+                use_markup=True,
+                xalign=0.0,
+                yalign=0.5,
+            )
+            ebox.add(label)
+            utils.make_label_clickable(label, on_clicked_select, row.accepted)
+            self.box.pack_start(ebox, False, False, 0)
             self.set_sensitive(True)
         elif row.synonyms:
             for syn in sorted(row.synonyms, key=str):
                 # create clickable label that will select the synonym
                 # in the search results
-                box = Gtk.EventBox()
-                label = Gtk.Label()
-                label.set_xalign(0.0)
-                label.set_yalign(0.5)
-                label.set_markup(syn.string(markup=True, authors=True))
-                box.add(label)
-                utils.make_label_clickable(label, on_label_clicked, syn)
-                syn_box.pack_start(box, False, False, 0)
-            self.show_all()
+                ebox = Gtk.EventBox()
+                label = Gtk.Label(
+                    label=syn.string(markup=True, authors=True),
+                    use_markup=True,
+                    xalign=0.0,
+                    yalign=0.5,
+                )
+                ebox.add(label)
+                utils.make_label_clickable(label, on_clicked_select, syn)
+                self.box.pack_start(ebox, False, False, 0)
+
             self.set_sensitive(True)
+
+        self.show_all()
 
 
 def send_command(call: str) -> None:
@@ -601,6 +599,7 @@ def send_command(call: str) -> None:
 
 
 on_clicked_search = utils.generate_on_clicked(send_command)
+on_clicked_select = utils.generate_on_clicked(select_in_search_results)
 
 
 class GeneralSpeciesExpander(DistMapInfoExpanderMixin, InfoExpander):
@@ -1000,7 +999,7 @@ class SpeciesInfoBox(InfoBox):
         self.add_expander(self.general)
         self.vernacular = VernacularExpander()
         self.add_expander(self.vernacular)
-        self.synonyms = SynonymsExpander(self.widgets)
+        self.synonyms = SynonymsExpander()
         self.add_expander(self.synonyms)
 
         button_defs = []

@@ -106,6 +106,7 @@ from .species import SpeciesDistribution
 from .species import SpeciesEditor
 from .species import SpeciesNote
 from .species import SpeciesSynonym
+from .species import SynonymsExpander
 from .species import VernacularExpander
 from .species import VernacularName
 from .species import get_binomial_completions
@@ -3700,6 +3701,81 @@ class SpeciesInfoBoxTests(BaubleTestCase):
         self.assertEqual(
             mock_search.call_args.args[2],
             "vernacular_name where name = 'Scrub Cherry'",
+        )
+
+    @mock.patch("bauble.plugins.plants.species.on_clicked_select")
+    def test_synonyms_expander_w_accepted(self, mock_select):
+        expander = SynonymsExpander()
+        fam = Family(epithet="Myrtaceae")
+        gen = Genus(family=fam, epithet="Syzygium")
+        sp = Species(genus=gen, epithet="australe")
+        gen = Genus(family=fam, epithet="Myrtus")
+        syn1 = Species(genus=gen, epithet="australis")
+        sp.synonyms.append(syn1)
+
+        expander.update(syn1)
+        eboxes = expander.box.get_children()
+
+        self.assertEqual(len(eboxes), 1)
+        self.assertEqual(expander.get_label(), "Accepted name")
+        self.assertEqual(
+            eboxes[0].get_child().get_text(),
+            "Syzygium australe",
+        )
+
+        event = Gdk.Event()
+        eboxes[0].emit("button_press_event", event)
+        eboxes[0].emit("button_release_event", event)
+
+        mock_select.assert_called_once()
+        self.assertEqual(
+            mock_select.call_args.args[0],
+            eboxes[0].get_child(),
+        )
+        self.assertEqual(
+            mock_select.call_args.args[2],
+            sp,
+        )
+
+    @mock.patch("bauble.plugins.plants.species.on_clicked_select")
+    def test_synonyms_expander_w_syns(self, mock_select):
+        expander = SynonymsExpander()
+        fam = Family(epithet="Myrtaceae")
+        gen = Genus(family=fam, epithet="Syzygium")
+        sp = Species(genus=gen, epithet="australe")
+        gen = Genus(family=fam, epithet="Myrtus")
+        syn1 = Species(genus=gen, epithet="australis")
+        sp.synonyms.append(syn1)
+        gen = Genus(family=fam, epithet="Eugenia")
+        syn2 = Species(genus=gen, epithet="australis")
+        sp.synonyms.append(syn2)
+
+        expander.update(sp)
+        eboxes = expander.box.get_children()
+
+        self.assertEqual(len(eboxes), 2)
+        self.assertEqual(expander.get_label(), "Synonyms")
+        self.assertEqual(
+            eboxes[0].get_child().get_text(),
+            "Eugenia australis",
+        )
+        self.assertEqual(
+            eboxes[1].get_child().get_text(),
+            "Myrtus australis",
+        )
+
+        event = Gdk.Event()
+        eboxes[0].emit("button_press_event", event)
+        eboxes[0].emit("button_release_event", event)
+
+        mock_select.assert_called_once()
+        self.assertEqual(
+            mock_select.call_args.args[0],
+            eboxes[0].get_child(),
+        )
+        self.assertEqual(
+            mock_select.call_args.args[2],
+            syn2,
         )
 
 
