@@ -60,6 +60,7 @@ from bauble.search.strategies import UseStrategy
 from bauble.view import Action
 from bauble.view import InfoBox
 from bauble.view import InfoExpander
+from bauble.view import InfoExpanderMixin
 from bauble.view import PropertiesExpander
 from bauble.view import select_in_search_results
 
@@ -478,44 +479,65 @@ class SynonymSearch(SearchStrategy):
         return queries
 
 
-# TODO should be Gtk.Template?
-class VernacularExpander(InfoExpander):
-    """VernacularExpander
+class VernacularExpander(InfoExpanderMixin[Species], Gtk.Expander):
+    DEFAULT_LBL = _("(default)")
 
-    :param widgets:
-    """
+    def __init__(self) -> None:
+        super().__init__(label=_("Vernacular names"))
+        self.connect("notify::expanded", self.on_expanded)
+        self.box = Gtk.Box()
+        self.box.set_border_width(5)
+        self.add(self.box)
 
-    EXPANDED_PREF = "infobox.species_vernacular_expanded"
+    def update(self, row: Species) -> None:
+        self.set_sensitive(False)
+        self.box.foreach(self.box.remove)
 
-    def __init__(self, widgets):
-        super().__init__(_("Vernacular names"), widgets)
-        vernacular_box = self.widgets.sp_vernacular_box
-        self.widgets.remove_parent(vernacular_box)
-        self.vbox.pack_start(vernacular_box, True, True, 0)
-        self.display_widgets = [vernacular_box]
+        names: list[tuple[str, str]] = []
 
-    def update(self, row):
-        """update the expander
-
-        :param row: the row to get the values from
-        """
-        self.reset()
         if row.vernacular_names:
-            self.unhide_widgets()
-            names = []
-            for vernacular in row.vernacular_names:
+
+            for vernacular in sorted(row.vernacular_names, key=str):
+                language = ""
+
+                if vernacular.language:
+                    language = f" - {vernacular.language}"
+
                 if (
                     row.default_vernacular_name is not None
                     and vernacular == row.default_vernacular_name
                 ):
                     names.insert(
                         0,
-                        f"{vernacular.name} - {vernacular.language} (default)",
+                        (
+                            vernacular.name or "",
+                            f"{vernacular.name}{language} {self.DEFAULT_LBL}",
+                        ),
                     )
                 else:
-                    names.append(f"{vernacular.name} - {vernacular.language}")
-            self.widget_set_value("sp_vernacular_data", "\n".join(names))
+                    names.append(
+                        (vernacular.name or "", f"{vernacular.name}{language}")
+                    )
+
             self.set_sensitive(True)
+
+        for name, label_txt in names:
+            ebox = Gtk.EventBox()
+            label = Gtk.Label(
+                label=label_txt,
+                xalign=0.0,
+                yalign=0.5,
+            )
+            ebox.add(label)
+            logger.debug("vname on_clicked_search = %s", on_clicked_search)
+            utils.make_label_clickable(
+                label,
+                on_clicked_search,
+                f"vernacular_name where name = '{name}'",
+            )
+            self.box.pack_start(ebox, False, False, 0)
+
+        self.show_all()
 
 
 class SynonymsExpander(InfoExpander):
@@ -976,7 +998,7 @@ class SpeciesInfoBox(InfoBox):
         self.widgets = utils.BuilderWidgets(filename)
         self.general = GeneralSpeciesExpander(self.widgets)
         self.add_expander(self.general)
-        self.vernacular = VernacularExpander(self.widgets)
+        self.vernacular = VernacularExpander()
         self.add_expander(self.vernacular)
         self.synonyms = SynonymsExpander(self.widgets)
         self.add_expander(self.synonyms)

@@ -218,29 +218,47 @@ class ExpandedPref:  # pylint: disable=too-few-public-methods
         return f"infobox.{expander_name}d"
 
 
-class InfoExpanderMixin:
+class InfoExpanderMixin[T: db.Base]:
     """InfoExpander mixin that can be used with Gtk.Template decorated class
     that inherits from Gtk.Expander and supplies an update method.
 
     This mixin provides a way to store the expanded state of the expander in
-    the preferences.  Usage::
+    the preferences.
+
+    Example with Gtk.Template and no specific type::
 
         @Gtk.Template(filename="/path/to/file.ui"))
-        class HamExpander(GenericPresenter, Gtk.Expander):
+        class HamExpander(InfoExpanderMixin, Gtk.Expander):
 
             __gtype_name__ = "HamExpander"
 
             label = cast(Gtk.Label, Gtk.Template.Child())
 
-        @Gtk.Template.Callback()
-        def on_expanded(self, expander: Gtk.Expander, *_args) -> None:
-            super().on_expanded(expander)
+            def __init__(self) -> None:
+                super().__init__(label=_("Hams"))
 
-        def __init__(self) -> None:
-            super().__init__(label=_("Hams"))
+            @Gtk.Template.Callback()
+            def on_expanded(self, expander: Gtk.Expander, *_args) -> None:
+                super().on_expanded(expander)
 
-        def update(self, row: db.Domain) -> None:
-            label.set_text(row.ham_string)
+            def update(self, row: db.Base) -> None:
+                self.label.set_text(row.id)
+
+    Example without Gtk.Template and a specific type::
+
+        class EggsExpander(InfoExpanderMixin[EggsModel], Gtk.Expander):
+
+            def __init__(self) -> None:
+                super().__init__(label=_("Eggs"))
+                self.connect("notify::expanded", self.on_expanded)
+                self.label = Gtk.Label(xalign=0.1)
+                box = Gtk.Box()
+                box.set_border_width(5)
+                box.add(self.label)
+                self.add(box)
+
+            def update(self, row: EggsModel) -> None:
+                self.label.set_text(row.yoke_count)
     """
 
     # TODO long term deprecate InfoExpander for this approach
@@ -254,10 +272,10 @@ class InfoExpanderMixin:
         self._sep: Gtk.Separator | None = None
         self.set_expanded(prefs.prefs.get(self.EXPANDED_PREF, True))
 
-    def on_expanded(self, expander: Gtk.Expander) -> None:
+    def on_expanded(self, expander: Gtk.Expander, *_args) -> None:
         prefs.prefs[self.EXPANDED_PREF] = expander.get_expanded()
 
-    def update(self, _row: db.Domain) -> None:
+    def update(self, _row: T) -> None:
         """This method should be implimented in subclass to update from the
         selected row.
         """
@@ -298,9 +316,6 @@ class InfoExpander(Gtk.Expander):
     def widget_set_value(self, widget_name, value, markup=False):
         """A shorthand for `bauble.utils.set_widget_value()`"""
         utils.set_widget_value(self.widgets[widget_name], value, markup)
-
-    def unhide_widgets(self):
-        utils.unhide_widgets(self.display_widgets)
 
     def reset(self):
         """Hide `display_widgets`, set set sensitive False and restore expanded
@@ -463,7 +478,7 @@ class InfoBox(Gtk.Notebook):
 
 
 @Gtk.Template(filename=str(Path(paths.lib_dir(), "properties_expander.ui")))
-class PropertiesExpander(InfoExpanderMixin, Gtk.Expander):
+class PropertiesExpander(InfoExpanderMixin[db.Domain], Gtk.Expander):
 
     __gtype_name__ = "PropertiesExpander"
 
@@ -510,7 +525,7 @@ class PropertiesExpander(InfoExpanderMixin, Gtk.Expander):
 
 
 @Gtk.Template(filename=str(Path(paths.lib_dir(), "links_expander.ui")))
-class LinksExpander(InfoExpanderMixin, Gtk.Expander):
+class LinksExpander(InfoExpanderMixin[db.Domain], Gtk.Expander):
 
     __gtype_name__ = "LinksExpander"
 

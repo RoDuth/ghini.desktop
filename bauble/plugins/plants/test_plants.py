@@ -106,6 +106,7 @@ from .species import SpeciesDistribution
 from .species import SpeciesEditor
 from .species import SpeciesNote
 from .species import SpeciesSynonym
+from .species import VernacularExpander
 from .species import VernacularName
 from .species import get_binomial_completions
 from .species_editor import CAPITALISE_VNAMES_ON_PASTE_PREF_KEY
@@ -3656,6 +3657,52 @@ class SpeciesTopLevelCountTests(BaubleTestCase):
         self.assertEqual(str(Species.top_level_count([1, 4])), expected)
 
 
+class SpeciesInfoBoxTests(BaubleTestCase):
+    @mock.patch("bauble.plugins.plants.species.on_clicked_search")
+    def test_vernacular_expander(self, mock_search):
+        expander = VernacularExpander()
+        fam = Family(epithet="Myrtaceae")
+        gen = Genus(family=fam, epithet="Syzygium")
+        sp = Species(genus=gen, epithet="australe")
+        vern = VernacularName(name="Creek Satinash", language="EN")
+        sp.vernacular_names.append(vern)
+        vern2 = VernacularName(name="Brush Cherry")
+        sp.vernacular_names.append(vern2)
+        default = VernacularName(name="Scrub Cherry", language="EN")
+        sp.default_vernacular_name = default
+
+        expander.update(sp)
+        eboxes = expander.box.get_children()
+
+        self.assertEqual(len(eboxes), 3)
+        self.assertEqual(
+            eboxes[0].get_child().get_text(),
+            "Scrub Cherry - EN (default)",
+        )
+        self.assertEqual(
+            eboxes[1].get_child().get_text(),
+            "Brush Cherry",
+        )
+        self.assertEqual(
+            eboxes[2].get_child().get_text(),
+            "Creek Satinash - EN",
+        )
+
+        event = Gdk.Event()
+        eboxes[0].emit("button_press_event", event)
+        eboxes[0].emit("button_release_event", event)
+
+        mock_search.assert_called_once()
+        self.assertEqual(
+            mock_search.call_args.args[0],
+            eboxes[0].get_child(),
+        )
+        self.assertEqual(
+            mock_search.call_args.args[2],
+            "vernacular_name where name = 'Scrub Cherry'",
+        )
+
+
 class VernacularNameTests(BaubleTestCase):
     def test_has_children_same_as_species(self):
         for vern in self.session.query(VernacularName):
@@ -3876,9 +3923,6 @@ class BinomialSearchTests(BaubleTestCase):
         super().setUp()
         db.engine.execute("delete from genus")
         db.engine.execute("delete from family")
-        from bauble.plugins.plants.family import Family
-        from bauble.plugins.plants.genus import Genus
-        from bauble.plugins.plants.species import Species
 
         f1 = Family(family="family1", qualifier="s. lat.")
         g1 = Genus(family=f1, genus="genus1")
