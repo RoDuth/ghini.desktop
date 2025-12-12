@@ -1379,7 +1379,7 @@ def make_label_clickable(label, on_clicked, *args):
             "button_release_event", on_release, *args
         )
     except AttributeError:
-        logger.debug("defining handlers")
+        logger.debug("defining handlers - %s", on_clicked)
         label.__on_event = eventbox.connect(
             "button_release_event", on_release, *args
         )

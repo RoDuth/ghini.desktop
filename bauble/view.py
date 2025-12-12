@@ -218,7 +218,7 @@ class ExpandedPref:  # pylint: disable=too-few-public-methods
         return f"infobox.{expander_name}d"
 
 
-class InfoExpanderMixin[T: db.Base]:
+class InfoExpanderMixin[T: db.Domain]:
     """InfoExpander mixin that can be used with Gtk.Template decorated class
     that inherits from Gtk.Expander and supplies an update method.
 
@@ -275,7 +275,7 @@ class InfoExpanderMixin[T: db.Base]:
     def on_expanded(self, expander: Gtk.Expander, *_args) -> None:
         prefs.prefs[self.EXPANDED_PREF] = expander.get_expanded()
 
-    def update(self, _row: T) -> None:
+    def update(self, row: T) -> None:
         """This method should be implimented in subclass to update from the
         selected row.
         """
@@ -358,7 +358,7 @@ class UpdateableExpander(Gtk.Expander, Updateable, metaclass=_UEMeta):
     def update(self, row: db.Domain) -> None: ...
 
 
-class InfoBoxPage(Gtk.ScrolledWindow):
+class InfoBoxPage[T: db.Domain](Gtk.ScrolledWindow):
     """A `Gtk.ScrolledWindow` that contains `bauble.view.InfoExpander`
     objects.
     """
@@ -413,7 +413,7 @@ class InfoBoxPage(Gtk.ScrolledWindow):
             return expander
         return None
 
-    def update(self, row: db.Domain) -> None:
+    def update(self, row: T) -> None:
         """Updates the infobox with values from row.
 
         :param row: the mapper instance to use to update this infobox,
@@ -423,7 +423,7 @@ class InfoBoxPage(Gtk.ScrolledWindow):
             expander.update(row)
 
 
-class InfoBox(Gtk.Notebook):
+class InfoBox[T: db.Domain](Gtk.Notebook):
     """Holds list of expanders with an optional tabbed layout.
 
     The default is to not use tabs. To create the InfoBox with tabs
@@ -441,11 +441,13 @@ class InfoBox(Gtk.Notebook):
         super().__init__()
         self.row: db.Domain | None = None
         self.set_property("show-border", False)
+
         if not tabbed:
-            page = InfoBoxPage()
+            page = InfoBoxPage[T]()
             self.insert_page(page, tab_label=None, position=0)
             self.set_property("show-tabs", False)
             self.set_current_page(0)
+
         self.connect("switch-page", self.on_switch_page)
 
     # notebook == self could be a static method and just use the notebook?
@@ -458,7 +460,11 @@ class InfoBox(Gtk.Notebook):
         if page and hasattr(page, "update"):
             page.update(self.row)
 
-    def add_expander(self, expander: InfoExpander, page_num: int = 0) -> None:
+    def add_expander(
+        self,
+        expander: InfoExpander | InfoExpanderMixin,
+        page_num: int = 0,
+    ) -> None:
         """Add an expander to a page.
 
         :param expander: The expander to add.
@@ -468,10 +474,11 @@ class InfoBox(Gtk.Notebook):
         if page and hasattr(page, "add_expander"):
             page.add_expander(expander)
 
-    def update(self, row: db.Domain) -> None:
+    def update(self, row: T) -> None:
         """Update the current page with row."""
         self.row = row
         page_num = self.get_current_page()
+
         page = self.get_nth_page(page_num)
         if page and hasattr(page, "update"):
             page.update(row)
@@ -538,7 +545,9 @@ class LinksExpander(InfoExpanderMixin[db.Domain], Gtk.Expander):
         super().on_expanded(expander)
 
     def __init__(
-        self, notes: str | None = None, links: list[LinkDict] | None = None
+        self,
+        notes: str | None = None,
+        links: list[LinkDict] | None = None,
     ) -> None:
         """Provides the web link buttons section for this row.
 

@@ -149,10 +149,12 @@ class _TagsMenuManager:
         self.active_tag_name = tag_name.unpack()
         bauble.gui.send_command(f"tag={tag_name}")
         view = bauble.gui.get_view()
+
         if isinstance(view, SearchView):
             GLib.idle_add(
-                view.results_view.expand_to_path, Gtk.TreePath.new_first()
+                view.results_view.expand_to_path, Gtk.TreePath().new_first()
             )
+
         self.refresh()
 
     @staticmethod
@@ -293,7 +295,7 @@ class _TagsMenuManager:
             _("Tag Selection"), f"win.{self.TAG_ACTION_NAME}"
         )
 
-        app = Gio.Application.get_default()
+        app = Gio.Application().get_default()
         if isinstance(app, Gtk.Application):
             # tag selection
             app.set_accels_for_action(

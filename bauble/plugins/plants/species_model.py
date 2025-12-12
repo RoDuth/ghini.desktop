@@ -1407,6 +1407,7 @@ class VernacularName(db.Domain):
     # NOTE 'id' is included in Species.retrieve_cols
     sp_retrieve_cols = [f"species.{i}" for i in Species.retrieve_cols]
     retrieve_cols = ["id", "name", "language"] + sp_retrieve_cols
+    species: Species
 
     @classmethod
     def retrieve(cls, session, keys):

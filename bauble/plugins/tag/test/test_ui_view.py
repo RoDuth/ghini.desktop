@@ -37,11 +37,10 @@ class TagInfoBoxTest(BaubleTestCase):
         t = Tag(tag="name", description="description")
         ib = TagInfoBox()
         ib.update(t)
-        self.assertEqual(
-            ib.general.description_label.get_text(), t.description
-        )
-        self.assertEqual(ib.general.name_label.get_text(), t.tag)
-        self.assertEqual(ib.general.table_cells, [])
+        general = ib.get_nth_page(0).expanders["General"]
+        self.assertEqual(general.description_label.get_text(), t.description)
+        self.assertEqual(general.name_label.get_text(), t.tag)
+        self.assertEqual(general.table_cells, [])
         ib.destroy()
 
     def test_update_infobox_from_tagging_tag(self):
@@ -53,16 +52,15 @@ class TagInfoBoxTest(BaubleTestCase):
         self.session.commit()
         t.tag_objects([x, y, z])
         ib = TagInfoBox()
-        self.assertEqual(ib.general.table_cells, [])
+        general = ib.get_nth_page(0).expanders["General"]
+        self.assertEqual(general.table_cells, [])
         ib.update(t)
-        self.assertEqual(
-            ib.general.description_label.get_text(), t.description
-        )
-        self.assertEqual(ib.general.name_label.get_text(), t.tag)
-        self.assertEqual(len(ib.general.table_cells), 2)
-        self.assertEqual(ib.general.table_cells[0].get_text(), "Tag")
-        self.assertEqual(type(ib.general.table_cells[1]), Gtk.EventBox)
-        label = ib.general.table_cells[1].get_children()[0]
+        self.assertEqual(general.description_label.get_text(), t.description)
+        self.assertEqual(general.name_label.get_text(), t.tag)
+        self.assertEqual(len(general.table_cells), 2)
+        self.assertEqual(general.table_cells[0].get_text(), "Tag")
+        self.assertEqual(type(general.table_cells[1]), Gtk.EventBox)
+        label = general.table_cells[1].get_children()[0]
         self.assertEqual(label.get_text(), " 3 ")
         ib.destroy()
 
@@ -74,16 +72,17 @@ class TagInfoBoxTest(BaubleTestCase):
         tag1.tag_objects([tag2])
         ib = TagInfoBox()
         mock_grid = mock.Mock()
-        ib.general.grid = mock_grid
+        general = ib.get_nth_page(0).expanders["General"]
+        general.grid = mock_grid
         ib.update(tag1)
         # not first time
         mock_grid.remove.assert_not_called()
-        self.assertEqual(len(ib.general.table_cells), 2)
+        self.assertEqual(len(general.table_cells), 2)
 
         ib.update(tag1)
         # but second time
         mock_grid.remove.assert_called()
-        self.assertEqual(len(ib.general.table_cells), 2)
+        self.assertEqual(len(general.table_cells), 2)
         ib.destroy()
 
 

@@ -900,12 +900,13 @@ class DistMapInfoExpanderMixin:
     """Mixin to provide a right click menu for a DistributionMap in an
     InfoExpander.
 
-    To use: In `update` wrap the DistributionMap's image widget in an
+    To use: In ``update`` method wrap the DistributionMap's image widget in an
     Gtk.EventBox and connect it's button_release_event to
-    `on_map_button_release`. Also, set `distribution_map` to the current
-    row's, `zoomed` to `False` and `zoom_level` to `1`.
+    ``on_map_button_release``. Also, set ``distribution_map`` to the current
+    row's, ``zoomed`` to ``False`` and ``zoom_level`` to ``1``.
 
-    e.g. - in the infoEpander's `update` method:
+    e.g. - in the infoEpander's ``update`` method::
+
             self.zoomed = False
             self.zoom_level = 1
             self.distribution_map = row.distribution_map()
@@ -917,7 +918,7 @@ class DistMapInfoExpanderMixin:
     """
 
     MAP_ACTION_NAME: str = "distribution_map_activated"
-    distribution_map: DistributionMap
+    distribution_map: DistributionMap | None
     zoom_level: float
     zoomed: bool
 
@@ -960,28 +961,33 @@ class DistMapInfoExpanderMixin:
         """Save as SVG file."""
         if not self.distribution_map:
             return
+
         filechooser = Gtk.FileChooserNative.new(
             _("Save to…"), None, Gtk.FileChooserAction.SAVE
         )
         filechooser.set_current_folder(str(Path.home()))
-        filter_ = Gtk.FileFilter.new()
+        filter_ = Gtk.FileFilter().new()
         filter_.add_pattern("*.svg")
         filechooser.add_filter(filter_)
         filename = None
         if filechooser.run() == Gtk.ResponseType.ACCEPT:
             filename = filechooser.get_filename()
+
         if filename:
             logger.debug("saving SVG to %s", filename)
             with Path(filename).open("w", encoding="utf-8") as f:
                 f.write(str(self.distribution_map))
+
         filechooser.destroy()
 
     def on_dist_map_copy(self, _action, _param) -> None:
         """Copy the pixbuf to the clipboard."""
         if not self.distribution_map:
             return
+
         image = self.distribution_map.as_image()
         pixbuf = image.get_pixbuf()
+
         if bauble.gui and pixbuf:
             logger.debug("copying pixbuf")
             bauble.gui.get_display_clipboard().set_image(pixbuf)
@@ -990,9 +996,11 @@ class DistMapInfoExpanderMixin:
         """Zoom the map to the maximum zoom level that displays the areas."""
         if not self.distribution_map:
             return
+
         self.zoom_level = self.distribution_map.get_max_zoom()
         if self.zoom_level == 1:
             return
+
         self.distribution_map.zoom_to_level(self.zoom_level)
         self.zoomed = True
 

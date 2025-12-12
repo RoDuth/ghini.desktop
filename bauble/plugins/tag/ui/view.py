@@ -34,13 +34,14 @@ from bauble import db
 from bauble import utils
 from bauble.i18n import _
 from bauble.view import InfoBox
+from bauble.view import InfoExpanderMixin
 from bauble.view import PropertiesExpander
 
 from ..model import Tag
 
 
 @Gtk.Template(filename=str(Path(__file__).resolve().parent / "info_box.ui"))
-class GeneralTagExpander(Gtk.Expander):
+class GeneralTagExpander(InfoExpanderMixin[Tag], Gtk.Expander):
     """Generic information about a tag.  Displays the tag name, description and
     a table of the types and count(with link) of tagged items.
     """
@@ -53,7 +54,8 @@ class GeneralTagExpander(Gtk.Expander):
     grid = cast(Gtk.Grid, Gtk.Template.Child())
 
     def __init__(self):
-        super().__init__(label=_("General"), expanded=True)
+        super().__init__(label=_("General"))
+        self.connect("notify::expanded", self.on_expanded)
         self.table_cells = []
 
     def update(self, row):
@@ -95,18 +97,12 @@ class GeneralTagExpander(Gtk.Expander):
         self.grid.show_all()
 
 
-class TagInfoBox(InfoBox):
+class TagInfoBox(InfoBox[Tag]):
 
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__()
-        self.general = GeneralTagExpander()
-        self.add_expander(self.general)
-        self.props = PropertiesExpander()
-        self.add_expander(self.props)
-
-    def update(self, row):
-        self.general.update(row)
-        self.props.update(row)
+        self.add_expander(GeneralTagExpander())
+        self.add_expander(PropertiesExpander())
 
 
 @Gtk.Template(filename=str(Path(__file__).resolve().parent / "tags_page.ui"))
