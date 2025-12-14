@@ -1291,7 +1291,7 @@ class SearchTests2(BaubleTestCase):
 
         s = "Schetti"
         search.search(s, self.session)
-        # SynonymsSearch should not run, nothing in results_cache
+        # SynonymSearch should not run, nothing in results_cache
         results = result_cache.get("SynonymSearch")
         self.assertIsNone(results)
 

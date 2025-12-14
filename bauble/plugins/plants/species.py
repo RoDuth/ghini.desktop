@@ -23,13 +23,15 @@ Species modules
 """
 
 import logging
+
+logger = logging.getLogger(__name__)
+
 import re
 import traceback
 from ast import literal_eval
+from collections.abc import Sequence
 from pathlib import Path
 from typing import cast
-
-logger = logging.getLogger(__name__)
 
 from gi.repository import Gdk
 from gi.repository import Gtk
@@ -41,6 +43,7 @@ from sqlalchemy import and_
 from sqlalchemy import func
 from sqlalchemy import or_
 from sqlalchemy import select
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Query
 from sqlalchemy.orm import Session
 from sqlalchemy.orm.session import object_session
@@ -59,6 +62,8 @@ from bauble.view import Action
 from bauble.view import InfoBox
 from bauble.view import InfoExpanderMixin
 from bauble.view import PropertiesExpander
+from bauble.view import on_clicked_search
+from bauble.view import on_clicked_select
 from bauble.view import select_in_search_results
 
 from .family import Family
@@ -91,72 +96,81 @@ __all__ = [
     "SpeciesNote",
 ]
 
-# TODO: we need to make sure that this will still work if the
-# AccessionPlugin is not present, this means that we would have to
-# change the species context menu, getting the children from the
-# search view and what else
 
-
-def edit_callback(objs, **kwargs):
+def edit_callback(
+    objs: Sequence[Species | VernacularName],
+    **_kwargs,
+) -> bool:
     sp = objs[0]
     if isinstance(sp, VernacularName):
         sp = sp.species
     return edit_species(model=sp) is not None
 
 
-def remove_callback(objs, **kwargs):
-    """
-    The callback function to remove a species from the species context menu.
-    """
-    from bauble.plugins.garden.accession import Accession
+def remove_callback(
+    objs: Sequence[Species | VernacularName],
+    **_kwargs,
+) -> bool:
 
     species = objs[0]
     s_lst = []
     session = object_session(species)
+    if not isinstance(session, Session):
+        return False
+
     for species in objs:
         if isinstance(species, VernacularName):
             species = species.species
-        nacc = (
-            session.query(Accession).filter_by(species_id=species.id).count()
-        )
+
+        nacc = len(species.accessions)
         safe_str = utils.xml_safe(str(species))
         s_lst.append(safe_str)
         if nacc > 0:
-            msg = _("The species <i>%(1)s</i> has %(2)s accessions.\n\n") % {
-                "1": safe_str,
-                "2": nacc,
-            } + _("You cannot remove a species with accessions.")
+
+            msg = _(
+                "The species <i>%(sp)s</i> has %(num_acc)s accessions.\n\n"
+                "You cannot remove a species with accessions."
+            ) % {"sp": safe_str, "num_acc": nacc}
+
             utils.message_dialog(msg, typ=Gtk.MessageType.WARNING)
+
             return False
+
     msg = _(
         "Are you sure you want to remove the following species <i>%s</i>?"
     ) % ", ".join(i for i in s_lst)
     if not utils.yes_no_dialog(msg):
         return False
+
     for species in objs:
         session.delete(species)
     try:
         session.commit()
-    except Exception as e:  # pylint: disable=broad-except
+    except SQLAlchemyError as e:
         msg = _("Could not delete.\n\n%s") % utils.xml_safe(e)
         utils.message_details_dialog(
             msg, traceback.format_exc(), Gtk.MessageType.ERROR
         )
         session.rollback()
+        return False
+
     return True
 
 
-def add_accession_callback(objs, **kwargs):
-    from bauble.plugins.garden.accession import Accession
-    from bauble.plugins.garden.accession import AccessionEditor
+def add_accession_callback(
+    objs: Sequence[Species | VernacularName],
+    **_kwargs,
+) -> bool:
+    from ..garden.accession import Accession
+    from ..garden.accession import AccessionEditor
 
-    session = db.Session()
-    species = session.merge(objs[0])
+    species = objs[0]
     if isinstance(species, VernacularName):
         species = species.species
-    e = AccessionEditor(model=Accession(species=species))
-    session.close()
-    return e.start() is not None
+
+    editor = AccessionEditor(model=Accession(species=species))
+
+    return editor.start() is not None
 
 
 edit_action = Action(
@@ -591,19 +605,6 @@ class SynonymsExpander(InfoExpanderMixin[Species], Gtk.Expander):
             self.set_sensitive(True)
 
         self.show_all()
-
-
-def send_command(call: str) -> None:
-    """Sends command to ``bauble.gui.send_command`` only if its available.
-
-    For the sake of tests.
-    """
-    if bauble.gui:
-        bauble.gui.send_command(call)
-
-
-on_clicked_search = utils.generate_on_clicked(send_command)
-on_clicked_select = utils.generate_on_clicked(select_in_search_results)
 
 
 @Gtk.Template(

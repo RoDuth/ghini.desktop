@@ -2815,6 +2815,30 @@ def select_in_search_results(obj, expand_current_first=False) -> Gtk.TreeIter:
     return row_iter
 
 
+def _send_command(call: str) -> None:
+    """Sends command to ``bauble.gui.send_command`` only if its available.
+
+    For the sake of tests.
+    """
+    if bauble.gui:
+        bauble.gui.send_command(call)
+
+
+on_clicked_search = utils.generate_on_clicked(_send_command)
+"""Clickable labels convienence function for running a new search,
+e.g.::
+
+    utils.make_label_clickable(label, on_clicked_select, "loc=LOC1")
+"""
+
+on_clicked_select = utils.generate_on_clicked(select_in_search_results)
+"""Clickable labels convienence function for selecting in search view,
+e.g.::
+
+    utils.make_label_clickable(label, on_clicked_select, object)
+"""
+
+
 class DefaultCommandHandler(pluginmgr.CommandHandler):
     command = (None, "SQL")
     view: SearchView | None = None

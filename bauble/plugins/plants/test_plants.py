@@ -38,6 +38,7 @@ from gi.repository import Gdk
 from gi.repository import Gtk
 from sqlalchemy import update
 from sqlalchemy.exc import IntegrityError
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.exc import StatementError
 from sqlalchemy.orm.exc import NoResultFound
 
@@ -48,6 +49,7 @@ from bauble import prefs
 from bauble import search
 from bauble import utils
 from bauble.meta import BaubleMeta
+from bauble.search.search import result_cache
 from bauble.search.strategies import UseStrategy
 from bauble.test import BaubleClassTestCase
 from bauble.test import BaubleTestCase
@@ -107,6 +109,7 @@ from .species import SpeciesEditor
 from .species import SpeciesInfoBox
 from .species import SpeciesNote
 from .species import SpeciesSynonym
+from .species import SynonymSearch
 from .species import SynonymsExpander
 from .species import VernacularExpander
 from .species import VernacularName
@@ -1833,6 +1836,7 @@ class GenusTests(PlantTestCase):
             )
             in self.invoked
         )
+        self.assertFalse(result)
         q = self.session.query(Genus).filter_by(genus="Carica")
         matching = q.all()
         self.assertEqual(matching, [f5])
@@ -2907,141 +2911,167 @@ class SpeciesTests(PlantTestCase):
         self.assertEqual(sp4.accepted, None)
 
     def test_remove_callback_no_accessions_no_confirm(self):
-        # T_0
         caricaceae = Family(family="Caricaceae")
         f5 = Genus(epithet="Carica", family=caricaceae)
         sp = Species(epithet="papaya", genus=f5)
         self.session.add_all([caricaceae, f5, sp])
         self.session.flush()
-        self.invoked = []
 
-        # action
-        orig_yes_no_dialog = utils.yes_no_dialog
-        orig_message_details_dialog = utils.message_details_dialog
-        utils.yes_no_dialog = partial(
-            mockfunc, name="yes_no_dialog", caller=self, result=False
-        )
-        utils.message_details_dialog = partial(
-            mockfunc, name="message_details_dialog", caller=self
-        )
-        from bauble.plugins.plants.species import remove_callback
+        from .species import remove_callback
 
-        result = remove_callback([sp])
-        self.session.flush()
-
-        # effect
-        self.assertFalse(
-            "message_details_dialog" in [f for (f, m) in self.invoked]
-        )
-        self.assertTrue(
-            (
-                "yes_no_dialog",
-                "Are you sure you want to remove "
-                "the following species <i>Carica papaya</i>?",
+        with mock.patch("bauble.utils.yes_no_dialog") as mock_dlog:
+            mock_dlog.return_value = False
+            result = remove_callback([sp])
+            mock_dlog.assert_called_once_with(
+                "Are you sure you want to remove the following species "
+                "<i>Carica papaya</i>?",
             )
-            in self.invoked
+
+        self.assertFalse(result)
+        self.assertEqual(
+            self.session.query(Species).filter_by(sp="papaya").all(),
+            [sp],
         )
-        self.assertEqual(result, False)
-        q = self.session.query(Species).filter_by(genus=f5, sp="papaya")
-        matching = q.all()
-        self.assertEqual(matching, [sp])
-        utils.yes_no_dialog = orig_yes_no_dialog
-        utils.message_details_dialog = orig_message_details_dialog
 
     def test_remove_callback_no_accessions_confirm(self):
-        # T_0
         caricaceae = Family(family="Caricaceae")
         f5 = Genus(epithet="Carica", family=caricaceae)
         sp = Species(epithet="papaya", genus=f5)
         self.session.add_all([caricaceae, f5, sp])
         self.session.flush()
-        self.invoked = []
 
-        # action
-        orig_yes_no_dialog = utils.yes_no_dialog
-        orig_message_details_dialog = utils.message_details_dialog
-        utils.yes_no_dialog = partial(
-            mockfunc, name="yes_no_dialog", caller=self, result=True
-        )
-        utils.message_details_dialog = partial(
-            mockfunc, name="message_details_dialog", caller=self
-        )
-        from bauble.plugins.plants.species import remove_callback
+        from .species import remove_callback
 
-        result = remove_callback([sp])
-        self.session.flush()
-
-        # effect
-        self.assertFalse(
-            "message_details_dialog" in [f for (f, m) in self.invoked]
-        )
-        self.assertTrue(
-            (
-                "yes_no_dialog",
-                "Are you sure you want to remove "
-                "the following species <i>Carica papaya</i>?",
+        with mock.patch("bauble.utils.yes_no_dialog") as mock_dlog:
+            mock_dlog.return_value = True
+            result = remove_callback([sp])
+            mock_dlog.assert_called_once_with(
+                "Are you sure you want to remove the following species "
+                "<i>Carica papaya</i>?",
             )
-            in self.invoked
-        )
 
-        self.assertEqual(result, True)
-        q = self.session.query(Species).filter_by(sp="Carica")
+        self.assertTrue(result)
+        q = self.session.query(Species).filter_by(sp="papaya")
         matching = q.all()
         self.assertEqual(matching, [])
-        utils.yes_no_dialog = orig_yes_no_dialog
-        utils.message_details_dialog = orig_message_details_dialog
 
     def test_remove_callback_with_accessions_cant_cascade(self):
-        # T_0
         caricaceae = Family(family="Caricaceae")
         f5 = Genus(epithet="Carica", family=caricaceae)
         sp = Species(epithet="papaya", genus=f5)
-        from bauble.plugins.garden import Accession
+        vern = VernacularName(name="Pawpaw")
+        sp.default_vernacular_name = vern
+
+        from ..garden import Accession
 
         acc = Accession(code="0123456", species=sp)
         self.session.add_all([caricaceae, f5, sp, acc])
         self.session.flush()
-        self.invoked = []
 
-        # action
-        orig_yes_no_dialog = utils.yes_no_dialog
-        orig_message_dialog = utils.message_dialog
-        orig_message_details_dialog = utils.message_details_dialog
-        utils.yes_no_dialog = partial(
-            mockfunc, name="yes_no_dialog", caller=self, result=True
-        )
-        utils.message_dialog = partial(
-            mockfunc, name="message_dialog", caller=self, result=True
-        )
-        utils.message_details_dialog = partial(
-            mockfunc, name="message_details_dialog", caller=self
-        )
-        from bauble.plugins.plants.species import remove_callback
+        from .species import remove_callback
 
-        result = remove_callback([sp])
-        self.session.flush()
-
-        # effect
-        self.assertFalse(
-            "message_details_dialog" in [f for (f, m) in self.invoked]
-        )
-        self.assertTrue(
-            (
-                "message_dialog",
+        with mock.patch("bauble.utils.message_dialog") as mock_dlog:
+            mock_dlog.return_value = True
+            result = remove_callback([vern])
+            mock_dlog.assert_called_once_with(
                 "The species <i>Carica papaya</i> has 1 accessions."
                 "\n\nYou cannot remove a species with accessions.",
+                typ=Gtk.MessageType.WARNING,
             )
-            in self.invoked
-        )
-        q = self.session.query(Species).filter_by(genus=f5, sp="papaya")
+
+        self.assertFalse(result)
+        q = self.session.query(Species).filter_by(sp="papaya")
         matching = q.all()
         self.assertEqual(matching, [sp])
+
         q = self.session.query(Accession).filter_by(species=sp)
         matching = q.all()
         self.assertEqual(matching, [acc])
-        utils.yes_no_dialog = orig_yes_no_dialog
-        utils.message_dialog = orig_message_dialog
-        utils.message_details_dialog = orig_message_details_dialog
+
+    def test_remove_callback_bails(self):
+        caricaceae = Family(family="Caricaceae")
+        f5 = Genus(epithet="Carica", family=caricaceae)
+        sp = Species(epithet="papaya", genus=f5)
+        self.session.add(sp)
+        self.session.flush()
+
+        from .species import remove_callback
+
+        with mock.patch("bauble.plugins.plants.species.object_session"):
+            self.assertFalse(remove_callback([sp]))
+
+    @mock.patch("bauble.utils.yes_no_dialog")
+    @mock.patch("bauble.utils.message_details_dialog")
+    def test_remove_callback_commit_exception(self, mock_d_dlog, mock_yn_dlog):
+        mock_yn_dlog.return_value = True
+        mock_d_dlog.return_value = True
+        caricaceae = Family(family="Caricaceae")
+        f5 = Genus(epithet="Carica", family=caricaceae)
+        sp = Species(epithet="papaya", genus=f5)
+        self.session.add(sp)
+        self.session.flush()
+
+        from .species import remove_callback
+
+        with (
+            mock.patch.object(
+                self.session, "commit", side_effect=SQLAlchemyError
+            ),
+            mock.patch.object(self.session, "rollback") as mock_rollback,
+        ):
+            self.assertFalse(remove_callback([sp]))
+            mock_rollback.assert_called()
+            mock_d_dlog.assert_called()
+
+    def test_edit_callback(self):
+        caricaceae = Family(family="Caricaceae")
+        f5 = Genus(epithet="Carica", family=caricaceae)
+        sp = Species(epithet="papaya", genus=f5)
+        vern = VernacularName(name="Pawpaw")
+        sp.default_vernacular_name = vern
+        self.session.add(sp)
+        self.session.flush()
+
+        from .species import edit_callback
+
+        with mock.patch(
+            "bauble.plugins.plants.species.edit_species"
+        ) as mock_edit:
+            mock_edit.return_value = None
+
+            self.assertFalse(edit_callback([sp]))
+
+            mock_edit.return_value = sp
+            self.assertTrue(edit_callback([vern]))
+
+    def test_add_accession_callback(self):
+        caricaceae = Family(family="Caricaceae")
+        f5 = Genus(epithet="Carica", family=caricaceae)
+        sp = Species(epithet="papaya", genus=f5)
+        vern = VernacularName(name="Pawpaw")
+        sp.default_vernacular_name = vern
+        self.session.add(sp)
+        self.session.flush()
+
+        from ..garden import Accession
+        from .species import add_accession_callback
+
+        with mock.patch(
+            "bauble.plugins.garden.accession.AccessionEditor"
+        ) as mock_edit:
+            mock_edit().start.return_value = None
+
+            self.assertFalse(add_accession_callback([sp]))
+            acc = mock_edit.call_args.kwargs["model"]
+            self.assertIsInstance(acc, Accession)
+            self.assertEqual(acc.species, sp)
+            mock_edit.reset_mock()
+
+            mock_edit().start.return_value = True
+            self.assertTrue(add_accession_callback([vern]))
+            acc = mock_edit.call_args.kwargs["model"]
+            self.assertIsInstance(acc, Accession)
+            self.assertEqual(acc.species, sp)
 
     def test_active_no_accessions(self):
         from ..garden.accession import Accession
@@ -9012,7 +9042,7 @@ class GenusCompletionTests(PlantTestCase):
         )
 
 
-class BaubleSearchSearchTest(BaubleTestCase):
+class SynonymSearchTest(BaubleTestCase):
     def test_search_search_uses_synonym_search(self):
         prefs.prefs["bauble.search.return_accepted"] = True
         with self.assertLogs(level="DEBUG") as logs:
@@ -9046,6 +9076,36 @@ class BaubleSearchSearchTest(BaubleTestCase):
             search.search("So ha", self.session)
         string = 'SearchStrategy "So ha" (SynonymSearch)'
         self.assertFalse(any(string in i for i in logs.output))
+
+    def test_bails_wo_return_accepted(self):
+        # possibly redundant functionality?
+        prefs.prefs["bauble.search.return_accepted"] = True
+        fam = Family(epithet="Spam")
+        fam2 = Family(epithet="Eggs")
+        fam.synonyms.append(fam2)
+        self.session.add(fam2)
+        self.session.add(fam)
+        self.session.commit()
+        query = self.session.query(Family).filter_by(id=fam2.id)
+        result_cache["MapperSearch"] = query.all()
+        strategy = search.strategies.get_strategy("SynonymSearch")
+
+        self.assertTrue(isinstance(strategy, SynonymSearch))
+
+        results = []
+        for i in strategy.search("", self.session):
+            results.extend(i)
+
+        self.assertEqual(results, [fam])
+
+        # bails
+        prefs.prefs["bauble.search.return_accepted"] = False
+
+        results = []
+        for i in strategy.search("", self.session):
+            results.extend(i)
+
+        self.assertEqual(results, [])
 
 
 class SpeciesCompletionMatchTests(PlantTestCase):
