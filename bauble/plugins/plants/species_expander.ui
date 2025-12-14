@@ -320,11 +320,17 @@
               </packing>
             </child>
             <child>
-              <object class="GtkLabel" id="living_plants_label">
+              <object class="GtkEventBox">
                 <property name="visible">True</property>
                 <property name="can-focus">False</property>
-                <property name="label">--</property>
-                <property name="xalign">0</property>
+                <child>
+                  <object class="GtkLabel" id="living_plants_label">
+                    <property name="visible">True</property>
+                    <property name="can-focus">False</property>
+                    <property name="label">--</property>
+                    <property name="xalign">0</property>
+                  </object>
+                </child>
               </object>
               <packing>
                 <property name="left-attach">1</property>
@@ -374,12 +380,17 @@
               </packing>
             </child>
             <child>
-              <object class="GtkLabel" id="cites_label">
+              <object class="GtkEventBox">
                 <property name="visible">True</property>
                 <property name="can-focus">False</property>
-                <property name="label">--</property>
-                <property name="selectable">True</property>
-                <property name="xalign">0</property>
+                <child>
+                  <object class="GtkLabel" id="cites_label">
+                    <property name="visible">True</property>
+                    <property name="can-focus">False</property>
+                    <property name="label">--</property>
+                    <property name="xalign">0</property>
+                  </object>
+                </child>
               </object>
               <packing>
                 <property name="left-attach">1</property>
@@ -402,12 +413,17 @@
               </packing>
             </child>
             <child>
-              <object class="GtkLabel" id="red_list_label">
+              <object class="GtkEventBox">
                 <property name="visible">True</property>
                 <property name="can-focus">False</property>
-                <property name="label" translatable="yes">--</property>
-                <property name="selectable">True</property>
-                <property name="xalign">0</property>
+                <child>
+                  <object class="GtkLabel" id="red_list_label">
+                    <property name="visible">True</property>
+                    <property name="can-focus">False</property>
+                    <property name="label" translatable="yes">--</property>
+                    <property name="xalign">0</property>
+                  </object>
+                </child>
               </object>
               <packing>
                 <property name="left-attach">1</property>
@@ -430,12 +446,17 @@
               </packing>
             </child>
             <child>
-              <object class="GtkLabel" id="_sp_custom1_data_label">
+              <object class="GtkEventBox">
+                <property name="visible">True</property>
                 <property name="can-focus">False</property>
-                <property name="no-show-all">True</property>
-                <property name="label" translatable="yes">--</property>
-                <property name="selectable">True</property>
-                <property name="xalign">0</property>
+                <child>
+                  <object class="GtkLabel" id="_sp_custom1_data_label">
+                    <property name="can-focus">False</property>
+                    <property name="no-show-all">True</property>
+                    <property name="label" translatable="yes">--</property>
+                    <property name="xalign">0</property>
+                  </object>
+                </child>
               </object>
               <packing>
                 <property name="left-attach">1</property>
@@ -458,12 +479,17 @@
               </packing>
             </child>
             <child>
-              <object class="GtkLabel" id="_sp_custom2_data_label">
+              <object class="GtkEventBox">
+                <property name="visible">True</property>
                 <property name="can-focus">False</property>
-                <property name="no-show-all">True</property>
-                <property name="label" translatable="yes">--</property>
-                <property name="selectable">True</property>
-                <property name="xalign">0</property>
+                <child>
+                  <object class="GtkLabel" id="_sp_custom2_data_label">
+                    <property name="can-focus">False</property>
+                    <property name="no-show-all">True</property>
+                    <property name="label" translatable="yes">--</property>
+                    <property name="xalign">0</property>
+                  </object>
+                </child>
               </object>
               <packing>
                 <property name="left-attach">1</property>

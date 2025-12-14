@@ -40,6 +40,7 @@ from pyparsing import Regex
 from pyparsing import Word
 from pyparsing import srange
 from sqlalchemy import and_
+from sqlalchemy import distinct
 from sqlalchemy import func
 from sqlalchemy import or_
 from sqlalchemy import select
@@ -559,6 +560,35 @@ class VernacularExpander(InfoExpanderMixin[Species], Gtk.Expander):
         self.show_all()
 
 
+def infobox_counts(id_: int) -> dict[str, int]:
+    from ..garden import Accession
+    from ..garden import Plant
+
+    stmt = (
+        select(
+            func.count(distinct(Accession.id)),
+            func.count(distinct(Plant.accession_id)),
+            func.count(Plant.id),
+            func.sum(Plant.quantity),
+        )
+        .select_from(Species)
+        .outerjoin(Accession)
+        .outerjoin(Plant)
+        .where(Species.id == id_)
+    )
+    with db.engine.begin() as connection:
+        counts = connection.execute(stmt).one()
+
+    keys = (
+        "accessions",
+        "acc_w_plants",
+        "plants",
+        "living_plants",
+    )
+
+    return dict(zip(keys, counts, strict=True))
+
+
 @Gtk.Template(
     filename=str(Path(__file__).resolve().parent / "species_expander.ui")
 )
@@ -671,30 +701,21 @@ class GeneralSpeciesExpander(
             f" <big>{row.markup(authors=True, genus=False)}</big>",
         )
 
+        self.update_counts(row)
+
         self.cites_label.set_label(row.cites or "")
         self.red_list_label.set_label(red_list_values[row.red_list])
 
-        for column_name in self._custom_columns:
-            data_label = getattr(self, column_name + "_data_label")
-            data_label.set_label(getattr(row, column_name) or "")
+        self.update_custom_columns(row)
 
         self.awards_label.set_label(row.awards or "")
         self.habit_label.set_label(str(row.habit or ""))
 
         self.update_label_markup(row)
         self.update_distribution(row)
-
-        self.num_acc_label.set_label(str(len(row.accessions)))
-        num_plants = len([p for a in row.accessions for p in a.plants])
-        num_acc_w_plants = len([a for a in row.accessions if a.plants])
-        self.num_plants_label.set_label(
-            f"{num_plants} in {num_acc_w_plants} accessions"
-        )
-        self.living_plants_label.set_label(
-            str(sum(p.quantity for a in row.accessions for p in a.plants))
-        )
         self.update_plant_locations(row)
         self.update_verifications(row)
+        self.update_clickable_labels(row)
 
         self.show_all()
 
@@ -746,6 +767,31 @@ class GeneralSpeciesExpander(
                 )
             else:
                 utils.hide_widgets([widget])
+
+    def update_counts(self, row: Species) -> None:
+        counts = infobox_counts(row.id)
+        self.num_plants_label.set_label("0")
+
+        self.num_acc_label.set_label(str(counts["accessions"] or 0))
+
+        if counts["plants"]:
+            self.num_plants_label.set_label(
+                f"{counts['plants']} in {counts['acc_w_plants']} accessions"
+            )
+
+        self.living_plants_label.set_label(str(counts["living_plants"] or 0))
+
+    def update_custom_columns(self, row: Species) -> None:
+        for column_name in self._custom_columns:
+            data_label = getattr(self, column_name + "_data_label")
+            value = getattr(row, column_name)
+            data_label.set_label(value or "")
+
+            utils.make_label_clickable(
+                data_label,
+                on_clicked_search,
+                f"species where {column_name} = '{value}'",
+            )
 
     def update_label_markup(self, row: Species) -> None:
         if row.label_markup:
@@ -819,7 +865,17 @@ class GeneralSpeciesExpander(
         on_clicked = utils.generate_on_clicked(plant_selector)
 
         sep = ""
-        plants = [p for a in row.accessions for p in a.plants if p.quantity]
+
+        from ..garden import Accession
+        from ..garden import Plant
+
+        session = cast(Session, object_session(row))
+        plants = (
+            session.query(Plant)
+            .join(Accession)
+            .filter(Accession.species_id == row.id)
+            .filter(Plant.quantity > 0)
+        )
 
         for plant in sorted(plants, key=lambda p: p.location.code):
             if sep:
@@ -887,6 +943,38 @@ class GeneralSpeciesExpander(
                 label,
                 on_clicked_search,
                 f"accession where verifications.species.id = {row.id}",
+            )
+
+    def update_clickable_labels(self, row: Species) -> None:
+        labels_to_searches = (
+            (
+                self.num_acc_label,
+                f"accession where species.id = {row.id}",
+            ),
+            (
+                self.num_plants_label,
+                f"plant where accession.species.id = {row.id}",
+            ),
+            (
+                self.cites_label,
+                f"species where cites = '{row.cites}'",
+            ),
+            (
+                self.red_list_label,
+                f"species where red_list = '{row.red_list}'",
+            ),
+            (
+                self.living_plants_label,
+                f"plant where accession.species.id = {row.id} "
+                "and quantity > 0",
+            ),
+        )
+
+        for label, search in labels_to_searches:
+            utils.make_label_clickable(
+                label,
+                on_clicked_search,
+                search,
             )
 
 
