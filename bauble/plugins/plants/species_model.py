@@ -63,6 +63,7 @@ from bauble.i18n import _
 
 from .geography import DistributionMap
 from .geography import Geography
+from .model import Taxon
 
 
 def _remove_zws(string):
@@ -268,7 +269,7 @@ compare_rank = {
 }
 
 
-class Species(db.Domain, db.WithNotes):
+class Species(Taxon, db.WithNotes):
     """
     :Table name: species
 
@@ -864,23 +865,17 @@ class Species(db.Domain, db.WithNotes):
         :param for_search_view: in search view authorship is in light text
         """
         return self.string(
-            authors, markup=True, genus=genus, for_search_view=for_search_view
+            authors=authors,
+            markup=True,
+            genus=genus,
+            for_search_view=for_search_view,
         )
 
-    def __str__(self):
+    def __str__(self) -> str:
         """return the default string representation for self."""
         return self.string()
 
-    def string(
-        self,
-        authors=False,
-        markup=False,
-        remove_zws=True,
-        genus=True,
-        sensu=True,
-        qualification=None,
-        for_search_view=False,
-    ):
+    def string(self, **kwargs) -> str:
         """Returns a string for species.
 
         :param authors: flag to toggle whether authorship should be included
@@ -894,7 +889,16 @@ class Species(db.Domain, db.WithNotes):
             qualified rank, second is the qualification.
         :param for_search_view: in search view authorship is in light text
         """
-        session = False
+        authors = kwargs.get("authors", False)
+        markup = kwargs.get("markup", False)
+        remove_zws = kwargs.get("revove_zws", True)
+        genus = kwargs.get("genus", True)
+        sensu = kwargs.get("sensu", True)
+        qualification = kwargs.get("qualification", None)
+        for_search_view = kwargs.get("for_search_view", False)
+
+        # TODO reduce the spaghetti code!
+
         from sqlalchemy import inspect
 
         qual_rank, qualifier = qualification if qualification else (None, None)
@@ -902,26 +906,24 @@ class Species(db.Domain, db.WithNotes):
         if qualifier == "incorrect":
             qual_rank = None
 
+        genus_str = ""
         if inspect(self).detached:
-            session = db.Session()
-            session.enable_relationship_loading(self)
+            with db.Session() as session:
+                session.enable_relationship_loading(self)
         if genus is True:
-            genus = ""
             if qual_rank == "genus":
-                genus = qualifier + " "
+                genus_str = str(qualifier) + " "
             if markup:
-                genus += self.genus.markup(sensu=sensu)
+                genus_str += self.genus.markup(sensu=sensu)
             elif self.genus:
-                genus += self.genus.string(self.genus, sensu=sensu)
-        else:
-            genus = ""
-        if session:
-            session.close()
+                genus_str += self.genus.string(sensu=sensu)
 
-        if self.sp and not remove_zws:
-            sp = "\u200b" + self.sp  # prepend with zero_width_space
-        else:
-            sp = self.sp
+        sp = ""
+        if self.sp:
+            if not remove_zws:
+                sp = "\u200b" + self.sp  # prepend with zero_width_space
+            else:
+                sp = self.sp
 
         if markup:
             escape = utils.xml_safe
@@ -934,7 +936,7 @@ class Species(db.Domain, db.WithNotes):
         if self.hybrid:
             sp = self.hybrid + " " + sp
 
-        if qual_rank == "sp":
+        if qual_rank == "sp" and qualifier:
             sp = qualifier + " " + sp
 
         author = None
@@ -1030,7 +1032,7 @@ class Species(db.Domain, db.WithNotes):
                 )
 
         # create the binomial part
-        binomial = [genus, sp, author]
+        binomial = [genus_str, sp, author]
 
         # create the tail, ie: anything to add on to the end
         tail = []

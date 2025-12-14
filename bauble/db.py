@@ -1236,17 +1236,19 @@ current_user = CurrentUserFunctor()
 
 
 def get_model_by_name(name: str) -> type[Base] | None:
-    # try domains first
-    for domain in Domain.__subclasses__():
-        if domain.__tablename__ == name:
-            return domain
 
-    for model in Base.__subclasses__():
-        # ignore Domain
-        if getattr(model, "__tablename__", None) == name:
-            return model
+    def _match(base: type[Base]) -> type[Base] | None:
+        for model in base.__subclasses__():
+            tablename = getattr(model, "__tablename__", None)
+            if tablename == name:
+                return model
 
-    return None
+            if tablename is None and (match := _match(model)):
+                return match
+
+        return None
+
+    return _match(Base)
 
 
 def _create_all(*_args: Any) -> None:

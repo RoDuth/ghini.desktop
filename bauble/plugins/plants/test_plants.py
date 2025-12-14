@@ -890,7 +890,7 @@ class FamilyTests(PlantTestCase):
         f.qualifier = "s. lat."
         self.assertTrue(str(f) == "fam s. lat.")
         f.author = "arthur"
-        self.assertTrue(f.string(f, author=True) == "fam s. lat. arthur")
+        self.assertTrue(f.string(author=True) == "fam s. lat. arthur")
 
     def test_synonym_str(self):
         fam = Family(family="Fam", qualifier="s. lat.", author="Arthur")
@@ -1675,10 +1675,7 @@ class GenusTests(PlantTestCase):
             self.assertRaises(IntegrityError, self.session.commit)
             self.session.rollback()
 
-    def test_str(self):
-        """
-        Test that the Genus string functions works as expected
-        """
+    def test_string(self):
         for gid, expected in genus_str_map.items():
             gen = self.session.query(Genus).get(gid)
 
@@ -1691,7 +1688,7 @@ class GenusTests(PlantTestCase):
         for gid, expected in genus_str_author_map.items():
             gen = self.session.query(Genus).get(gid)
 
-            self.assertEqual(gen.string(gen, author=True), expected)
+            self.assertEqual(gen.string(author=True), expected)
 
         self.assertEqual(str(Genus()), "")
 

@@ -971,13 +971,17 @@ class Accession(db.Domain, db.WithNotes):
 
         if self.id_qual:
             sp_str = self.species.string(
-                authors,
-                markup,
+                author=authors,
+                markup=markup,
                 remove_zws=True,
                 qualification=(self.id_qual_rank, self.id_qual),
             )
         else:
-            sp_str = self.species.string(authors, markup, remove_zws=True)
+            sp_str = self.species.string(
+                author=authors,
+                markup=markup,
+                remove_zws=True,
+            )
 
         if details:
             logger.debug("species_str adding details")

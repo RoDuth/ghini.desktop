@@ -71,6 +71,7 @@ from bauble.view import LinksExpander
 from bauble.view import PropertiesExpander
 from bauble.view import select_in_search_results
 
+from .model import Taxon
 from .species_model import Species
 
 
@@ -90,7 +91,6 @@ def add_genera_callback(objs, **kwargs):
 
 
 def remove_callback(objs, **kwargs):
-    """The callback function to remove a family from the family context menu."""
     families = objs
     family = families[0]
     session = object_session(family)
@@ -149,7 +149,7 @@ remove_action = Action(
 family_context_menu = [edit_action, add_species_action, remove_action]
 
 
-class Family(db.Domain, db.WithNotes):
+class Family(Taxon, db.WithNotes):
     """
     :Table name: family
 
@@ -272,17 +272,23 @@ class Family(db.Domain, db.WithNotes):
             return None
         return value.strip()
 
-    def __repr__(self):
-        return Family.string(self)
+    def __str__(self):
+        return self.string()
 
-    @staticmethod
-    def string(family, author=False):
-        if family.family is None:
-            return db.Base.__repr__(family)
-        parts = [family.family, family.qualifier]
-        if author and family.author:
-            parts.append(utils.xml_safe(family.author))
-        return " ".join([s for s in parts if s not in (None, "")])
+    def string(self, **kwargs) -> str:
+        """Returns a string representation of the family.
+
+        :param author: if True, include the author in the string.
+        """
+        author = kwargs.get("author", False)
+        if self.family is None:
+            return db.Base.__repr__(self)
+
+        parts = [self.family, self.qualifier]
+        if author and self.author:
+            parts.append(utils.xml_safe(self.author))
+
+        return " ".join([str(s) for s in parts if s not in (None, "")])
 
     @hybrid_property
     def active(self) -> bool:

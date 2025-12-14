@@ -77,6 +77,8 @@ from bauble.view import LinksExpander
 from bauble.view import PropertiesExpander
 from bauble.view import select_in_search_results
 
+from .model import Taxon
+
 # TODO: warn the user that a duplicate genus name is being entered
 # even if only the author or qualifier is different
 
@@ -157,7 +159,7 @@ remove_action = Action(
 genus_context_menu = [edit_action, add_species_action, remove_action]
 
 
-class Genus(db.Domain, db.WithNotes):
+class Genus(Taxon, db.WithNotes):
     """
     :Table name: genus
 
@@ -349,18 +351,30 @@ class Genus(db.Domain, db.WithNotes):
         self._cites = value
 
     def __str__(self):
-        return Genus.string(self)
+        return self.string()
 
-    @staticmethod
-    def string(genus, author=False, sensu=True):
-        if genus.genus is None:
+    def string(self, **kwargs) -> str:
+        """Return the string representation of the genus.
+
+        :param author: bool, include the author in the string
+        :param sensu: bool, include the qualifier in the string
+        """
+
+        if self.genus is None:
             return ""
-        parts = [genus.hybrid, genus.genus]
+
+        author = kwargs.get("author", False)
+        sensu = kwargs.get("sensu", True)
+
+        parts = [self.hybrid, self.genus]
+
         if sensu:
-            parts.append(genus.qualifier)
-        if author and genus.author:
-            parts.append(genus.author)
-        return " ".join([s for s in parts if s not in ("", None)]).strip()
+            parts.append(self.qualifier)
+
+        if author and self.author:
+            parts.append(self.author)
+
+        return " ".join([str(s) for s in parts if s not in ("", None)]).strip()
 
     @property
     def str_basic(self):
@@ -370,7 +384,7 @@ class Genus(db.Domain, db.WithNotes):
         Handy for link buttons (where a species qualifier can cause issues with
         searches), reports, etc.
         """
-        return Genus.string(self, author=False, sensu=False)
+        return self.string(author=False, sensu=False)
 
     def markup(self, authors=False, for_search_view=False, sensu=True):
         escape = utils.xml_safe
