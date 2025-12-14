@@ -3733,7 +3733,7 @@ class SpeciesInfoBoxTests(BaubleTestCase):
             "vernacular_name where name = 'Scrub Cherry'",
         )
 
-    @mock.patch("bauble.plugins.plants.species.on_clicked_select")
+    @mock.patch("bauble.plugins.plants.widgets.on_clicked_select")
     def test_synonyms_expander_w_accepted(self, mock_select):
         expander = SynonymsExpander()
         fam = Family(epithet="Myrtaceae")
@@ -3767,7 +3767,7 @@ class SpeciesInfoBoxTests(BaubleTestCase):
             sp,
         )
 
-    @mock.patch("bauble.plugins.plants.species.on_clicked_select")
+    @mock.patch("bauble.plugins.plants.widgets.on_clicked_select")
     def test_synonyms_expander_w_syns(self, mock_select):
         expander = SynonymsExpander()
         fam = Family(epithet="Myrtaceae")

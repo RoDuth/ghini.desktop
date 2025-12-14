@@ -84,6 +84,7 @@ from .species_model import SpeciesNote
 from .species_model import SpeciesSynonym
 from .species_model import VernacularName
 from .species_model import red_list_values
+from .widgets import SynonymsExpander
 
 # imported by clients of this modules
 __all__ = [
@@ -558,55 +559,6 @@ class VernacularExpander(InfoExpanderMixin[Species], Gtk.Expander):
         self.show_all()
 
 
-class SynonymsExpander(InfoExpanderMixin[Species], Gtk.Expander):
-
-    def __init__(self) -> None:
-        super().__init__()
-        self.connect("notify::expanded", self.on_expanded)
-        self.box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
-        self.box.set_border_width(5)
-        self.add(self.box)
-
-    def update(self, row: Species) -> None:
-        self.set_label(_("Synonyms"))
-        self.set_sensitive(False)
-        self.box.foreach(self.box.remove)
-
-        if row.accepted is not None:
-            self.set_label(_("Accepted name"))
-            # create clickable label that will select the synonym
-            # in the search results
-            ebox = Gtk.EventBox()
-            label = Gtk.Label(
-                label=row.accepted.string(markup=True, authors=True),
-                use_markup=True,
-                xalign=0.0,
-                yalign=0.5,
-            )
-            ebox.add(label)
-            utils.make_label_clickable(label, on_clicked_select, row.accepted)
-            self.box.pack_start(ebox, False, False, 0)
-            self.set_sensitive(True)
-        elif row.synonyms:
-            for syn in sorted(row.synonyms, key=str):
-                # create clickable label that will select the synonym
-                # in the search results
-                ebox = Gtk.EventBox()
-                label = Gtk.Label(
-                    label=syn.string(markup=True, authors=True),
-                    use_markup=True,
-                    xalign=0.0,
-                    yalign=0.5,
-                )
-                ebox.add(label)
-                utils.make_label_clickable(label, on_clicked_select, syn)
-                self.box.pack_start(ebox, False, False, 0)
-
-            self.set_sensitive(True)
-
-        self.show_all()
-
-
 @Gtk.Template(
     filename=str(Path(__file__).resolve().parent / "species_expander.ui")
 )
@@ -944,7 +896,7 @@ class SpeciesInfoBox(InfoBox[Species]):
         super().__init__()
         self.add_expander(GeneralSpeciesExpander())
         self.add_expander(VernacularExpander())
-        self.add_expander(SynonymsExpander())
+        self.add_expander(SynonymsExpander[Species]())
 
         button_defs = []
         buttons = prefs.prefs.itersection(SPECIES_WEB_BUTTON_DEFS_PREFS)
