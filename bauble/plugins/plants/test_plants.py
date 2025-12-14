@@ -64,10 +64,12 @@ from ..garden import Plant
 from . import HomeInfoBox
 from . import PlantsPlugin
 from . import SynonymsPresenter
+from .family import FAMILY_WEB_BUTTON_DEFS_PREFS
 from .family import Family
 from .family import FamilyEditor
 from .family import FamilyEditorPresenter
 from .family import FamilyEditorView
+from .family import FamilyInfoBox
 from .family import FamilyNote
 from .family import FamilySynonym
 from .family import GeneralFamilyExpander
@@ -1106,18 +1108,23 @@ class FamilyTests(PlantTestCase):
     def test_general_expander(self):
         # at least tests nothing errors
         fams = self.session.query(Family).filter(Family.id.in_((3, 8, 10, 11)))
-        filename = os.path.join(
-            paths.lib_dir(), "plugins", "plants", "infoboxes.glade"
+
+        general = GeneralFamilyExpander()
+        for fam in fams:
+            general.update(fam)
+            self.assertEqual(
+                general.name_label.get_label(),
+                f"<big>{fam}</big> {utils.xml_safe(str(fam.author))}",
+            )
+
+    def test_family_info_box_links(self):
+        infobox = FamilyInfoBox()
+        links = infobox.get_nth_page(0).expanders["Links"]
+
+        self.assertEqual(
+            len(links.web_links),
+            len(list(prefs.prefs.itersection(FAMILY_WEB_BUTTON_DEFS_PREFS))),
         )
-        widgets = utils.BuilderWidgets(filename)
-        with mock.patch("bauble.gui"):
-            general = GeneralFamilyExpander(widgets)
-            for fam in fams:
-                general.update(fam)
-                self.assertEqual(
-                    widgets["fam_name_data"].get_label(),
-                    f"<big>{fam}</big> {utils.xml_safe(str(fam.author))}",
-                )
 
     def test_active_no_genera(self):
         fam = self.session.query(Family).get(12)

@@ -22,11 +22,14 @@ Family table definition
 """
 
 import logging
+
+logger = logging.getLogger(__name__)
+
 import os
 import traceback
 from datetime import datetime
-
-logger = logging.getLogger(__name__)
+from pathlib import Path
+from typing import cast as t_cast
 
 from gi.repository import Gtk
 from sqlalchemy import CheckConstraint
@@ -39,6 +42,7 @@ from sqlalchemy import UniqueConstraint
 from sqlalchemy import and_
 from sqlalchemy import case
 from sqlalchemy import cast
+from sqlalchemy import distinct
 from sqlalchemy import exists
 from sqlalchemy import func
 from sqlalchemy import literal
@@ -60,19 +64,19 @@ from bauble import btypes as types
 from bauble import db
 from bauble import editor
 from bauble import paths
-from bauble import pluginmgr
 from bauble import prefs
 from bauble import utils
 from bauble.i18n import _
 from bauble.view import Action
 from bauble.view import InfoBox
-from bauble.view import InfoExpander
+from bauble.view import InfoExpanderMixin
 from bauble.view import LinksExpander
 from bauble.view import PropertiesExpander
-from bauble.view import select_in_search_results
+from bauble.view import on_clicked_search
 
 from .model import Taxon
 from .species_model import Species
+from .widgets import SynonymsExpander
 
 
 def edit_callback(objs, **kwargs):
@@ -761,229 +765,176 @@ class FamilyEditor(editor.GenericModelViewPresenterEditor):
         return self._committed
 
 
-class GeneralFamilyExpander(InfoExpander):
-    """Generic information about an family like number of genus, species,
-    accessions and plants
-    """
+def infobox_counts(id_: int) -> dict[str, int]:
+    from ..garden import Accession
+    from ..garden import Plant
 
-    def __init__(self, widgets):
-        super().__init__(_("General"), widgets)
-        general_box = self.widgets.fam_general_box
-        self.widgets.remove_parent(general_box)
-        self.vbox.pack_start(general_box, True, True, 0)
-
-    def update(self, row):
-        """
-        update the expander
-
-        :param row: the row to get the values from
-        """
-        if row.order or row.suborder:
-            utils.unhide_widgets([self.widgets.fam_details_box])
-        else:
-            utils.hide_widgets([self.widgets.fam_details_box])
-        self.widget_set_value(
-            "fam_order_data",
-            f"{utils.xml_safe(row.order)} >" if row.order else "",
+    stmt = (
+        select(
+            func.count(distinct(Genus.id)),
+            func.count(distinct(Species.genus_id)),
+            func.count(distinct(Species.id)),
+            func.count(distinct(Accession.species_id)),
+            func.count(distinct(Accession.id)),
+            func.count(distinct(Plant.accession_id)),
+            func.count(Plant.id),
+            func.sum(Plant.quantity),
         )
-        self.widget_set_value(
-            "fam_suborder_data",
-            f"{utils.xml_safe(row.suborder)} >" if row.suborder else "",
-        )
-        self.widget_set_value(
-            "fam_name_data",
+        .select_from(Family)
+        .outerjoin(Genus)
+        .outerjoin(Species)
+        .outerjoin(Accession)
+        .outerjoin(Plant)
+        .where(Family.id == id_)
+    )
+    with db.engine.begin() as connection:
+        counts = connection.execute(stmt).one()
+
+    keys = (
+        "genera",
+        "gen_w_sp",
+        "species",
+        "sp_w_acc",
+        "accessions",
+        "acc_w_plants",
+        "plants",
+        "living_plants",
+    )
+
+    return dict(zip(keys, counts, strict=True))
+
+
+@Gtk.Template(
+    filename=str(Path(__file__).resolve().parent / "family_expander.ui")
+)
+class GeneralFamilyExpander(InfoExpanderMixin[Family], Gtk.Expander):
+
+    __gtype_name__ = "GeneralFamilyExpander"
+
+    general_box = t_cast(Gtk.Box, Gtk.Template.Child())
+    details_box = t_cast(Gtk.Box, Gtk.Template.Child())
+    order_label = t_cast(Gtk.Label, Gtk.Template.Child())
+    suborder_label = t_cast(Gtk.Label, Gtk.Template.Child())
+    name_label = t_cast(Gtk.Label, Gtk.Template.Child())
+    num_genera_label = t_cast(Gtk.Label, Gtk.Template.Child())
+    num_taxa_label = t_cast(Gtk.Label, Gtk.Template.Child())
+    num_acc_label = t_cast(Gtk.Label, Gtk.Template.Child())
+    num_plants_label = t_cast(Gtk.Label, Gtk.Template.Child())
+    living_plants_label = t_cast(Gtk.Label, Gtk.Template.Child())
+    cites_label = t_cast(Gtk.Label, Gtk.Template.Child())
+
+    def __init__(self) -> None:
+        super().__init__(label=_("General"))
+        self.connect("notify::expanded", self.on_expanded)
+        self.has_details = False
+
+    def update(self, row: Family) -> None:
+        self.has_details = any((row.order, row.suborder))
+        self.update_details(row)
+        self.name_label.set_markup(
             f"<big>{row}</big> {utils.xml_safe(str(row.author))}",
-            markup=True,
         )
-        self.widget_set_value("fam_cites_data", row.cites or "")
-        session = object_session(row)
-        # get the number of genera
-        ngen = session.query(Genus).filter_by(family_id=row.id).count()
-        self.widget_set_value("fam_ngen_data", ngen)
+        self.update_counts(row)
+        self.update_clickable_labels(row)
 
-        # get the number of species
-        nsp = (
-            session.query(Species)
-            .join("genus")
-            .filter_by(family_id=row.id)
-            .count()
-        )
-        if nsp == 0:
-            self.widget_set_value("fam_nsp_data", 0)
-        else:
-            ngen_in_sp = (
-                session.query(Species.genus_id)
-                .join("genus", "family")
-                .filter_by(id=row.id)
-                .distinct()
-                .count()
-            )
-            self.widget_set_value(
-                "fam_nsp_data", f"{nsp} in  {ngen_in_sp} genera"
+    def update_counts(self, row: Family) -> None:
+        counts = infobox_counts(row.id)
+
+        self.num_genera_label.set_label(str(counts["genera"]))
+        self.num_taxa_label.set_label("0")
+        self.num_acc_label.set_label("0")
+        self.num_plants_label.set_label("0")
+
+        if counts["species"]:
+            self.num_taxa_label.set_label(
+                f"{counts['species']} in {counts['gen_w_sp']} genera"
             )
 
-        # stop here if no GardenPlugin
-        if "GardenPlugin" not in pluginmgr.plugins:
+        if counts["accessions"]:
+            self.num_acc_label.set_label(
+                f"{counts['accessions']} in {counts['sp_w_acc']} species"
+            )
+
+        if counts["plants"]:
+            self.num_plants_label.set_label(
+                f"{counts['plants']} in {counts['acc_w_plants']} accessions"
+            )
+
+        self.living_plants_label.set_label(str(counts["living_plants"] or 0))
+        self.cites_label.set_label(row.cites or "")
+
+    def update_clickable_labels(self, row: Family) -> None:
+        labels_to_searches = (
+            (
+                self.num_genera_label,
+                f"genus where family.id = {row.id}",
+            ),
+            (
+                self.num_taxa_label,
+                f"species where genus.family.id = {row.id}",
+            ),
+            (
+                self.num_acc_label,
+                f"accession where species.genus.family.id = {row.id}",
+            ),
+            (
+                self.num_plants_label,
+                f"plant where accession.species.genus.family.id = {row.id}",
+            ),
+            (
+                self.cites_label,
+                f"family where cites = {row.cites}",
+            ),
+            (
+                self.living_plants_label,
+                f"plant where accession.species.genus.family.id = {row.id} "
+                "and quantity > 0",
+            ),
+        )
+
+        for label, search in labels_to_searches:
+            utils.make_label_clickable(
+                label,
+                on_clicked_search,
+                search,
+            )
+
+    def update_details(self, row: Family) -> None:
+        """Provides higher parts, if they exist, above the family name."""
+
+        if not self.has_details:
+            utils.hide_widgets([self.details_box])
             return
 
-        # get the number of accessions in the family
-        from bauble.plugins.garden.accession import Accession
-        from bauble.plugins.garden.plant import Plant
-
-        nacc = (
-            session.query(Accession)
-            .join("species", "genus", "family")
-            .filter_by(id=row.id)
-            .count()
-        )
-        if nacc == 0:
-            self.widget_set_value("fam_nacc_data", nacc)
-        else:
-            nsp_in_acc = (
-                session.query(Accession.species_id)
-                .join("species", "genus", "family")
-                .filter_by(id=row.id)
-                .distinct()
-                .count()
-            )
-            self.widget_set_value(
-                "fam_nacc_data", f"{nacc} in {nsp_in_acc} species"
-            )
-
-        # get the number of plants in the family
-        nplants = (
-            session.query(Plant)
-            .join("accession", "species", "genus", "family")
-            .filter_by(id=row.id)
-            .count()
-        )
-        if nplants == 0:
-            self.widget_set_value("fam_nplants_data", nplants)
-        else:
-            nacc_in_plants = (
-                session.query(Plant.accession_id)
-                .join("accession", "species", "genus", "family")
-                .filter_by(id=row.id)
-                .distinct()
-                .count()
-            )
-            self.widget_set_value(
-                "fam_nplants_data", f"{nplants} in {nacc_in_plants} accessions"
-            )
-
-        on_clicked = utils.generate_on_clicked(bauble.gui.send_command)
+        utils.unhide_widgets([self.details_box])
+        utils.hide_widgets([self.order_label, self.suborder_label])
 
         if row.order:
+            self.order_label.set_markup(f"{utils.xml_safe(row.order)} >")
             utils.make_label_clickable(
-                self.widgets.fam_order_data,
-                on_clicked,
+                self.order_label,
+                on_clicked_search,
                 f"family where order = {row.order}",
             )
+            utils.unhide_widgets([self.order_label])
 
         if row.suborder:
+            self.suborder_label.set_markup(f"{utils.xml_safe(row.suborder)} >")
             utils.make_label_clickable(
-                self.widgets.fam_suborder_data,
-                on_clicked,
+                self.suborder_label,
+                on_clicked_search,
                 f"family where suborder = {row.suborder}",
             )
-
-        utils.make_label_clickable(
-            self.widgets.fam_ngen_data,
-            on_clicked,
-            f'genus where family.family="{row.family}" and '
-            f'family.qualifier="{row.qualifier}"',
-        )
-
-        utils.make_label_clickable(
-            self.widgets.fam_nsp_data,
-            on_clicked,
-            f'species where genus.family.family="{row.family}" and '
-            f'genus.family.qualifier="{row.qualifier}"',
-        )
-
-        utils.make_label_clickable(
-            self.widgets.fam_nacc_data,
-            on_clicked,
-            f'accession where species.genus.family.family="{row.family}" and '
-            f'species.genus.family.qualifier="{row.qualifier}"',
-        )
-
-        utils.make_label_clickable(
-            self.widgets.fam_nplants_data,
-            on_clicked,
-            f'plant where accession.species.genus.family.family="{row.family}"'
-            f' and accession.species.genus.family.qualifier="{row.qualifier}"',
-        )
+            utils.unhide_widgets([self.suborder_label])
 
 
-class SynonymsExpander(InfoExpander):
-    EXPANDED_PREF = "infobox.family_synonyms_expanded"
+class FamilyInfoBox(InfoBox[Family]):
 
-    def __init__(self, widgets):
-        super().__init__(_("Synonyms"), widgets)
-        synonyms_box = self.widgets.fam_synonyms_box
-        self.widgets.remove_parent(synonyms_box)
-        self.vbox.pack_start(synonyms_box, True, True, 0)
-
-    def update(self, row):
-        """update the expander
-
-        :param row: the row to get thevalues from
-        """
-        self.reset()
-        syn_box = self.widgets.fam_synonyms_box
-        # remove old labels
-        syn_box.foreach(syn_box.remove)
-        logger.debug(
-            "family %s is synonym of %s and has synonyms %s",
-            row,
-            row.accepted,
-            row.synonyms,
-        )
-        self.set_label(_("Synonyms"))  # reset default value
-        on_clicked = utils.generate_on_clicked(select_in_search_results)
-        if row.accepted is not None:
-            self.set_label(_("Accepted name"))
-            # create clickable label that will select the synonym
-            # in the search results
-            box = Gtk.EventBox()
-            label = Gtk.Label()
-            label.set_xalign(0.0)
-            label.set_yalign(0.5)
-            label.set_markup(Family.string(row.accepted))
-            box.add(label)
-            utils.make_label_clickable(label, on_clicked, row.accepted)
-            syn_box.pack_start(box, False, False, 0)
-            self.show_all()
-            self.set_sensitive(True)
-        elif row.synonyms:
-            for syn in sorted(row.synonyms, key=str):
-                # create clickable label that will select the synonym
-                # in the search results
-                box = Gtk.EventBox()
-                label = Gtk.Label()
-                label.set_xalign(0.0)
-                label.set_yalign(0.5)
-                label.set_markup(Family.string(syn))
-                box.add(label)
-                utils.make_label_clickable(label, on_clicked, syn)
-                syn_box.pack_start(box, False, False, 0)
-            self.show_all()
-            self.set_sensitive(True)
-
-
-class FamilyInfoBox(InfoBox):
-
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__()
-        filename = os.path.join(
-            paths.lib_dir(), "plugins", "plants", "infoboxes.glade"
-        )
-        self.widgets = utils.load_widgets(filename)
-        self.general = GeneralFamilyExpander(self.widgets)
+        self.general = GeneralFamilyExpander()
         self.add_expander(self.general)
-        self.synonyms = SynonymsExpander(self.widgets)
-        self.add_expander(self.synonyms)
+        self.add_expander(SynonymsExpander[Family]())
 
         button_defs = []
         buttons = prefs.prefs.itersection(FAMILY_WEB_BUTTON_DEFS_PREFS)
@@ -991,13 +942,5 @@ class FamilyInfoBox(InfoBox):
             button["name"] = name
             button_defs.append(button)
 
-        self.links = LinksExpander("notes", links=button_defs)
-        self.add_expander(self.links)
-        self.props = PropertiesExpander()
-        self.add_expander(self.props)
-
-    def update(self, row):
-        self.general.update(row)
-        self.synonyms.update(row)
-        self.links.update(row)
-        self.props.update(row)
+        self.add_expander(LinksExpander("notes", links=button_defs))
+        self.add_expander(PropertiesExpander())
