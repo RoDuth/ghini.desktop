@@ -30,6 +30,7 @@ import traceback
 from collections.abc import Sequence
 from datetime import datetime
 from pathlib import Path
+from typing import Self
 from typing import cast as t_cast
 
 from gi.repository import Gtk  # noqa
@@ -53,6 +54,7 @@ from sqlalchemy import or_
 from sqlalchemy import select
 from sqlalchemy import union
 from sqlalchemy import update
+from sqlalchemy.engine import Connection
 from sqlalchemy.exc import DBAPIError
 from sqlalchemy.ext.associationproxy import association_proxy
 from sqlalchemy.ext.hybrid import hybrid_property
@@ -62,6 +64,7 @@ from sqlalchemy.orm import backref
 from sqlalchemy.orm import object_mapper
 from sqlalchemy.orm import relationship
 from sqlalchemy.orm import synonym as sa_synonym
+from sqlalchemy.orm.exc import MultipleResultsFound
 from sqlalchemy.orm.query import Query
 from sqlalchemy.orm.session import object_session
 
@@ -86,13 +89,6 @@ from .widgets import SynonymsExpander
 
 # TODO: warn the user that a duplicate genus name is being entered
 # even if only the author or qualifier is different
-
-# TODO: since there can be more than one genus with the same name but
-# different authors we need to show the Genus author in the result
-# search, we should also check if when entering a plantname with a
-# chosen genus if that genus has an author ask the user if they want
-# to use the accepted name and show the author of the genus then so
-# they aren't using the wrong version of the Genus, e.g. Cananga
 
 
 def edit_callback(objs: Sequence["Genus"], **_kwargs) -> bool:
@@ -209,8 +205,8 @@ class Genus(Taxon, db.WithNotes):
             the synonym.
 
     :Contraints:
-        The combination of genus, author, qualifier
-        and family_id must be unique.
+        The combination of genus, author, qualifier and family_id must be
+        unique.
     """
 
     __tablename__ = "genus"
@@ -223,23 +219,23 @@ class Genus(Taxon, db.WithNotes):
     link_keys = ["accepted"]
 
     # columns
-    hybrid = Column(types.Enum(values=["×", "+", None]), default=None)
+    hybrid: str = Column(types.Enum(values=["×", "+", None]), default=None)
 
-    subfamily = Column(Unicode(64))
-    tribe = Column(Unicode(64))
-    subtribe = Column(Unicode(64))
+    subfamily: str = Column(Unicode(64))
+    tribe: str = Column(Unicode(64))
+    subtribe: str = Column(Unicode(64))
 
-    genus: "str" = Column(String(64), nullable=False, index=True)
-    epithet: "str" = sa_synonym("genus")
+    genus: str = Column(String(64), nullable=False, index=True)
+    epithet: str = sa_synonym("genus")
 
     # use '' instead of None so that the constraints will work propertly
-    author = Column(Unicode(128), default="")
+    author: str = Column(Unicode(128), default="")
 
-    qualifier = Column(
+    qualifier: str = Column(
         types.Enum(values=["s. lat.", "s. str", ""]), default=""
     )
 
-    family_id = Column(Integer, ForeignKey("family.id"), nullable=False)
+    family_id: int = Column(Integer, ForeignKey("family.id"), nullable=False)
 
     # relations
     # `species` relation is defined outside of `Genus` class definition
@@ -276,7 +272,9 @@ class Genus(Taxon, db.WithNotes):
     )
     family: "Family" = relationship("Family", back_populates="genera")
 
-    _cites = Column(types.Enum(values=["I", "II", "III", None]), default=None)
+    _cites: str = Column(
+        types.Enum(values=["I", "II", "III", None]), default=None
+    )
 
     retrieve_cols = [
         "id",
@@ -290,7 +288,7 @@ class Genus(Taxon, db.WithNotes):
     ]
 
     @classmethod
-    def retrieve(cls, session, keys):
+    def retrieve(cls, session: Session, keys: dict) -> Self | None:
         parts = ["id", "epithet", "genus", "hybrid", "author"]
 
         gen_parts = {k: v for k, v in keys.items() if k in parts}
@@ -308,15 +306,13 @@ class Genus(Taxon, db.WithNotes):
         if fam:
             query.join(Family).filter(Family.family == fam)
 
-        from sqlalchemy.orm.exc import MultipleResultsFound
-
         try:
             return query.one_or_none()
         except MultipleResultsFound:
             return None
         return None
 
-    def search_view_markup_pair(self):
+    def search_view_markup_pair(self) -> tuple[str, str]:
         """provide the two lines describing object for SearchView row."""
         citation = self.markup(authors=True, for_search_view=True)
         return citation, utils.xml_safe(self.family)
@@ -347,7 +343,7 @@ class Genus(Taxon, db.WithNotes):
         return sp_pics.all() + plt_pics.all()
 
     @hybrid_property
-    def cites(self):
+    def cites(self) -> str | None:
         """the cites status of this taxon, or None
 
         cites appendix number, one of I, II, or III.
@@ -355,7 +351,7 @@ class Genus(Taxon, db.WithNotes):
         return self._cites or self.family.cites
 
     @cites.expression  # type: ignore [no-redef]
-    def cites(cls):
+    def cites(cls) -> types.Enum | None:
         # pylint: disable=no-self-argument,protected-access
         # subquery required to get the joins in
         fam_cites = (
@@ -366,10 +362,10 @@ class Genus(Taxon, db.WithNotes):
         return case((cls._cites.is_not(None), cls._cites), else_=fam_cites)
 
     @cites.setter  # type: ignore [no-redef]
-    def cites(self, value):
+    def cites(self, value: str | None) -> None:
         self._cites = value
 
-    def __str__(self):
+    def __str__(self) -> str:
         return self.string()
 
     def string(self, **kwargs) -> str:
@@ -396,7 +392,7 @@ class Genus(Taxon, db.WithNotes):
         return " ".join([str(s) for s in parts if s not in ("", None)]).strip()
 
     @property
-    def str_basic(self):
+    def str_basic(self) -> str:
         """Return the base string, without authors or qualifiers. i.e. just the
         name part (including the hybrid flag).
 
@@ -405,7 +401,12 @@ class Genus(Taxon, db.WithNotes):
         """
         return self.string(author=False, sensu=False)
 
-    def markup(self, authors=False, for_search_view=False, sensu=True):
+    def markup(
+        self,
+        authors: bool = False,
+        for_search_view: bool = False,
+        sensu: bool = True,
+    ) -> str:
         escape = utils.xml_safe
         string = ""
         if self.hybrid:
@@ -558,23 +559,35 @@ class Genus(Taxon, db.WithNotes):
         # bool converts None to False
         return bool(query.scalar())
 
-    def count_children(self):
+    def count_children(self) -> int:
         cls = self.__class__.species.prop.mapper.class_
+
         session = object_session(self)
+        if not isinstance(session, Session):
+            raise error.DatabaseError("Could not connect to database session.")
+
         query = session.query(cls.id).filter(cls.genus_id == self.id)
+
         if prefs.prefs.get(prefs.exclude_inactive_pref):
             query = query.filter(cls.active.is_(True))
+
         return query.count()
 
 
 # Listen for changes and update the full_name strings
 @event.listens_for(Genus, "before_update")
-def genus_before_update(_mapper, connection, target):
+def genus_before_update(
+    _mapper,
+    connection: Connection,
+    target: Genus,
+) -> None:
     for sp in target.species:
-        session = object_session(sp)
+        session = t_cast(Session, object_session(sp))
+
         if sp in session.new or sp in session.dirty:
             # skip species that will trigger their own full name update
             return
+
         if sp.full_sci_name != sp.string(authors=True):
             vals = {
                 "full_name": str(sp),
@@ -602,17 +615,17 @@ class GenusSynonym(db.Base):
     __table_args__ = (CheckConstraint("genus_id != synonym_id"),)
 
     # columns
-    genus_id = Column(Integer, ForeignKey("genus.id"), nullable=False)
+    genus_id: int = Column(Integer, ForeignKey("genus.id"), nullable=False)
 
     # a genus can only be a synonum of one other genus
-    synonym_id = Column(
+    synonym_id: int = Column(
         Integer, ForeignKey("genus.id"), nullable=False, unique=True
     )
     is_one_to_one = True
     synonym: Mapped["Genus"]
     genus: Mapped["Genus"]
 
-    def __str__(self):
+    def __str__(self) -> str:
         return f"{str(self.synonym)} ({self.synonym.family})"
 
 
@@ -642,7 +655,9 @@ def generic_gen_get_completions(session: Session, text: str) -> Query:
 
 
 def genus_to_string_matcher(
-    genus: Genus, key: str, gen_path: str = ""
+    genus: Genus,
+    key: str,
+    gen_path: str = "",
 ) -> bool:
     """Helper function to match string or partial string.
 
@@ -684,7 +699,12 @@ def genus_match_func(
     return genus_to_string_matcher(genus, key, gen_path)
 
 
-def genus_cell_data_func(_column, renderer, model, treeiter):
+def genus_cell_data_func(
+    _column,
+    renderer: Gtk.CellRendererText,
+    model: Gtk.ListStore,
+    treeiter: Gtk.TreeIter,
+) -> None:
     value = model[treeiter][0]
     author = ""
     if value.author:
@@ -760,19 +780,6 @@ class GenusEditorView(editor.GenericEditorView):
 
     def get_window(self):
         return self.widgets.genus_dialog
-
-    def save_state(self):
-        """save the current state of the gui to the preferences"""
-        # for expander, pref in self.expanders_pref_map.iteritems():
-        #     prefs[pref] = self.widgets[expander].get_expanded()
-        pass
-
-    def restore_state(self):
-        """restore the state of the gui from the preferences"""
-        # for expander, pref in self.expanders_pref_map.iteritems():
-        #     expanded = prefs.get(pref, True)
-        #     self.widgets[expander].set_expanded(expanded)
-        pass
 
     def set_accept_buttons_sensitive(self, sensitive):
         self.widgets.gen_ok_button.set_sensitive(sensitive)
