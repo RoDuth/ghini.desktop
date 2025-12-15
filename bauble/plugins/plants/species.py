@@ -677,8 +677,6 @@ class GeneralSpeciesExpander(
             select_in_search_results(dist.geography)
 
     def update(self, row: Species) -> None:
-        self.zoomed = False
-        self.zoom_level = 1
         self.has_details = any(
             (
                 row.subgenus,
@@ -812,6 +810,8 @@ class GeneralSpeciesExpander(
             self.label_markup_data_label.set_label("--")
 
     def update_distribution(self, row: Species) -> None:
+        self.zoomed = False
+        self.zoom_level = 1
         self.labeldist_label.set_label(str(row.label_distribution or ""))
 
         self.dist_map_box.foreach(self.dist_map_box.remove)

@@ -77,9 +77,9 @@ from bauble.utils.geo import KMLMapCallbackFunctor
 from bauble.utils.geo import get_approx_area_from_geojson_sqm
 from bauble.view import Action
 from bauble.view import InfoBox
-from bauble.view import InfoExpander
+from bauble.view import InfoExpanderMixin
 from bauble.view import PropertiesExpander
-from bauble.view import select_in_search_results
+from bauble.view import on_clicked_select
 
 if TYPE_CHECKING:
     from . import SpeciesDistribution
@@ -869,7 +869,7 @@ class DistributionMap:
         cls._world_pixbuf = None
         cls._image_cache = DistMapCache()
 
-    def get_max_zoom(self):
+    def get_max_zoom(self) -> float:
         longs, lats = split_lats_longs(self.areas)
         max_lat, min_lat = max(lats), min(lats)
 
@@ -886,13 +886,14 @@ class DistributionMap:
         width = abs(max_long - min_long)
         height = abs(max_lat - min_lat)
 
-        zoom = 18
+        zoom: float = 18
         while zoom > 1:
             zwidth = 360 / zoom
             zheight = 180 / zoom
             if width < zwidth and height < zheight:
                 return zoom
             zoom -= 0.5
+
         return 1
 
 
@@ -923,7 +924,9 @@ class DistMapInfoExpanderMixin:
     zoomed: bool
 
     def on_map_button_release(
-        self, box: Gtk.EventBox, event_btn: Gdk.EventButton
+        self,
+        box: Gtk.EventBox,
+        event_btn: Gdk.EventButton,
     ) -> bool:
         """On right click create menu and pop it up."""
         if event_btn.button == 3:
@@ -1021,59 +1024,85 @@ class DistMapInfoExpanderMixin:
         self.distribution_map.zoom_to_level(self.zoom_level)
 
 
-class GeneralGeographyExpander(DistMapInfoExpanderMixin, InfoExpander):
-    """Generic info about a geography."""
+@Gtk.Template(
+    filename=str(Path(__file__).resolve().parent / "geography_expander.ui")
+)
+class GeneralGeographyExpander(
+    InfoExpanderMixin[Geography],
+    DistMapInfoExpanderMixin,
+    Gtk.Expander,
+):
 
-    def __init__(self, widgets):
-        super().__init__(_("General"), widgets)
-        general_box = self.widgets.general_box
-        self.widgets.remove_parent(general_box)
-        self.vbox.pack_start(general_box, True, True, 0)
-        self.table_cells = []
+    __gtype_name__ = "GeneralGeographyExpander"
+
+    GEO_AREAS_EXPANDED_PREF = "infobox.species_geo_areas_expanded"
+
+    general_box = cast(Gtk.Box, Gtk.Template.Child())
+    name_label = cast(Gtk.Label, Gtk.Template.Child())
+    map_box = cast(Gtk.Box, Gtk.Template.Child())
+    level_label = cast(Gtk.Label, Gtk.Template.Child())
+    code_label = cast(Gtk.Label, Gtk.Template.Child())
+    iso_code_label = cast(Gtk.Label, Gtk.Template.Child())
+    parent_label = cast(Gtk.Label, Gtk.Template.Child())
+    children_box = cast(Gtk.Box, Gtk.Template.Child())
+    geojson_type_label = cast(Gtk.Label, Gtk.Template.Child())
+    approx_area_label = cast(Gtk.Label, Gtk.Template.Child())
+    label_name_label = cast(Gtk.Label, Gtk.Template.Child())
+
+    def __init__(self) -> None:
+        super().__init__(label=_("General"))
+        self.connect("notify::expanded", self.on_expanded)
 
     def update(self, row: Geography) -> None:
+        self.update_map(row)
+
+        self.name_label.set_label(row.name)
+        level = ["Continent", "Region", "Bot. Country", "Unit"][row.level - 1]
+        self.level_label.set_label(f"{level} ({row.level})")
+        self.code_label.set_label(row.code)
+        self.iso_code_label.set_label(row.iso_code or "")
+        self.parent_label.set_label(str(row.parent or ""))
+
+        if row.parent:
+            utils.make_label_clickable(
+                self.parent_label, on_clicked_select, row.parent
+            )
+
+        self.update_children(row)
+
+        shape = row.geojson.get("type", "") if row.geojson else ""
+        self.geojson_type_label.set_label(shape)
+        self.approx_area_label.set_label(f"{row.approx_area:,.2f} km²")
+        self.label_name_label.set_label(row.label_name or "")
+
+    def update_map(self, row: Geography) -> None:
         self.zoomed = False
         self.zoom_level = 1
 
-        self.widgets.map_box.foreach(self.widgets.map_box.remove)
+        self.map_box.foreach(self.map_box.remove)
 
-        # grab shape before distribution_map to avoid thread issues for MSSQL
-        # (better to use MARS_Connection=Yes when connecting)
-        shape = row.geojson.get("type", "") if row.geojson else ""
         map_event_box = Gtk.EventBox()
         self.distribution_map = row.distribution_map()
         image = self.distribution_map.as_image()
-
         map_event_box.add(image)
         map_event_box.connect(
             "button_release_event", self.on_map_button_release
         )
-        self.widgets.map_box.pack_start(map_event_box, False, False, 0)
+        self.map_box.pack_start(map_event_box, False, False, 0)
+        self.map_box.show_all()
 
-        on_clicked = utils.generate_on_clicked(select_in_search_results)
-        level = ["Continent", "Region", "Bot. Country", "Unit"][row.level - 1]
-        self.widget_set_value("name_label", row.name)
-        self.widget_set_value("level", f"{level} ({row.level})")
-        self.widget_set_value("code", row.code)
-        self.widget_set_value("iso_code", row.iso_code)
-        self.widget_set_value("parent", row.parent or "")
-        self.widget_set_value("geojson_type", shape)
-        self.widget_set_value("approx_size", f"{row.approx_area:.2f} km²")
-        self.widget_set_value("label_name", row.label_name)
-        if row.parent:
-            utils.make_label_clickable(
-                self.widgets.parent, on_clicked, row.parent
-            )
-        self.widgets.childbox.foreach(self.widgets.childbox.remove)
+    def update_children(self, row: Geography) -> None:
+        self.children_box.foreach(self.children_box.remove)
+
         for geo in row.children:
             child_lbl = Gtk.Label()
             child_lbl.set_xalign(0)
             child_lbl.set_text(str(geo))
             eventbox = Gtk.EventBox()
             eventbox.add(child_lbl)
-            self.widgets.childbox.pack_start(eventbox, True, True, 0)
-            utils.make_label_clickable(child_lbl, on_clicked, geo)
-        self.widgets.ib_general_grid.show_all()
+            self.children_box.pack_start(eventbox, True, True, 0)
+            utils.make_label_clickable(child_lbl, on_clicked_select, geo)
+        self.children_box.show_all()
 
 
 class GeographyInfoBox(InfoBox):
@@ -1081,16 +1110,8 @@ class GeographyInfoBox(InfoBox):
 
     def __init__(self):
         super().__init__()
-        filename = str(Path(__file__).resolve().parent / "geo_infobox.glade")
-        self.widgets = utils.load_widgets(filename)
-        self.general = GeneralGeographyExpander(self.widgets)
-        self.add_expander(self.general)
-        self.props = PropertiesExpander()
-        self.add_expander(self.props)
-
-    def update(self, row):
-        self.general.update(row)
-        self.props.update(row)
+        self.add_expander(GeneralGeographyExpander())
+        self.add_expander(PropertiesExpander())
 
 
 def consolidate_geographies(
@@ -1250,18 +1271,17 @@ def update_all_approx_areas_task(*_args: Any) -> Iterator[None]:
     Yields occassionally to update the progress bar
     """
 
-    session = db.Session()
-    query = session.query(Geography)
-    count = query.count()
-    five_percent = int(count / 20) or 1
-    for done, geo in enumerate(session.query(Geography)):
-        geo.approx_area = geo.get_approx_area()
-        if done % five_percent == 0:
-            session.commit()
-            pb_set_fraction(done / count)
-            yield
-    session.commit()
-    session.close()
+    with db.Session() as session:
+        query = session.query(Geography)
+        count = query.count()
+        five_percent = int(count / 20) or 1
+        for done, geo in enumerate(session.query(Geography)):
+            geo.approx_area = geo.get_approx_area()
+            if done % five_percent == 0:
+                session.commit()
+                pb_set_fraction(done / count)
+                yield
+        session.commit()
 
 
 def update_all_approx_areas_handler(*_args) -> None:

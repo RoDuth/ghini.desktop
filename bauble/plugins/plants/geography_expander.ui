@@ -2,9 +2,9 @@
 <!-- Generated with glade 3.40.0 -->
 <interface>
   <requires lib="gtk+" version="3.24"/>
-  <object class="GtkWindow" id="general_window">
-    <property name="can-focus">False</property>
-    <property name="title">general</property>
+  <template class="GeneralGeographyExpander" parent="GtkExpander">
+    <property name="visible">True</property>
+    <property name="can-focus">True</property>
     <child>
       <object class="GtkBox" id="general_box">
         <property name="visible">True</property>
@@ -59,13 +59,13 @@
         </child>
         <child>
           <!-- n-columns=2 n-rows=8 -->
-          <object class="GtkGrid" id="ib_general_grid">
+          <object class="GtkGrid">
             <property name="visible">True</property>
             <property name="can-focus">False</property>
             <property name="row-spacing">8</property>
             <property name="column-spacing">15</property>
             <child>
-              <object class="GtkLabel" id="level_label">
+              <object class="GtkLabel">
                 <property name="visible">True</property>
                 <property name="can-focus">False</property>
                 <property name="label" translatable="yes">Level:</property>
@@ -80,7 +80,7 @@
               </packing>
             </child>
             <child>
-              <object class="GtkLabel" id="level">
+              <object class="GtkLabel" id="level_label">
                 <property name="visible">True</property>
                 <property name="can-focus">False</property>
                 <property name="label">--</property>
@@ -93,7 +93,7 @@
               </packing>
             </child>
             <child>
-              <object class="GtkLabel" id="tdwg_label">
+              <object class="GtkLabel">
                 <property name="visible">True</property>
                 <property name="can-focus">False</property>
                 <property name="label" translatable="yes">WGSRPD Code:</property>
@@ -108,7 +108,7 @@
               </packing>
             </child>
             <child>
-              <object class="GtkLabel" id="code">
+              <object class="GtkLabel" id="code_label">
                 <property name="visible">True</property>
                 <property name="can-focus">False</property>
                 <property name="label">--</property>
@@ -121,7 +121,7 @@
               </packing>
             </child>
             <child>
-              <object class="GtkLabel" id="iso_label">
+              <object class="GtkLabel">
                 <property name="visible">True</property>
                 <property name="can-focus">False</property>
                 <property name="label" translatable="yes">ISO Code:</property>
@@ -136,7 +136,7 @@
               </packing>
             </child>
             <child>
-              <object class="GtkLabel" id="iso_code">
+              <object class="GtkLabel" id="iso_code_label">
                 <property name="visible">True</property>
                 <property name="can-focus">False</property>
                 <property name="label">--</property>
@@ -149,7 +149,7 @@
               </packing>
             </child>
             <child>
-              <object class="GtkLabel" id="parent_label">
+              <object class="GtkLabel">
                 <property name="visible">True</property>
                 <property name="can-focus">False</property>
                 <property name="label" translatable="yes">Parent:</property>
@@ -168,7 +168,7 @@
                 <property name="visible">True</property>
                 <property name="can-focus">False</property>
                 <child>
-                  <object class="GtkLabel" id="parent">
+                  <object class="GtkLabel" id="parent_label">
                     <property name="visible">True</property>
                     <property name="can-focus">False</property>
                     <property name="label">--</property>
@@ -182,7 +182,7 @@
               </packing>
             </child>
             <child>
-              <object class="GtkLabel" id="children_label">
+              <object class="GtkLabel">
                 <property name="visible">True</property>
                 <property name="can-focus">False</property>
                 <property name="label" translatable="yes">Children:</property>
@@ -198,7 +198,7 @@
               </packing>
             </child>
             <child>
-              <object class="GtkBox" id="childbox">
+              <object class="GtkBox" id="children_box">
                 <property name="visible">True</property>
                 <property name="can-focus">False</property>
                 <property name="orientation">vertical</property>
@@ -209,7 +209,7 @@
               </packing>
             </child>
             <child>
-              <object class="GtkLabel" id="geojson_label">
+              <object class="GtkLabel">
                 <property name="visible">True</property>
                 <property name="can-focus">False</property>
                 <property name="label" translatable="yes">Map Item:</property>
@@ -224,7 +224,7 @@
               </packing>
             </child>
             <child>
-              <object class="GtkLabel" id="geojson_type">
+              <object class="GtkLabel" id="geojson_type_label">
                 <property name="visible">True</property>
                 <property name="can-focus">False</property>
                 <property name="label">--</property>
@@ -251,7 +251,7 @@
               </packing>
             </child>
             <child>
-              <object class="GtkLabel" id="approx_size">
+              <object class="GtkLabel" id="approx_area_label">
                 <property name="visible">True</property>
                 <property name="can-focus">False</property>
                 <property name="label">--</property>
@@ -279,7 +279,7 @@
               </packing>
             </child>
             <child>
-              <object class="GtkLabel" id="label_name">
+              <object class="GtkLabel" id="label_name_label">
                 <property name="visible">True</property>
                 <property name="can-focus">False</property>
                 <property name="label">--</property>
@@ -300,5 +300,5 @@
         </child>
       </object>
     </child>
-  </object>
+  </template>
 </interface>

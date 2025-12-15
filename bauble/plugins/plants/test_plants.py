@@ -55,7 +55,6 @@ from bauble.test import BaubleClassTestCase
 from bauble.test import BaubleTestCase
 from bauble.test import check_dupids
 from bauble.test import get_setUp_data_funcs
-from bauble.test import mockfunc
 from bauble.test import update_gui
 from bauble.test import wait_on_threads
 from bauble.view import SearchView
@@ -4881,12 +4880,8 @@ class GeographyTests(BaubleClassTestCase):
     def test_expander_update_with_parent_makes_label_clickable(self, mock_mlc):
         qld = self.session.query(Geography).get(330)
         self.assertTrue(qld.parent)
-        # effectively also tests PlantsPlugin.register_custom_column
-        filename = os.path.join(
-            paths.lib_dir(), "plugins", "plants", "geo_infobox.glade"
-        )
-        widgets = utils.BuilderWidgets(filename)
-        expander = GeneralGeographyExpander(widgets)
+
+        expander = GeneralGeographyExpander()
         expander.update(qld)
         mock_mlc.assert_called()
 
