@@ -901,134 +901,104 @@ class FamilyTests(PlantTestCase):
         self.assertEqual(str(syn), str(fam))
 
     def test_remove_callback_no_genera_no_confirm(self):
-        # T_0
-        f5 = Family(family="Araucariaceae")
-        self.session.add(f5)
-        self.session.flush()
-        self.invoked = []
-
-        # action
-        orig_yes_no_dialog = utils.yes_no_dialog
-        orig_message_details_dialog = utils.message_details_dialog
-        utils.yes_no_dialog = partial(
-            mockfunc, name="yes_no_dialog", caller=self, result=False
-        )
-        utils.message_details_dialog = partial(
-            mockfunc, name="message_details_dialog", caller=self
-        )
-        from bauble.plugins.plants.family import remove_callback
-
-        result = remove_callback([f5])
+        family = Family(family="Araucariaceae")
+        self.session.add(family)
         self.session.flush()
 
-        # effect
-        self.assertFalse(
-            "message_details_dialog" in [f for (f, m) in self.invoked]
-        )
-        self.assertTrue(
-            (
-                "yes_no_dialog",
-                "Are you sure you want to "
-                "remove the following families <i>Araucariaceae</i>?",
+        from .family import remove_callback
+
+        with mock.patch("bauble.utils.yes_no_dialog") as mock_dlog:
+            mock_dlog.return_value = False
+            result = remove_callback([family])
+            mock_dlog.assert_called_once_with(
+                "Are you sure you want to remove the following families "
+                "<i>Araucariaceae</i>?"
             )
-            in self.invoked
+
+        self.assertFalse(result)
+        self.assertEqual(
+            self.session.query(Family).filter_by(family="Araucariaceae").all(),
+            [family],
         )
-        self.assertEqual(result, None)
-        q = self.session.query(Family).filter_by(family="Araucariaceae")
-        matching = q.all()
-        self.assertEqual(matching, [f5])
-        utils.yes_no_dialog = orig_yes_no_dialog
-        utils.message_details_dialog = orig_message_details_dialog
 
     def test_remove_callback_no_genera_confirm(self):
-        # T_0
-        f5 = Family(family="Araucariaceae")
-        self.session.add(f5)
-        self.session.flush()
-        self.invoked = []
-
-        # action
-        orig_yes_no_dialog = utils.yes_no_dialog
-        orig_message_details_dialog = utils.message_details_dialog
-        utils.yes_no_dialog = partial(
-            mockfunc, name="yes_no_dialog", caller=self, result=True
-        )
-        utils.message_details_dialog = partial(
-            mockfunc, name="message_details_dialog", caller=self
-        )
-        from bauble.plugins.plants.family import remove_callback
-
-        result = remove_callback([f5])
+        family = Family(family="Araucariaceae")
+        self.session.add(family)
         self.session.flush()
 
-        # effect
-        self.assertFalse(
-            "message_details_dialog" in [f for (f, m) in self.invoked]
-        )
-        self.assertTrue(
-            (
-                "yes_no_dialog",
-                "Are you sure you want to "
-                "remove the following families <i>Araucariaceae</i>?",
+        from .family import remove_callback
+
+        with mock.patch("bauble.utils.yes_no_dialog") as mock_dlog:
+            mock_dlog.return_value = True
+            result = remove_callback([family])
+            mock_dlog.assert_called_once_with(
+                "Are you sure you want to remove the following families "
+                "<i>Araucariaceae</i>?",
             )
-            in self.invoked
-        )
 
-        self.assertEqual(result, True)
-        q = self.session.query(Family).filter_by(family="Araucariaceae")
-        matching = q.all()
-        self.assertEqual(matching, [])
-        utils.yes_no_dialog = orig_yes_no_dialog
-        utils.message_details_dialog = orig_message_details_dialog
+        self.assertTrue(result)
+        self.assertEqual(
+            self.session.query(Family).filter_by(family="Araucariaceae").all(),
+            [],
+        )
 
     def test_remove_callback_with_genera_cant_cascade(self):
-        # T_0
-        f5 = Family(family="Araucariaceae")
-        gf5 = Genus(family=f5, genus="Araucaria")
-        self.session.add_all([f5, gf5])
-        self.session.flush()
-        self.invoked = []
-
-        # action
-        orig_yes_no_dialog = utils.yes_no_dialog
-        orig_message_dialog = utils.message_dialog
-        orig_message_details_dialog = utils.message_details_dialog
-        utils.yes_no_dialog = partial(
-            mockfunc, name="yes_no_dialog", caller=self, result=True
-        )
-        utils.message_dialog = partial(
-            mockfunc, name="message_dialog", caller=self, result=True
-        )
-        utils.message_details_dialog = partial(
-            mockfunc, name="message_details_dialog", caller=self
-        )
-        from bauble.plugins.plants.family import remove_callback
-
-        result = remove_callback([f5])
-        self.assertFalse(result)
+        family = Family(family="Araucariaceae")
+        gen = Genus(family=family, genus="Araucaria")
+        self.session.add_all([family, gen])
         self.session.flush()
 
-        # effect
-        self.assertFalse(
-            "message_details_dialog" in [f for (f, m) in self.invoked]
-        )
-        self.assertTrue(
-            (
-                "message_dialog",
+        from .family import remove_callback
+
+        with mock.patch("bauble.utils.message_dialog") as mock_dlog:
+            mock_dlog.return_value = True
+            result = remove_callback([family])
+            mock_dlog.assert_called_once_with(
                 "The family <i>Araucariaceae</i> has 1 genera.\n\nYou "
                 "cannot remove a family with genera.",
+                typ=Gtk.MessageType.WARNING,
             )
-            in self.invoked
+
+        self.assertFalse(result)
+        self.assertEqual(
+            self.session.query(Family).filter_by(family="Araucariaceae").all(),
+            [family],
         )
-        q = self.session.query(Family).filter_by(family="Araucariaceae")
-        matching = q.all()
-        self.assertEqual(matching, [f5])
-        q = self.session.query(Genus).filter_by(genus="Araucaria")
-        matching = q.all()
-        self.assertEqual(matching, [gf5])
-        utils.yes_no_dialog = orig_yes_no_dialog
-        utils.message_dialog = orig_message_dialog
-        utils.message_details_dialog = orig_message_details_dialog
+        self.assertEqual(
+            self.session.query(Genus).filter_by(genus="Araucaria").all(),
+            [gen],
+        )
+
+    def test_remove_callback_bails_not_session(self):
+        family = Family(family="Araucariaceae")
+        self.session.add(family)
+        self.session.flush()
+
+        from .family import remove_callback
+
+        with mock.patch("bauble.plugins.plants.family.object_session"):
+            self.assertFalse(remove_callback([family]))
+
+    @mock.patch("bauble.utils.yes_no_dialog")
+    @mock.patch("bauble.utils.message_details_dialog")
+    def test_remove_callback_commit_exception(self, mock_d_dlog, mock_yn_dlog):
+        mock_yn_dlog.return_value = True
+        mock_d_dlog.return_value = True
+        family = Family(family="Araucariaceae")
+        self.session.add(family)
+        self.session.flush()
+
+        from .family import remove_callback
+
+        with (
+            mock.patch.object(
+                self.session, "commit", side_effect=SQLAlchemyError
+            ),
+            mock.patch.object(self.session, "rollback") as mock_rollback,
+        ):
+            self.assertFalse(remove_callback([family]))
+            mock_rollback.assert_called()
+            mock_d_dlog.assert_called()
 
     def test_no_synonyms_means_itself_accepted(self):
         def create_tmp_fam(id):
@@ -1301,6 +1271,44 @@ class FamilyTests(PlantTestCase):
 
         # no plant exclude inactive false
         self.assertEqual(fam.has_children(), True)
+
+    def test_edit_callback(self):
+        family = Family(family="Welwitschiaceae")
+        self.session.add(family)
+        self.session.flush()
+
+        from .family import edit_callback
+
+        with mock.patch(
+            "bauble.plugins.plants.family.FamilyEditor"
+        ) as mock_editor:
+            mock_editor().start.return_value = None
+            mock_editor.reset_mock()
+
+            self.assertFalse(edit_callback([family]))
+            mock_editor.assert_called_once_with(model=family)
+
+            mock_editor().start.return_value = family
+            self.assertTrue(edit_callback([family]))
+
+    def test_add_genera_callback(self):
+        family = Family(family="Welwitschiaceae")
+        self.session.add(family)
+        self.session.flush()
+
+        from .family import add_genera_callback
+
+        with mock.patch(
+            "bauble.plugins.plants.family.GenusEditor"
+        ) as mock_editor:
+            mock_editor().start.return_value = None
+            mock_editor.reset_mock()
+
+            self.assertFalse(add_genera_callback([family]))
+            mock_editor.assert_called_once()
+            gen = mock_editor.call_args.kwargs["model"]
+            self.assertIsInstance(gen, Genus)
+            self.assertEqual(gen.family, family)
 
 
 class FamilyUpdatedTests(BaubleTestCase):
@@ -1720,9 +1728,9 @@ class GenusTests(PlantTestCase):
     def test_remove_callback_no_species_no_confirm(self):
         # T_0
         caricaceae = Family(family="Caricaceae")
-        f5 = Genus(epithet="Carica", family=caricaceae)
+        gen = Genus(epithet="Carica", family=caricaceae)
         self.session.add(caricaceae)
-        self.session.add(f5)
+        self.session.add(gen)
         self.session.flush()
         self.invoked = []
 
@@ -1737,7 +1745,7 @@ class GenusTests(PlantTestCase):
         )
         from bauble.plugins.plants.genus import remove_callback
 
-        result = remove_callback([f5])
+        result = remove_callback([gen])
         self.session.flush()
 
         # effect
@@ -1755,15 +1763,15 @@ class GenusTests(PlantTestCase):
         self.assertEqual(result, False)
         q = self.session.query(Genus).filter_by(genus="Carica")
         matching = q.all()
-        self.assertEqual(matching, [f5])
+        self.assertEqual(matching, [gen])
         utils.yes_no_dialog = orig_yes_no_dialog
         utils.message_details_dialog = orig_message_details_dialog
 
     def test_remove_callback_no_species_confirm(self):
         # T_0
         caricaceae = Family(family="Caricaceae")
-        f5 = Genus(epithet="Carica", family=caricaceae)
-        self.session.add_all([caricaceae, f5])
+        gen = Genus(epithet="Carica", family=caricaceae)
+        self.session.add_all([caricaceae, gen])
         self.session.flush()
         self.invoked = []
 
@@ -1778,7 +1786,7 @@ class GenusTests(PlantTestCase):
         )
         from bauble.plugins.plants.genus import remove_callback
 
-        result = remove_callback([f5])
+        result = remove_callback([gen])
         self.session.flush()
 
         # effect
@@ -1804,9 +1812,9 @@ class GenusTests(PlantTestCase):
     def test_remove_callback_with_species_cant_cascade(self):
         # T_0
         caricaceae = Family(family="Caricaceae")
-        f5 = Genus(epithet="Carica", family=caricaceae)
-        gf5 = Species(genus=f5, sp="papaya")
-        self.session.add_all([caricaceae, f5, gf5])
+        gen = Genus(epithet="Carica", family=caricaceae)
+        gf5 = Species(genus=gen, sp="papaya")
+        self.session.add_all([caricaceae, gen, gf5])
         self.session.flush()
         self.invoked = []
 
@@ -1825,7 +1833,7 @@ class GenusTests(PlantTestCase):
         )
         from bauble.plugins.plants.genus import remove_callback
 
-        result = remove_callback([f5])
+        result = remove_callback([gen])
         self.session.flush()
 
         # effect
@@ -1843,7 +1851,7 @@ class GenusTests(PlantTestCase):
         self.assertFalse(result)
         q = self.session.query(Genus).filter_by(genus="Carica")
         matching = q.all()
-        self.assertEqual(matching, [f5])
+        self.assertEqual(matching, [gen])
         q = self.session.query(Species).filter_by(sp="papaya")
         matching = q.all()
         self.assertEqual(matching, [gf5])
@@ -2916,9 +2924,9 @@ class SpeciesTests(PlantTestCase):
 
     def test_remove_callback_no_accessions_no_confirm(self):
         caricaceae = Family(family="Caricaceae")
-        f5 = Genus(epithet="Carica", family=caricaceae)
-        sp = Species(epithet="papaya", genus=f5)
-        self.session.add_all([caricaceae, f5, sp])
+        gen = Genus(epithet="Carica", family=caricaceae)
+        sp = Species(epithet="papaya", genus=gen)
+        self.session.add_all([caricaceae, gen, sp])
         self.session.flush()
 
         from .species import remove_callback
@@ -2939,9 +2947,9 @@ class SpeciesTests(PlantTestCase):
 
     def test_remove_callback_no_accessions_confirm(self):
         caricaceae = Family(family="Caricaceae")
-        f5 = Genus(epithet="Carica", family=caricaceae)
-        sp = Species(epithet="papaya", genus=f5)
-        self.session.add_all([caricaceae, f5, sp])
+        gen = Genus(epithet="Carica", family=caricaceae)
+        sp = Species(epithet="papaya", genus=gen)
+        self.session.add_all([caricaceae, gen, sp])
         self.session.flush()
 
         from .species import remove_callback
@@ -2955,21 +2963,22 @@ class SpeciesTests(PlantTestCase):
             )
 
         self.assertTrue(result)
-        q = self.session.query(Species).filter_by(sp="papaya")
-        matching = q.all()
-        self.assertEqual(matching, [])
+        self.assertEqual(
+            self.session.query(Species).filter_by(sp="papaya").all(),
+            [],
+        )
 
     def test_remove_callback_with_accessions_cant_cascade(self):
         caricaceae = Family(family="Caricaceae")
-        f5 = Genus(epithet="Carica", family=caricaceae)
-        sp = Species(epithet="papaya", genus=f5)
+        gen = Genus(epithet="Carica", family=caricaceae)
+        sp = Species(epithet="papaya", genus=gen)
         vern = VernacularName(name="Pawpaw")
         sp.default_vernacular_name = vern
 
         from ..garden import Accession
 
         acc = Accession(code="0123456", species=sp)
-        self.session.add_all([caricaceae, f5, sp, acc])
+        self.session.add_all([caricaceae, gen, sp, acc])
         self.session.flush()
 
         from .species import remove_callback
@@ -2984,18 +2993,19 @@ class SpeciesTests(PlantTestCase):
             )
 
         self.assertFalse(result)
-        q = self.session.query(Species).filter_by(sp="papaya")
-        matching = q.all()
-        self.assertEqual(matching, [sp])
+        self.assertEqual(
+            self.session.query(Species).filter_by(sp="papaya").all(),
+            [sp],
+        )
+        self.assertEqual(
+            self.session.query(Accession).filter_by(species=sp).all(),
+            [acc],
+        )
 
-        q = self.session.query(Accession).filter_by(species=sp)
-        matching = q.all()
-        self.assertEqual(matching, [acc])
-
-    def test_remove_callback_bails(self):
+    def test_remove_callback_bails_not_session(self):
         caricaceae = Family(family="Caricaceae")
-        f5 = Genus(epithet="Carica", family=caricaceae)
-        sp = Species(epithet="papaya", genus=f5)
+        gen = Genus(epithet="Carica", family=caricaceae)
+        sp = Species(epithet="papaya", genus=gen)
         self.session.add(sp)
         self.session.flush()
 
@@ -3010,8 +3020,8 @@ class SpeciesTests(PlantTestCase):
         mock_yn_dlog.return_value = True
         mock_d_dlog.return_value = True
         caricaceae = Family(family="Caricaceae")
-        f5 = Genus(epithet="Carica", family=caricaceae)
-        sp = Species(epithet="papaya", genus=f5)
+        gen = Genus(epithet="Carica", family=caricaceae)
+        sp = Species(epithet="papaya", genus=gen)
         self.session.add(sp)
         self.session.flush()
 
@@ -3029,8 +3039,8 @@ class SpeciesTests(PlantTestCase):
 
     def test_edit_callback(self):
         caricaceae = Family(family="Caricaceae")
-        f5 = Genus(epithet="Carica", family=caricaceae)
-        sp = Species(epithet="papaya", genus=f5)
+        gen = Genus(epithet="Carica", family=caricaceae)
+        sp = Species(epithet="papaya", genus=gen)
         vern = VernacularName(name="Pawpaw")
         sp.default_vernacular_name = vern
         self.session.add(sp)
@@ -3050,8 +3060,8 @@ class SpeciesTests(PlantTestCase):
 
     def test_add_accession_callback(self):
         caricaceae = Family(family="Caricaceae")
-        f5 = Genus(epithet="Carica", family=caricaceae)
-        sp = Species(epithet="papaya", genus=f5)
+        gen = Genus(epithet="Carica", family=caricaceae)
+        sp = Species(epithet="papaya", genus=gen)
         vern = VernacularName(name="Pawpaw")
         sp.default_vernacular_name = vern
         self.session.add(sp)

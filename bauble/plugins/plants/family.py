@@ -27,6 +27,7 @@ logger = logging.getLogger(__name__)
 
 import os
 import traceback
+from collections.abc import Sequence
 from datetime import datetime
 from pathlib import Path
 from typing import cast as t_cast
@@ -50,6 +51,7 @@ from sqlalchemy import or_
 from sqlalchemy import select
 from sqlalchemy import union
 from sqlalchemy.exc import DBAPIError
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.associationproxy import association_proxy
 from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.orm import Mapped
@@ -79,55 +81,60 @@ from .species_model import Species
 from .widgets import SynonymsExpander
 
 
-def edit_callback(objs, **kwargs):
-    """Family context menu callback"""
+def edit_callback(objs: Sequence["Family"], **_kwargs) -> bool:
     family = objs[0]
     return FamilyEditor(model=family).start() is not None
 
 
-def add_genera_callback(objs, **kwargs):
+def add_genera_callback(objs: Sequence["Family"], **_kwargs) -> bool:
     """Family context menu callback"""
-    session = db.Session()
-    family = session.merge(objs[0])
-    e = GenusEditor(model=Genus(family=family))
-    session.close()
-    return e.start() is not None
+    family = objs[0]
+    gen_editor = GenusEditor(model=Genus(family=family))
+
+    return gen_editor.start() is not None
 
 
-def remove_callback(objs, **kwargs):
-    families = objs
-    family = families[0]
+def remove_callback(
+    objs: Sequence["Family"],
+    **_kwargs,
+) -> bool:
+    family = objs[0]
+    fam_lst: list[str] = []
     session = object_session(family)
-    for family in families:
-        ngen = session.query(Genus).filter_by(family_id=family.id).count()
+    if not isinstance(session, Session):
+        return False
+
+    for family in objs:
+        ngen = len(family.genera)
         safe_str = utils.xml_safe(str(family))
+        fam_lst.append(safe_str)
         if ngen > 0:
-            msg = _("The family <i>%(1)s</i> has %(2)s genera." "\n\n") % {
-                "1": safe_str,
-                "2": ngen,
-            } + _("You cannot remove a family with genera.")
+            msg = _(
+                "The family <i>%(fam)s</i> has %(num_gen)s genera.\n\n"
+                "You cannot remove a family with genera."
+            ) % {"fam": safe_str, "num_gen": ngen}
             utils.message_dialog(msg, typ=Gtk.MessageType.WARNING)
-            return None
-    fams = ", ".join([utils.xml_safe(i) for i in families])
-    msg = (
-        _(
-            "Are you sure you want to remove the following families "
-            "<i>%s</i>?"
-        )
-        % fams
-    )
+
+            return False
+
+    msg = _(
+        "Are you sure you want to remove the following families <i>%s</i>?"
+    ) % ", ".join(fam_lst)
     if not utils.yes_no_dialog(msg):
-        return None
-    for family in families:
+        return False
+
+    for family in objs:
         session.delete(family)
     try:
         session.commit()
-    except Exception as e:
+    except SQLAlchemyError as e:
         msg = _("Could not delete.\n\n%s") % utils.xml_safe(e)
         utils.message_details_dialog(
             msg, traceback.format_exc(), Gtk.MessageType.ERROR
         )
         session.rollback()
+        return False
+
     return True
 
 
@@ -525,14 +532,6 @@ class FamilyEditorView(editor.GenericEditorView):
 
     def get_window(self):
         return self.widgets.family_dialog
-
-    # TODO can this be removed?
-    def save_state(self):
-        pass
-
-    # TODO can this be removed?  (was only for syn_expanded_pref)
-    def restore_state(self):
-        pass
 
     def set_accept_buttons_sensitive(self, sensitive):
         self.widgets.fam_ok_button.set_sensitive(sensitive)

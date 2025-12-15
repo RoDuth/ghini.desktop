@@ -115,7 +115,7 @@ def remove_callback(
 ) -> bool:
 
     species = objs[0]
-    s_lst = []
+    sp_lst: list[str] = []
     session = object_session(species)
     if not isinstance(session, Session):
         return False
@@ -126,7 +126,7 @@ def remove_callback(
 
         nacc = len(species.accessions)
         safe_str = utils.xml_safe(str(species))
-        s_lst.append(safe_str)
+        sp_lst.append(safe_str)
         if nacc > 0:
 
             msg = _(
@@ -140,7 +140,7 @@ def remove_callback(
 
     msg = _(
         "Are you sure you want to remove the following species <i>%s</i>?"
-    ) % ", ".join(i for i in s_lst)
+    ) % ", ".join(sp_lst)
     if not utils.yes_no_dialog(msg):
         return False
 
