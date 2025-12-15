@@ -87,8 +87,8 @@ from .genus import genus_match_func
 from .genus import genus_to_string_matcher
 from .geography import GEO_PACIFIC_CENTRIC
 from .geography import DistMapCache
-from .geography import DistMapInfoExpanderMixin
 from .geography import DistributionMap
+from .geography import DistributionMapEventBox
 from .geography import GeneralGeographyExpander
 from .geography import Geography
 from .geography import GeographyMenu
@@ -5454,7 +5454,7 @@ class DistributionMapTests(BaubleClassTestCase):
 
         new_zealand = 39
         dist = DistributionMap([new_zealand])
-        self.assertEqual(dist.get_max_zoom(), 7.5)
+        self.assertEqual(dist.get_max_zoom(), 7)
 
         # EUROPE, ASIA_TEMPERATE, NORTHERN AMERICA (Global)
         dist = DistributionMap([1, 3, 7])
@@ -5505,35 +5505,79 @@ class DistributionMapTests(BaubleClassTestCase):
         self.assertIsNone(dist._image.get_parent())
 
 
-class DistMapInfoExpanderMixinTests(BaubleTestCase):
+class DistributionMapEventBoxTests(BaubleTestCase):
+    def test_update(self):
+        geo = Geography(
+            name="Lord Howe I.",
+            code="NFK-LH",
+            level=4,
+        )
+        self.session.add(geo)
+        self.session.commit()
+        map_ebox = DistributionMapEventBox()
+
+        self.assertIsNone(map_ebox.distribution_map)
+        self.assertEqual(len(map_ebox.get_children()), 0)
+
+        # No geojson
+        map_ebox.update(geo)
+
+        self.assertIsNone(map_ebox.distribution_map)
+        self.assertEqual(len(map_ebox.get_children()), 0)
+
+        geojson = {
+            "type": "Polygon",
+            "coordinates": [
+                [
+                    [159.07080078125, -31.599998474121094],
+                    [159.08578491210938, -31.561111450195312],
+                    [159.04913330078125, -31.52166748046875],
+                    [159.10189819335938, -31.57111358642578],
+                    [159.07080078125, -31.599998474121094],
+                ]
+            ],
+        }
+        geo.geojson = geojson
+        self.session.commit()
+        map_ebox.update(geo)
+
+        self.assertIsNotNone(map_ebox.distribution_map)
+        self.assertEqual(len(map_ebox.get_children()), 1)
+
     def test_on_map_button_release(self):
         btn = Gdk.EventButton()
         btn.button = 1
-        mix = DistMapInfoExpanderMixin()
-        mix.zoomed = False
-        self.assertFalse(mix.on_map_button_release(None, btn))
+        map_ebox = DistributionMapEventBox()
+        map_ebox.zoomed = False
+        self.assertFalse(map_ebox.on_map_button_release(None, btn))
 
         btn = Gdk.EventButton()
         btn.button = 3
-        mix = DistMapInfoExpanderMixin()
-        mix.zoomed = False
-        ebox = Gtk.EventBox()
+        map_ebox = DistributionMapEventBox()
+        map_ebox.zoomed = False
         with mock.patch(
             "bauble.plugins.plants.geography.Gtk.Menu.popup_at_pointer"
         ) as mock_popup:
-            self.assertTrue(mix.on_map_button_release(ebox, btn))
+
+            self.assertTrue(map_ebox.on_map_button_release(map_ebox, btn))
             mock_popup.assert_called()
-        grp = ebox.get_action_group(DistMapInfoExpanderMixin.MAP_ACTION_NAME)
+
+        map_action_name = DistributionMapEventBox.MAP_ACTION_NAME
+        grp = map_ebox.get_action_group(map_action_name)
+
         self.assertTrue(grp.lookup_action("zoom"))
         self.assertIsNone(grp.lookup_action("zmout"))
-        mix.zoomed = True
-        ebox = Gtk.EventBox()
+
+        map_ebox.zoomed = True
         with mock.patch(
             "bauble.plugins.plants.geography.Gtk.Menu.popup_at_pointer"
         ) as mock_popup:
-            self.assertTrue(mix.on_map_button_release(ebox, btn))
+
+            self.assertTrue(map_ebox.on_map_button_release(map_ebox, btn))
             mock_popup.assert_called()
-        grp = ebox.get_action_group(DistMapInfoExpanderMixin.MAP_ACTION_NAME)
+
+        grp = map_ebox.get_action_group(map_action_name)
+
         self.assertIsNone(grp.lookup_action("zoom"))
         self.assertTrue(grp.lookup_action("zmout"))
 
@@ -5559,18 +5603,18 @@ class DistMapInfoExpanderMixinTests(BaubleTestCase):
         )
         self.session.add(geo)
         self.session.commit()
-        mix = DistMapInfoExpanderMixin()
-        mix.distribution_map = geo.distribution_map()
+        map_ebox = DistributionMapEventBox()
+        map_ebox.update(geo)
         # mock filechooser to CANCEL and check that get_filename is not
         # called
         mock_chooser.new().run.return_value = Gtk.ResponseType.CANCEL
-        mix.on_dist_map_save(None, None)
+        map_ebox.on_dist_map_save(None, None)
         mock_chooser.new().get_filename.assert_not_called()
 
         handle, filename = mkstemp(suffix=".svg")
         mock_chooser.new().run.return_value = Gtk.ResponseType.ACCEPT
         mock_chooser.new().get_filename.return_value = filename
-        mix.on_dist_map_save(None, None)
+        map_ebox.on_dist_map_save(None, None)
         mock_chooser.new().get_filename.assert_called()
         os.close(handle)
         with open(filename, "r", encoding="utf-8") as f:
@@ -5586,8 +5630,8 @@ class DistMapInfoExpanderMixinTests(BaubleTestCase):
         self.assertEqual(out, svg)
         # type guard
         mock_chooser.reset_mock()
-        mix.distribution_map = None
-        mix.on_dist_map_save(None, None)
+        map_ebox.distribution_map = None
+        map_ebox.on_dist_map_save(None, None)
         mock_chooser.new().get_filename.assert_not_called()
 
     @mock.patch("bauble.gui")
@@ -5610,57 +5654,59 @@ class DistMapInfoExpanderMixinTests(BaubleTestCase):
             level=4,
             geojson=geojson,
         )
-        mix = DistMapInfoExpanderMixin()
-        mix.distribution_map = geo.distribution_map()
+        self.session.add(geo)
+        self.session.commit()
+        map_ebox = DistributionMapEventBox()
+        map_ebox.update(geo)
 
-        mix.on_dist_map_copy(None, None)
+        map_ebox.on_dist_map_copy(None, None)
         mock_gui.get_display_clipboard().set_image.assert_called_with(
             geo.distribution_map().as_image().get_pixbuf()
         )
         mock_gui.reset_mock()
-        mix.distribution_map = None
-        mix.on_dist_map_copy(None, None)
+        map_ebox.distribution_map = None
+        map_ebox.on_dist_map_copy(None, None)
         mock_gui.get_display_clipboard().set_image.assert_not_called()
 
     def test_on_dist_map_zoom(self):
         # type guard, doesn't fail because it bails early
-        mix = DistMapInfoExpanderMixin()
-        mix.distribution_map = None
-        self.assertIsNone(mix.on_dist_map_zoom(None, None))
+        map_ebox = DistributionMapEventBox()
+        map_ebox.distribution_map = None
+        self.assertIsNone(map_ebox.on_dist_map_zoom(None, None))
         # zoom == 1
-        mix.zoomed = False
-        mix.distribution_map = mock.Mock()
-        mix.distribution_map.get_max_zoom.return_value = 1
-        mix.on_dist_map_zoom(None, None)
-        mix.distribution_map.zoom_to_level.assert_not_called()
-        self.assertFalse(mix.zoomed)
+        map_ebox.zoomed = False
+        map_ebox.distribution_map = mock.Mock()
+        map_ebox.distribution_map.get_max_zoom.return_value = 1
+        map_ebox.on_dist_map_zoom(None, None)
+        map_ebox.distribution_map.zoom_to_level.assert_not_called()
+        self.assertFalse(map_ebox.zoomed)
         # zoom == 10
-        mix.distribution_map.get_max_zoom.return_value = 10
-        mix.on_dist_map_zoom(None, None)
-        mix.distribution_map.zoom_to_level.assert_called_with(10)
-        self.assertTrue(mix.zoomed)
+        map_ebox.distribution_map.get_max_zoom.return_value = 10
+        map_ebox.on_dist_map_zoom(None, None)
+        map_ebox.distribution_map.zoom_to_level.assert_called_with(10)
+        self.assertTrue(map_ebox.zoomed)
 
     def test_on_dist_map_zoom_out(self):
         # type guard, doesn't fail because it bails early
-        mix = DistMapInfoExpanderMixin()
-        mix.distribution_map = None
-        self.assertIsNone(mix.on_dist_map_zoom_out(None, None))
+        map_ebox = DistributionMapEventBox()
+        map_ebox.distribution_map = None
+        self.assertIsNone(map_ebox.on_dist_map_zoom_out(None, None))
         # zoom == 2
-        mix.distribution_map = mock.Mock()
-        mix.zoomed = True
-        mix.zoom_level = 2
-        mix.on_dist_map_zoom_out(None, None)
-        self.assertEqual(mix.zoom_level, 1)
-        self.assertFalse(mix.zoomed)
-        mix.distribution_map.zoom_to_level.assert_called_with(1)
+        map_ebox.distribution_map = mock.Mock()
+        map_ebox.zoomed = True
+        map_ebox.zoom_level = 2
+        map_ebox.on_dist_map_zoom_out(None, None)
+        self.assertEqual(map_ebox.zoom_level, 1)
+        self.assertFalse(map_ebox.zoomed)
+        map_ebox.distribution_map.zoom_to_level.assert_called_with(1)
         # zoom = 10
-        mix.distribution_map = mock.Mock()
-        mix.zoomed = True
-        mix.zoom_level = 10
-        mix.on_dist_map_zoom_out(None, None)
-        self.assertEqual(mix.zoom_level, 8)
-        self.assertTrue(mix.zoomed)
-        mix.distribution_map.zoom_to_level.assert_called_with(8)
+        map_ebox.distribution_map = mock.Mock()
+        map_ebox.zoomed = True
+        map_ebox.zoom_level = 10
+        map_ebox.on_dist_map_zoom_out(None, None)
+        self.assertEqual(map_ebox.zoom_level, 8)
+        self.assertTrue(map_ebox.zoomed)
+        map_ebox.distribution_map.zoom_to_level.assert_called_with(8)
 
 
 class GeographyApproxAreaTests(BaubleTestCase):

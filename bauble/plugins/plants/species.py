@@ -71,7 +71,7 @@ from .family import Family
 from .family import FamilySynonym
 from .genus import Genus
 from .genus import GenusSynonym
-from .geography import DistMapInfoExpanderMixin
+from .geography import DistributionMapEventBox
 from .geography import map_kml_callback
 from .species_editor import SPECIES_WEB_BUTTON_DEFS_PREFS
 from .species_editor import SpeciesDistribution
@@ -594,7 +594,6 @@ def infobox_counts(id_: int) -> dict[str, int]:
 )
 class GeneralSpeciesExpander(
     InfoExpanderMixin[Species],
-    DistMapInfoExpanderMixin,
     Gtk.Expander,
 ):
     """expander to present general information about a species"""
@@ -631,12 +630,14 @@ class GeneralSpeciesExpander(
     label_markup_data_label = cast(Gtk.Label, Gtk.Template.Child())
     labeldist_label = cast(Gtk.Label, Gtk.Template.Child())
     dist_map_box = cast(Gtk.Box, Gtk.Template.Child())
-    dist_map_event_box = cast(Gtk.EventBox, Gtk.Template.Child())
+    dist_details_box = cast(Gtk.Box, Gtk.Template.Child())
 
     def __init__(self) -> None:
         super().__init__(label=_("General"))
         self.connect("notify::expanded", self.on_expanded)
         self.has_details = False
+        self.map_event_box = DistributionMapEventBox()
+        self.dist_map_box.pack_start(self.map_event_box, False, False, 0)
         self._current_db_id: int | None = None
         self._custom_columns: set[str] = set()
 
@@ -810,24 +811,14 @@ class GeneralSpeciesExpander(
             self.label_markup_data_label.set_label("--")
 
     def update_distribution(self, row: Species) -> None:
-        self.zoomed = False
-        self.zoom_level = 1
         self.labeldist_label.set_label(str(row.label_distribution or ""))
 
-        self.dist_map_box.foreach(self.dist_map_box.remove)
-        self.distribution_map = None
+        self.map_event_box.update(row)
+
+        self.dist_details_box.foreach(self.dist_details_box.remove)
 
         if not row.distribution:
             return
-
-        map_event_box = Gtk.EventBox()
-        self.distribution_map = row.distribution_map()
-        image = self.distribution_map.as_image()
-        map_event_box.add(image)
-        map_event_box.connect(
-            "button_release_event", self.on_map_button_release
-        )
-        self.dist_map_box.pack_start(map_event_box, False, False, 0)
 
         expander = Gtk.Expander(label=_("Areas"), expanded=False)
         expander.connect("activate", self.on_areas_expanded)
@@ -852,7 +843,7 @@ class GeneralSpeciesExpander(
         utils.make_label_clickable(label, self.select_all_areas, row)
         box.pack_start(event_box, False, False, 0)
         expander.add(box)
-        self.dist_map_box.pack_start(expander, False, False, 0)
+        self.dist_details_box.pack_start(expander, False, False, 0)
 
     def update_plant_locations(self, row: Species) -> None:
         self.plant_locations_box.foreach(self.plant_locations_box.remove)

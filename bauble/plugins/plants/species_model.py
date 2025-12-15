@@ -1207,7 +1207,9 @@ class Species(Taxon, db.WithNotes):
         setattr(self, self.infrasp_attr[level]["epithet"], epithet)
         setattr(self, self.infrasp_attr[level]["author"], author)
 
-    def distribution_map(self) -> DistributionMap:
+    def distribution_map(self) -> DistributionMap | None:
+        if not self.distribution:
+            return None
         return DistributionMap([i.geography.id for i in self.distribution])
 
     @classmethod

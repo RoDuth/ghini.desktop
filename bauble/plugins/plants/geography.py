@@ -35,6 +35,8 @@ from operator import itemgetter
 from pathlib import Path
 from typing import TYPE_CHECKING
 from typing import Any
+from typing import Optional
+from typing import Protocol
 from typing import Self
 from typing import cast
 
@@ -475,9 +477,19 @@ class Geography(db.Domain):
 
         return "".join(svg_paths)
 
-    def distribution_map(self) -> "DistributionMap":
+    def distribution_map(self) -> Optional["DistributionMap"]:
         logger.debug("distribution map %s", self)
-        return DistributionMap([self.id])
+        with db.engine.begin() as connection:
+            geojson = connection.execute(
+                select(Geography.geojson.is_not(None)).where(
+                    Geography.id == self.id
+                )
+            ).scalar()
+
+        if geojson:
+            return DistributionMap([self.id])
+
+        return None
 
 
 def _coord_string(lon: float, lat: float, pacific_centric: bool) -> str:
@@ -869,7 +881,7 @@ class DistributionMap:
         cls._world_pixbuf = None
         cls._image_cache = DistMapCache()
 
-    def get_max_zoom(self) -> float:
+    def get_max_zoom(self) -> int:
         longs, lats = split_lats_longs(self.areas)
         max_lat, min_lat = max(lats), min(lats)
 
@@ -886,42 +898,62 @@ class DistributionMap:
         width = abs(max_long - min_long)
         height = abs(max_lat - min_lat)
 
-        zoom: float = 18
+        zoom = 18
         while zoom > 1:
             zwidth = 360 / zoom
             zheight = 180 / zoom
             if width < zwidth and height < zheight:
                 return zoom
-            zoom -= 0.5
+            zoom -= 1
 
         return 1
 
 
-class DistMapInfoExpanderMixin:
-    """Mixin to provide a right click menu for a DistributionMap in an
-    InfoExpander.
+class ModelWDistributionMap(Protocol):
+    # pylint: disable=too-few-public-methods
+    """Protocol for models that provide a distribution map."""
 
-    To use: In ``update`` method wrap the DistributionMap's image widget in an
-    Gtk.EventBox and connect it's button_release_event to
-    ``on_map_button_release``. Also, set ``distribution_map`` to the current
-    row's, ``zoomed`` to ``False`` and ``zoom_level`` to ``1``.
+    def distribution_map(self) -> DistributionMap | None: ...
 
-    e.g. - in the infoEpander's ``update`` method::
 
-            self.zoomed = False
-            self.zoom_level = 1
-            self.distribution_map = row.distribution_map()
-            map_event_box = Gtk.EventBox()
-            map_event_box.add(self.distribution_map.as_image())
-            map_event_box.connect(
-                "button_release_event", self.on_map_button_release
-            )
+class DistributionMapEventBox(Gtk.EventBox):
+    """EventBox to display a rows DistributionMap image and provide a context
+    menu.
+
+    To use: add this widget and call ``update(row)`` on it when required.
+
+    e.g.::
+
+        def __init__(self):
+            self.map_event_box = DistributionMapEventBox()
+
+        def update(self, row):
+            self.map_event_box.update(row)
     """
 
     MAP_ACTION_NAME: str = "distribution_map_activated"
-    distribution_map: DistributionMap | None
-    zoom_level: float
-    zoomed: bool
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.distribution_map: DistributionMap | None = None
+        self.zoomed = False
+        self.zoom_level = 1
+        self.connect("button_release_event", self.on_map_button_release)
+
+    def update(self, row: ModelWDistributionMap) -> None:
+        """Update the map image for the supplied row."""
+        self.zoomed = False
+        self.zoom_level = 1
+        self.foreach(self.remove)
+        map_ = row.distribution_map()
+
+        if not map_:
+            return
+
+        self.distribution_map = map_
+        image = self.distribution_map.as_image()
+        self.add(image)
+        self.show_all()
 
     def on_map_button_release(
         self,
@@ -1029,7 +1061,6 @@ class DistMapInfoExpanderMixin:
 )
 class GeneralGeographyExpander(
     InfoExpanderMixin[Geography],
-    DistMapInfoExpanderMixin,
     Gtk.Expander,
 ):
 
@@ -1052,9 +1083,11 @@ class GeneralGeographyExpander(
     def __init__(self) -> None:
         super().__init__(label=_("General"))
         self.connect("notify::expanded", self.on_expanded)
+        self.map_event_box = DistributionMapEventBox()
+        self.map_box.pack_start(self.map_event_box, False, False, 0)
 
     def update(self, row: Geography) -> None:
-        self.update_map(row)
+        self.map_event_box.update(row)
 
         self.name_label.set_label(row.name)
         level = ["Continent", "Region", "Bot. Country", "Unit"][row.level - 1]
@@ -1074,22 +1107,6 @@ class GeneralGeographyExpander(
         self.geojson_type_label.set_label(shape)
         self.approx_area_label.set_label(f"{row.approx_area:,.2f} km²")
         self.label_name_label.set_label(row.label_name or "")
-
-    def update_map(self, row: Geography) -> None:
-        self.zoomed = False
-        self.zoom_level = 1
-
-        self.map_box.foreach(self.map_box.remove)
-
-        map_event_box = Gtk.EventBox()
-        self.distribution_map = row.distribution_map()
-        image = self.distribution_map.as_image()
-        map_event_box.add(image)
-        map_event_box.connect(
-            "button_release_event", self.on_map_button_release
-        )
-        self.map_box.pack_start(map_event_box, False, False, 0)
-        self.map_box.show_all()
 
     def update_children(self, row: Geography) -> None:
         self.children_box.foreach(self.children_box.remove)

@@ -689,13 +689,13 @@
               </packing>
             </child>
             <child>
-              <object class="GtkBox" id="dist_map_box">
+              <object class="GtkBox">
                 <property name="visible">True</property>
                 <property name="can-focus">False</property>
                 <property name="orientation">vertical</property>
                 <property name="border-width">5</property>
                 <child>
-                  <object class="GtkEventBox" id="dist_map_event_box">
+                  <object class="GtkBox" id="dist_map_box">
                     <property name="visible">True</property>
                     <property name="can-focus">False</property>
                     <child>
@@ -709,7 +709,18 @@
                   </packing>
                 </child>
                 <child>
-                  <placeholder/>
+                  <object class="GtkBox" id="dist_details_box">
+                    <property name="visible">True</property>
+                    <property name="can-focus">False</property>
+                    <child>
+                      <placeholder/>
+                    </child>
+                  </object>
+                  <packing>
+                    <property name="expand">False</property>
+                    <property name="fill">True</property>
+                    <property name="position">1</property>
+                  </packing>
                 </child>
               </object>
               <packing>
