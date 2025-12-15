@@ -83,6 +83,7 @@ from .widgets import SynonymsExpander
 
 def edit_callback(objs: Sequence["Family"], **_kwargs) -> bool:
     family = objs[0]
+
     return FamilyEditor(model=family).start() is not None
 
 
@@ -105,14 +106,14 @@ def remove_callback(
         return False
 
     for family in objs:
-        ngen = len(family.genera)
+        num_gen = len(family.genera)
         safe_str = utils.xml_safe(str(family))
         fam_lst.append(safe_str)
-        if ngen > 0:
+        if num_gen > 0:
             msg = _(
                 "The family <i>%(fam)s</i> has %(num_gen)s genera.\n\n"
                 "You cannot remove a family with genera."
-            ) % {"fam": safe_str, "num_gen": ngen}
+            ) % {"fam": safe_str, "num_gen": num_gen}
             utils.message_dialog(msg, typ=Gtk.MessageType.WARNING)
 
             return False
@@ -121,6 +122,7 @@ def remove_callback(
         "Are you sure you want to remove the following families <i>%s</i>?"
     ) % ", ".join(fam_lst)
     if not utils.yes_no_dialog(msg):
+
         return False
 
     for family in objs:
@@ -133,6 +135,7 @@ def remove_callback(
             msg, traceback.format_exc(), Gtk.MessageType.ERROR
         )
         session.rollback()
+
         return False
 
     return True

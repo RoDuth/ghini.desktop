@@ -27,6 +27,7 @@ logger = logging.getLogger(__name__)
 
 import os
 import traceback
+from collections.abc import Sequence
 from datetime import datetime
 from pathlib import Path
 from typing import cast as t_cast
@@ -94,42 +95,50 @@ from .widgets import SynonymsExpander
 # they aren't using the wrong version of the Genus, e.g. Cananga
 
 
-def edit_callback(objs, **kwargs):
+def edit_callback(objs: Sequence["Genus"], **_kwargs) -> bool:
     genus = objs[0]
+
     return GenusEditor(model=genus).start() is not None
 
 
-def add_species_callback(objs, **kwargs):
-    session = db.Session()
-    genus = session.merge(objs[0])
-    result = edit_species(model=Species(genus=genus)) is not None
-    session.close()
-    return result
+def add_species_callback(objs: Sequence["Genus"], **_kwargs) -> bool:
+    genus = objs[0]
+
+    return edit_species(model=Species(genus=genus)) is not None
 
 
-def remove_callback(objs, **kwargs):
-    """The callback function to remove a genus from the genus context menu."""
+def remove_callback(
+    objs: Sequence["Genus"],
+    **_kwargs,
+) -> bool:
     genera = objs
     genus = genera[0]
-    g_lst = []
+    gen_lst = []
     session = object_session(genus)
+    if not isinstance(session, Session):
+        return False
+
     for genus in genera:
-        g_lst.append(utils.xml_safe(genus))
-        nsp = session.query(Species).filter_by(genus_id=genus.id).count()
+        num_sp = len(genus.species)
         safe_str = utils.xml_safe(str(genus))
-        if nsp > 0:
-            msg = _("The genus <i>%(1)s</i> has %(2)s species." "\n\n") % {
-                "1": safe_str,
-                "2": nsp,
-            } + _("You cannot remove a genus with species.")
+        gen_lst.append(safe_str)
+        if num_sp > 0:
+            msg = _(
+                "The genus <i>%(gen)s</i> has %(num_sp)s species.\n\n"
+                "You cannot remove a genus with species."
+            ) % {"gen": safe_str, "num_sp": num_sp}
             utils.message_dialog(msg, typ=Gtk.MessageType.WARNING)
+
             return False
+
         msg = _(
             "Are you sure you want to remove the following genera "
             "<i>%s</i>?"
-        ) % ", ".join(i for i in g_lst)
+        ) % ", ".join(gen_lst)
     if not utils.yes_no_dialog(msg):
+
         return False
+
     for genus in genera:
         session.delete(genus)
     try:
@@ -140,11 +149,17 @@ def remove_callback(objs, **kwargs):
             msg, traceback.format_exc(), Gtk.MessageType.ERROR
         )
         session.rollback()
+
+        return False
+
     return True
 
 
 edit_action = Action(
-    "genus_edit", _("_Edit"), callback=edit_callback, accelerator="<ctrl>e"
+    "genus_edit",
+    _("_Edit"),
+    callback=edit_callback,
+    accelerator="<ctrl>e",
 )
 add_species_action = Action(
     "genus_sp_add",

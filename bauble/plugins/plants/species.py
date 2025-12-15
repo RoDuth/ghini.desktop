@@ -124,15 +124,15 @@ def remove_callback(
         if isinstance(species, VernacularName):
             species = species.species
 
-        nacc = len(species.accessions)
+        num_acc = len(species.accessions)
         safe_str = utils.xml_safe(str(species))
         sp_lst.append(safe_str)
-        if nacc > 0:
+        if num_acc > 0:
 
             msg = _(
                 "The species <i>%(sp)s</i> has %(num_acc)s accessions.\n\n"
                 "You cannot remove a species with accessions."
-            ) % {"sp": safe_str, "num_acc": nacc}
+            ) % {"sp": safe_str, "num_acc": num_acc}
 
             utils.message_dialog(msg, typ=Gtk.MessageType.WARNING)
 

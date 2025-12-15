@@ -25,6 +25,7 @@ import logging
 import re
 from datetime import datetime
 from itertools import chain
+from typing import TYPE_CHECKING
 
 logger = logging.getLogger(__name__)
 
@@ -423,6 +424,7 @@ class Species(Taxon, db.WithNotes):
 
     genus_id = Column(Integer, ForeignKey("genus.id"), nullable=False)
     # the Species.genus property is defined as backref in Genus.species
+    genus: Mapped["Genus"]
 
     label_distribution = Column(UnicodeText)
     label_markup = Column(UnicodeText)
@@ -1649,3 +1651,7 @@ class Color(db.Base):
         if self.name:
             return f"{self.name} ({self.code})"
         return str(self.code)
+
+
+if TYPE_CHECKING:
+    from .genus import Genus
