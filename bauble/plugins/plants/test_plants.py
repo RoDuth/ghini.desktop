@@ -73,11 +73,13 @@ from .family import FamilyInfoBox
 from .family import FamilyNote
 from .family import FamilySynonym
 from .family import GeneralFamilyExpander
+from .genus import GENUS_WEB_BUTTON_DEFS_PREFS
 from .genus import GeneralGenusExpander
 from .genus import Genus
 from .genus import GenusEditor
 from .genus import GenusEditorPresenter
 from .genus import GenusEditorView
+from .genus import GenusInfoBox
 from .genus import GenusNote
 from .genus import GenusSynonym
 from .genus import generic_gen_get_completions
@@ -1090,6 +1092,7 @@ class FamilyTests(PlantTestCase):
     def test_family_info_box_links(self):
         infobox = FamilyInfoBox()
         links = infobox.get_nth_page(0).expanders["Links"]
+        self.assertTrue(len(links.web_links) > 0)
 
         self.assertEqual(
             len(links.web_links),
@@ -1987,19 +1990,24 @@ class GenusTests(PlantTestCase):
         genera = self.session.query(Genus).filter(
             Genus.id.in_((9, 11, 12, 15))
         )
-        filename = os.path.join(
-            paths.lib_dir(), "plugins", "plants", "infoboxes.glade"
+        general = GeneralGenusExpander()
+        for gen in genera:
+            general.update(gen)
+            self.assertEqual(
+                general.name_label.get_label(),
+                f"<big>{gen.markup()}</big> "
+                f"{utils.xml_safe(str(gen.author))}",
+            )
+
+    def test_genus_info_box_links(self):
+        infobox = GenusInfoBox()
+        links = infobox.get_nth_page(0).expanders["Links"]
+        self.assertTrue(len(links.web_links) > 0)
+
+        self.assertEqual(
+            len(links.web_links),
+            len(list(prefs.prefs.itersection(GENUS_WEB_BUTTON_DEFS_PREFS))),
         )
-        widgets = utils.BuilderWidgets(filename)
-        with mock.patch("bauble.gui"):
-            general = GeneralGenusExpander(widgets)
-            for gen in genera:
-                general.update(gen)
-                self.assertEqual(
-                    widgets["gen_name_data"].get_label(),
-                    f"<big>{gen.markup()}</big> "
-                    f"{utils.xml_safe(str(gen.author))}",
-                )
 
     def test_has_children(self):
         from ..garden import Accession
@@ -3830,14 +3838,13 @@ class SpeciesInfoBoxTests(BaubleTestCase):
         # at least tests nothing errors
         spp = self.session.query(Species).filter(Species.id.in_((15, 27, 31)))
 
-        with mock.patch("bauble.gui"):
-            expander = GeneralSpeciesExpander()
-            for sp in spp:
-                expander.update(sp)
-                self.assertEqual(
-                    expander.name_label.get_label(),
-                    f" <big>{sp.markup(authors=True, genus=False)}</big>",
-                )
+        expander = GeneralSpeciesExpander()
+        for sp in spp:
+            expander.update(sp)
+            self.assertEqual(
+                expander.name_label.get_label(),
+                f" <big>{sp.markup(authors=True, genus=False)}</big>",
+            )
 
     def test_general_setup_custom_column(self):
         meta = BaubleMeta(
@@ -4110,6 +4117,7 @@ class SpeciesInfoBoxTests(BaubleTestCase):
     def test_species_info_box_links(self):
         infobox = SpeciesInfoBox()
         links = infobox.get_nth_page(0).expanders["Links"]
+        self.assertTrue(len(links.web_links) > 0)
 
         self.assertEqual(
             len(links.web_links),
