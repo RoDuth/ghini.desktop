@@ -53,6 +53,8 @@ from sqlalchemy import ForeignKey
 from sqlalchemy import Integer
 from sqlalchemy import String
 from sqlalchemy import Unicode
+from sqlalchemy import case
+from sqlalchemy import cast as cast_sql
 from sqlalchemy import event
 from sqlalchemy import exists
 from sqlalchemy import literal
@@ -479,11 +481,15 @@ class Geography(db.Domain):
 
     def distribution_map(self) -> Optional["DistributionMap"]:
         logger.debug("distribution map %s", self)
+        # avoid loading deferred geojson unnecessarily
         with db.engine.begin() as connection:
             geojson = connection.execute(
-                select(Geography.geojson.is_not(None)).where(
-                    Geography.id == self.id
-                )
+                select(
+                    cast_sql(
+                        case([(Geography.geojson.is_not(None), 1)], else_=0),
+                        types.Boolean,
+                    )
+                ).where(Geography.id == self.id)
             ).scalar()
 
         if geojson:
@@ -695,6 +701,7 @@ class DistributionMap:
         self._map: str = ""
         self._zoom_map: str = ""
         self._current_max_mins: tuple[float, float, float, float] | None = None
+        self._lock = threading.Lock()
 
     def get_areas(self) -> Iterable[Geography]:
 
@@ -810,7 +817,7 @@ class DistributionMap:
 
     def _generate_image(self) -> None:
         """Generate an appropriate image pixbuf for the supplied geographies
-        and `idle_add` replace the current image's place holder pixbuf.
+        and ``idle_add`` replace the current image's place holder pixbuf.
 
         Run in a thread while the image, with a placeholder pixbuf, is used
         replacing it's pixbuf when it becomes available.
@@ -871,7 +878,8 @@ class DistributionMap:
         return self._image
 
     def __str__(self) -> str:
-        return self.map
+        with self._lock:
+            return self.map
 
     @classmethod
     def reset(cls) -> None:
