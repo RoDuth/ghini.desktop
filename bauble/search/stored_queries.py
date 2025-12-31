@@ -38,6 +38,7 @@ from sqlalchemy import inspect
 from sqlalchemy import select
 from sqlalchemy.engine import Row
 from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.orm import Session
 
 import bauble
 from bauble import db
@@ -60,7 +61,7 @@ class StoredQuery(db.Base):  # pylint: disable=too-few-public-methods
 class StoredQueryEditorDialog(
     editor.GenericPresenter[StoredQuery],
     Gtk.Dialog,
-):
+):  # pylint: disable=not-callable
     """Dialog to create or edit a stored query."""
 
     __gtype_name__ = "StoredQueryEditorDialog"
@@ -100,7 +101,9 @@ class StoredQueryEditorDialog(
 
     @Gtk.Template.Callback()
     def on_query_text_buffer_changed(self, buffer: Gtk.TextBuffer) -> None:
-        super().on_non_empty_text_buffer_changed(buffer, self.query_textview)
+        super().on_non_empty_text_buffer_changed(
+            buffer, problem_widget=self.query_textview
+        )
 
     @Gtk.Template.Callback()
     def on_name_entry_changed(self, entry: Gtk.Entry) -> None:
@@ -141,21 +144,22 @@ class StoredQueriesDialog(Gtk.Dialog):
             destroy_with_parent=True,
         )
         self.session = db.Session()
+        self.connect("destroy", editor.garbage_collect)
 
         self.name_column.set_cell_data_func(
             self.name_cell,
             self.cell_data_func,
-            "name",
+            ("name", self.session),
         )
         self.description_column.set_cell_data_func(
             self.description_cell,
             self.cell_data_func,
-            "description",
+            ("description", self.session),
         )
         self.query_column.set_cell_data_func(
             self.query_cell,
             self.cell_data_func,
-            "query",
+            ("query", self.session),
         )
 
         for stored_query in self.session.query(StoredQuery):
@@ -213,23 +217,24 @@ class StoredQueriesDialog(Gtk.Dialog):
             self.ok_button.set_sensitive(False)
         self.selection.unselect_all()
 
+    @staticmethod
     def cell_data_func(
-        self,
         _column: Gtk.TreeViewColumn,
         cell: Gtk.CellRendererText,
         model: Gtk.TreeModel,
         treeiter: Gtk.TreeIter,
-        prop: str,
+        args: tuple[str, Session],
     ) -> None:
+        prop, session = args
         stored_query = model[treeiter][0]
         value = getattr(stored_query, prop) or ""
         cell.set_property("text", value)
         cell.set_property("foreground", None)
 
-        if self.session.is_modified(stored_query):
+        if session.is_modified(stored_query):
             cell.set_property("foreground", "blue")
 
-        if stored_query in self.session.deleted:
+        if stored_query in session.deleted:
             cell.set_property("foreground", "red")
 
 
@@ -325,10 +330,14 @@ class StoredQueriesButtonBox(Gtk.Box):
     def on_edit_button_clicked(self, _button: Gtk.Button) -> None:
         dialog = StoredQueriesDialog()
 
-        if dialog.run() == Gtk.ResponseType.OK:
-            dialog.session.commit()
+        try:
+            if dialog.run() == Gtk.ResponseType.OK:
+                dialog.session.commit()
+        except SQLAlchemyError:
+            dialog.session.rollback()
+        finally:
+            dialog.session.close()
 
-        dialog.session.close()
         dialog.destroy()
         self.refresh()
 

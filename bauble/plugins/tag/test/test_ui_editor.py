@@ -71,7 +71,13 @@ class TagEditorDialogTests(BaubleTestCase):
 
         self.assertEqual(
             dialog.problems,
-            {(f"empty::TagEditorDialog::{id(dialog)}", dialog.tag_name_entry)},
+            {
+                (
+                    "not_unique::on_unique_text_entry_changed::"
+                    f"TagEditorDialog::{id(dialog)}",
+                    dialog.tag_name_entry,
+                )
+            },
         )
         dialog.destroy()
 
@@ -89,7 +95,8 @@ class TagEditorDialogTests(BaubleTestCase):
             dialog.problems,
             {
                 (
-                    f"not_unique::TagEditorDialog::{id(dialog)}",
+                    "not_unique::on_unique_text_entry_changed::"
+                    f"TagEditorDialog::{id(dialog)}",
                     dialog.tag_name_entry,
                 )
             },
@@ -136,10 +143,16 @@ class TagEditorDialogTests(BaubleTestCase):
 
         entry.set_text("")
         dialog.on_tag_entry_changed(entry)
-        self.assertEqual(model.tag, "")
+        self.assertIsNone(model.tag)
         self.assertEqual(
             dialog.problems,
-            {(f"empty::TagEditorDialog::{id(dialog)}", dialog.tag_name_entry)},
+            {
+                (
+                    "not_unique::on_unique_text_entry_changed::"
+                    f"TagEditorDialog::{id(dialog)}",
+                    dialog.tag_name_entry,
+                )
+            },
         )
         dialog.destroy()
 

@@ -44,6 +44,7 @@ from bauble.editor import PicturesPresenter
 from bauble.editor import PresenterLinksMixin
 from bauble.editor import PresenterMapMixin
 from bauble.editor import Problem
+from bauble.editor import validate_unique
 from bauble.meta import BaubleMeta
 from bauble.search.strategies import MapperSearch
 from bauble.test import BaubleTestCase
@@ -1071,8 +1072,11 @@ template_xml = """\
 
 
 class BoxPresenter(GenericPresenter, Gtk.Box):
+    update = mock.Mock()
+
     def __init__(self, model):
         super().__init__(model, self)
+        self.update.reset_mock()
 
 
 class GenericPresenterTests(TestCase):
@@ -1304,12 +1308,63 @@ class GenericPresenterTests(TestCase):
         mock_model = mock.Mock()
 
         presenter = BoxPresenter(mock_model)
+
+        presenter.update.assert_not_called()
+
         entry = Gtk.Entry()
         presenter.widgets_to_model_map = {entry: "foo"}
 
         entry.set_text("test")
         presenter.on_text_entry_changed(entry)
+
         self.assertEqual(mock_model.foo, "test")
+        presenter.update.assert_called_once()
+
+    @mock.patch("bauble.editor.utils.message_details_dialog")
+    def test_on_text_entry_changed_w_error_notifies(self, mock_dlog):
+        mock_model = mock.MagicMock()
+        type(mock_model).foo = mock.PropertyMock(
+            side_effect=AttributeError("Boom")
+        )
+
+        presenter = BoxPresenter(mock_model)
+
+        presenter.update.assert_not_called()
+
+        entry = Gtk.Entry()
+        presenter.widgets_to_model_map = {entry: "foo"}
+
+        entry.set_text("test")
+        presenter.on_text_entry_changed(entry)
+
+        self.assertNotEqual(mock_model.foo, "test")
+        msg = (
+            f"<b>AttributeError setting 'foo' to 'test' "
+            f"on model '{mock_model.__class__.__name__}'</b>\n\n"
+        )
+        mock_dlog.assert_called_once_with(
+            msg, "Boom", type_=Gtk.MessageType.ERROR
+        )
+        self.assertEqual(
+            presenter.problems,
+            {
+                (
+                    "unknown::on_text_entry_changed::BoxPresenter::"
+                    f"{id(presenter)}",
+                    entry,
+                )
+            },
+        )
+
+        # now if succeeds it should clear the problem
+        mock_dlog.reset_mock()
+        type(mock_model).foo = mock.PropertyMock(return_value="test")
+        entry.set_text("test")
+        presenter.on_text_entry_changed(entry)
+
+        self.assertEqual(mock_model.foo, "test")
+        self.assertEqual(presenter.problems, set())
+        mock_dlog.assert_not_called()
 
     def test_on_non_empty_text_entry_changed(self):
         mock_model = mock.Mock()
@@ -1321,10 +1376,16 @@ class GenericPresenterTests(TestCase):
         # empty
         entry.set_text("")
         presenter.on_non_empty_text_entry_changed(entry)
-        self.assertEqual(mock_model.foo, "")
+        self.assertNotEqual(mock_model.foo, "")
         self.assertEqual(
             presenter.problems,
-            {(f"empty::BoxPresenter::{id(presenter)}", entry)},
+            {
+                (
+                    "empty::on_non_empty_text_entry_changed::BoxPresenter::"
+                    f"{id(presenter)}",
+                    entry,
+                )
+            },
         )
         self.assertTrue(entry.get_style_context().has_class("problem"))
 
@@ -1374,6 +1435,7 @@ class GenericPresenterTests(TestCase):
         combo.set_active(1)
         presenter.on_combobox_changed(combo)
         self.assertEqual(mock_model.foo, "2")
+        self.assertEqual(combo.get_child().get_text(), "2")
 
     def test_on_combobox_changed_combobox_wo_model(self):
         mock_model = mock.Mock()
@@ -1445,21 +1507,27 @@ class GenericPresenterWithDBTests(BaubleTestCase):
         # empty
         entry.set_text("")
         presenter.on_unique_text_entry_changed(entry)
-        self.assertEqual(model1.value, "")
+        self.assertEqual(model1.value, "some_value")
         self.assertEqual(
             presenter.problems,
-            {(f"empty::BoxPresenter::{id(presenter)}", entry)},
+            {
+                (
+                    f"not_unique::on_unique_text_entry_changed::BoxPresenter::"
+                    f"{id(presenter)}",
+                    entry,
+                )
+            },
         )
         self.assertTrue(entry.get_style_context().has_class("problem"))
 
         # not empty but unique
         entry.set_text("test")
-        presenter.on_non_empty_text_entry_changed(entry)
+        presenter.on_unique_text_entry_changed(entry)
         self.assertEqual(model1.value, "test")
         self.assertEqual(presenter.problems, set())
         self.assertFalse(entry.get_style_context().has_class("problem"))
 
-    def test_on_unique_text_entry_changed_empty_non_empty_false(self):
+    def test_on_unique_text_entry_changed_empty_allows_empty(self):
         # need a real object for this:
         model1 = BaubleMeta(name="test_unique_entry", value="some_value")
         model2 = BaubleMeta(name="test_unique_entry2", value="unique_value")
@@ -1467,12 +1535,16 @@ class GenericPresenterWithDBTests(BaubleTestCase):
         self.session.add(model2)
 
         presenter = BoxPresenter(model1)
+        # cheat, switch out the checker to one that allows empty
+        BoxPresenter.on_unique_text_entry_changed.validator.checker = (
+            validate_unique
+        )
         entry = Gtk.Entry()
         presenter.widgets_to_model_map = {entry: "value"}
 
         # empty
         entry.set_text("")
-        presenter.on_unique_text_entry_changed(entry, non_empty=False)
+        presenter.on_unique_text_entry_changed(entry)
         self.assertEqual(model1.value, "")
         self.assertEqual(presenter.problems, set())
         self.assertFalse(entry.get_style_context().has_class("problem"))
@@ -1492,10 +1564,16 @@ class GenericPresenterWithDBTests(BaubleTestCase):
         # not unique
         entry.set_text("unique_value")
         presenter.on_unique_text_entry_changed(entry)
-        self.assertEqual(model1.value, "unique_value")
+        self.assertEqual(model1.value, "some_value")
         self.assertEqual(
             presenter.problems,
-            {(f"not_unique::BoxPresenter::{id(presenter)}", entry)},
+            {
+                (
+                    "not_unique::on_unique_text_entry_changed::BoxPresenter::"
+                    f"{id(presenter)}",
+                    entry,
+                )
+            },
         )
         self.assertTrue(entry.get_style_context().has_class("problem"))
 

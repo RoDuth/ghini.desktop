@@ -24,7 +24,6 @@ from unittest import mock
 
 import dateutil
 import gi
-import pyodbc
 from sqlalchemy.engine import make_url
 
 gi.require_version("Gtk", "3.0")
@@ -702,17 +701,17 @@ class ConnectionManagerTests(BaubleTestCase):
         self.assertTrue(presenter.dont_ask_chkbx.get_sensitive())
 
         connection_box = presenter.get_connection_box()
-        connection_box.add_problem(
-            connection_box.PROBLEM_UNREADABLE, connection_box.file_entry
+        prob = (
+            f"unreadable_file::on_readable_file_entry_changed::ConnectionBox"
+            f"::{id(connection_box)}"
         )
+        connection_box.add_problem(prob, connection_box.file_entry)
 
         self.assertFalse(presenter.connect_button.get_sensitive())
         self.assertFalse(presenter.dont_ask_chkbx.get_sensitive())
 
         connection_box = presenter.get_connection_box()
-        connection_box.remove_problem(
-            connection_box.PROBLEM_UNREADABLE, connection_box.file_entry
-        )
+        connection_box.remove_problem(prob, connection_box.file_entry)
 
         self.assertTrue(presenter.connect_button.get_sensitive())
         self.assertTrue(presenter.dont_ask_chkbx.get_sensitive())
@@ -1008,9 +1007,13 @@ class ConnectionBoxTests(BaubleTestCase):
         # empty
         box.file_entry.set_text("")
 
+        prob = (
+            f"unreadable_file::on_readable_file_entry_changed::ConnectionBox"
+            f"::{id(box)}"
+        )
         self.assertEqual(
             box.problems,
-            {(box.PROBLEM_EMPTY, box.file_entry)},
+            {(prob, box.file_entry)},
         )
         # fix
         box.file_entry.set_text("eggs.db")
@@ -1037,12 +1040,16 @@ class ConnectionBoxTests(BaubleTestCase):
             mock_access.side_effect = access_not_readable
             box.file_entry.set_text(path)
 
-        self.assertEqual(
-            box.problems,
-            {(box.PROBLEM_UNREADABLE, box.file_entry)},
+        prob = (
+            f"unreadable_file::on_readable_file_entry_changed::ConnectionBox"
+            f"::{id(box)}"
         )
+        self.assertEqual(box.problems, {(prob, box.file_entry)})
         # fix
-        box.file_entry.set_text("./nugkui.db")
+        box.file_entry.set_text("")
+        with mock.patch("os.access") as mock_access:
+            mock_access.return_value = True
+            box.file_entry.set_text(path)
 
         self.assertFalse(box.problems)
 
@@ -1058,19 +1065,20 @@ class ConnectionBoxTests(BaubleTestCase):
         if Path(path).exists():
             Path(path).unlink()
 
-        def access_not_readable(_path, mode):
+        def access_not_writable(_path, mode):
             if mode == os.W_OK:
                 return False
             return True
 
         with mock.patch("os.access") as mock_access:
-            mock_access.side_effect = access_not_readable
+            mock_access.side_effect = access_not_writable
             box.file_entry.set_text(path)
 
-        self.assertEqual(
-            box.problems,
-            {(box.PROBLEM_UNREADABLE, box.file_entry)},
+        prob = (
+            f"unreadable_file::on_readable_file_entry_changed::ConnectionBox"
+            f"::{id(box)}"
         )
+        self.assertEqual(box.problems, {(prob, box.file_entry)})
         # fix
         box.file_entry.set_text("./nugkui.db")
 

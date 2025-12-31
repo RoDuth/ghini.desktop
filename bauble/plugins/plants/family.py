@@ -145,7 +145,7 @@ edit_action = Action(
     "family_edit", _("_Edit"), callback=edit_callback, accelerator="<ctrl>e"
 )
 
-add_species_action = Action(
+add_genus_action = Action(
     "family_genus_add",
     _("_Add genus"),
     callback=add_genera_callback,
@@ -160,7 +160,7 @@ remove_action = Action(
     multiselect=True,
 )
 
-family_context_menu = [edit_action, add_species_action, remove_action]
+family_context_menu = [edit_action, add_genus_action, remove_action]
 
 
 class Family(Taxon, db.WithNotes):

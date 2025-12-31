@@ -50,7 +50,10 @@ from . import menu_manager
 
 
 @Gtk.Template(filename=str(Path(__file__).resolve().parent / "tag_editor.ui"))
-class TagEditorDialog(editor.GenericPresenter, Gtk.Dialog):
+class TagEditorDialog(
+    editor.GenericPresenter[Tag],
+    Gtk.Dialog,
+):  # pylint: disable=not-callable
 
     __gtype_name__ = "TagEditorDialog"
 

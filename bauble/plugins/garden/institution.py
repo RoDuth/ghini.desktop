@@ -111,7 +111,10 @@ class Institution:  # pylint: disable=too-many-instance-attributes
 
 
 @Gtk.Template(filename=str(Path(__file__).resolve().parent / "institution.ui"))
-class InstitutionDialog(editor.GenericPresenter, Gtk.Dialog):
+class InstitutionDialog(
+    editor.GenericPresenter[Institution],
+    Gtk.Dialog,
+):  # pylint: disable=not-callable
 
     __gtype_name__ = "InstitutionDialog"
 
@@ -162,9 +165,8 @@ class InstitutionDialog(editor.GenericPresenter, Gtk.Dialog):
 
     @Gtk.Template.Callback()
     def on_non_empty_text_entry_changed(self, entry: Gtk.Entry) -> None:
-        value = super()._on_non_empty_text_entry_changed(entry)
-
-        if not value:
+        super().on_non_empty_text_entry_changed(entry)
+        if not self.model.name:
             msg = _("Please specify an institution name for this database.")
             self.notify_message_label.set_label(msg)
             self.notify_revealer.set_reveal_child(True)

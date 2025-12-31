@@ -27,10 +27,16 @@ import os
 import re
 import threading
 import weakref
+from abc import ABC
+from abc import abstractmethod
 from collections.abc import Callable
 from pathlib import Path
+from typing import Any
+from typing import Optional
+from typing import Protocol
 from typing import Self
 from typing import cast
+from typing import overload
 
 logger = logging.getLogger(__name__)
 
@@ -820,9 +826,13 @@ class MockView:
 
 
 class Problem:  # pylint: disable=too-few-public-methods
-    """Problem descriptor,
+    """Problem descriptor.
 
-    provides a string that states the problem_type, class and the instance
+    Intended to be used as a class attribute in ``GenericPresenter`` subclasses
+    when creating custom handlers.  The same functionaility is provided in
+    ``HandlerMethodDescriptor`` so this is not required in that case.
+
+    Provides a string that states the problem_type, class and the instance
     identifier. Makes logs entries easier to follow.
     """
 
@@ -835,12 +845,278 @@ class Problem:  # pylint: disable=too-few-public-methods
         return f"{self.problem_type}::{class_.__name__}::{id(instance)}"
 
 
+class Checker(Protocol):
+    # pylint: disable=too-few-public-methods
+    def __call__(self, value: Any, *args: Any) -> bool: ...
+
+
+class Converter(Protocol):
+    # pylint: disable=too-few-public-methods
+    def __call__(self, value: Any, *args: Any) -> Any: ...
+
+
+class ValidatorConverter:  # pylint: disable=too-few-public-methods
+    """Functor to combine a checker and a converter into a single callable
+
+    Inteneded use case is to provide validation and conversion for
+    ``HandlerMethodDescriptor`` instances.
+
+    :param checker: a callable that returns True if value is valid else False.
+        Checkers can also raise exceptions to indicate invalid values.
+        Checkers must accept three parameters: value, field_name and model.
+    :param converter: an optional callable that adjusts the value.  If not
+        provided the values is returned as is.  Converters must accept three
+        parameters: value, field_name and model.
+    """
+
+    def __init__(
+        self,
+        checker: Checker = lambda v, *args: True,
+        converter: Converter = lambda v, *args: v,
+    ) -> None:
+        self.checker = checker
+        self.converter = converter
+
+    def __call__(
+        self,
+        value: Any,
+        field_name: str | None = None,
+        model: Any = None,
+    ) -> Any:
+        try:
+            assert self.checker(value, field_name, model)
+            value = self.converter(value, field_name, model)
+        except Exception as e:
+            raise ValidatorError from e
+        return value
+
+
+class BoundMethod[T](Protocol):
+    # pylint: disable=too-few-public-methods
+    def __call__(self, widget: T, **kwargs: Any) -> None: ...
+
+
+class HandlerMethodDescriptor[T: GObject.Object](ABC):
+    """Descriptor for handler methods that get and validate data from widgets.
+
+    When the handler method is called it gets the value from the widget,
+    validates it and optionally adjusts it.  If validation fails the problem is
+    registered with the presenter.  If not, the value is set on the model, any
+    existing problem is removed and, if the presenter has an ``update()``,
+    method it is called.
+
+    Intended to be used as class attributes in ``GenericPresenter`` subclasses
+    to allow constructing the user interface signal handlers declaratively.
+
+    :param validator: a callable that accepts three parameters: value,
+        field_name and model.  The callable must return the validated (and
+        possibly converted) value or raise ``ValidatorError`` if the value is
+        invalid.
+    :param problem: a string describing the problem type for logging purposes.
+    """
+
+    def __init__(
+        self,
+        validator: Callable[[Any, str, Any], Any] = ValidatorConverter(),
+        problem: str = "unknown",
+    ) -> None:
+        self.validator = validator
+        self.problem = problem
+        self.problem_name: str
+        self.name = ""
+        self.class_name = ""
+
+    def __set_name__(self, _owner, name: str) -> None:
+        self.name = name
+
+    @overload
+    def __get__(
+        self,
+        instance: "GenericPresenter",
+        class_: type["GenericPresenter"],
+    ) -> BoundMethod[T]: ...
+
+    @overload
+    def __get__(
+        self,
+        instance: None,
+        class_: type["GenericPresenter"],
+    ) -> Self: ...
+
+    def __get__(
+        self,
+        instance: Optional["GenericPresenter"],
+        class_: type["GenericPresenter"],
+    ) -> BoundMethod[T] | Self:
+        if instance is None:
+            # allow access to the descriptor itself via the class
+            return self
+
+        self.class_name = class_.__name__
+
+        self.problem_name = (
+            f"{self.problem}::{self.name}::{self.class_name}::{id(instance)}"
+        )
+
+        def bound_method(widget: T, **kwargs) -> None:
+            return self.handler(instance, widget, **kwargs)
+
+        return bound_method
+
+    @abstractmethod
+    def get_value(self, widget: T) -> Any: ...
+
+    def handler(
+        self,
+        instance: "GenericPresenter",
+        widget: T,
+        **kwargs: Any,
+    ) -> None:
+        value = self.get_value(widget)
+        field_name = instance.widgets_to_model_map[widget]
+
+        current = getattr(instance.model, field_name)
+
+        logger.debug(
+            "%s.%s(%s) called for field %s - values: %s -> %s",
+            self.class_name,
+            self.name,
+            widget,
+            field_name,
+            current,
+            value,
+        )
+        problem_widget = kwargs.get("problem_widget", widget)
+
+        try:
+            value = self.validator(value, field_name, instance.model)
+        except ValidatorError as e:
+            logger.debug("%s(%s)", type(e).__name__, str(e) or self.problem)
+            instance.add_problem(self.problem_name, problem_widget)
+            return
+
+        try:
+            if instance.model and field_name:
+                setattr(instance.model, field_name, value)
+        except Exception as e:  # pylint: disable=broad-except
+            logger.warning(
+                "Error setting %s.%s to %s: %s",
+                instance.model.__class__.__name__,
+                field_name,
+                value,
+                e,
+            )
+            instance.add_problem(self.problem_name, problem_widget)
+
+            msg = (
+                f"<b>{type(e).__name__} setting '{field_name}' to '{value}' "
+                f"on model '{instance.model.__class__.__name__}'</b>\n\n"
+            )
+            utils.message_details_dialog(
+                msg,
+                str(e),
+                type_=Gtk.MessageType.ERROR,
+            )
+            return
+
+        instance.remove_problem(self.problem_name, problem_widget)
+
+        if hasattr(instance, "update"):
+            instance.update()
+
+
+class EntryHandler(HandlerMethodDescriptor[Gtk.Entry]):
+    """HandlerMethodDescriptor for Gtk.Entry widgets.
+
+    If validation/conversion is needed provide a ValidatorConverter instance
+    and a problem string as parameters.
+    """
+
+    def get_value(self, widget: Gtk.Entry) -> str:
+        return widget.get_text()
+
+
+class TextBufferHandler(HandlerMethodDescriptor[Gtk.TextBuffer]):
+    """HandlerMethodDescriptor for Gtk.TextBuffer widgets.
+
+    If validation/conversion is needed provide a ValidatorConverter instance
+    and a problem string as parameters.
+    """
+
+    def get_value(self, widget: Gtk.TextBuffer) -> str:
+        return widget.get_text(*widget.get_bounds(), False)
+
+
+class ComboBoxHandler(HandlerMethodDescriptor[Gtk.ComboBox]):
+    """HandlerMethodDescriptor for Gtk.ComboBox widgets.
+
+    If validation/conversion is needed provide a ValidatorConverter instance
+    and a problem string as parameters.
+    """
+
+    def __init__(
+        self,
+        validator: Callable[[Any, str, Any], Any] = lambda v, fn, m: v,
+        problem: str = "",
+        column: int = 0,
+    ) -> None:
+        self.column = column
+
+        super().__init__(validator, problem)
+
+    def get_value(self, widget: Gtk.ComboBox) -> Any:
+        if widget.get_has_entry():
+            return cast(Gtk.Entry, widget.get_child()).get_text()
+
+        model = widget.get_model()
+        iter_ = widget.get_active_iter()
+
+        if model is None or iter_ is None:
+            return None
+
+        value = model[iter_][self.column]
+
+        return value
+
+
+def validate_unique(value, field, model) -> bool:
+    """Validator function to check uniqueness of a field value in the DB."""
+    class_ = model.__class__
+    column = getattr(class_, field)
+
+    with db.Session() as session:
+
+        model = session.merge(model)
+        exists = (
+            session.query(class_).filter(column == value.strip()).one_or_none()
+        )
+
+        if exists is not None and exists is not model:
+            return False
+    return True
+
+
+def validate_non_empty_unique(value, field, model) -> bool:
+    """Validator function to check non-empty and uniqueness of a field value in
+    the DB.
+    """
+    if not value or (isinstance(value, str) and not value.strip()):
+        return False
+
+    return validate_unique(value, field, model)
+
+
 class GenericPresenter[T]:
     """A presenter with a model that can be used with a Gtk.Template decorated
     class as the view.
 
     Can be used either as a mixin on the Gtk.Template class itself or inherited
     from to create a more conventional MVP style (composition).
+
+    NOTE: The handlers provided here are the common ones, more can be defined
+    as needed.  Either by using the ``HandlerMethodDescriptor`` base class or
+    by defining custom handler methods directly (and possibly providing
+    ``Problem`` descriptors when needed).
 
     Example as a Mixin::
 
@@ -852,16 +1128,46 @@ class GenericPresenter[T]:
             __gsignals__ = GenericPresenter.gsignals
 
             bar = cast(Gtk.Entry, Gtk.Template.Child())
+            baz = cast(Gtk.Entry, Gtk.Template.Child())
+            qux = cast(Gtk.Entry, Gtk.Template.Child())
+
+            PROBLEM_NOT_BAZ = Problem("not_baz")
+
+            # custom HandlerMethodDescriptor example
+            on_valid_path_entry_changed = EntryHandler(
+                ValidatorConverter(
+                    lambda v, *args: os.path.exists(v),
+                    lambda v, *args: os.path.abspath(v),
+                ),
+                "invalid_path",
+            )
 
             def __init__(self, model: FooModel) -> None:
                 super().__init__(model, self)
-                # connect here on in .ui file
+                # connect can go here or in .ui file with handler methods
+                self.qux.connect('changed', self.on_valid_path_entry_changed)
+                # connect to problems-changed signal
                 self.connect('problems-changed', self.on_problems_changed)
 
             # signal handlers defined in the .ui file
             @Gtk.Template.Callback()
             def on_text_entry_changed(self, entry: Gtk.Entry) -> None:
                 super().on_text_entry_changed(entry)
+
+            @Gtk.Template.Callback()
+            def on_baz_entry_changed(self, entry: Gtk.Entry) -> None:
+                # custom handler example
+                value = entry.get_text()
+                field_name = self.widgets_to_model_map[entry]
+
+                if value != "baz":
+                    self.add_problem(self.PROBLEM_NOT_BAZ, entry)
+                else:
+                    self.remove_problem(self.PROBLEM_NOT_BAZ, entry,)
+
+                setattr(self.model, field_name, value)
+                # Optionally call update if needed
+                # self.update()
 
             def on_problems_changed(
                 self, _foo: Self,  has_problems: bool
@@ -904,8 +1210,41 @@ class GenericPresenter[T]:
         "problems-changed": (GObject.SignalFlags.RUN_FIRST, None, (bool,))
     }
 
-    PROBLEM_NOT_UNIQUE = Problem("not_unique")
-    PROBLEM_EMPTY = Problem("empty")
+    # *** handler method descriptors ***
+    #
+    # PROVIDED ARE COMMON HANDLERS FOR USE IN SUBCLASSES,
+    # more can be defined as needed
+    #
+
+    on_text_entry_changed = EntryHandler()
+
+    on_non_empty_text_entry_changed = EntryHandler(
+        ValidatorConverter(
+            lambda v, *args: bool(isinstance(v, str) and v.strip()),
+            lambda v, *args: v.strip(),
+        ),
+        "empty",
+    )
+
+    on_unique_text_entry_changed = EntryHandler(
+        ValidatorConverter(
+            validate_non_empty_unique,
+            lambda v, *args: v.strip(),
+        ),
+        "not_unique",
+    )
+
+    on_text_buffer_changed = TextBufferHandler()
+
+    on_non_empty_text_buffer_changed = TextBufferHandler(
+        ValidatorConverter(
+            lambda v, *args: bool(isinstance(v, str) and v.strip()),
+            lambda v, *args: v.strip(),
+        ),
+        "empty",
+    )
+
+    on_combobox_changed = ComboBoxHandler()
 
     def __init__(
         self, model: T, view: Self | Gtk.Widget, *args, **kwargs
@@ -923,12 +1262,19 @@ class GenericPresenter[T]:
         # Incase of use as a Gtk.Template mixin call the widgets init
         super().__init__(*args, **kwargs)
 
+        if hasattr(view, "connect"):
+            view.connect("destroy", garbage_collect)
+
     def refresh_all_widgets_from_model(self) -> None:
         for widget, field in self.widgets_to_model_map.items():
             value = getattr(self.model, field)
             utils.set_widget_value(widget, value)
 
-    def add_problem(self, problem_id: str, widget: Gtk.Widget) -> None:
+    def add_problem(
+        self,
+        problem_id: str,
+        widget: Gtk.Widget,
+    ) -> None:
         """Add problem_id to self.problems and change widgets background.
 
         :param problem_id: A unique identifier for the problem.
@@ -952,7 +1298,9 @@ class GenericPresenter[T]:
             self.view.emit("problems-changed", True)
 
     def remove_problem(
-        self, problem_id: str | None = None, widget: Gtk.Widget | None = None
+        self,
+        problem_id: str | None = None,
+        widget: Gtk.Widget | None = None,
     ) -> None:
         """Remove problem from self.problems and reset the widgets background.
 
@@ -984,145 +1332,11 @@ class GenericPresenter[T]:
         if hasattr(self.view, "emit") and start != 0 and not self.problems:
             self.view.emit("problems-changed", False)
 
-    def __on_text_entry_changed(self, entry: Gtk.Entry) -> str:
-        # Private, name mangled so cannot be overridden, for internal use
-        value = entry.get_text()
-        field = self.widgets_to_model_map[entry]
-        logger.debug(
-            "on_text_entry_changed(%s, %s) - %s -> %s",
-            entry,
-            field,
-            getattr(self.model, field),
-            value,
-        )
-        setattr(self.model, field, value)
-        return value
 
-    def on_text_entry_changed(self, entry: Gtk.Entry) -> None:
-        self.__on_text_entry_changed(entry)
+def garbage_collect(*_args, **_kwargs) -> None:
+    import gc
 
-    def _on_non_empty_text_entry_changed(self, entry: Gtk.Entry) -> str:
-        value = self.__on_text_entry_changed(entry)
-
-        if not value:
-            self.add_problem(self.PROBLEM_EMPTY, entry)
-        else:
-            self.remove_problem(self.PROBLEM_EMPTY, entry)
-        return value
-
-    def on_non_empty_text_entry_changed(self, entry: Gtk.Entry) -> None:
-        """If the entry is empty adds PROBLEM_EMPTY to self.problems.
-
-        If addition functionality is required you can override this method and
-        use the private version to get widgets value. e.g.::
-
-            @Gtk.Template.Callback()
-            def on_non_empty_text_entry_changed(self, entry):
-                value = super()._on_non_empty_text_entry_changed(entry)
-
-                if not value:
-                    raise Exception("EMPTY")
-        """
-        self._on_non_empty_text_entry_changed(entry)
-
-    def on_unique_text_entry_changed(
-        self, entry: Gtk.Entry, /, non_empty: bool = True
-    ) -> None:
-        """If the entry is not unique adds PROBLEM_NOT_UNIQUE to problems.
-
-        If the value is permitted to be empty, call with ``non_empty=False``
-        When used with Gtk.Template and @Gtk.Template.Callback() decorator, to
-        avoid linter complaints, name your signal handler differently (don't
-        override) and use ``super`` to call. e.g.::
-
-            @Gtk.Template.Callback()
-            def on_unique_entry_changed(self, entry):
-                super().on_unique_text_entry_changed(entry)
-
-        Only works if model has an object_session.
-        """
-        if non_empty:
-            value = self._on_non_empty_text_entry_changed(entry)
-            if not value:
-                return
-        else:
-            value = self.__on_text_entry_changed(entry)
-
-        field = self.widgets_to_model_map[entry]
-        class_ = self.model.__class__
-        column = getattr(class_, field)
-
-        with db.Session() as session:
-
-            model = session.merge(self.model)
-            exists = session.query(class_).filter(column == value).first()
-
-            if exists is not None and exists is not model:
-                self.add_problem(self.PROBLEM_NOT_UNIQUE, entry)
-            else:
-                self.remove_problem(self.PROBLEM_NOT_UNIQUE, entry)
-
-    def on_text_buffer_changed(self, buffer: Gtk.TextBuffer) -> None:
-        value = buffer.get_text(*buffer.get_bounds(), False)
-        field = self.widgets_to_model_map[buffer]
-        logger.debug(
-            "on_text_buffer_changed(%s, %s) - %s -> %s",
-            buffer,
-            field,
-            getattr(self.model, field),
-            value,
-        )
-        setattr(self.model, field, value)
-
-    def on_non_empty_text_buffer_changed(
-        self,
-        buffer: Gtk.TextBuffer,
-        text_view: Gtk.TextView,
-    ) -> None:
-        """If the buffer is empty adds PROBLEM_EMPTY against the text_view to
-        self.problems.
-
-        Note: the associated TextView widget must be supplied to add/remove the
-        problem class to/from.
-
-        :param buffer: the Gtk.TextBuffer that changed
-        :param text_view: the Gtk.TextView associated with the buffer
-        """
-        value = buffer.get_text(*buffer.get_bounds(), False)
-        field = self.widgets_to_model_map[buffer]
-        logger.debug(
-            "on_text_buffer_changed(%s, %s) - %s -> %s",
-            buffer,
-            field,
-            getattr(self.model, field),
-            value,
-        )
-        if not value:
-            self.add_problem(self.PROBLEM_EMPTY, text_view)
-        else:
-            self.remove_problem(self.PROBLEM_EMPTY, text_view)
-
-        setattr(self.model, field, value)
-
-    def on_combobox_changed(self, combobox: Gtk.ComboBox) -> None:
-        if combobox.get_has_entry():
-            value = cast(Gtk.Entry, combobox.get_child()).get_text()
-        else:
-            model = combobox.get_model()
-            itr = combobox.get_active_iter()
-            if model is None or itr is None:
-                value = None
-            else:
-                value = model[itr][0]
-        field = self.widgets_to_model_map[combobox]
-        logger.debug(
-            "on_combobox_changed(%s, %s) - %s -> %s",
-            combobox,
-            field,
-            getattr(self.model, field),
-            value,
-        )
-        setattr(self.model, field, value)
+    GLib.idle_add(gc.collect)
 
 
 class GenericEditorPresenter:
@@ -1693,6 +1907,7 @@ class GenericEditorPresenter:
         :param comparer: a function that returns a bool, to be used with
             :func:`utils.search_tree_model` to check whether each item is a
             match or not
+        "param set_problems: if True then PROBLEM_NOT_FOUND will be added"
         """
 
         logger.debug("assign_completions_handler %s", widget)

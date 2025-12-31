@@ -192,7 +192,7 @@ class StoredQueryTests(BaubleTestCase):
             mock_cell,
             model,
             model.get_iter_first(),
-            "name",
+            ("name", dialog.session),
         )
 
         # nothing changed
@@ -211,7 +211,7 @@ class StoredQueryTests(BaubleTestCase):
             mock_cell,
             model,
             model.get_iter_first(),
-            "name",
+            ("name", dialog.session),
         )
 
         # after change
@@ -231,7 +231,7 @@ class StoredQueryTests(BaubleTestCase):
             mock_cell,
             model,
             model.get_iter_first(),
-            "name",
+            ("name", dialog.session),
         )
 
         # after change and delete

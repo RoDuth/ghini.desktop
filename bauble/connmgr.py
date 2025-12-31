@@ -407,8 +407,30 @@ class ConnectionModel:
             prefs.prefs.save()
 
 
+def validate_readable_file(value: str, _field, _model) -> bool:
+    if not value:
+        return False
+
+    file = Path(make_absolute(value))
+
+    if file.exists() and os.access(file, os.R_OK):
+        return True
+
+    if (
+        not file.exists()
+        and os.access(file.parent, os.R_OK)
+        and os.access(file.parent, os.W_OK)
+    ):
+        return True
+
+    return False
+
+
 @Gtk.Template(filename=str(Path(paths.lib_dir(), "connection_box.ui")))
-class ConnectionBox(editor.GenericPresenter[ConnectionModel], Gtk.Box):
+class ConnectionBox(
+    editor.GenericPresenter[ConnectionModel],
+    Gtk.Box,
+):  # pylint: disable=not-callable
     """The connection manager GUI."""
 
     __gtype_name__ = "ConnectionBox"
@@ -434,7 +456,12 @@ class ConnectionBox(editor.GenericPresenter[ConnectionModel], Gtk.Box):
     options_liststore = Gtk.ListStore(str, str)
     options_liststore = cast(Gtk.ListStore, Gtk.Template.Child())
 
-    PROBLEM_UNREADABLE = editor.Problem("unreadable_file")
+    # *** handler method descriptors ***
+
+    on_readable_file_entry_changed = editor.EntryHandler(
+        editor.ValidatorConverter(validate_readable_file),
+        "unreadable_file",
+    )
 
     def __init__(self, model: ConnectionModel) -> None:
         super().__init__(model, self)
@@ -596,19 +623,7 @@ class ConnectionBox(editor.GenericPresenter[ConnectionModel], Gtk.Box):
 
     @Gtk.Template.Callback()
     def on_file_entry_changed(self, entry: Gtk.Entry) -> None:
-        value = super()._on_non_empty_text_entry_changed(entry)
-
-        file = Path(make_absolute(value))
-        if file.exists() and os.access(file, os.R_OK):
-            self.remove_problem(self.PROBLEM_UNREADABLE, entry)
-        elif (
-            not file.exists()
-            and os.access(file.parent, os.R_OK)
-            and os.access(file.parent, os.W_OK)
-        ):
-            self.remove_problem(self.PROBLEM_UNREADABLE, entry)
-        else:
-            self.add_problem(self.PROBLEM_UNREADABLE, entry)
+        self.on_readable_file_entry_changed(entry)
 
     @Gtk.Template.Callback()
     def on_non_empty_text_entry_changed(self, entry: Gtk.Entry) -> None:

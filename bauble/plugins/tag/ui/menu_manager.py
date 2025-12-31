@@ -38,6 +38,7 @@ from sqlalchemy.orm.session import object_session
 import bauble
 from bauble import db
 from bauble import utils
+from bauble.editor import garbage_collect
 from bauble.i18n import _
 from bauble.view import SearchView
 from bauble.view import get_search_view_selected
@@ -431,6 +432,7 @@ def _on_add_tag_activated(
     dialog.start()
     view.update_bottom_notebook(selected)
     dialog.destroy()
+    garbage_collect()
 
 
 # should not be needed outside of this plugin
