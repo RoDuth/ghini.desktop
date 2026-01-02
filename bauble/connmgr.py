@@ -51,11 +51,13 @@ from gi.repository import Gtk
 from sqlalchemy.engine import URL
 
 import bauble
-from bauble import editor
 from bauble import paths
 from bauble import prefs
 from bauble import utils
 from bauble.i18n import _
+from bauble.ui import EntryHandler
+from bauble.ui import GenericPresenter
+from bauble.ui import Validator
 
 pyodbc: ModuleType | None
 try:
@@ -428,14 +430,14 @@ def validate_readable_file(value: str, _field, _model) -> bool:
 
 @Gtk.Template(filename=str(Path(paths.lib_dir(), "connection_box.ui")))
 class ConnectionBox(
-    editor.GenericPresenter[ConnectionModel],
+    GenericPresenter[ConnectionModel],
     Gtk.Box,
 ):  # pylint: disable=not-callable
     """The connection manager GUI."""
 
     __gtype_name__ = "ConnectionBox"
 
-    __gsignals__ = editor.GenericPresenter.gsignals
+    __gsignals__ = GenericPresenter.gsignals
 
     type_combo = cast(Gtk.ComboBoxText, Gtk.Template.Child())
     usedefaults_chkbx = cast(Gtk.CheckButton, Gtk.Template.Child())
@@ -458,9 +460,8 @@ class ConnectionBox(
 
     # *** handler method descriptors ***
 
-    on_readable_file_entry_changed = editor.EntryHandler(
-        editor.ValidatorConverter(validate_readable_file),
-        "unreadable_file",
+    on_readable_file_entry_changed = EntryHandler(
+        [Validator(validate_readable_file, "unreadable_file")]
     )
 
     def __init__(self, model: ConnectionModel) -> None:
@@ -478,7 +479,6 @@ class ConnectionBox(
             self.passwd_chkbx: "passwd",
         }
 
-        # initialize comboboxes
         for dbapi in DBTYPES:
             self.type_combo.append_text(dbapi)
 

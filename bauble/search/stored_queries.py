@@ -42,8 +42,9 @@ from sqlalchemy.orm import Session
 
 import bauble
 from bauble import db
-from bauble import editor
 from bauble.meta import BaubleMeta
+from bauble.ui import GenericPresenter
+from bauble.ui import idle_garbage_collect
 
 
 class StoredQuery(db.Base):  # pylint: disable=too-few-public-methods
@@ -59,14 +60,14 @@ class StoredQuery(db.Base):  # pylint: disable=too-few-public-methods
     filename=str(Path(__file__).resolve().parent / "stored_query_editor.ui")
 )
 class StoredQueryEditorDialog(
-    editor.GenericPresenter[StoredQuery],
+    GenericPresenter[StoredQuery],
     Gtk.Dialog,
 ):  # pylint: disable=not-callable
     """Dialog to create or edit a stored query."""
 
     __gtype_name__ = "StoredQueryEditorDialog"
 
-    __gsignals__ = editor.GenericPresenter.gsignals
+    __gsignals__ = GenericPresenter.gsignals
 
     name_entry = cast(Gtk.Entry, Gtk.Template.Child())
     description_textbuffer = cast(Gtk.TextBuffer, Gtk.Template.Child())
@@ -144,7 +145,7 @@ class StoredQueriesDialog(Gtk.Dialog):
             destroy_with_parent=True,
         )
         self.session = db.Session()
-        self.connect("destroy", editor.garbage_collect)
+        self.connect("destroy", idle_garbage_collect)
 
         self.name_column.set_cell_data_func(
             self.name_cell,

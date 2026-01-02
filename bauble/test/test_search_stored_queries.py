@@ -257,14 +257,27 @@ class StoredQueriesButtonBoxTests(BaubleTestCase):
         mock_dialog().run.return_value = Gtk.ResponseType.CANCEL
         button_box.on_edit_button_clicked(None)
 
-        mock_dialog.assert_called()
+        mock_dialog().run.assert_called()
         mock_dialog().session.commit.assert_not_called()
+        mock_dialog().session.close.assert_called()
+
+        mock_dialog.reset_mock()
 
         mock_dialog().run.return_value = Gtk.ResponseType.OK
         button_box.on_edit_button_clicked(None)
 
-        mock_dialog.assert_called()
+        mock_dialog().run.assert_called()
         mock_dialog().session.commit.assert_called()
+        mock_dialog().session.close.assert_called()
+
+        mock_dialog.reset_mock()
+
+        mock_dialog().session.commit.side_effect = SQLAlchemyError
+        button_box.on_edit_button_clicked(None)
+
+        mock_dialog().run.assert_called()
+        mock_dialog().session.rollback.assert_called()
+        mock_dialog().session.close.assert_called()
 
     def test_refresh(self):
         button_box = StoredQueriesButtonBox()

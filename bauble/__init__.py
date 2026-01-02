@@ -217,7 +217,7 @@ def command_handler(cmd, arg):
 
 # avoid circular import
 from bauble.i18n import _
-from bauble.ui import GUI
+from bauble.ui.gui import GUI
 
 gui: GUI = GUI()
 """bauble.gui is the instance :class:`bauble.ui.GUI`"""

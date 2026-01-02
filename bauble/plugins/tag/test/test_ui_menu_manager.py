@@ -31,7 +31,7 @@ from gi.repository import Gtk
 import bauble
 from bauble.plugins.plants import Family
 from bauble.test import BaubleTestCase
-from bauble.ui import GUI
+from bauble.ui.gui import GUI
 from bauble.view import SearchView
 
 from .. import Tag

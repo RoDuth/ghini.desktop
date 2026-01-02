@@ -36,11 +36,11 @@ from sqlalchemy import select
 
 import bauble
 from bauble import db
-from bauble import editor
 from bauble import meta
 from bauble import pluginmgr
 from bauble import utils
 from bauble.i18n import _
+from bauble.ui import GenericPresenter
 
 
 @dataclass
@@ -112,13 +112,13 @@ class Institution:  # pylint: disable=too-many-instance-attributes
 
 @Gtk.Template(filename=str(Path(__file__).resolve().parent / "institution.ui"))
 class InstitutionDialog(
-    editor.GenericPresenter[Institution],
+    GenericPresenter[Institution],
     Gtk.Dialog,
 ):  # pylint: disable=not-callable
 
     __gtype_name__ = "InstitutionDialog"
 
-    __gsignals__ = editor.GenericPresenter.gsignals
+    __gsignals__ = GenericPresenter.gsignals
 
     inst_name = cast(Gtk.Entry, Gtk.Template.Child())
     inst_abbr = cast(Gtk.Entry, Gtk.Template.Child())

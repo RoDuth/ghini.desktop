@@ -40,7 +40,7 @@ from bauble import db
 from bauble import paths
 from bauble import pluginmgr
 from bauble import prefs
-from bauble import ui
+from bauble.ui.gui import GUI
 
 uri = make_url("sqlite:///:memory:")
 
@@ -65,7 +65,7 @@ def run_in_prcess(target, *args):
 
 def quits_if_connmgr_cancels(que):
     setup_prefs()
-    bauble.gui = ui.GUI()
+    bauble.gui = GUI()
     mock_splash = mock.Mock()
     with mock.patch("bauble.main.start_connection_manager") as mock_cm:
         mock_cm.return_value = None, None
@@ -78,7 +78,7 @@ def quits_if_connmgr_cancels(que):
 
 
 def connect_empty_db_dont_populate(que):
-    bauble.gui = ui.GUI()
+    bauble.gui = GUI()
     setup_prefs()
     with (
         mock.patch("bauble.utils.message_dialog") as mock_msg_dialog,
@@ -99,7 +99,7 @@ def connect_empty_db_dont_populate(que):
 
 
 def post_loop_fails_quits(que):
-    bauble.gui = ui.GUI()
+    bauble.gui = GUI()
     setup_prefs()
     prefs.prefs[bauble.CONN_DONT_ASK_PREF] = True
     with (
@@ -121,7 +121,7 @@ def post_loop_fails_quits(que):
 
 
 def connect_empty_populate(que):
-    bauble.gui = ui.GUI()
+    bauble.gui = GUI()
     setup_prefs()
     with (
         mock.patch("bauble.utils.message_dialog") as mock_msg_dialog,
@@ -191,7 +191,7 @@ class NewDBTests(TestCase):
 
 
 def connect_existing(que, db_uri):
-    bauble.gui = ui.GUI()
+    bauble.gui = GUI()
     setup_prefs()
     with (
         mock.patch("bauble.utils.message_dialog") as mock_msg_dialog,

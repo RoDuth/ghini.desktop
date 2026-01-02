@@ -42,6 +42,7 @@ from bauble.plugins.plants import Genus
 from bauble.plugins.plants import Species
 from bauble.test import BaubleTestCase
 from bauble.test import uri
+from bauble.view import HomeCommandHandler
 
 from .clone import DBCloner
 from .clone import DBCloneTool
@@ -2200,7 +2201,7 @@ class ResolutionCentreViewTests(BaubleTestCase):
     def test_on_sync_selected_btn_clicked_succeeds_one(
         self, mock_handler, mock_rebase, mock_dlog
     ):
-        bauble.pluginmgr.register_command(bauble.ui.HomeCommandHandler)
+        bauble.pluginmgr.register_command(HomeCommandHandler)
         mock_dlog.return_value = Gtk.ResponseType.YES
         data = [
             {
@@ -2288,7 +2289,7 @@ class ResolutionCentreViewTests(BaubleTestCase):
         self, mock_handler, mock_cloner, mock_rebase, mock_dlog
     ):
         mock_rebase.side_effect = Exception
-        bauble.pluginmgr.register_command(bauble.ui.HomeCommandHandler)
+        bauble.pluginmgr.register_command(HomeCommandHandler)
         mock_dlog.return_value = Gtk.ResponseType.YES
         data = [
             {

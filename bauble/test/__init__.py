@@ -65,10 +65,10 @@ def run_app():
     NOTE: Most likely only want to use this one test at at time as do_shutdown
     deletes TEMPDIR.
     """
-    from bauble import ui
     from bauble.main import Application
+    from bauble.ui.gui import GUI
 
-    bauble.gui = ui.GUI()
+    bauble.gui = GUI()
 
     app = Application(unittest.mock.Mock())
     app.run()

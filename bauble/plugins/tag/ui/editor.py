@@ -36,10 +36,10 @@ from sqlalchemy.orm.session import object_session
 
 import bauble
 from bauble import db
-from bauble import editor
 from bauble import error
 from bauble import utils
 from bauble.i18n import _
+from bauble.ui import GenericPresenter
 from bauble.view import Action
 
 from ..model import Tag
@@ -51,7 +51,7 @@ from . import menu_manager
 
 @Gtk.Template(filename=str(Path(__file__).resolve().parent / "tag_editor.ui"))
 class TagEditorDialog(
-    editor.GenericPresenter[Tag],
+    GenericPresenter[Tag],
     Gtk.Dialog,
 ):  # pylint: disable=not-callable
 

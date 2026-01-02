@@ -30,7 +30,7 @@ from bauble.error import BaubleError
 from bauble.error import DatabaseError
 from bauble.plugins.plants import Family
 from bauble.test import BaubleTestCase
-from bauble.ui import GUI
+from bauble.ui.gui import GUI
 
 from .. import Tag
 from ..ui.editor import TagEditorDialog
@@ -73,7 +73,7 @@ class TagEditorDialogTests(BaubleTestCase):
             dialog.problems,
             {
                 (
-                    "not_unique::on_unique_text_entry_changed::"
+                    "empty::on_unique_text_entry_changed::"
                     f"TagEditorDialog::{id(dialog)}",
                     dialog.tag_name_entry,
                 )
@@ -148,7 +148,7 @@ class TagEditorDialogTests(BaubleTestCase):
             dialog.problems,
             {
                 (
-                    "not_unique::on_unique_text_entry_changed::"
+                    "empty::on_unique_text_entry_changed::"
                     f"TagEditorDialog::{id(dialog)}",
                     dialog.tag_name_entry,
                 )

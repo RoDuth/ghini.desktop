@@ -1035,7 +1035,7 @@ def setup_text_combobox(combo, values=None, cell_data_func=None):
     method of object or make the method static
 
     :param combo: Gtk.ComboBox
-    :param values: list vales or Gtk.ListStore
+    :param values: list values or Gtk.ListStore
     :param cell_data_func:
     """
     values = values or []

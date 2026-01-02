@@ -53,6 +53,7 @@ from bauble import paths
 from bauble import pluginmgr
 from bauble import prefs
 from bauble import utils
+from bauble.connmgr import start_connection_manager
 from bauble.i18n import _
 from bauble.prefs import datetime_format_pref
 from bauble.search.query_builder import QueryBuilder
@@ -64,8 +65,6 @@ from bauble.view import HomeCommandHandler
 from bauble.view import PrefsView
 from bauble.view import SearchView
 from bauble.view import get_search_view
-
-from .connmgr import start_connection_manager
 
 
 class SimpleActionHandlerNoArgs(Protocol):
@@ -987,6 +986,7 @@ class GUI:
             view = self.get_view()
             if isinstance(view, SearchView):
                 expanded_rows = view.get_expanded_rows()
+
             # editor_cls can be a class, of which we get an instance, and we
             # invoke the `start` method of this instance. or it is a
             # callable, then we just use its return value and we are done.
@@ -996,9 +996,11 @@ class GUI:
             else:
                 editor = editor_cls()
                 committed = editor.start()
+
             if committed is not None and isinstance(view, SearchView):
                 view.results_view.collapse_all()
                 view.expand_to_all_rows(expanded_rows)
+
         except Exception as e:  # pylint: disable=broad-except
             utils.message_details_dialog(
                 utils.xml_safe(str(e)),

@@ -16,7 +16,7 @@
 # You should have received a copy of the GNU General Public License
 # along with ghini.desktop. If not, see <http://www.gnu.org/licenses/>.
 """
-UI tests
+GUI tests
 """
 from unittest import mock
 
@@ -30,7 +30,7 @@ from bauble import task
 from bauble import view
 from bauble.test import BaubleTestCase
 from bauble.test import update_gui
-from bauble.ui import GUI
+from bauble.ui.gui import GUI
 from bauble.view import DefaultView
 from bauble.view import HistoryView
 from bauble.view import PrefsView
@@ -136,7 +136,7 @@ class GUITests(BaubleTestCase):
         gui.destroy()
         mock_btn.emit.assert_called_with("clicked")
 
-    @mock.patch("bauble.ui.bauble.command_handler")
+    @mock.patch("bauble.ui.gui.bauble.command_handler")
     def test_on_home_clicked(self, mock_handler):
         gui = GUI()
         gui.on_home_clicked()
@@ -169,7 +169,7 @@ class GUITests(BaubleTestCase):
         gui.set_view.assert_called_with("next")
         gui.destroy()
 
-    @mock.patch("bauble.ui.bauble.command_handler")
+    @mock.patch("bauble.ui.gui.bauble.command_handler")
     def test_on_go_button_clicked(self, mock_handler):
         gui = GUI()
         mock_combo = mock.Mock()
@@ -246,7 +246,7 @@ class GUITests(BaubleTestCase):
         gui.destroy()
         bauble.gui = None
 
-    @mock.patch("bauble.ui.QueryBuilder")
+    @mock.patch("bauble.ui.gui.QueryBuilder")
     def test_on_query_button_clicked_query_builder(self, mock_builder):
         gui = GUI()
         mock_combo = mock.Mock()
@@ -267,8 +267,8 @@ class GUITests(BaubleTestCase):
         mock_builder().destroy.assert_called_once()
         gui.destroy()
 
-    @mock.patch("bauble.ui.db.current_user")
-    @mock.patch("bauble.ui.SQLSearchDialog")
+    @mock.patch("bauble.ui.gui.db.current_user")
+    @mock.patch("bauble.ui.gui.SQLSearchDialog")
     def test_on_query_button_clicked_sql_search(self, mock_dialog, mock_user):
         gui = GUI()
         mock_combo = mock.Mock()
@@ -623,7 +623,7 @@ class GUITests(BaubleTestCase):
         mock_tool.start.assert_called_once()
         gui.destroy()
 
-    @mock.patch("bauble.ui.utils.gc_objects_by_type")
+    @mock.patch("bauble.ui.gui.utils.gc_objects_by_type")
     def test_on_insert_menu_item_activate(self, mock_gc_objects):
         gui = GUI()
 
@@ -677,7 +677,7 @@ class GUITests(BaubleTestCase):
         mock_entry.paste_clipboard.assert_called_once()
         gui.destroy()
 
-    @mock.patch("bauble.ui.bauble.command_handler")
+    @mock.patch("bauble.ui.gui.bauble.command_handler")
     def test_edit_menu_prefs_hist(self, mock_handler):
         gui = GUI()
 
@@ -688,9 +688,9 @@ class GUITests(BaubleTestCase):
         mock_handler.assert_called_with("prefs", None)
         gui.destroy()
 
-    @mock.patch("bauble.ui.db.create")
-    @mock.patch("bauble.ui.utils.yes_no_dialog")
-    @mock.patch("bauble.ui.bauble.command_handler")
+    @mock.patch("bauble.ui.gui.db.create")
+    @mock.patch("bauble.ui.gui.utils.yes_no_dialog")
+    @mock.patch("bauble.ui.gui.bauble.command_handler")
     def test_on_file_menu_new(self, mock_handler, mock_dialog, mock_create):
         gui = GUI()
         mock_view = mock.Mock()
@@ -709,7 +709,7 @@ class GUITests(BaubleTestCase):
         mock_create.assert_called()
         gui.get_view.assert_called()
         with mock.patch(
-            "bauble.ui.utils.message_details_dialog"
+            "bauble.ui.gui.utils.message_details_dialog"
         ) as mock_details_dialog:
             mock_create.side_effect = Exception("Boom")
             gui.on_file_menu_new(None, None)
@@ -717,9 +717,9 @@ class GUITests(BaubleTestCase):
 
         gui.destroy()
 
-    @mock.patch("bauble.ui.start_connection_manager")
-    @mock.patch("bauble.ui.db.open_conn")
-    @mock.patch("bauble.ui.bauble.command_handler")
+    @mock.patch("bauble.ui.gui.start_connection_manager")
+    @mock.patch("bauble.ui.gui.db.open_conn")
+    @mock.patch("bauble.ui.gui.bauble.command_handler")
     def test_on_file_menu_open(self, mock_handler, mock_open, mock_start):
         gui = GUI()
         # back out
@@ -750,7 +750,7 @@ class GUITests(BaubleTestCase):
         mock_open.assert_called()
 
         with mock.patch(
-            "bauble.ui.utils.message_details_dialog"
+            "bauble.ui.gui.utils.message_details_dialog"
         ) as mock_details_dialog:
             mock_start.side_effect = [
                 ("test2", "test_conn2"),
@@ -762,8 +762,8 @@ class GUITests(BaubleTestCase):
 
         gui.destroy()
 
-    @mock.patch("bauble.ui.Gtk.AboutDialog")
-    @mock.patch("bauble.ui.desktop.open")
+    @mock.patch("bauble.ui.gui.Gtk.AboutDialog")
+    @mock.patch("bauble.ui.gui.desktop.open")
     def test_help_menu(self, mock_open, mock_about):
         gui = GUI()
 
@@ -787,8 +787,8 @@ class GUITests(BaubleTestCase):
         self.assertTrue(gui.lic_path.exists())
         gui.destroy()
 
-    @mock.patch("bauble.ui.bauble.utils.yes_no_dialog")
-    @mock.patch("bauble.ui.bauble.task.running")
+    @mock.patch("bauble.ui.gui.bauble.utils.yes_no_dialog")
+    @mock.patch("bauble.ui.gui.bauble.task.running")
     def test_on_delete_event(self, mock_running, mock_dialog):
         gui = GUI()
         # no tasks running
@@ -914,8 +914,8 @@ class GUITests(BaubleTestCase):
 
         self.assertFalse(prefs.prefs.get(prefs.return_accepted_pref))
 
-    @mock.patch("bauble.ui.HomeCommandHandler.get_view")
-    @mock.patch("bauble.ui.StoredQueriesDialog")
+    @mock.patch("bauble.ui.gui.HomeCommandHandler.get_view")
+    @mock.patch("bauble.ui.gui.StoredQueriesDialog")
     def test_on_edit_stored_queries_activated(
         self,
         mock_dialog,
@@ -942,8 +942,8 @@ class GUITests(BaubleTestCase):
 
         gui.destroy()
 
-    @mock.patch("bauble.ui.QueryBuilder.run")
-    @mock.patch("bauble.ui.QueryBuilder.get_query")
+    @mock.patch("bauble.ui.gui.QueryBuilder.run")
+    @mock.patch("bauble.ui.gui.QueryBuilder.get_query")
     def test_on_open_query_builder_activated(self, mock_get_query, mock_run):
         gui = GUI()
         query = "plant where id = 1"
@@ -965,8 +965,8 @@ class GUITests(BaubleTestCase):
 
         gui.destroy()
 
-    @mock.patch("bauble.ui.db.current_user")
-    @mock.patch("bauble.ui.SQLSearchDialog.run")
+    @mock.patch("bauble.ui.gui.db.current_user")
+    @mock.patch("bauble.ui.gui.SQLSearchDialog.run")
     def test_on_raw_sql_search_activated(
         self,
         mock_run,
