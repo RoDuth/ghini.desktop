@@ -1159,6 +1159,8 @@ class SearchTests2(BaubleTestCase):
         # fuzzy date strings
         today_date = datetime.date.today()
         yesterday_date = today_date - datetime.timedelta(days=1)
+        today_year = today_date.strftime("%Y")
+        yesterday_year = yesterday_date.strftime("%Y")
         today_str = today_date.strftime("%A")
         yesterday_str = yesterday_date.strftime("%A")
         today_mth = today_date.strftime("%B")
@@ -1172,8 +1174,9 @@ class SearchTests2(BaubleTestCase):
         }.get(yesterday_day, "th")
         s = (
             "plant where _last_updated between "
-            f"'{yesterday_str} the {yesterday_day} of {yesterday_mth}' and "
-            f"'{today_str} {today_day} {today_mth}'"
+            f"'{yesterday_str} the {yesterday_day} of {yesterday_mth} "
+            f"{yesterday_year}' and "
+            f"'{today_str} {today_day} {today_mth} {today_year}'"
         )
         results = []
         for i in mapper_search.search(s, self.session):
