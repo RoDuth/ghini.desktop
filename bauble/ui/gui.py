@@ -23,10 +23,10 @@ Core user interface
 import logging
 import os
 import traceback
-import types
 from collections import deque
 from collections.abc import Callable
 from collections.abc import Iterable
+from inspect import isclass
 from pathlib import Path
 from typing import Any
 from typing import Literal
@@ -990,12 +990,12 @@ class GUI:
             # editor_cls can be a class, of which we get an instance, and we
             # invoke the `start` method of this instance. or it is a
             # callable, then we just use its return value and we are done.
-            if isinstance(editor_cls, types.FunctionType):
-                editor = None
-                committed = editor_cls()
-            else:
+            if isclass(editor_cls):
                 editor = editor_cls()
                 committed = editor.start()
+            else:
+                editor = None
+                committed = editor_cls()
 
             if committed is not None and isinstance(view, SearchView):
                 view.results_view.collapse_all()
@@ -1281,3 +1281,6 @@ class GUI:
         _param: GLib.Variant | None,
     ) -> None:
         self.window.destroy()
+
+
+bauble.gui = GUI()

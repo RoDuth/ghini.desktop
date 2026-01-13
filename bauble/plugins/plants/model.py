@@ -16,7 +16,10 @@
 # along with ghini.desktop. If not, see <http://www.gnu.org/licenses/>.
 """Generic database parts"""
 
+from collections.abc import Sequence
 from typing import Self
+
+from sqlalchemy.orm import Mapped
 
 from bauble import db
 
@@ -26,10 +29,24 @@ class Taxon(db.Domain):
     __abstract__ = True
 
     synonyms: list[Self]
+    _synonyms: Sequence["Synonym"]
     accepted: Self
 
     def string(self, **kwargs) -> str:
         raise NotImplementedError
+
+    def __str__(self) -> str:
+        raise NotImplementedError
+
+
+class Synonym(db.Base):  # pylint: disable=too-few-public-methods
+
+    __abstract__ = True
+
+    synonym_id: int
+    synonym: Mapped[Taxon]
+
+    is_one_to_one = True
 
     def __str__(self) -> str:
         raise NotImplementedError

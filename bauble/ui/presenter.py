@@ -15,20 +15,27 @@
 # You should have received a copy of the GNU General Public License
 # along with ghini.desktop. If not, see <http://www.gnu.org/licenses/>.
 """
-Generic presenter.
+Generic presenter, callbacks, etc..
 """
 import logging
 
 logger = logging.getLogger(__name__)
 
 import gc
+from collections.abc import Callable
+from collections.abc import Sequence
+from enum import IntEnum
+from typing import Protocol
 from typing import Self
 
 from gi.repository import GLib
 from gi.repository import GObject
 from gi.repository import Gtk
+from sqlalchemy.orm import Session
 
+from bauble import db
 from bauble import utils
+from bauble.view import get_search_view
 
 from .handlers import ComboBoxHandler
 from .handlers import EntryHandler
@@ -234,12 +241,13 @@ class GenericPresenter[T]:
         :param widget: the widget whose background color should change to
             indicate a problem
         """
-        start = len(self.problems)
+        start = bool(self.problems)
 
         self.problems.add((problem_id, widget))
 
-        # Should always be true (except GOject.Objects i.e. TextBuffer).
-        if isinstance(widget, Gtk.Widget):
+        if isinstance(widget, Gtk.ComboBox):
+            widget.get_style_context().add_class("problem-bg")
+        elif isinstance(widget, Gtk.Widget):
             widget.get_style_context().add_class("problem")
 
         logger.debug("problems now: %s", self.problems)
@@ -247,7 +255,7 @@ class GenericPresenter[T]:
         if not self.emits_problems_changed:
             return
 
-        if hasattr(self.view, "emit") and start == 0 and self.problems:
+        if hasattr(self.view, "emit") and start != bool(self.problems):
             self.view.emit("problems-changed", True)
 
     def remove_problem(
@@ -264,7 +272,7 @@ class GenericPresenter[T]:
         :param problem_id: A unique id for the problem.
         :param widget: the problem widget
         """
-        start = len(self.problems)
+        start = bool(self.problems)
 
         for prob, widg in self.problems.copy():
             # pylint: disable=too-many-boolean-expressions
@@ -275,6 +283,7 @@ class GenericPresenter[T]:
             ):
                 if isinstance(widg, Gtk.Widget):
                     widg.get_style_context().remove_class("problem")
+                    widg.get_style_context().remove_class("problem-bg")
                 self.problems.remove((prob, widg))
 
         logger.debug("problems now: %s", self.problems)
@@ -282,7 +291,7 @@ class GenericPresenter[T]:
         if not self.emits_problems_changed:
             return
 
-        if hasattr(self.view, "emit") and start != 0 and not self.problems:
+        if hasattr(self.view, "emit") and start != bool(self.problems):
             self.view.emit("problems-changed", False)
 
 
@@ -292,3 +301,89 @@ def idle_garbage_collect(*_args, **_kwargs) -> None:
     """
 
     GLib.idle_add(gc.collect)
+
+
+def default_dialog_update(dialog: Gtk.Dialog, state: bool) -> None:
+    """Default update action for dialogs that have Add, Next, OK, Cancel,
+    buttons.
+
+    Sets the sensitivity of the committing buttons to the provided state.  If
+    the editor has Problems or the Model is otherwise in a state not ready for
+    committing :param state: should be False.
+    """
+    for response in Response:
+        if response == Response.CANCEL:
+            continue
+
+        widget = dialog.get_widget_for_response(response.value)
+        if widget:
+            widget.set_sensitive(state)
+
+
+class Response(IntEnum):
+    ADD = 11
+    NEXT = 22
+    OK = -5
+    CANCEL = -6
+
+
+class EditorDialog(Protocol):
+    # pylint: disable=too-few-public-methods
+
+    def __init__(
+        self,
+        model: db.Domain,
+        session: Session,
+    ) -> None: ...
+
+    def show_all(self) -> None: ...
+    def connect_after(self, signal: str, handler: Callable) -> int: ...
+
+
+class EditCreateCallback:
+    # pylint: disable=too-few-public-methods
+    """Functor to create generic edit/create_callback functions.
+
+    NOTE: these callbacks will not block the UI as they don't use
+    ``dialog.run()``, instead using ``dialog.show_all()``.  This requires the
+    EditorDialog's themselves to handle responses, including calling
+    ``self.destroy()`` when complete.
+    """
+
+    def __init__(
+        self,
+        dialog_class: type[EditorDialog],
+        obj_class: type[db.Domain],
+    ) -> None:
+        self.dialog_class = dialog_class
+        self.obj_class = obj_class
+
+    def __call__(
+        self,
+        objs: Sequence[db.Domain] | None = None,
+        **_kwargs,
+    ) -> bool:
+        if objs:
+            # edit
+            obj = objs[0]
+        else:
+            # create
+            obj = self.obj_class()
+
+        dialog = self.dialog_class(
+            model=obj,
+            session=db.Session(),
+        )
+
+        dialog.show_all()
+        dialog.connect_after("response", self.update_search_view)
+
+        return False
+
+    @staticmethod
+    def update_search_view(
+        _dialog: EditorDialog,
+        response: Response,
+    ) -> None:
+        if response in [Response.NEXT, Response.ADD, Response.OK]:
+            get_search_view().update()

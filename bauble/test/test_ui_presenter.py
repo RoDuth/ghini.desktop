@@ -22,13 +22,16 @@ from unittest import TestCase
 from unittest import mock
 
 from gi.repository import Gtk
+from sqlalchemy.orm import Session
 
 from bauble import utils
 from bauble.meta import BaubleMeta
 from bauble.test import BaubleTestCase
 from bauble.ui.handlers import EntryHandler
+from bauble.ui.presenter import EditCreateCallback
 from bauble.ui.presenter import GenericPresenter
 from bauble.ui.presenter import Problem
+from bauble.ui.presenter import Response
 from bauble.ui.validators import Validator
 from bauble.ui.validators import validate_unique
 
@@ -170,17 +173,26 @@ class GenericPresenterTests(TestCase):
         # not a widget
         presenter = BoxPresenter(mock_model)
         presenter.add_problem("TEST", mock_widget)
+
         self.assertEqual(presenter.problems, {("TEST", mock_widget)})
         mock_widget.get_style_context().add_class.assert_not_called()
 
-        # reset problems
-        presenter.problems = set()
-
         # a widget
+        presenter.problems = set()
         mock_widget = mock.Mock(spec=Gtk.Widget)
         presenter.add_problem("TEST", mock_widget)
+
         self.assertEqual(presenter.problems, {("TEST", mock_widget)})
         mock_widget.get_style_context().add_class.assert_called_with("problem")
+
+        # a combobox
+        presenter.problems = set()
+        mock_widget = mock.Mock(spec=Gtk.ComboBox)
+        presenter.add_problem("TEST", mock_widget)
+        self.assertEqual(presenter.problems, {("TEST", mock_widget)})
+        mock_widget.get_style_context().add_class.assert_called_with(
+            "problem-bg"
+        )
 
     def test_remove_problem_widget_and_problem_id(self):
         mock_model = mock.Mock()
@@ -244,9 +256,11 @@ class GenericPresenterTests(TestCase):
         )
         mock_widget1.get_style_context().remove_class.assert_not_called()
         mock_widget2.get_style_context().remove_class.assert_not_called()
-        mock_widget3.get_style_context().remove_class.assert_called_with(
-            "problem"
-        )
+        calls = mock_widget3.get_style_context().remove_class.call_args_list
+        call_list = [j for i in calls for j in i.args]
+        self.assertIn("problem-bg", call_list)
+        self.assertIn("problem", call_list)
+        self.assertEqual(len(call_list), 2)
         mock_widget4.get_style_context().remove_class.assert_not_called()
 
     def test_remove_problem_widget_only(self):
@@ -281,9 +295,12 @@ class GenericPresenterTests(TestCase):
         mock_widget1.get_style_context().remove_class.assert_not_called()
         mock_widget2.get_style_context().remove_class.assert_not_called()
         mock_widget3.get_style_context().remove_class.assert_not_called()
-        mock_widget4.get_style_context().remove_class.assert_called_with(
-            "problem"
-        )
+        calls = mock_widget4.get_style_context().remove_class.call_args_list
+        call_list = [j for i in calls for j in i.args]
+        self.assertIn("problem-bg", call_list)
+        self.assertIn("problem", call_list)
+        self.assertEqual(len(call_list), 4)
+        self.assertEqual(len(set(call_list)), 2)
 
     def test_handler_method_descriptor_get(self):
         mock_model = mock.Mock()
@@ -587,3 +604,28 @@ class GenericPresenterWithDBTests(BaubleTestCase):
         self.assertEqual(model1.value, "test")
         self.assertEqual(presenter.problems, set())
         self.assertFalse(entry.get_style_context().has_class("problem"))
+
+
+class FunctionTests(BaubleTestCase):
+    def test_edit_create_callback(self):
+        mock_dialog = mock.Mock()
+        mock_obj_class = mock.Mock()
+
+        callback = EditCreateCallback(mock_dialog, mock_obj_class)
+
+        with mock.patch("bauble.ui.presenter.get_search_view") as mock_view:
+            self.assertFalse(callback())
+            handler = mock_dialog().connect_after.call_args.args[1]
+            handler(mock_dialog, Response.OK)
+            mock_view().update.assert_called_once()
+
+        mock_obj_class.assert_called_once()
+        mock_dialog.assert_called()
+        self.assertEqual(
+            mock_dialog.call_args_list[0].kwargs["model"],
+            mock_obj_class(),
+        )
+        self.assertIsInstance(
+            mock_dialog.call_args_list[0].kwargs["session"], Session
+        )
+        mock_dialog().show_all.assert_called_once()

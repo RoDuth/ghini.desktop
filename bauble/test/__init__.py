@@ -264,7 +264,7 @@ def get_setUp_data_funcs():
     funcs = []
     root = paths.root_dir()
     for i in Path(root).glob("bauble/plugins/**/test_*.py"):
-        mod_path = str(i).replace(os.sep, ".")[len(str(root)) + 1 : -3]
+        mod_path = ".".join(i.relative_to(root).with_suffix("").parts)
         try:
             mod = import_module(mod_path)
             func = getattr(mod, "setUp_data")

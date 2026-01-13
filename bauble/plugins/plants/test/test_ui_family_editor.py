@@ -1,0 +1,354 @@
+# Copyright (c) 2026 Ross Demuth <rossdemuth123@gmail.com>
+#
+# This file is part of ghini.desktop.
+#
+# ghini.desktop is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# ghini.desktop is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with ghini.desktop. If not, see <http://www.gnu.org/licenses/>.
+"""
+Family editor tests
+"""
+from unittest import mock
+
+from gi.repository import Gtk
+
+from bauble import utils
+from bauble.plugins.plants.family import Family
+from bauble.test import BaubleTestCase
+from bauble.test import update_gui
+from bauble.ui.presenter import Response
+
+from ..ui.family_editor import FamilyEditorDialog
+from ..ui.family_editor import validate_unique_family
+
+
+class FamilyEditorDialogTests(BaubleTestCase):
+    @mock.patch("bauble.gui")
+    def test_init_existing(self, mock_gui):
+        mock_gui.window = Gtk.Window()
+        family = Family(epithet="Austrobaileyaceae")
+        self.session.add(family)
+        editor = FamilyEditorDialog(family, self.session)
+
+        self.assertEqual(editor.get_transient_for(), mock_gui.window)
+        self.assertEqual(editor.links_menu_btn.model, family)
+        self.assertEqual(editor.synonyms_presenter.model, family)
+        self.assertEqual(editor.family_entry.get_text(), "Austrobaileyaceae")
+        self.assertEqual(len(editor.problems), 0)
+
+        editor.destroy()
+
+    def test_init_new(self):
+        family = Family()
+        editor = FamilyEditorDialog(family, self.session)
+
+        # can't compare models due to merge but can check they intialised
+        self.assertTrue(editor.links_menu_btn.model)
+        self.assertTrue(editor.synonyms_presenter.model)
+        self.assertEqual(editor.family_entry.get_text(), "")
+        self.assertFalse(editor.suprafam_expander.get_expanded())
+        self.assertEqual(len(editor.problems), 1)
+        for problem, widget in editor.problems:
+            self.assertEqual(widget, editor.family_entry)
+            self.assertTrue(problem.startswith("empty::FamilyEditorDialog"))
+
+        editor.destroy()
+
+    def test_init_existing_w_suprafamilial_parts(self):
+        family = Family(epithet="Austrobaileyaceae", order="Austrobaileyales")
+        self.session.add(family)
+        editor = FamilyEditorDialog(family, self.session)
+
+        self.assertEqual(editor.links_menu_btn.model, family)
+        self.assertEqual(editor.synonyms_presenter.model, family)
+        self.assertEqual(editor.family_entry.get_text(), "Austrobaileyaceae")
+        self.assertEqual(editor.order_entry.get_text(), "Austrobaileyales")
+        self.assertTrue(editor.suprafam_expander.get_expanded())
+        self.assertEqual(len(editor.problems), 0)
+
+        editor.destroy()
+
+    def test_allow_ok_only(self):
+        editor = FamilyEditorDialog(Family(), self.session)
+        editor.allow_ok_only()
+
+        for response in Response:
+            widget = editor.get_widget_for_response(response.value)
+            if response == Response.OK:
+                self.assertTrue(widget.get_visible())
+            else:
+                self.assertFalse(widget.get_visible())
+
+        editor.destroy()
+
+    def test_can_commit(self):
+        editor = FamilyEditorDialog(Family(), self.session)
+
+        self.assertFalse(editor.can_commit)
+
+        editor.family_entry.set_text("Myrtaceae")
+
+        self.assertTrue(editor.can_commit)
+
+        editor.destroy()
+
+    def test_on_changed_calls_update(self):
+        editor = FamilyEditorDialog(Family(), self.session)
+        with mock.patch.object(editor, "update") as mock_update:
+            editor.synonyms_presenter.emit("changed")
+            mock_update.assert_called_once()
+
+        editor.destroy()
+
+    def test_update(self):
+        editor = FamilyEditorDialog(Family(), self.session)
+
+        for response in Response:
+            widget = editor.get_widget_for_response(response.value)
+            print(response.name)
+            if response == Response.CANCEL:
+                self.assertTrue(widget.get_sensitive())
+            else:
+                self.assertFalse(widget.get_sensitive())
+
+        editor.family_entry.set_text("Myrtaceae")
+
+        for response in Response:
+            widget = editor.get_widget_for_response(response.value)
+            print(response.name)
+            self.assertTrue(widget.get_sensitive())
+
+        editor.destroy()
+
+    def test_on_family_author_entry_changes(self):
+        # also picks up combobox changed
+        editor = FamilyEditorDialog(Family(), self.session)
+        editor.author_entry.set_text("Juss.")
+
+        self.assertEqual(editor.model.author, "Juss.")
+
+        # no epithet
+        self.assertEqual(len(editor.problems), 1)
+        self.assertEqual(list(editor.problems)[0][1], editor.family_entry)
+
+        # with epithet
+        editor.family_entry.set_text("Myrtaceae")
+
+        self.assertEqual(editor.model.epithet, "Myrtaceae")
+        self.assertEqual(len(editor.problems), 0)
+
+        utils.set_widget_value(editor.qualifier_combo, "s. str.")
+        self.assertEqual(editor.model.qualifier, "s. str.")
+
+        self.assertEqual(len(editor.problems), 0)
+
+        # reset
+        utils.set_widget_value(editor.qualifier_combo, "")
+        # add a family
+        self.session.add(
+            Family(epithet="Fabaceae", author="Lindl.", qualifier="s. str.")
+        )
+        self.session.commit()
+        # same epithet
+        editor.family_entry.set_text("Fabaceae")
+
+        self.assertEqual(len(editor.problems), 0)
+
+        # same epithet and author
+        editor.author_entry.set_text("Lindl.")
+
+        self.assertEqual(len(editor.problems), 0)
+
+        # same epithet, author and qualifier
+        utils.set_widget_value(editor.qualifier_combo, "s. str.")
+
+        self.assertEqual(len(editor.problems), 3)
+
+        editor.destroy()
+
+    def test_on_order_entry_changed(self):
+        editor = FamilyEditorDialog(Family(), self.session)
+        editor.order_entry.set_text("Foo")
+
+        self.assertEqual(editor.model.order, "Foo")
+
+        editor.destroy()
+
+    def test_order_get_completions(self):
+        for i in range(30):
+            self.session.add(Family(epithet=f"Family{i}", order=f"Order{i}"))
+            self.session.add(Family(epithet=f"Other{i}", order=f"Another{i}"))
+        self.session.commit()
+        editor = FamilyEditorDialog(Family(), self.session)
+
+        completions = editor.order_get_completions("Ord")
+        self.assertEqual(len(completions), 20)
+        self.assertTrue(all(i.startswith("Order") for i in completions))
+
+        editor.destroy()
+
+    def test_on_suborder_entry_changed(self):
+        editor = FamilyEditorDialog(Family(), self.session)
+        editor.suborder_entry.set_text("Foo")
+
+        self.assertEqual(editor.model.suborder, "Foo")
+
+        editor.destroy()
+
+    def test_suborder_get_completions(self):
+        for i in range(30):
+            self.session.add(
+                Family(
+                    epithet=f"Family{i}",
+                    order="Order1",
+                    suborder=f"Suborder{i}",
+                )
+            )
+            self.session.add(
+                Family(
+                    epithet=f"Other{i}",
+                    order=f"Another{i}",
+                    suborder="Subother{i}",
+                )
+            )
+        self.session.commit()
+        editor = FamilyEditorDialog(Family(), self.session)
+
+        completions = editor.suborder_get_completions("Subo")
+        self.assertEqual(len(completions), 20)
+        self.assertTrue(all(i.startswith("Subo") for i in completions))
+
+        editor.order_entry.set_text("Order1")
+
+        completions = editor.suborder_get_completions("Subo")
+        self.assertEqual(len(completions), 20)
+        self.assertTrue(all(i.startswith("Suborder") for i in completions))
+
+        editor.order_entry.set_text("Order3")
+
+        completions = editor.suborder_get_completions("Subo")
+        self.assertEqual(len(completions), 0)
+
+        editor.destroy()
+
+    @mock.patch(
+        "bauble.plugins.plants.ui.family_editor.utils.message_details_dialog"
+    )
+    def test_on_reponse_ok(self, mock_dlog):
+        editor = FamilyEditorDialog(Family(), self.session)
+        # change epithet to None to force an error,
+        # NOTE that the editor should never allow this.
+        editor.model.epithet = None
+        # fails no epithet, use emit here to avoid warning due to:
+        # `dialog.stop_emission_by_name("response")`
+        editor.emit("response", Response.OK)
+        # self.assertTrue(editor.on_response(editor, Response.OK))  # triggers
+        # waring 'no emission of signal "response" to stop'
+
+        update_gui()
+        mock_dlog.assert_called_once()
+        mock_dlog.reset_mock()
+
+        editor.family_entry.set_text("Myrtaceae")
+        self.assertFalse(editor.on_response(editor, Response.OK))
+
+        update_gui()
+        mock_dlog.assert_not_called()
+
+        editor.destroy()
+
+    def test_on_reponse_cancel(self):
+        editor = FamilyEditorDialog(Family(), self.session)
+
+        self.assertFalse(editor.on_response(editor, Response.CANCEL))
+
+        editor.destroy()
+
+    @mock.patch("bauble.plugins.plants.ui.family_editor.edit_callback")
+    def test_on_reponse_cancel_next(self, mock_callback):
+        mock_callback.return_value = False
+        editor = FamilyEditorDialog(Family(epithet="Myrtcaeae"), self.session)
+
+        self.assertFalse(editor.on_response(editor, Response.NEXT))
+
+        update_gui()
+
+        mock_callback.assert_called_once()
+
+        editor.destroy()
+
+    @mock.patch("bauble.plugins.plants.ui.family_editor.add_genera_callback")
+    def test_on_reponse_cancel_add(self, mock_callback):
+        mock_callback.return_value = False
+        editor = FamilyEditorDialog(Family(epithet="Myrtcaeae"), self.session)
+
+        self.assertFalse(editor.on_response(editor, Response.ADD))
+
+        update_gui()
+
+        mock_callback.assert_called_once_with([editor.model])
+
+        editor.destroy()
+
+
+class FunctionTests(BaubleTestCase):
+    def test_validate_unique_family(self):
+        family = Family(epithet="Myrtaceae")
+        self.session.add(family)
+        self.session.commit()
+
+        self.assertTrue(
+            validate_unique_family("Austrobaileyaceae", "", "", family)
+        )
+        self.assertTrue(validate_unique_family("Myrtaceae", "", "", family))
+        self.assertFalse(validate_unique_family("Myrtaceae", "", "", Family()))
+        self.assertTrue(
+            validate_unique_family("Myrtaceae", "Me", "", Family())
+        )
+        self.assertTrue(
+            validate_unique_family("Myrtaceae", "", "s. lat.", Family())
+        )
+        self.assertTrue(
+            validate_unique_family("Myrtaceae", "Me", "s. lat.", Family())
+        )
+
+        family.qualifier = "s. lat."
+        self.session.commit()
+
+        self.assertFalse(
+            validate_unique_family("Myrtaceae", "", "s. lat.", Family())
+        )
+        self.assertTrue(
+            validate_unique_family("Myrtaceae", "Me", "s. lat.", Family())
+        )
+        self.assertTrue(
+            validate_unique_family("Myrtaceae", "Me", "", Family())
+        )
+
+        family.author = "Me"
+        self.session.commit()
+
+        self.assertTrue(
+            validate_unique_family("Myrtaceae", "", "s. lat.", Family())
+        )
+        self.assertTrue(
+            validate_unique_family("Myrtaceae", "Me", "", Family())
+        )
+        self.assertFalse(
+            validate_unique_family("Myrtaceae", "Me", "s. lat.", Family())
+        )
+        self.assertTrue(
+            validate_unique_family("Fabaceae", "Me", "s. lat.", Family())
+        )
+        self.assertTrue(
+            validate_unique_family("Myrtaceae", "Me", "s. lat.", family)
+        )

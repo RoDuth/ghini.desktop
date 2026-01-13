@@ -643,15 +643,16 @@ class GUITests(BaubleTestCase):
         mock_editor.assert_called_once()
 
         # class with SeachView
-        mock_editor = mock.Mock()
-        mock_editor.__name__ = "test"
+        class Editor:
+            start = mock.Mock()
+
         with mock.patch.object(search_view, "expand_to_all_rows") as mock_expd:
             # we know that mock_editor will not be garbage collected (mocking
             # here avoids ReferenceError: weakly-referenced object no longer
             # exists)
             mock_gc_objects.assert_not_called()
             mock_gc_objects.return_value = []
-            gui.on_insert_menu_item_activate(None, None, mock_editor)
+            gui.on_insert_menu_item_activate(None, None, Editor)
             mock_gc_objects.assert_called()
             mock_expd.assert_called_once()
 

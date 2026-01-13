@@ -111,7 +111,7 @@ class HandlerMethodDescriptor[T: GObject.Object](ABC):
         instance: GenericPresenter | None,
         class_: type[GenericPresenter],
     ) -> BoundMethod[T] | Self:
-        """Get doc"""
+
         if instance is None:
             # allow access to the descriptor itself via the class
             return self
@@ -221,6 +221,69 @@ class EntryHandler(HandlerMethodDescriptor[Gtk.Entry]):
         return widget.get_text()
 
 
+class EntryWCompletionHandler(EntryHandler):
+    """HandlerMethodDescriptor for Gtk.Entry widgets with completions.
+
+    The entry must have a ``Gtk.EntryCompletion`` with model attached.
+
+    If validation or conversion is needed provide a list of ``Validator``s and
+    a ``Converter`` callback as required.
+
+    ``get_values`` kwarg must be supplied, along with the Entry widget, to the
+    handler as a callable that returns completions given a string to match.
+
+    If the entry must match one of the completions instanciate with
+    ``must_match=True``
+    """
+
+    def __init__(
+        self,
+        validators: Sequence[Validator] | None = None,
+        converter: Converter = lambda value, *args: value,
+        must_match: bool = False,
+    ) -> None:
+
+        self.must_match = must_match
+
+        super().__init__(validators, converter)
+
+    def handler(
+        self,
+        instance: GenericPresenter,
+        widget: Gtk.Entry,
+        **kwargs: Any,
+    ) -> None:
+        get_values: Callable[[str], Any] = kwargs.pop("get_values")
+
+        text = widget.get_text()
+        completion = widget.get_completion()
+        min_key_length = completion.get_minimum_key_length()
+        completion_model = cast(Gtk.ListStore, completion.get_model())
+        completion_model.clear()
+        match_problem = self.problem_name_template.format("not_matched")
+
+        if not self.must_match:
+            super().handler(instance, widget, **kwargs)
+        else:
+            instance.add_problem(match_problem, widget)
+
+        if len(text) > min_key_length:
+            values = get_values(text)
+            for value in values:
+                completion_model.append([value])
+
+            # if an exact match select it
+            if len(values) == 1 and str(values[0]).lower() == text.lower():
+                completion.emit(
+                    "match-selected",
+                    completion_model,
+                    completion_model.get_iter_first(),
+                )
+                if self.must_match:
+                    instance.remove_problem(match_problem, widget)
+                    super().handler(instance, widget, **kwargs)
+
+
 class TextBufferHandler(HandlerMethodDescriptor[Gtk.TextBuffer]):
     """HandlerMethodDescriptor for Gtk.TextBuffer widgets.
 
@@ -269,3 +332,46 @@ class ComboBoxHandler(HandlerMethodDescriptor[Gtk.ComboBox]):
         value = model[iter_][self.column]
 
         return value
+
+
+def populate_enum_combo(
+    combo: Gtk.ComboBox,
+    model: db.Base,
+    field: str,
+) -> None:
+    """Populate a ComboBox from a Enum Column's values.
+
+    :param combo: a ``Gtk.ComboBox``
+    :param model: an instance of ``db.Base``.
+    :param field: the column name of the enum to use to populate the ComboBox.
+    """
+    mapper = object_mapper(model)
+    values = sorted(mapper.c[field].type.values, key=lambda v: str(v or ""))
+    combo_model = cast(Gtk.ListStore, combo.get_model())
+    for value in values:
+        combo_model.append([value])
+
+
+def default_completion_cell_data_func(
+    _column: Gtk.TreeViewColumn,
+    renderer: Gtk.CellRenderer,
+    model: Gtk.ListStore,
+    treeiter: Gtk.TreeIter,
+) -> None:
+    """The default completion cell data function for Gtk.EntryCompletion."""
+    v = model[treeiter][0]
+    renderer.set_property("markup", utils.xml_safe(v))
+
+
+def default_completion_match_func(
+    completion: Gtk.EntryCompletion,
+    key_string: str,
+    treeiter: Gtk.TreeIter,
+):
+    """The default completion match function for Gtk.EntryCompletion.
+
+    A case-insensitive string comparison of the the completions object in
+    column 0.
+    """
+    value = cast(Gtk.ListStore, completion.get_model())[treeiter][0]
+    return str(value).lower().startswith(key_string.lower())

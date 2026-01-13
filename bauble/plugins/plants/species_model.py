@@ -64,6 +64,7 @@ from bauble.i18n import _
 
 from .geography import DistributionMap
 from .geography import Geography
+from .model import Synonym
 from .model import Taxon
 
 
@@ -1360,7 +1361,7 @@ SpeciesNote = db.make_note_class("Species")
 SpeciesPicture = db.make_note_class("Species", cls_type="_picture")
 
 
-class SpeciesSynonym(db.Base):
+class SpeciesSynonym(Synonym):
     """
     :Table name: species_synonym
     """
@@ -1369,8 +1370,8 @@ class SpeciesSynonym(db.Base):
     __table_args__ = (CheckConstraint("species_id != synonym_id"),)
 
     # columns
-    species_id = Column(Integer, ForeignKey("species.id"), nullable=False)
-    synonym_id = Column(
+    species_id: int = Column(Integer, ForeignKey("species.id"), nullable=False)
+    synonym_id: int = Column(
         Integer, ForeignKey("species.id"), nullable=False, unique=True
     )
     is_one_to_one = True

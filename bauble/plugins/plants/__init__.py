@@ -55,10 +55,6 @@ from bauble.view import View
 
 from .family import Familia
 from .family import Family
-from .family import FamilyEditor
-from .family import FamilyInfoBox
-from .family import edit_callback as family_edit_callback
-from .family import family_context_menu
 from .genus import Genus
 from .genus import GenusEditor
 from .genus import GenusInfoBox
@@ -84,6 +80,10 @@ from .species import get_binomial_completions
 from .species import species_context_menu
 from .species import vernname_context_menu
 from .species_model import update_all_full_names_handler
+from .ui.family_editor import create_family
+from .ui.family_editor import edit_callback as family_edit_callback
+from .ui.family_view import FamilyInfoBox
+from .ui.family_view import family_context_menu
 
 # imported by clients of the module
 __all__ = ["Familia", "SpeciesDistribution"]
@@ -708,7 +708,7 @@ class PlantsPlugin(pluginmgr.Plugin):
         DefaultView.infoboxclass = HomeInfoBox
 
         if bauble.gui is not None:
-            bauble.gui.add_to_insert_menu(FamilyEditor, _("Family"))
+            bauble.gui.add_to_insert_menu(create_family, _("Family"))
             bauble.gui.add_to_insert_menu(GenusEditor, _("Genus"))
             bauble.gui.add_to_insert_menu(SpeciesEditor, _("Species"))
             bauble.gui.main_entry_completion_callbacks.add(

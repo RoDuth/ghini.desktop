@@ -1,7 +1,7 @@
 # Copyright 2008-2010 Brett Adams
 # Copyright 2015 Mario Frasca <mario@anche.no>.
 # Copyright 2017 Jardín Botánico de Quito
-# Copyright 2020-2025 Ross Demuth <rossdemuth123@gmail.com>
+# Copyright 2020-2026 Ross Demuth <rossdemuth123@gmail.com>
 #
 # This file is part of ghini.desktop.
 #
@@ -77,6 +77,7 @@ from bauble import paths
 from bauble import prefs
 from bauble import utils
 from bauble.i18n import _
+from bauble.ui.presenter import Response
 from bauble.view import Action
 from bauble.view import InfoBox
 from bauble.view import InfoExpanderMixin
@@ -84,8 +85,9 @@ from bauble.view import LinksExpander
 from bauble.view import PropertiesExpander
 from bauble.view import on_clicked_search
 
+from .model import Synonym
 from .model import Taxon
-from .widgets import SynonymsExpander
+from .ui.widgets import SynonymsExpander
 
 # TODO: warn the user that a duplicate genus name is being entered
 # even if only the author or qualifier is different
@@ -606,7 +608,7 @@ def genus_before_update(
 GenusNote = db.make_note_class("Genus")
 
 
-class GenusSynonym(db.Base):
+class GenusSynonym(Synonym):
     """
     :Table name: genus_synonym
     """
@@ -943,21 +945,26 @@ class GenusEditorPresenter(
         self.init_links_menu()
 
     def on_family_add_button_clicked(self, _widget) -> None:
-        from .family import FamilyEditor
+        from .ui.family_editor import FamilyEditorDialog
 
-        new_fam = Family()
+        epithet = self.view.widgets.gen_family_entry.get_text() or ""
+        family = Family(epithet=epithet)
 
-        if self.view.widgets.gen_family_entry.get_text():
-            new_fam.epithet = self.view.widgets.gen_family_entry.get_text()
+        with db.Session() as session:
+            dialog = FamilyEditorDialog(
+                family,
+                session,
+                transient_for=self.view.get_window(),
+            )
+            dialog.allow_ok_only()
 
-        fam_editor = FamilyEditor(model=new_fam, parent=self.view.get_window())
+            if dialog.run() != Response.OK:
+                dialog.destroy()
+                return
 
-        committed = fam_editor.start()
-        if not committed:
-            return
+            family = self.session.merge(dialog.model)
+            dialog.destroy()
 
-        family = committed[0]
-        self.session.add(family)
         # populate the completions model so it will match
         completion = self.view.widgets.gen_family_entry.get_completion()
         utils.clear_model(completion)
@@ -966,7 +973,7 @@ class GenusEditorPresenter(
         completion.set_model(model)
         # toggle the text to get the completion to match
         self.view.widget_set_value("gen_family_entry", "")
-        self.view.widget_set_value("gen_family_entry", family.epithet)
+        self.view.widget_set_value("gen_family_entry", str(family))
 
         self.refresh_cites_label()
 

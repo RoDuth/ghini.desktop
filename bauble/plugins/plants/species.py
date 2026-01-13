@@ -85,7 +85,7 @@ from .species_model import SpeciesNote
 from .species_model import SpeciesSynonym
 from .species_model import VernacularName
 from .species_model import red_list_values
-from .widgets import SynonymsExpander
+from .ui.widgets import SynonymsExpander
 
 # imported by clients of this modules
 __all__ = [

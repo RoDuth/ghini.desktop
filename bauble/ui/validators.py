@@ -69,9 +69,7 @@ class Validator:  # pylint: disable=too-few-public-methods
 
 
 def validate_non_empty(value: str, *_args: Any) -> bool:
-    """Validator function to check non-empty and uniqueness of a field value in
-    the DB.
-    """
+    """Validator function to check value is non-empty."""
     if not value or (isinstance(value, str) and not value.strip()):
         return False
     return True

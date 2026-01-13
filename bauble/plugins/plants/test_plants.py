@@ -44,7 +44,6 @@ from sqlalchemy.orm.exc import NoResultFound
 
 from bauble import btypes
 from bauble import db
-from bauble import paths
 from bauble import prefs
 from bauble import search
 from bauble import utils
@@ -63,15 +62,9 @@ from ..garden import Plant
 from . import HomeInfoBox
 from . import PlantsPlugin
 from . import SynonymsPresenter
-from .family import FAMILY_WEB_BUTTON_DEFS_PREFS
 from .family import Family
-from .family import FamilyEditor
-from .family import FamilyEditorPresenter
-from .family import FamilyEditorView
-from .family import FamilyInfoBox
 from .family import FamilyNote
 from .family import FamilySynonym
-from .family import GeneralFamilyExpander
 from .genus import GENUS_WEB_BUTTON_DEFS_PREFS
 from .genus import GeneralGenusExpander
 from .genus import Genus
@@ -139,6 +132,10 @@ from .species_model import infrasp_rank_values
 from .species_model import markup_italics
 from .species_model import update_all_full_names_handler
 from .species_model import update_all_full_names_task
+from .ui.family_editor import FAMILY_WEB_BUTTON_DEFS_PREFS
+from .ui.family_editor import FamilyEditorDialog
+from .ui.family_view import FamilyInfoBox
+from .ui.family_view import GeneralFamilyExpander
 
 #
 # TODO: things to create tests for
@@ -906,7 +903,7 @@ class FamilyTests(PlantTestCase):
         self.session.add(family)
         self.session.flush()
 
-        from .family import remove_callback
+        from .ui.family_editor import remove_callback
 
         with mock.patch("bauble.utils.yes_no_dialog") as mock_dlog:
             mock_dlog.return_value = False
@@ -927,7 +924,7 @@ class FamilyTests(PlantTestCase):
         self.session.add(family)
         self.session.flush()
 
-        from .family import remove_callback
+        from .ui.family_editor import remove_callback
 
         with mock.patch("bauble.utils.yes_no_dialog") as mock_dlog:
             mock_dlog.return_value = True
@@ -949,7 +946,7 @@ class FamilyTests(PlantTestCase):
         self.session.add_all([family, gen])
         self.session.flush()
 
-        from .family import remove_callback
+        from .ui.family_editor import remove_callback
 
         with mock.patch("bauble.utils.message_dialog") as mock_dlog:
             mock_dlog.return_value = True
@@ -970,16 +967,6 @@ class FamilyTests(PlantTestCase):
             [gen],
         )
 
-    def test_remove_callback_bails_not_session(self):
-        family = Family(family="Araucariaceae")
-        self.session.add(family)
-        self.session.flush()
-
-        from .family import remove_callback
-
-        with mock.patch("bauble.plugins.plants.family.object_session"):
-            self.assertFalse(remove_callback([family]))
-
     @mock.patch("bauble.utils.yes_no_dialog")
     @mock.patch("bauble.utils.message_details_dialog")
     def test_remove_callback_commit_exception(self, mock_d_dlog, mock_yn_dlog):
@@ -989,7 +976,7 @@ class FamilyTests(PlantTestCase):
         self.session.add(family)
         self.session.flush()
 
-        from .family import remove_callback
+        from .ui.family_editor import remove_callback
 
         with (
             mock.patch.object(
@@ -1279,29 +1266,25 @@ class FamilyTests(PlantTestCase):
         self.session.add(family)
         self.session.flush()
 
-        from .family import edit_callback
+        from .ui.family_editor import edit_callback
 
-        with mock.patch(
-            "bauble.plugins.plants.family.FamilyEditor"
-        ) as mock_editor:
-            mock_editor().start.return_value = None
+        with mock.patch.object(edit_callback, "dialog_class") as mock_editor:
             mock_editor.reset_mock()
 
             self.assertFalse(edit_callback([family]))
-            mock_editor.assert_called_once_with(model=family)
-
-            mock_editor().start.return_value = family
-            self.assertTrue(edit_callback([family]))
+            mock_editor.assert_called_once()
+            self.assertEqual(mock_editor.call_args.kwargs["model"], family)
+            mock_editor().show_all.assert_called_once()
 
     def test_add_genera_callback(self):
         family = Family(family="Welwitschiaceae")
         self.session.add(family)
-        self.session.flush()
+        self.session.commit()
 
-        from .family import add_genera_callback
+        from .ui.family_editor import add_genera_callback
 
         with mock.patch(
-            "bauble.plugins.plants.family.GenusEditor"
+            "bauble.plugins.plants.ui.family_editor.GenusEditor"
         ) as mock_editor:
             mock_editor().start.return_value = None
             mock_editor.reset_mock()
@@ -1309,6 +1292,7 @@ class FamilyTests(PlantTestCase):
             self.assertFalse(add_genera_callback([family]))
             mock_editor.assert_called_once()
             gen = mock_editor.call_args.kwargs["model"]
+            gen = self.session.merge(gen)
             self.assertIsInstance(gen, Genus)
             self.assertEqual(gen.family, family)
 
@@ -1511,101 +1495,116 @@ class FamilyTopLevelCountTests(BaubleTestCase):
 
 
 class FamilyEditorTests(PlantTestCase):
-    @mock.patch("bauble.editor.GenericEditorView.start")
-    def test_editor_doesnt_leak(self, mock_start):
-        mock_start.return_value = Gtk.ResponseType.OK
-        fam = Family(family="some family")
-        editor = FamilyEditor(model=fam)
-        editor.start()
+    def test_editor_doesnt_leak(self):
+        editor = FamilyEditorDialog(
+            model=Family(family="Fooaceae"),
+            session=db.Session(),
+        )
+        with mock.patch.object(editor, "run") as mock_run:
+            mock_run.return_value = Gtk.ResponseType.OK
+            editor.run()
+        editor.destroy()
         del editor
+        update_gui()
+
         self.assertEqual(
-            utils.gc_objects_by_type("FamilyEditor"),
+            utils.gc_objects_by_type("FamilyEditorDialog"),
             [],
-            "FamilyEditor not deleted",
-        )
-        self.assertEqual(
-            utils.gc_objects_by_type("FamilyEditorPresenter"),
-            [],
-            "FamilyEditorPresenter not deleted",
-        )
-        self.assertEqual(
-            utils.gc_objects_by_type("FamilyEditorView"),
-            [],
-            "FamilyEditorView not deleted",
+            "FamilyEditorDialog not deleted",
         )
 
     def test_suprafamilial_parts(self):
         fam = self.session.query(Family).get(1)
-        view = FamilyEditorView()
-        presenter = FamilyEditorPresenter(fam, view)
+        editor = FamilyEditorDialog(fam, db.Session())
 
-        presenter.cleanup()
-        del presenter
+        self.assertFalse(editor.suprafam_expander.get_expanded())
+
+        editor.destroy()
+        del editor
+        update_gui()
 
         fam = self.session.query(Family).get(8)
-        view = FamilyEditorView()
-        presenter = FamilyEditorPresenter(fam, view)
-        self.assertTrue(view.widgets.suprafam_expander.get_expanded())
-        self.assertEqual(view.widgets.order_entry.get_text(), "Cycadales")
-        self.assertEqual(view.widgets.suborder_entry.get_text(), "Zamiineae")
+        editor = FamilyEditorDialog(fam, db.Session())
 
-        presenter.cleanup()
-        del presenter
+        self.assertTrue(editor.suprafam_expander.get_expanded())
+        self.assertEqual(editor.order_entry.get_text(), "Cycadales")
+        self.assertEqual(editor.suborder_entry.get_text(), "Zamiineae")
+
+        editor.destroy()
+        del editor
+        update_gui()
 
     def test_order_get_completions(self):
         fam = self.session.query(Family).get(8)
-        view = FamilyEditorView()
-        presenter = FamilyEditorPresenter(fam, view)
+        editor = FamilyEditorDialog(fam, db.Session())
         # order
-        self.assertEqual(presenter.order_get_completions("Cyc"), ["Cycadales"])
+        self.assertEqual(editor.order_get_completions("Cyc"), ["Cycadales"])
         # case insensitive
-        self.assertEqual(presenter.order_get_completions("cyc"), ["Cycadales"])
+        self.assertEqual(editor.order_get_completions("cyc"), ["Cycadales"])
         # no match
-        self.assertEqual(presenter.order_get_completions("Zam"), [])
-        presenter.cleanup()
-        del presenter
+        self.assertEqual(editor.order_get_completions("Zam"), [])
+
+        editor.destroy()
+        del editor
+        update_gui()
 
     def test_suborder_get_completions(self):
         fam = self.session.query(Family).get(8)
-        view = FamilyEditorView()
-        presenter = FamilyEditorPresenter(fam, view)
+        editor = FamilyEditorDialog(fam, db.Session())
         # wrong order
-        self.assertEqual(presenter.suborder_get_completions("Pol"), [])
+        self.assertEqual(editor.suborder_get_completions("Pol"), [])
         # right order
-        self.assertEqual(
-            presenter.suborder_get_completions("Zam"), ["Zamiineae"]
-        )
+        self.assertEqual(editor.suborder_get_completions("Zam"), ["Zamiineae"])
         # case insensitive
-        self.assertEqual(
-            presenter.suborder_get_completions("zam"), ["Zamiineae"]
-        )
+        self.assertEqual(editor.suborder_get_completions("zam"), ["Zamiineae"])
 
-        presenter.cleanup()
-        del presenter
+        editor.destroy()
+        del editor
+        update_gui()
 
-    def test_set_model_attr(self):
+    def test_can_commit(self):
         fam = self.session.query(Family).get(8)
-        view = FamilyEditorView()
-        self.assertEqual(fam.qualifier, "")
-        presenter = FamilyEditorPresenter(fam, view)
-        self.assertFalse(presenter._dirty)
-        presenter.set_model_attr("qualifier", "s. lat.")
-        self.assertEqual(fam.qualifier, "s. lat.")
-        self.assertTrue(presenter._dirty)
+        # not modified no problems
+        editor = FamilyEditorDialog(fam, db.Session())
+
+        self.assertFalse(editor.can_commit)
+
+        # is modified
+        editor.model.qualifier = "s. lat."
+
+        self.assertTrue(editor.can_commit)
+
+        # has problems
+        editor.add_problem(editor.PROBLEM_NOT_UNIQUE, editor.family_entry)
+
+        self.assertFalse(editor.can_commit)
+
+        editor.destroy()
+        del editor
+        update_gui()
 
     def test_is_sensitive_new_w_family(self):
         fam = Family()
         self.session.add(fam)
-        view = FamilyEditorView()
-        FamilyEditorPresenter(fam, view)
+        editor = FamilyEditorDialog(fam, db.Session())
+        ok_button = editor.get_widget_for_response(-5)
 
-        self.assertFalse(view.widgets.fam_ok_button.get_sensitive())
+        self.assertFalse(ok_button.get_sensitive())
+
+        editor.destroy()
+        del editor
+        update_gui()
 
         fam.family = "Spamaceae"
-        view = FamilyEditorView()
-        FamilyEditorPresenter(fam, view)
+        editor = FamilyEditorDialog(fam, db.Session())
 
-        self.assertTrue(view.widgets.fam_ok_button.get_sensitive())
+        ok_button = editor.get_widget_for_response(-5)
+
+        self.assertTrue(ok_button.get_sensitive())
+
+        editor.destroy()
+        del editor
+        update_gui()
 
 
 class GenusTests(PlantTestCase):
@@ -2439,10 +2438,10 @@ class GenusEditorTests(PlantTestCase):
         presenter.cleanup()
         del presenter
 
-    @mock.patch("bauble.plugins.plants.family.FamilyEditor")
+    @mock.patch("bauble.plugins.plants.ui.family_editor.FamilyEditorDialog")
     def test_on_family_add_button_clicked(self, mock_fam_editor):
         # test bails
-        mock_fam_editor().start.return_value = None
+        mock_fam_editor().run.return_value = Gtk.ResponseType.CANCEL
         mock_fam_editor.reset_mock()
         gen = Genus(epithet="genus")
         self.session.add(gen)
@@ -2466,7 +2465,8 @@ class GenusEditorTests(PlantTestCase):
         view.start.return_value = gen
         presenter = GenusEditorPresenter(gen, view)
         view.widgets.gen_family_entry.set_text("Eg")
-        mock_fam_editor().start.return_value = [Family(epithet="Spamaceae")]
+        mock_fam_editor().run.return_value = Gtk.ResponseType.OK
+        mock_fam_editor().model = Family(epithet="Spamaceae")
         mock_fam_editor.reset_mock()
         presenter.on_family_add_button_clicked(None)
 
@@ -3767,7 +3767,7 @@ class SpeciesInfoBoxTests(BaubleTestCase):
             "vernacular_name where name = 'Scrub Cherry'",
         )
 
-    @mock.patch("bauble.plugins.plants.widgets.on_clicked_select")
+    @mock.patch("bauble.plugins.plants.ui.widgets.on_clicked_select")
     def test_synonyms_expander_w_accepted(self, mock_select):
         expander = SynonymsExpander()
         fam = Family(epithet="Myrtaceae")
@@ -3801,7 +3801,7 @@ class SpeciesInfoBoxTests(BaubleTestCase):
             sp,
         )
 
-    @mock.patch("bauble.plugins.plants.widgets.on_clicked_select")
+    @mock.patch("bauble.plugins.plants.ui.widgets.on_clicked_select")
     def test_synonyms_expander_w_syns(self, mock_select):
         expander = SynonymsExpander()
         fam = Family(epithet="Myrtaceae")
