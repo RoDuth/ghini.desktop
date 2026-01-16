@@ -887,6 +887,16 @@ def verify_connection(new_engine, show_error_dialogs=False):
     return True
 
 
+class Note(Base):
+
+    __abstract__ = True
+
+    date: datetime.datetime
+    user: str
+    category: str
+    owner: sa_synonym
+
+
 def make_note_class(name, cls_type="note", extra_columns=None):
     """Dynamically create a related table class of the notes type.
 
@@ -921,7 +931,7 @@ def make_note_class(name, cls_type="note", extra_columns=None):
     if extra_columns:
         obj_dict.update(extra_columns)
 
-    result = type(class_name, (Base,), obj_dict)
+    result = type(class_name, (Note,), obj_dict)
     return result
 
 

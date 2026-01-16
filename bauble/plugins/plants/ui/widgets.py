@@ -29,7 +29,6 @@ from typing import cast
 from gi.repository import GLib
 from gi.repository import GObject
 from gi.repository import Gtk
-from sqlalchemy.exc import InvalidRequestError
 from sqlalchemy.orm import Query
 from sqlalchemy.orm import Session
 from sqlalchemy.orm import object_session
@@ -117,7 +116,8 @@ class SynonymsPresenter(Gtk.Frame):
     be used with any Taxon editor.
 
     To use, include in your ``.ui`` file definition or instantiate otherwise
-    then call ``init`` on it.
+    then call ``init`` on it.  To react to changes connect to the ``changed``
+    signal.
     """
 
     __gtype_name__ = "SynonymsPresenter"

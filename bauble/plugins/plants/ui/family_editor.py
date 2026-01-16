@@ -47,6 +47,7 @@ from bauble.ui.presenter import Problem
 from bauble.ui.presenter import Response
 from bauble.ui.presenter import default_dialog_update
 from bauble.ui.widgets import LinksMenuButton
+from bauble.ui.widgets import NotesPresenter
 
 from ..family import Family
 from ..family import FamilySynonym
@@ -102,8 +103,7 @@ class FamilyEditorDialog(
     cites_combo = cast(Gtk.ComboBox, Gtk.Template.Child())
 
     synonyms_presenter = cast(SynonymsPresenter, Gtk.Template.Child())
-
-    notes_parent_box = cast(Gtk.Box, Gtk.Template.Child())
+    notes_presenter = cast(NotesPresenter, Gtk.Template.Child())
     links_menu_btn = cast(LinksMenuButton, Gtk.Template.Child())
 
     on_entry_w_completion_changed = EntryWCompletionHandler()
@@ -127,8 +127,6 @@ class FamilyEditorDialog(
 
         super().__init__(model, self, transient_for=transient_for)
 
-        self.links_menu_btn.init(model, FAMILY_WEB_BUTTON_DEFS_PREFS)
-
         self.widgets_to_model_map = {
             self.family_entry: "epithet",
             self.author_entry: "author",
@@ -143,6 +141,7 @@ class FamilyEditorDialog(
 
         self.refresh_all_widgets_from_model()
         self.family_entry.emit("changed")
+
         self.synonyms_presenter.init(
             self.model,
             FamilySynonym,
@@ -153,6 +152,9 @@ class FamilyEditorDialog(
                 .order_by(Family.family)
             ),
         )
+        self.links_menu_btn.init(model, FAMILY_WEB_BUTTON_DEFS_PREFS)
+        self.notes_presenter.init(model)
+
         if any(getattr(self.model, i) for i in ("order", "suborder")):
             self.suprafam_expander.set_expanded(True)
 
@@ -174,8 +176,9 @@ class FamilyEditorDialog(
             )
 
         no_problems = not self.problems
+        notes_can_commit = self.notes_presenter.can_commit
 
-        return all((modified, no_problems))
+        return all((modified, no_problems, notes_can_commit))
 
     @Gtk.Template.Callback()
     def on_changed(self, _presenter: Gtk.Widget) -> None:

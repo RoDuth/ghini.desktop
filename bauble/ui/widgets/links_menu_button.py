@@ -37,7 +37,7 @@ class LinksMenuButton(Gtk.MenuButton):
     within the editor.
 
     To use, include the widget, either in the ``.ui`` file or directly then
-    call ``init_links_menu`` on instantiation supplying the model and
+    call ``init`` on instantiation supplying the model and
     preference key pointing to the web link definitions. e.g.::
 
         FOO_WEB_LINKS_PREFS = "web_button_defs.foo"
@@ -52,7 +52,7 @@ class LinksMenuButton(Gtk.MenuButton):
             def __init__(self, model: FooModel) -> None:
                 super().__init__()
 
-                self.link_menu_btn.init_links_menu(model, FOO_WEB_LINKS_PREFS)
+                self.link_menu_btn.init(model, FOO_WEB_LINKS_PREFS)
 
     """
 

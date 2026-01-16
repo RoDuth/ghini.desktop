@@ -25,6 +25,7 @@ from typing import Any
 from typing import Protocol
 
 from bauble import db
+from bauble.btypes import parse_str_date
 from bauble.error import BaubleError
 
 
@@ -91,3 +92,8 @@ def validate_unique(value: str, *args: Any) -> bool:
         if exists is not None and exists is not model:
             return False
     return True
+
+
+def validate_date(value: str, *_args: Any) -> bool:
+    """Validator functiion to check value is a valid string date."""
+    return parse_str_date(value) is not None

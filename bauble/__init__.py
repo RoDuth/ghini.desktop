@@ -219,5 +219,5 @@ def command_handler(cmd, arg):
 from bauble.i18n import _
 from bauble.ui.gui import GUI
 
-gui: GUI = GUI()
-"""bauble.gui is the instance :class:`bauble.ui.GUI`"""
+gui: GUI
+"""bauble.gui is the instance :class:``bauble.ui.gui.GUI``"""

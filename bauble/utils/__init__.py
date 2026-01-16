@@ -630,7 +630,7 @@ def _string(value: Any) -> str:
         # the default date format
         from bauble import prefs
 
-        date_format = prefs.prefs[prefs.date_format_pref]
+        date_format = prefs.prefs[prefs.date_format_pref] or "%Y-%m-%d"
         return value.strftime(date_format)
     return str(value)
 

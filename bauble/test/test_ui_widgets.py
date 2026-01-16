@@ -1,3 +1,4 @@
+# pylint: disable=no-self-use
 # Copyright (c) 2026 Ross Demuth <rossdemuth123@gmail.com>
 #
 # This file is part of ghini.desktop.
@@ -17,15 +18,22 @@
 """
 Generic widgets tests
 """
+from datetime import datetime
+from unittest import TestCase
 from unittest import mock
 
 from gi.repository import Gtk
 
+from bauble.error import BaubleError
 from bauble.plugins.garden.location import Location
+from bauble.plugins.garden.location import LocationNote
 from bauble.plugins.plants.family import Family
+from bauble.plugins.plants.geography import Geography
 from bauble.plugins.plants.ui.family_editor import FAMILY_WEB_BUTTON_DEFS_PREFS
 from bauble.test import BaubleClassTestCase
+from bauble.ui.widgets.date_picker import DatePickerBox
 from bauble.ui.widgets.links_menu_button import LinksMenuButton
+from bauble.ui.widgets.notes_presenter import NotesPresenter
 
 
 class LinksMenuButtonTests(BaubleClassTestCase):
@@ -106,3 +114,132 @@ class LinksMenuButtonTests(BaubleClassTestCase):
         mock_open.assert_called_with("http://www.google.com/search?q=Fooaceae")
 
         box.destroy()
+
+
+class DatePickerBoxTests(TestCase):
+    def test_sets_calendar_from_entry(self):
+        box = DatePickerBox()
+        box.init()
+
+        box.entry.set_text("4th of April 2004")
+
+        year, month, day = box.button.calendar.get_date()
+
+        self.assertEqual(year, 2004)
+        self.assertEqual(month + 1, 4)
+        self.assertEqual(day, 4)
+
+        # resets to today
+        with mock.patch.object(box, "emit") as mock_emit:
+            box.entry.set_text("")
+
+        year, month, day = box.button.calendar.get_date()
+
+        today = datetime.today().date()
+        self.assertEqual(year, today.year)
+        self.assertEqual(month + 1, today.month)
+        self.assertEqual(day, today.day)
+        mock_emit.assert_called_once_with("changed")
+
+        box.destroy()
+
+    def test_on_selected(self):
+        box = DatePickerBox()
+        box.init()
+        box.button.calendar.select_month(1, 2002)
+        box.button.calendar.select_day(2)
+        with mock.patch.object(box, "emit") as mock_emit:
+            box.button.calendar.emit("day-selected-double-click")
+
+        self.assertEqual(box.entry.get_text(), "02-02-2002")
+        mock_emit.assert_called_once_with("changed")
+
+        box.destroy()
+
+
+class NotesPresenterTests(BaubleClassTestCase):
+    def test_init(self):
+        # without notes
+        presenter = NotesPresenter()
+
+        presenter.init(Location())
+
+        self.assertIs(presenter.note_cls, LocationNote)
+        self.assertEqual(len(presenter.expander_box.get_children()), 0)
+
+        presenter.destroy()
+
+        # with note
+        loc = Location(code="Loc1")
+        loc.notes.append(LocationNote(note="Test"))
+        presenter = NotesPresenter()
+
+        presenter.init(loc)
+
+        self.assertIs(presenter.note_cls, LocationNote)
+        self.assertEqual(len(presenter.expander_box.get_children()), 1)
+
+        presenter.destroy()
+
+        # not notes errors
+        presenter = NotesPresenter()
+        self.assertRaises(BaubleError, presenter.init, Geography())
+
+        presenter.destroy()
+
+    def test_add_note_button_clicked(self):
+        presenter = NotesPresenter()
+        loc = Location()
+        presenter.init(loc)
+
+        presenter.on_add_button_clicked(None)
+
+        self.assertEqual(len(loc.notes), 1)
+        self.assertEqual(len(presenter.expander_box.get_children()), 1)
+
+        presenter.destroy()
+
+    def test_on_changed_emits(self):
+        # test it cascades
+        loc = Location(code="Loc1")
+        # catch some edge cases on the label
+        loc.notes.append(LocationNote(user="Me", note="Test " * 6))
+        presenter = NotesPresenter()
+        presenter.init(loc)
+        note_boxes = presenter.expander_box.get_children()
+
+        with mock.patch.object(presenter, "emit") as mock_emit:
+            note_boxes[0].emit("changed")
+            mock_emit.assert_called_once_with("changed")
+
+        presenter.destroy()
+
+    def test_can_commit(self):
+        loc = Location(code="Loc1")
+        loc.notes.append(LocationNote(note="Test1"))
+        loc.notes.append(LocationNote(note="Test2"))
+        presenter = NotesPresenter()
+        presenter.init(loc)
+
+        self.assertTrue(presenter.can_commit)
+
+        note_boxes = presenter.expander_box.get_children()
+        note_boxes[1].date_entry.set_text("BOOM")
+
+        self.assertFalse(presenter.can_commit)
+
+        presenter.destroy()
+
+    def test_on_remove_button_clicked(self):
+        loc = Location(code="Loc1")
+        loc.notes.append(LocationNote(note="Test1"))
+        loc.notes.append(LocationNote(note="Test2"))
+        presenter = NotesPresenter()
+        presenter.init(loc)
+        note_boxes = presenter.expander_box.get_children()
+        note_boxes[0].on_remove_button_clicked(None)
+
+        self.assertEqual(len(loc.notes), 1)
+        self.assertEqual(len(presenter.expander_box.get_children()), 1)
+
+        presenter.destroy()
