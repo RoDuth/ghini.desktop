@@ -285,18 +285,20 @@ class FamilyEditorDialog(
     ) -> bool:
         if response in [Response.NEXT, Response.ADD, Response.OK]:
             if self.do_commit() is False:
+                logger.debug("commit failed")
                 dialog.stop_emission_by_name("response")
                 return True
 
         if response == Response.NEXT:
-            GLib.idle_add(edit_callback)
+            edit_callback()
 
         elif response == Response.ADD:
-            GLib.idle_add(add_genera_callback, [self.model])
+            add_genera_callback([self.model])
 
         elif response == Response.CANCEL:
             # most likely not needed
             self.session.rollback()
+            self.session.close()
 
         if not self.get_modal():
             # allow chaining response signal
