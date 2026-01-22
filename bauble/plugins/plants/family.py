@@ -94,7 +94,10 @@ class Family(Taxon, db.WithNotes):
     """
 
     __tablename__ = "family"
-    __table_args__: tuple = (UniqueConstraint("family", "author"), {})
+    __table_args__: tuple = (
+        UniqueConstraint("family", "author", "qualifier"),
+        {},
+    )
 
     rank = "familia"
     link_keys = ["accepted"]
