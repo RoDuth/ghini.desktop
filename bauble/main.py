@@ -18,6 +18,9 @@
 The main application entry point.
 """
 import logging
+
+logger = logging.getLogger(__name__)
+
 import shutil
 import sys
 import traceback
@@ -40,7 +43,6 @@ from bauble.connmgr import ConnectionManagerDialog
 from bauble.connmgr import start_connection_manager
 from bauble.i18n import _
 
-logger = logging.getLogger(__name__)
 
 
 class Application(Gtk.Application):
@@ -120,7 +122,7 @@ class Application(Gtk.Application):
         while True:
             if not uri or not conn_name:
                 conn_name, uri = start_connection_manager()
-                logger.debug("conn_name = %s")
+                logger.debug("conn_name = %s", conn_name)
                 if conn_name is None or uri is None:
                     self.quit()
                     return False
@@ -167,7 +169,7 @@ class Application(Gtk.Application):
         # load the plugins
         pluginmgr.load()
 
-        # save any changes made in the conn manager before anything else has
+        # save any changes made in the conn manager before anything else has a
         # chance to crash
         prefs.prefs.save()
 
@@ -268,6 +270,36 @@ class Application(Gtk.Application):
         Gtk.Application.do_shutdown(self, *args, **kwargs)
 
 
+class WidgetCounter:  # pylint: disable=too-few-public-methods
+    def __init__(self) -> None:
+        self.count = 0
+
+    def __call__(self) -> bool:
+        import gc
+
+        objs = [o for o in gc.get_objects() if isinstance(o, Gtk.Widget)]
+
+        count = len(objs)
+        if self.count != count:
+            print("widget count:", count)
+            logger.debug("widget count: %s", count)
+            self.count = count
+
+        return True
+
+
+widget_counter = WidgetCounter()
+
+
 def main(splash: Gtk.Window) -> int:
     app = Application(splash)
+
+    # *** to debug widget garbage collection uncomment the below. ***
+
+    from gi.repository import GLib
+
+    GLib.timeout_add(1000, widget_counter)
+
+    # ***
+
     return app.run(sys.argv)
