@@ -29,7 +29,6 @@ import os
 import traceback
 from collections.abc import Sequence
 from datetime import datetime
-from pathlib import Path
 from typing import Self
 from typing import cast as t_cast
 
@@ -44,7 +43,6 @@ from sqlalchemy import UniqueConstraint
 from sqlalchemy import and_
 from sqlalchemy import case
 from sqlalchemy import cast
-from sqlalchemy import distinct
 from sqlalchemy import event
 from sqlalchemy import exists
 from sqlalchemy import func
@@ -79,15 +77,9 @@ from bauble import utils
 from bauble.i18n import _
 from bauble.ui.presenter import Response
 from bauble.view import Action
-from bauble.view import InfoBox
-from bauble.view import InfoExpanderMixin
-from bauble.view import LinksExpander
-from bauble.view import PropertiesExpander
-from bauble.view import on_clicked_search
 
 from .model import Synonym
 from .model import Taxon
-from .ui.widgets import SynonymsExpander
 
 # TODO: warn the user that a duplicate genus name is being entered
 # even if only the author or qualifier is different
@@ -1160,192 +1152,3 @@ class GenusEditor(editor.GenericModelViewPresenterEditor):
         self.presenter.cleanup()
         self.session.close()  # cleanup session
         return self._committed
-
-
-def infobox_counts(id_: int) -> dict[str, int]:
-    from ..garden import Accession
-    from ..garden import Plant
-
-    stmt = (
-        select(
-            func.count(distinct(Species.id)),
-            func.count(distinct(Accession.species_id)),
-            func.count(distinct(Accession.id)),
-            func.count(distinct(Plant.accession_id)),
-            func.count(Plant.id),
-            func.sum(Plant.quantity),
-        )
-        .select_from(Genus)
-        .outerjoin(Species)
-        .outerjoin(Accession)
-        .outerjoin(Plant)
-        .where(Genus.id == id_)
-    )
-    with db.engine.begin() as connection:
-        counts = connection.execute(stmt).one()
-
-    keys = (
-        "species",
-        "sp_w_acc",
-        "accessions",
-        "acc_w_plants",
-        "plants",
-        "living_plants",
-    )
-
-    return dict(zip(keys, counts, strict=True))
-
-
-@Gtk.Template(
-    filename=str(Path(__file__).resolve().parent / "genus_expander.ui")
-)
-class GeneralGenusExpander(InfoExpanderMixin[Genus], Gtk.Expander):
-
-    __gtype_name__ = "GeneralGenusExpander"
-
-    general_box = t_cast(Gtk.Box, Gtk.Template.Child())
-    name_label = t_cast(Gtk.Label, Gtk.Template.Child())
-    fam_label = t_cast(Gtk.Label, Gtk.Template.Child())
-    subfam_label = t_cast(Gtk.Label, Gtk.Template.Child())
-    tribe_label = t_cast(Gtk.Label, Gtk.Template.Child())
-    subtribe_label = t_cast(Gtk.Label, Gtk.Template.Child())
-    num_taxa_label = t_cast(Gtk.Label, Gtk.Template.Child())
-    num_acc_label = t_cast(Gtk.Label, Gtk.Template.Child())
-    num_plants_label = t_cast(Gtk.Label, Gtk.Template.Child())
-    living_plants_label = t_cast(Gtk.Label, Gtk.Template.Child())
-    cites_label = t_cast(Gtk.Label, Gtk.Template.Child())
-
-    def __init__(self) -> None:
-        super().__init__(label=_("General"))
-        self.connect("notify::expanded", self.on_expanded)
-        self.has_details = False
-
-    def update(self, row: Genus) -> None:
-        self.has_details = any((row.subfamily, row.tribe, row.subtribe))
-        self.update_details(row)
-        self.name_label.set_markup(
-            f"<big>{row.markup()}</big> {utils.xml_safe(str(row.author))}",
-        )
-        self.update_family(row)
-        self.update_counts(row)
-        self.update_clickable_labels(row)
-
-    def update_family(self, row: Genus) -> None:
-
-        self.fam_label.set_markup(utils.xml_safe(str(row.family)))
-
-        from .species import on_taxa_clicked
-
-        utils.make_label_clickable(
-            self.fam_label,
-            on_taxa_clicked,
-            row.family,
-        )
-
-    def update_details(self, row: Genus) -> None:
-        """Provides higher parts, if they exist, above the genus name."""
-
-        self.subfam_label.set_markup(
-            f"> {utils.xml_safe(row.subfamily)}" if row.subfamily else "",
-        )
-
-        if row.subfamily:
-            utils.make_label_clickable(
-                self.subfam_label,
-                on_clicked_search,
-                f"genus where subfamily = {row.subfamily}",
-            )
-
-        self.tribe_label.set_markup(
-            f"> {utils.xml_safe(row.tribe)}" if row.tribe else "",
-        )
-
-        if row.tribe:
-            utils.make_label_clickable(
-                self.tribe_label,
-                on_clicked_search,
-                f"genus where tribe = {row.tribe}",
-            )
-
-        self.subtribe_label.set_markup(
-            f"> {utils.xml_safe(row.subtribe)}" if row.subtribe else "",
-        )
-
-        if row.subtribe:
-            utils.make_label_clickable(
-                self.subtribe_label,
-                on_clicked_search,
-                f"genus where subtribe = {row.subtribe}",
-            )
-
-    def update_counts(self, row: Genus) -> None:
-        counts = infobox_counts(row.id)
-
-        self.num_taxa_label.set_label("0")
-        self.num_acc_label.set_label("0")
-        self.num_plants_label.set_label("0")
-
-        if counts["species"]:
-            self.num_taxa_label.set_label(str(counts["species"]))
-
-        if counts["accessions"]:
-            self.num_acc_label.set_label(
-                f"{counts['accessions']} in {counts['sp_w_acc']} species"
-            )
-
-        if counts["plants"]:
-            self.num_plants_label.set_label(
-                f"{counts['plants']} in {counts['acc_w_plants']} accessions"
-            )
-
-        self.living_plants_label.set_label(str(counts["living_plants"] or 0))
-        self.cites_label.set_label(row.cites or "")
-
-    def update_clickable_labels(self, row: Genus) -> None:
-        labels_to_searches = (
-            (
-                self.num_taxa_label,
-                f"species where genus.id = {row.id}",
-            ),
-            (
-                self.num_acc_label,
-                f"accession where species.genus.id = {row.id}",
-            ),
-            (
-                self.num_plants_label,
-                f"plant where accession.species.genus.id = {row.id}",
-            ),
-            (
-                self.cites_label,
-                f"family where cites = {row.cites}",
-            ),
-            (
-                self.living_plants_label,
-                f"plant where accession.species.genus.id = {row.id} "
-                "and quantity > 0",
-            ),
-        )
-
-        for label, search in labels_to_searches:
-            utils.make_label_clickable(
-                label,
-                on_clicked_search,
-                search,
-            )
-
-
-class GenusInfoBox(InfoBox):
-
-    def __init__(self):
-        super().__init__()
-        self.add_expander(GeneralGenusExpander())
-        self.add_expander(SynonymsExpander[Genus]())
-
-        button_defs = []
-        buttons = prefs.prefs.itersection(GENUS_WEB_BUTTON_DEFS_PREFS)
-        for name, button in buttons:
-            button["name"] = name
-            button_defs.append(button)
-
-        self.add_expander(LinksExpander("notes", links=button_defs))
-        self.add_expander(PropertiesExpander())

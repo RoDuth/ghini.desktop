@@ -57,7 +57,6 @@ from .family import Familia
 from .family import Family
 from .genus import Genus
 from .genus import GenusEditor
-from .genus import GenusInfoBox
 from .genus import edit_callback as genus_edit_callback
 from .genus import genus_context_menu
 from .geography import DistributionMap
@@ -84,6 +83,7 @@ from .ui.family_editor import create_family
 from .ui.family_editor import edit_callback as family_edit_callback
 from .ui.family_view import FamilyInfoBox
 from .ui.family_view import family_context_menu
+from .ui.genus_view import GenusInfoBox
 
 # imported by clients of the module
 __all__ = ["Familia", "SpeciesDistribution"]

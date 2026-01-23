@@ -66,12 +66,10 @@ from .family import Family
 from .family import FamilyNote
 from .family import FamilySynonym
 from .genus import GENUS_WEB_BUTTON_DEFS_PREFS
-from .genus import GeneralGenusExpander
 from .genus import Genus
 from .genus import GenusEditor
 from .genus import GenusEditorPresenter
 from .genus import GenusEditorView
-from .genus import GenusInfoBox
 from .genus import GenusNote
 from .genus import GenusSynonym
 from .genus import generic_gen_get_completions
@@ -136,6 +134,8 @@ from .ui.family_editor import FAMILY_WEB_BUTTON_DEFS_PREFS
 from .ui.family_editor import FamilyEditorDialog
 from .ui.family_view import FamilyInfoBox
 from .ui.family_view import GeneralFamilyExpander
+from .ui.genus_view import GeneralGenusExpander
+from .ui.genus_view import GenusInfoBox
 
 #
 # TODO: things to create tests for
