@@ -17,6 +17,8 @@
 """
 Genus GUI search view components.
 """
+import traceback
+from collections.abc import Sequence
 from pathlib import Path
 from typing import cast
 
@@ -24,11 +26,14 @@ from gi.repository import Gtk  # noqa
 from sqlalchemy import distinct
 from sqlalchemy import func
 from sqlalchemy import select
+from sqlalchemy.orm import Session
+from sqlalchemy.orm.session import object_session
 
 from bauble import db
 from bauble import prefs
 from bauble import utils
 from bauble.i18n import _
+from bauble.view import Action
 from bauble.view import InfoBox
 from bauble.view import InfoExpanderMixin
 from bauble.view import LinksExpander
@@ -38,9 +43,10 @@ from bauble.view import on_clicked_search
 from ..genus import Genus
 from ..species import on_taxa_clicked
 from ..species_model import Species
+from .genus_editor import GENUS_WEB_BUTTON_DEFS_PREFS
+from .genus_editor import add_species_callback
+from .genus_editor import edit_callback
 from .widgets import SynonymsExpander
-
-GENUS_WEB_BUTTON_DEFS_PREFS = "web_button_defs.genus"
 
 
 def infobox_counts(id_: int) -> dict[str, int]:
@@ -228,3 +234,74 @@ class GenusInfoBox(InfoBox):
 
         self.add_expander(LinksExpander("notes", links=button_defs))
         self.add_expander(PropertiesExpander())
+
+
+def remove_callback(
+    objs: Sequence["Genus"],
+    **_kwargs,
+) -> bool:
+    genera = objs
+    genus = genera[0]
+    gen_lst = []
+    session = object_session(genus)
+    if not isinstance(session, Session):
+        return False
+
+    for genus in genera:
+        num_sp = len(genus.species)
+        safe_str = utils.xml_safe(str(genus))
+        gen_lst.append(safe_str)
+        if num_sp > 0:
+            msg = _(
+                "The genus <i>%(gen)s</i> has %(num_sp)s species.\n\n"
+                "You cannot remove a genus with species."
+            ) % {"gen": safe_str, "num_sp": num_sp}
+            utils.message_dialog(msg, typ=Gtk.MessageType.WARNING)
+
+            return False
+
+        msg = _(
+            "Are you sure you want to remove the following genera "
+            "<i>%s</i>?"
+        ) % ", ".join(gen_lst)
+    if not utils.yes_no_dialog(msg):
+
+        return False
+
+    for genus in genera:
+        session.delete(genus)
+    try:
+        session.commit()
+    except Exception as e:  # pylint: disable=broad-except
+        msg = _("Could not delete.\n\n%s") % utils.xml_safe(e)
+        utils.message_details_dialog(
+            msg, traceback.format_exc(), Gtk.MessageType.ERROR
+        )
+        session.rollback()
+
+        return False
+
+    return True
+
+
+edit_action = Action(
+    "genus_edit",
+    _("_Edit"),
+    callback=edit_callback,
+    accelerator="<ctrl>e",
+)
+add_species_action = Action(
+    "genus_sp_add",
+    _("_Add species"),
+    callback=add_species_callback,
+    accelerator="<ctrl>k",
+)
+remove_action = Action(
+    "genus_remove",
+    _("_Delete"),
+    callback=remove_callback,
+    accelerator="<ctrl>Delete",
+    multiselect=True,
+)
+
+genus_context_menu = [edit_action, add_species_action, remove_action]

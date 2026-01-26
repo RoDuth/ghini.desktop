@@ -84,6 +84,7 @@ from .ui.family_editor import edit_callback as family_edit_callback
 from .ui.family_view import FamilyInfoBox
 from .ui.family_view import family_context_menu
 from .ui.genus_view import GenusInfoBox
+from .ui.genus_view import genus_context_menu
 
 # imported by clients of the module
 __all__ = ["Familia", "SpeciesDistribution"]

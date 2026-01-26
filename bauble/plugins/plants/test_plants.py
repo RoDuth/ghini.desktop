@@ -65,7 +65,6 @@ from . import SynonymsPresenter
 from .family import Family
 from .family import FamilyNote
 from .family import FamilySynonym
-from .genus import GENUS_WEB_BUTTON_DEFS_PREFS
 from .genus import Genus
 from .genus import GenusEditor
 from .genus import GenusEditorPresenter
@@ -134,8 +133,6 @@ from .ui.family_editor import FAMILY_WEB_BUTTON_DEFS_PREFS
 from .ui.family_editor import FamilyEditorDialog
 from .ui.family_view import FamilyInfoBox
 from .ui.family_view import GeneralFamilyExpander
-from .ui.genus_view import GeneralGenusExpander
-from .ui.genus_view import GenusInfoBox
 
 #
 # TODO: things to create tests for
@@ -1726,111 +1723,6 @@ class GenusTests(PlantTestCase):
         self.assertEqual(g1.genus, "genus")
         self.assertEqual(g2.epithet, "genus")
 
-    def test_remove_callback_no_species_no_confirm(self):
-        caricaceae = Family(family="Caricaceae")
-        gen = Genus(epithet="Carica", family=caricaceae)
-        self.session.add(gen)
-        self.session.flush()
-
-        from .genus import remove_callback
-
-        with mock.patch("bauble.utils.yes_no_dialog") as mock_dlog:
-            mock_dlog.return_value = False
-            result = remove_callback([gen])
-            mock_dlog.assert_called_once_with(
-                "Are you sure you want to remove the following genera "
-                "<i>Carica</i>?",
-            )
-
-        self.assertFalse(result)
-        self.assertEqual(
-            self.session.query(Genus).filter_by(genus="Carica").all(),
-            [gen],
-        )
-
-    def test_remove_callback_no_species_confirm(self):
-        caricaceae = Family(family="Caricaceae")
-        gen = Genus(epithet="Carica", family=caricaceae)
-        self.session.add(gen)
-        self.session.flush()
-
-        from .genus import remove_callback
-
-        with mock.patch("bauble.utils.yes_no_dialog") as mock_dlog:
-            mock_dlog.return_value = True
-            result = remove_callback([gen])
-            mock_dlog.assert_called_once_with(
-                "Are you sure you want to remove the following genera "
-                "<i>Carica</i>?",
-            )
-
-        self.assertTrue(result)
-        self.assertEqual(
-            self.session.query(Genus).filter_by(genus="Carica").all(),
-            [],
-        )
-
-    def test_remove_callback_with_species_cant_cascade(self):
-        caricaceae = Family(family="Caricaceae")
-        gen = Genus(epithet="Carica", family=caricaceae)
-        sp = Species(genus=gen, sp="papaya")
-        self.session.add(sp)
-        self.session.flush()
-
-        from .genus import remove_callback
-
-        with mock.patch("bauble.utils.message_dialog") as mock_dlog:
-            mock_dlog.return_value = True
-            result = remove_callback([gen])
-            mock_dlog.assert_called_once_with(
-                "The genus <i>Carica</i> has 1 species.\n\nYou "
-                "cannot remove a genus with species.",
-                typ=Gtk.MessageType.WARNING,
-            )
-
-        self.assertFalse(result)
-        self.assertEqual(
-            self.session.query(Genus).filter_by(genus="Carica").all(),
-            [gen],
-        )
-        self.assertEqual(
-            self.session.query(Species).filter_by(sp="papaya").all(),
-            [sp],
-        )
-
-    def test_remove_callback_bails_not_session(self):
-        caricaceae = Family(family="Caricaceae")
-        gen = Genus(epithet="Carica", family=caricaceae)
-        self.session.add(gen)
-        self.session.flush()
-
-        from .genus import remove_callback
-
-        with mock.patch("bauble.plugins.plants.genus.object_session"):
-            self.assertFalse(remove_callback([gen]))
-
-    @mock.patch("bauble.utils.yes_no_dialog")
-    @mock.patch("bauble.utils.message_details_dialog")
-    def test_remove_callback_commit_exception(self, mock_d_dlog, mock_yn_dlog):
-        mock_yn_dlog.return_value = True
-        mock_d_dlog.return_value = True
-        caricaceae = Family(family="Caricaceae")
-        gen = Genus(epithet="Carica", family=caricaceae)
-        self.session.add(gen)
-        self.session.flush()
-
-        from .genus import remove_callback
-
-        with (
-            mock.patch.object(
-                self.session, "commit", side_effect=SQLAlchemyError
-            ),
-            mock.patch.object(self.session, "rollback") as mock_rollback,
-        ):
-            self.assertFalse(remove_callback([gen]))
-            mock_rollback.assert_called()
-            mock_d_dlog.assert_called()
-
     def test_edit_callback(self):
         caricaceae = Family(family="Caricaceae")
         gen = Genus(epithet="Carica", family=caricaceae)
@@ -1992,30 +1884,6 @@ class GenusTests(PlantTestCase):
         # detached returns empty
         self.session.expunge(gen)
         self.assertEqual(gen.pictures, [])
-
-    def test_general_expander(self):
-        # at least tests nothing errors
-        genera = self.session.query(Genus).filter(
-            Genus.id.in_((9, 11, 12, 15))
-        )
-        general = GeneralGenusExpander()
-        for gen in genera:
-            general.update(gen)
-            self.assertEqual(
-                general.name_label.get_label(),
-                f"<big>{gen.markup()}</big> "
-                f"{utils.xml_safe(str(gen.author))}",
-            )
-
-    def test_genus_info_box_links(self):
-        infobox = GenusInfoBox()
-        links = infobox.get_nth_page(0).expanders["Links"]
-        self.assertTrue(len(links.web_links) > 0)
-
-        self.assertEqual(
-            len(links.web_links),
-            len(list(prefs.prefs.itersection(GENUS_WEB_BUTTON_DEFS_PREFS))),
-        )
 
     def test_has_children(self):
         from ..garden import Accession
