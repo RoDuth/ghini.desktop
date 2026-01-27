@@ -2413,7 +2413,8 @@ class GeneralPlantExpander(InfoExpander):
         image_size = Gtk.IconSize.MENU
         icon = None
         if row.memorial:
-            icon = "emblem-ok-symbolic"
+            icon = "object-select-symbolic"
+
         self.widgets.memorial_image.set_from_icon_name(icon, image_size)
 
         on_clicked = utils.generate_on_clicked(select_in_search_results)
