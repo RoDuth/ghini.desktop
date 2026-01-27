@@ -41,6 +41,7 @@ from bauble import utils
 from bauble.i18n import _
 from bauble.ui.handlers import EntryWCompletionHandler
 from bauble.ui.handlers import populate_enum_combo
+from bauble.ui.presenter import AddCallback
 from bauble.ui.presenter import EditCreateCallback
 from bauble.ui.presenter import GenericPresenter
 from bauble.ui.presenter import Problem
@@ -52,7 +53,7 @@ from bauble.ui.widgets import NotesPresenter
 from ..family import Family
 from ..family import FamilySynonym
 from ..genus import Genus
-from ..genus import GenusEditor
+from .genus_editor import GenusEditorDialog
 from .widgets import SynonymsPresenter
 
 FAMILY_WEB_BUTTON_DEFS_PREFS = "web_button_defs.family"
@@ -359,15 +360,4 @@ def remove_callback(
         return False
 
     return True
-
-
-def add_genera_callback(objs: Sequence["Family"], **_kwargs) -> bool:
-    """Family context menu callback"""
-    # take the family out of the searchview session or will leave a hanging new
-    # genus item in the searchview's session.
-    session = db.Session()
-    family = session.merge(objs[0])
-    gen_editor = GenusEditor(model=Genus(family=family))
-    session.close()
-
-    return gen_editor.start() is not None
+add_genera_callback = AddCallback(GenusEditorDialog, Genus, "family")

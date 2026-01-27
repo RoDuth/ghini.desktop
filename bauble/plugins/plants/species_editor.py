@@ -45,6 +45,7 @@ from sqlalchemy.orm.session import Session
 from sqlalchemy.orm.session import object_session
 
 import bauble
+from bauble import db
 from bauble import editor
 from bauble import paths
 from bauble import prefs
@@ -544,29 +545,37 @@ class SpeciesEditorPresenter(
             if genus_str:
                 new_genus.epithet = genus_str
 
-        from .genus import GenusEditor
+        from .ui.genus_editor import GenusEditorDialog
 
-        genus_editor = GenusEditor(
-            model=new_genus,
-            parent=self.view.get_window(),
-        )
-        committed = genus_editor.start()
+        with db.Session() as session:
+            dialog = GenusEditorDialog(
+                new_genus,
+                session,
+                transient_for=self.view.get_window(),
+            )
+            dialog.allow_ok_only()
 
-        if not committed:
-            return
+            if dialog.run() != Gtk.ResponseType.OK:
+                dialog.destroy()
+                return
 
-        new_genus = committed[0]
-        self.session.add(new_genus)
+            new_genus = self.session.merge(dialog.model)
+            dialog.destroy()
 
-        # populate the completions model so it will match
         completion = self.view.widgets.sp_genus_entry.get_completion()
+        # TEMP solution
+        # may not have a completion model yet, so create one
         utils.clear_model(completion)
-        model = Gtk.ListStore(object)
-        model.append([new_genus])
-        completion.set_model(model)
-        # toggle the text to get the completion to match
-        self.view.widget_set_value("sp_genus_entry", "")
-        self.view.widget_set_value("sp_genus_entry", new_genus.epithet)
+        completion_model = Gtk.ListStore(object)
+        completion_model.append([new_genus])
+        completion.set_model(completion_model)
+        completion.emit(
+            "match-selected",
+            completion_model,
+            completion_model.get_iter_first(),
+        )
+
+        self.refresh_cites_label()
 
     def on_genus_entry_paste(self, entry: Gtk.Entry) -> None:
 

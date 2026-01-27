@@ -340,6 +340,41 @@ class EditorDialog(Protocol):
     def connect_after(self, signal: str, handler: Callable) -> int: ...
 
 
+class AddCallback:
+    # pylint: disable=too-few-public-methods
+
+    def __init__(
+        self,
+        dialog_class: type[EditorDialog],
+        obj_class: type[db.Domain],
+        parent_attr: str,
+    ) -> None:
+        self.dialog_class = dialog_class
+        self.obj_class = obj_class
+        self.parent_attr = parent_attr
+
+    def __call__(self, objs: Sequence[db.Domain], **_kwargs) -> bool:
+        obj = objs[0]
+
+        # take the object out of searchview's etc. session or could leave a
+        # hanging new item in session.
+        with db.Session() as session:
+            parent = session.merge(obj)
+            model = self.obj_class()
+            setattr(model, self.parent_attr, parent)
+
+        dialog = self.dialog_class(
+            model=model,
+            session=db.Session(),
+        )
+        dialog.show_all()
+
+        if hasattr(dialog, f"lock_{self.parent_attr}"):
+            getattr(dialog, f"lock_{self.parent_attr}")()
+
+        return False
+
+
 class EditCreateCallback:
     # pylint: disable=too-few-public-methods
     """Functor to create generic edit/create_callback functions.
@@ -361,14 +396,23 @@ class EditCreateCallback:
     def __call__(
         self,
         objs: Sequence[db.Domain] | None = None,
-        **_kwargs,
+        **kwargs,
     ) -> bool:
+        """Create or edit an object using the provided dialog class.
+
+        The dialog will be created with a new session, and not destroyed.
+
+        :param objs: If provided the first object in the sequence will be
+            edited, otherwise a new object will be created.
+        :param kwargs: Additional keyword arguments to pass to the object
+            constructor when creating a new object.
+        """
         if objs:
             # edit
             obj = objs[0]
         else:
             # create
-            obj = self.obj_class()
+            obj = self.obj_class(**kwargs)
 
         dialog = self.dialog_class(
             model=obj,

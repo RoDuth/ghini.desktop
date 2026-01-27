@@ -56,9 +56,6 @@ from bauble.view import View
 from .family import Familia
 from .family import Family
 from .genus import Genus
-from .genus import GenusEditor
-from .genus import edit_callback as genus_edit_callback
-from .genus import genus_context_menu
 from .geography import DistributionMap
 from .geography import Geography
 from .geography import GeographyInfoBox
@@ -83,6 +80,8 @@ from .ui.family_editor import create_family
 from .ui.family_editor import edit_callback as family_edit_callback
 from .ui.family_view import FamilyInfoBox
 from .ui.family_view import family_context_menu
+from .ui.genus_editor import create_genus
+from .ui.genus_editor import edit_callback as genus_edit_callback
 from .ui.genus_view import GenusInfoBox
 from .ui.genus_view import genus_context_menu
 
@@ -710,7 +709,7 @@ class PlantsPlugin(pluginmgr.Plugin):
 
         if bauble.gui is not None:
             bauble.gui.add_to_insert_menu(create_family, _("Family"))
-            bauble.gui.add_to_insert_menu(GenusEditor, _("Genus"))
+            bauble.gui.add_to_insert_menu(create_genus, _("Genus"))
             bauble.gui.add_to_insert_menu(SpeciesEditor, _("Species"))
             bauble.gui.main_entry_completion_callbacks.add(
                 get_binomial_completions

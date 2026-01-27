@@ -66,9 +66,6 @@ from .family import Family
 from .family import FamilyNote
 from .family import FamilySynonym
 from .genus import Genus
-from .genus import GenusEditor
-from .genus import GenusEditorPresenter
-from .genus import GenusEditorView
 from .genus import GenusNote
 from .genus import GenusSynonym
 from .genus import generic_gen_get_completions
@@ -1280,11 +1277,9 @@ class FamilyTests(PlantTestCase):
 
         from .ui.family_editor import add_genera_callback
 
-        with mock.patch(
-            "bauble.plugins.plants.ui.family_editor.GenusEditor"
+        with mock.patch.object(
+            add_genera_callback, "dialog_class"
         ) as mock_editor:
-            mock_editor().start.return_value = None
-            mock_editor.reset_mock()
 
             self.assertFalse(add_genera_callback([family]))
             mock_editor.assert_called_once()
@@ -1723,45 +1718,6 @@ class GenusTests(PlantTestCase):
         self.assertEqual(g1.genus, "genus")
         self.assertEqual(g2.epithet, "genus")
 
-    def test_edit_callback(self):
-        caricaceae = Family(family="Caricaceae")
-        gen = Genus(epithet="Carica", family=caricaceae)
-        self.session.add(gen)
-        self.session.flush()
-
-        from .genus import edit_callback
-
-        with mock.patch(
-            "bauble.plugins.plants.genus.GenusEditor"
-        ) as mock_editor:
-            mock_editor().start.return_value = None
-            mock_editor.reset_mock()
-
-            self.assertFalse(edit_callback([gen]))
-            mock_editor.assert_called_once_with(model=gen)
-
-            mock_editor().start.return_value = gen
-            self.assertTrue(edit_callback([gen]))
-
-    def test_add_species_callback(self):
-        caricaceae = Family(family="Caricaceae")
-        gen = Genus(epithet="Carica", family=caricaceae)
-        self.session.add(gen)
-        self.session.flush()
-
-        from .genus import add_species_callback
-
-        with mock.patch(
-            "bauble.plugins.plants.genus.edit_species"
-        ) as mock_editor:
-            mock_editor.return_value = None
-
-            self.assertFalse(add_species_callback([gen]))
-            mock_editor.assert_called_once()
-            sp = mock_editor.call_args.kwargs["model"]
-            self.assertIsInstance(sp, Species)
-            self.assertEqual(sp.genus, gen)
-
     def test_count_children_wo_plants(self):
         from ..garden import Accession
 
@@ -2174,175 +2130,6 @@ class GenusTopLevelCountTests(BaubleTestCase):
         )
 
         self.assertEqual(str(Genus.top_level_count([1, 3], True)), expected)
-
-
-class GenusEditorTests(PlantTestCase):
-    @mock.patch("bauble.editor.GenericEditorView.start")
-    def test_editor_doesnt_leak(self, mock_start):
-        mock_start.return_value = Gtk.ResponseType.OK
-        # loc = self.create(Genus, name=u'some site')
-        fam = Family(family="family")
-        fam2 = Family(family="family2")
-        fam2.synonyms.append(fam)
-        self.session.add_all([fam, fam2])
-        self.session.commit()
-        gen = Genus(genus="some genus")
-        editor = GenusEditor(model=gen)
-        editor.start()
-        del editor
-        update_gui()
-        self.assertEqual(
-            utils.gc_objects_by_type("GenusEditor"),
-            [],
-            "GenusEditor not deleted",
-        )
-        self.assertEqual(
-            utils.gc_objects_by_type("GenusEditorPresenter"),
-            [],
-            "GenusEditorPresenter not deleted",
-        )
-        self.assertEqual(
-            utils.gc_objects_by_type("GenusEditorView"),
-            [],
-            "GenusEditorView not deleted",
-        )
-
-    def test_cites_label(self):
-        gen = self.session.query(Genus).get(1)
-        view = GenusEditorView()
-        presenter = GenusEditorPresenter(gen, view)
-        self.assertEqual(view.widgets.cites_label.get_text(), "Family: II")
-
-        presenter.cleanup()
-        del presenter
-
-    def test_suprageneric_parts(self):
-        gen = self.session.query(Genus).get(1)
-        view = GenusEditorView()
-        presenter = GenusEditorPresenter(gen, view)
-        self.assertFalse(view.widgets.supragen_expander.get_expanded())
-
-        presenter.cleanup()
-        del presenter
-
-        gen = self.session.query(Genus).get(11)
-        view = GenusEditorView()
-        presenter = GenusEditorPresenter(gen, view)
-        self.assertTrue(view.widgets.supragen_expander.get_expanded())
-        self.assertEqual(view.widgets.subfamily_entry.get_text(), "Zamioideae")
-        self.assertEqual(view.widgets.tribe_entry.get_text(), "Encephalarteae")
-        self.assertEqual(
-            view.widgets.subtribe_entry.get_text(), "Macrozamiinae"
-        )
-
-        presenter.cleanup()
-        del presenter
-
-    def test_subfam_get_completions(self):
-        fam = self.session.query(Family).get(8)
-        gen = Genus(family=fam)
-        view = GenusEditorView()
-        presenter = GenusEditorPresenter(gen, view)
-        self.assertEqual(
-            presenter.subfam_get_completions("Zam"), ["Zamioideae"]
-        )
-        # wrong family
-        self.assertEqual(presenter.subfam_get_completions("Gre"), [])
-        # right family
-        self.assertEqual(
-            presenter.tribe_get_completions("Enc"), ["Encephalarteae"]
-        )
-        # case insensitive
-        self.assertEqual(
-            presenter.tribe_get_completions("enc"), ["Encephalarteae"]
-        )
-
-        presenter.cleanup()
-        del presenter
-
-    def test_tribe_get_completions(self):
-        fam = self.session.query(Family).get(8)
-        gen = Genus(family=fam)
-        view = GenusEditorView()
-        presenter = GenusEditorPresenter(gen, view)
-        # wrong subfamily
-        gen.subfamily = "Diooideae"
-        self.assertEqual(presenter.tribe_get_completions("Enc"), [])
-        # right subfamily
-        gen.subfamily = "Zamioideae"
-        self.assertEqual(
-            presenter.tribe_get_completions("Enc"), ["Encephalarteae"]
-        )
-        # case insensitive
-        self.assertEqual(
-            presenter.tribe_get_completions("enc"), ["Encephalarteae"]
-        )
-
-        presenter.cleanup()
-        del presenter
-
-    def test_subtribe_get_completions(self):
-        fam = self.session.query(Family).get(8)
-        gen = Genus(family=fam)
-        view = GenusEditorView()
-        presenter = GenusEditorPresenter(gen, view)
-        self.assertEqual(presenter.subtribe_get_completions("Enc"), [])
-        self.assertEqual(
-            presenter.subtribe_get_completions("Mac"), ["Macrozamiinae"]
-        )
-        # right tribe
-        gen.tribe = "Encephalarteae"
-        self.assertEqual(
-            presenter.subtribe_get_completions("Mac"), ["Macrozamiinae"]
-        )
-        # case insensitive
-        self.assertEqual(
-            presenter.subtribe_get_completions("mac"), ["Macrozamiinae"]
-        )
-        # wrong tribe
-        gen.tribe = "Zamieae"
-        self.assertEqual(presenter.subtribe_get_completions("Enc"), [])
-
-        presenter.cleanup()
-        del presenter
-
-    @mock.patch("bauble.plugins.plants.ui.family_editor.FamilyEditorDialog")
-    def test_on_family_add_button_clicked(self, mock_fam_editor):
-        # test bails
-        mock_fam_editor().run.return_value = Gtk.ResponseType.CANCEL
-        mock_fam_editor.reset_mock()
-        gen = Genus(epithet="genus")
-        self.session.add(gen)
-
-        view = GenusEditorView()
-        view.start = mock.Mock()
-        view.start.return_value = gen
-        presenter = GenusEditorPresenter(gen, view)
-        presenter.on_family_add_button_clicked(None)
-
-        mock_fam_editor.assert_called_once()
-        self.assertEqual(view.widgets.gen_family_entry.get_text(), "")
-
-        # test success
-        mock_fam_editor.reset_mock()
-        gen = Genus(epithet="Genus")
-        self.session.add(gen)
-
-        view = GenusEditorView()
-        view.start = mock.Mock()
-        view.start.return_value = gen
-        presenter = GenusEditorPresenter(gen, view)
-        view.widgets.gen_family_entry.set_text("Eg")
-        mock_fam_editor().run.return_value = Gtk.ResponseType.OK
-        mock_fam_editor().model = Family(epithet="Spamaceae")
-        mock_fam_editor.reset_mock()
-        presenter.on_family_add_button_clicked(None)
-
-        mock_fam_editor.assert_called_once()
-        self.assertEqual(view.widgets.gen_family_entry.get_text(), "Spamaceae")
-
-        presenter.cleanup()
-        del presenter
 
 
 class GenusSynonymyTests(PlantTestCase):
@@ -7422,10 +7209,10 @@ class SpeciesEditorPresenterTests(PlantTestCase):
         presenter.cleanup()
         del presenter
 
-    @mock.patch("bauble.plugins.plants.genus.GenusEditor")
+    @mock.patch("bauble.plugins.plants.ui.genus_editor.GenusEditorDialog")
     def test_on_genus_add_button_clicked(self, mock_gen_editor):
         # test bails
-        mock_gen_editor().start.return_value = None
+        mock_gen_editor().run.return_value = Gtk.ResponseType.CANCEL
         mock_gen_editor.reset_mock()
         sp = Species(epithet="spam")
         self.session.add(sp)
@@ -7449,7 +7236,8 @@ class SpeciesEditorPresenterTests(PlantTestCase):
         view.start.return_value = sp
         presenter = SpeciesEditorPresenter(sp, view)
         view.widgets.sp_genus_entry.set_text("Eg")
-        mock_gen_editor().start.return_value = [Genus(epithet="Eggs")]
+        mock_gen_editor().run.return_value = Gtk.ResponseType.OK
+        mock_gen_editor().model = Genus(epithet="Eggs")
         mock_gen_editor.reset_mock()
         presenter.on_genus_add_button_clicked(None)
 
