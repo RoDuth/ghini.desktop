@@ -66,6 +66,7 @@ from sqlalchemy.orm import backref
 from sqlalchemy.orm import deferred
 from sqlalchemy.orm import object_session
 from sqlalchemy.orm import relationship
+from sqlalchemy.orm import undefer
 
 import bauble
 from bauble import btypes as types
@@ -708,11 +709,12 @@ class DistributionMap:
         with db.Session() as session:
             return (
                 session.query(Geography)
+                .options(undefer(Geography.geojson))
                 .filter(
                     cast(QueryableAttribute, Geography.id).in_(self._area_ids)
                 )
                 .order_by(Geography.code)  # for hash: _image_cache_key
-            )
+            ).all()
 
     @property
     def map(self) -> str:
