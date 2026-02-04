@@ -657,7 +657,9 @@ class GeneralLocationExpander(InfoExpander):
 
         if geojson:
             shape = geojson.get("type", "")
-            approx_area = f"{get_approx_area_from_geojson_sqm(geojson):.2f} m²"
+            if shape == "Polygon":
+                area = get_approx_area_from_geojson_sqm(geojson)
+                approx_area = f"{area:.2f} m²"
 
         self.widget_set_value("geojson_type", shape)
         self.widget_set_value("approx_area", approx_area)
