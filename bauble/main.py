@@ -296,9 +296,9 @@ def main(splash: Gtk.Window) -> int:
 
     # *** to debug widget garbage collection uncomment the below. ***
 
-    from gi.repository import GLib
+    # from gi.repository import GLib
 
-    GLib.timeout_add(1000, widget_counter)
+    # GLib.timeout_add(1000, widget_counter)
 
     # ***
 
