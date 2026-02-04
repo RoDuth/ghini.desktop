@@ -38,7 +38,6 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-import shlex
 import typing
 from abc import ABC
 from abc import abstractmethod
@@ -274,18 +273,22 @@ class RawSQLSearch(SearchStrategy):
         """Returns list of queries for the text search string."""
         super().search(text, session)
         self.session = session
-        text = text.removeprefix("SQL:")
-        domain_name, raw_sql = shlex.split(text)
+        text = text.removeprefix("SQL:").strip()
+        domain_name, raw_sql = text.split(" ", 1)
+        raw_sql = raw_sql.strip()[1:-1]  # remove quotes
         logger.debug("domain: %s, raw_sql: %s", domain_name, raw_sql)
 
+        # can cause DeprecatedWarning (\_)
         raw_sql = (
-            raw_sql.replace("'\\'", "'\\\\'")
-            .replace("\\_", "\\\\_")
-            .replace("\\%", "\\\\%")
+            raw_sql.replace("\\'", "'")
+            .replace('\\"', '"')
+            .replace("'\\'", "'\\\\'")
+            .replace("\\\\_", "\\_")
+            .replace("\\\\%", "\\%")
             .encode("raw_unicode_escape")
             .decode("unicode_escape")
         )
-
+        logger.debug("processed raw_sql: %s", raw_sql)
         domain = self.get_domain_classes()[domain_name]
 
         select_stmt = select(domain)

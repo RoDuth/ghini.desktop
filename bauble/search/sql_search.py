@@ -22,7 +22,6 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-import shlex
 from pathlib import Path
 from typing import cast
 
@@ -100,13 +99,14 @@ class SQLSearchDialog(Gtk.Dialog):
                 if len(queries) == 1:
                     query = queries[0]
                     table = query.column_descriptions[0]["type"]
-                    text = f":SQL = {table.__tablename__} " + repr(
+                    query_text = repr(
                         str(
                             query.statement.compile(
                                 compile_kwargs={"literal_binds": True}
                             )
                         )
                     )
+                    text = f":SQL = {table.__tablename__} {query_text}"
         except Exception as e:  # pylint: disable=broad-except
             logger.debug("%s(%s)", type(e).__name__, e)
             return ""
@@ -124,20 +124,25 @@ class SQLSearchDialog(Gtk.Dialog):
 
         if not text.startswith(":SQL"):
             text = self._get_sql_from_first_strategy(text)
+            logger.debug("converted to SQL: %s", text)
 
         text = text.removeprefix(":SQL").strip().removeprefix("=").strip()
-        logger.debug("text now %s", text)
+        logger.debug("text now: %s", text)
 
         if not text:
             logger.debug("no text to set query to.")
             return
 
         try:
-            domain, sql = shlex.split(text)
+            domain, sql = text.split(" ", 1)
+            sql = sql.strip()[1:-1]  # remove quotes
+            # can cause DeprecatedWarning (\_)
             sql = (
-                sql.replace("'\\'", "'\\\\'")
-                .replace("\\_", "\\\\_")
-                .replace("\\%", "\\\\%")
+                sql.replace("\\'", "'")
+                .replace('\\"', '"')
+                .replace("'\\'", "'\\\\'")
+                .replace("\\\\_", "\\_")
+                .replace("\\\\%", "\\%")
                 .encode("raw_unicode_escape")
                 .decode("unicode_escape")
             )

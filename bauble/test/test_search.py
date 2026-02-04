@@ -2040,7 +2040,7 @@ class RawSQLSearchTests(BaubleClassTestCase):
 
         string = (
             'SQL: location "SELECT location.id\nFROM location \nWHERE '
-            "lower(location.code) LIKE lower('%RBW') ESCAPE '\\'\""
+            "lower(location.code) LIKE lower('%RBW') ESCAPE '\\\\'\""
         )
         results = []
         for i in strategy.search(string, self.session):
