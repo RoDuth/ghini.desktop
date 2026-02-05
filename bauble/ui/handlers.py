@@ -38,6 +38,7 @@ from typing import overload
 from gi.repository import GObject
 from gi.repository import Gtk
 from sqlalchemy.orm import object_mapper
+from sqlalchemy.orm.exc import DetachedInstanceError
 
 from bauble import db
 from bauble import utils
@@ -359,8 +360,16 @@ def default_completion_cell_data_func(
     treeiter: Gtk.TreeIter,
 ) -> None:
     """The default completion cell data function for Gtk.EntryCompletion."""
-    v = model[treeiter][0]
-    renderer.set_property("markup", utils.xml_safe(v))
+    value = model[treeiter][0]
+
+    try:
+        string = utils.xml_safe(value)
+    except DetachedInstanceError as e:
+        # object may be detached from the session when editor is destroyed
+        logger.debug("%s(%s)", type(e).__name__, str(e))
+        string = ""
+
+    renderer.set_property("markup", string)
 
 
 def default_completion_match_func(

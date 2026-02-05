@@ -49,6 +49,7 @@ from bauble.ui.presenter import Response
 from bauble.ui.presenter import default_dialog_update
 from bauble.ui.widgets import LinksMenuButton
 from bauble.ui.widgets import NotesPresenter
+from bauble.ui.widgets import YesNoMessageBox
 
 from ..family import Family
 from ..genus import Genus
@@ -95,11 +96,11 @@ def validate_unique_genus(
 class GenusEditorDialog(
     GenericPresenter[Genus],
     Gtk.Dialog,
-):  # pylint: disable=not-callable
+):  # pylint: disable=not-callable,too-many-public-methods
 
     __gtype_name__ = "GenusEditorDialog"
 
-    message_box_parent = cast(Gtk.Box, Gtk.Template.Child())
+    revealer = cast(Gtk.Revealer, Gtk.Template.Child())
     family_entry = cast(Gtk.Entry, Gtk.Template.Child())
     family_completion = cast(Gtk.EntryCompletion, Gtk.Template.Child())
     family_cell = cast(Gtk.CellRendererText, Gtk.Template.Child())
@@ -178,8 +179,8 @@ class GenusEditorDialog(
                 .order_by(Genus.epithet)
             ),
         )
-        self.links_menu_btn.init(model, GENUS_WEB_BUTTON_DEFS_PREFS)
-        self.notes_presenter.init(model)
+        self.links_menu_btn.init(self.model, GENUS_WEB_BUTTON_DEFS_PREFS)
+        self.notes_presenter.init(self.model)
 
         if any(
             getattr(self.model, i) for i in ("subfamily", "tribe", "subtribe")
@@ -265,12 +266,56 @@ class GenusEditorDialog(
     ) -> bool:
         value = liststore[tree_iter][0]
         logger.debug("match selected: %s", value)
-        self.remove_problem(self.PROBLEM_EMPTY, self.family_entry)
         self.family_entry.set_text(str(value))
         self.model.family = value
 
+        if value.accepted:
+            self.notify_is_synonym(value)
+            logger.debug("%s is a synonym of %s", value, value.accepted)
+
         self.refresh_cites_label()
         return True
+
+    def notify_is_synonym(self, family: Family) -> None:
+        def on_yes_clicked(_button: Gtk.Button) -> None:
+            self.revealer.set_reveal_child(False)
+            completion_model = cast(
+                Gtk.ListStore,
+                self.family_completion.get_model(),
+            )
+            completion_model.clear()
+            completion_model.append([family.accepted])
+            self.family_completion.emit(
+                "match-selected",
+                completion_model,
+                completion_model.get_iter_first(),
+            )
+
+            self.family_entry.set_text(str(family.accepted))
+            self.model.family = family.accepted
+            self.refresh_cites_label()
+
+        def on_no_clicked(_button: Gtk.Button) -> None:
+            self.revealer.set_reveal_child(False)
+
+        msg = _(
+            "The family <b>%(synonym)s</b> is a synonym of "
+            "<b>%(family)s</b>.\n\nWould you like to choose "
+            "<b>%(family)s</b> instead?"
+        ) % {
+            "synonym": utils.xml_safe(family),
+            "family": utils.xml_safe(family.accepted),
+        }
+
+        message_box = YesNoMessageBox(
+            msg,
+            on_yes_clicked,
+            on_no_clicked,
+        )
+        self.revealer.foreach(self.revealer.remove)
+        message_box.show_all()
+        self.revealer.add(message_box)
+        self.revealer.set_reveal_child(True)
 
     @Gtk.Template.Callback()
     def on_family_add_button_clicked(self, _button: Gtk.Button) -> None:
@@ -405,6 +450,49 @@ class GenusEditorDialog(
 
         if combo is self.qualifier_combo:
             self.genus_entry.emit("changed")
+
+    @Gtk.Template.Callback()
+    def on_genus_entry_changed(self, entry: Gtk.Entry) -> None:
+        epithet = entry.get_text()
+        existing = (
+            self.session.execute(select(Genus).where(Genus.epithet == epithet))
+            .scalars()
+            .first()
+        )
+        if existing and existing is not self.model:
+            logger.debug("found existing genus with epithet %s", epithet)
+            self.notify_existing_genus(existing)
+
+        self.on_genus_author_entry_changed(entry)
+
+    def notify_existing_genus(self, existing: Genus) -> None:
+        def on_yes_clicked(_button: Gtk.Button) -> None:
+            self.revealer.set_reveal_child(False)
+            self.emit("response", Response.CANCEL)
+            edit_callback([existing])
+
+        def on_no_clicked(_button: Gtk.Button) -> None:
+            self.revealer.set_reveal_child(False)
+
+        msg = _(
+            "<b>%(genus)s (%(family)s)</b> already exists.\n\n"
+            "Would you like to edit the existing genus instead?"
+        ) % {
+            "genus": utils.xml_safe(
+                existing.string(
+                    author=True,
+                    qualifier=True,
+                )
+            ),
+            "family": utils.xml_safe(existing.family),
+        }
+
+        message_box = YesNoMessageBox(msg, on_yes_clicked, on_no_clicked)
+
+        self.revealer.foreach(self.revealer.remove)
+        message_box.show_all()
+        self.revealer.add(message_box)
+        self.revealer.set_reveal_child(True)
 
     @Gtk.Template.Callback()
     def on_genus_author_entry_changed(self, entry: Gtk.Entry) -> None:

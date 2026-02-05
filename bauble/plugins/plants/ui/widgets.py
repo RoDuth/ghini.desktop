@@ -160,7 +160,7 @@ class SynonymsPresenter(Gtk.Frame):
         :param completion_seed: a callable that returns an ORM query for use in
             entry completions given the current text.  This will be further
             filtered to exclude the current model and any of its current
-            synonyms.
+            synonyms.  Results will be limited to 20.
         """
         self.model = model
         self.synonym_table = synonym_table

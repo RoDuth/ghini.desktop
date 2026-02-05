@@ -193,25 +193,9 @@
           </packing>
         </child>
         <child>
-          <object class="GtkBox">
+          <object class="GtkOverlay">
             <property name="visible">True</property>
             <property name="can-focus">False</property>
-            <property name="vexpand">True</property>
-            <property name="orientation">vertical</property>
-            <child>
-              <object class="GtkBox" id="message_box_parent">
-                <property name="visible">True</property>
-                <property name="can-focus">False</property>
-                <child>
-                  <placeholder/>
-                </child>
-              </object>
-              <packing>
-                <property name="expand">False</property>
-                <property name="fill">True</property>
-                <property name="position">0</property>
-              </packing>
-            </child>
             <child>
               <object class="GtkNotebook">
                 <property name="visible">True</property>
@@ -514,7 +498,7 @@
                             <property name="tooltip-text" translatable="yes">The genus name, the combination of genus name, author, family and qualifier must be unique</property>
                             <property name="hexpand">True</property>
                             <property name="invisible-char">●</property>
-                            <signal name="changed" handler="on_genus_author_entry_changed" swapped="no"/>
+                            <signal name="changed" handler="on_genus_entry_changed" swapped="no"/>
                           </object>
                           <packing>
                             <property name="left-attach">1</property>
@@ -704,17 +688,23 @@
                   </packing>
                 </child>
               </object>
-              <packing>
-                <property name="expand">True</property>
-                <property name="fill">True</property>
-                <property name="position">1</property>
-              </packing>
+            </child>
+            <child type="overlay">
+              <object class="GtkRevealer" id="revealer">
+                <property name="visible">True</property>
+                <property name="can-focus">False</property>
+                <property name="halign">center</property>
+                <property name="valign">start</property>
+                <child>
+                  <placeholder/>
+                </child>
+              </object>
             </child>
           </object>
           <packing>
-            <property name="expand">False</property>
+            <property name="expand">True</property>
             <property name="fill">True</property>
-            <property name="position">2</property>
+            <property name="position">0</property>
           </packing>
         </child>
       </object>
