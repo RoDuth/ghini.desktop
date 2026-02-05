@@ -82,13 +82,26 @@ class DialogTests(BaubleTestCase):
         self.assertEqual(dialog.domain, "")
         dialog.destroy()
 
-    def test_set_query_no_sql_text_logs(self):
+    def test_set_query_no_query_logs(self):
         dialog = SQLSearchDialog()
 
         with self.assertLogs(level="DEBUG") as logs:
             dialog.set_query(":SQL")
 
         string = "no text to set query to."
+        self.assertTrue(any(string in i for i in logs.output))
+
+        self.assertEqual(dialog.sql, "")
+        self.assertEqual(dialog.domain, "")
+        dialog.destroy()
+
+    def test_set_query_no_sql_text_logs(self):
+        dialog = SQLSearchDialog()
+
+        with self.assertLogs(level="DEBUG") as logs:
+            dialog.set_query(":SQL = species")
+
+        string = "ValueError(not enough values"
         self.assertTrue(any(string in i for i in logs.output))
 
         self.assertEqual(dialog.sql, "")
