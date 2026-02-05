@@ -227,6 +227,10 @@ class EntryWCompletionHandler(EntryHandler):
 
     The entry must have a ``Gtk.EntryCompletion`` with model attached.
 
+    If the completion's model handles non-string values set ``must_match=True``
+    and setup a "match-selected" handler that can handle setting the value on
+    the model (the default handler only works for string values).
+
     If validation or conversion is needed provide a list of ``Validator``s and
     a ``Converter`` callback as required.
 
@@ -257,32 +261,77 @@ class EntryWCompletionHandler(EntryHandler):
         get_values: Callable[[str], Any] = kwargs.pop("get_values")
 
         text = widget.get_text()
+
         completion = widget.get_completion()
         min_key_length = completion.get_minimum_key_length()
         completion_model = cast(Gtk.ListStore, completion.get_model())
         completion_model.clear()
-        match_problem = self.problem_name_template.format("not_matched")
 
         if not self.must_match:
             super().handler(instance, widget, **kwargs)
         else:
-            instance.add_problem(match_problem, widget)
+            self.match_handler(instance, widget, completion_model)
 
-        if len(text) > min_key_length:
-            values = get_values(text)
-            for value in values:
-                completion_model.append([value])
+        if len(text) < min_key_length:
+            return
 
-            # if an exact match select it
-            if len(values) == 1 and str(values[0]).lower() == text.lower():
-                completion.emit(
-                    "match-selected",
-                    completion_model,
-                    completion_model.get_iter_first(),
-                )
-                if self.must_match:
-                    instance.remove_problem(match_problem, widget)
-                    super().handler(instance, widget, **kwargs)
+        values = get_values(text)
+        for value in values:
+            completion_model.append([value])
+
+        # if an exact match select it
+        if len(values) == 1 and str(values[0]).lower() == text.lower():
+            completion.emit(
+                "match-selected",
+                completion_model,
+                completion_model.get_iter_first(),
+            )
+            # force the popup to close
+            completion_model.clear()
+
+            if self.must_match:
+                self.on_match(instance, widget, **kwargs)
+
+    def on_match(
+        self,
+        instance: GenericPresenter,
+        widget: Gtk.Entry,
+        **kwargs: Any,
+    ) -> None:
+        completion = widget.get_completion()
+        completion_model = cast(Gtk.ListStore, completion.get_model())
+
+        match_problem = self.problem_name_template.format("not_matched")
+
+        instance.remove_problem(match_problem, widget)
+        # if not a string requires match-selected handler to set value
+        if completion_model.get_column_type(0) == GObject.TYPE_STRING:
+            super().handler(instance, widget, **kwargs)
+
+    def match_handler(
+        self,
+        instance: GenericPresenter,
+        widget: Gtk.Entry,
+        completion_model: Gtk.ListStore,
+    ) -> None:
+
+        if completion_model.get_column_type(0) != GObject.TYPE_STRING:
+            # logger here as super().handler() is never called
+            field_name = instance.widgets_to_model_map[widget]
+            current = getattr(instance.model, field_name)
+            logger.debug(
+                "%s.%s(%s) called for field %s - values: %s -> %s",
+                self.class_name,
+                self.name,
+                widget,
+                "family",
+                current,
+                widget.get_text(),
+            )
+
+        match_problem = self.problem_name_template.format("not_matched")
+
+        instance.add_problem(match_problem, widget)
 
 
 class TextBufferHandler(HandlerMethodDescriptor[Gtk.TextBuffer]):

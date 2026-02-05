@@ -121,6 +121,9 @@ class GenusEditorDialog(
     links_menu_btn = cast(LinksMenuButton, Gtk.Template.Child())
 
     on_entry_w_completion_changed = EntryWCompletionHandler()
+    on_entry_w_completion_changed_match = EntryWCompletionHandler(
+        must_match=True
+    )
 
     PROBLEM_EMPTY = Problem("empty")
     PROBLEM_NOT_UNIQUE = Problem("not_unique")
@@ -211,41 +214,10 @@ class GenusEditorDialog(
 
     @Gtk.Template.Callback()
     def on_family_entry_changed(self, entry: Gtk.Entry) -> None:
-
-        self.add_problem(self.PROBLEM_EMPTY, self.family_entry)
-        text = entry.get_text()
-
-        current = str(self.model.family)
-
-        logger.debug(
-            "%s.%s(%s) called for field %s - values: %s -> %s",
-            type(self).__name__,
-            "on_family_entry_changed",
+        self.on_entry_w_completion_changed_match(
             entry,
-            "family",
-            current,
-            text,
+            get_values=self.family_get_completions,
         )
-
-        completion = entry.get_completion()
-        min_key_length = completion.get_minimum_key_length()
-        completion_model = cast(Gtk.ListStore, completion.get_model())
-        completion_model.clear()
-
-        if len(text) < min_key_length:
-            return
-
-        values = self.family_get_completions(text)
-        for value in values:
-            completion_model.append([value])
-
-        # if an exact match select it
-        if len(values) == 1 and str(values[0]).lower() == text.lower():
-            completion.emit(
-                "match-selected",
-                completion_model,
-                completion_model.get_iter_first(),
-            )
 
     def family_get_completions(self, text: str) -> list[Family]:
         stmt = (
