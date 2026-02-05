@@ -19,10 +19,12 @@ Custom widgets
 """
 from .date_picker import DatePickerBox
 from .links_menu_button import LinksMenuButton
+from .message_box import YesNoMessageBox
 from .notes_presenter import NotesPresenter
 
 __all__ = [
     "LinksMenuButton",
     "NotesPresenter",
     "DatePickerBox",
+    "YesNoMessageBox",
 ]

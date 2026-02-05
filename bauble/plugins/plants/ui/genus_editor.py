@@ -186,10 +186,6 @@ class GenusEditorDialog(
         ):
             self.supragen_expander.set_expanded(True)
 
-    def lock_family(self) -> None:
-        self.family_entry.set_sensitive(False)
-        self.family_add_button.set_sensitive(False)
-
     def allow_ok_only(self) -> None:
         for response in Response:
             if response.name == "OK":

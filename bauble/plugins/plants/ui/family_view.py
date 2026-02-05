@@ -21,6 +21,8 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+import traceback
+from collections.abc import Sequence
 from pathlib import Path
 from typing import cast
 
@@ -28,6 +30,9 @@ from gi.repository import Gtk
 from sqlalchemy import distinct
 from sqlalchemy import func
 from sqlalchemy import select
+from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.orm import Session
+from sqlalchemy.orm.session import object_session
 
 from bauble import db
 from bauble import prefs
@@ -46,7 +51,6 @@ from ..species_model import Species
 from .family_editor import FAMILY_WEB_BUTTON_DEFS_PREFS
 from .family_editor import add_genera_callback
 from .family_editor import edit_callback
-from .family_editor import remove_callback
 from .widgets import SynonymsExpander
 
 
@@ -229,6 +233,56 @@ class FamilyInfoBox(InfoBox[Family]):
 
         self.add_expander(LinksExpander("notes", links=button_defs))
         self.add_expander(PropertiesExpander())
+
+
+def remove_callback(
+    objs: Sequence["Family"],
+    **_kwargs,
+) -> bool:
+    family = objs[0]
+    fam_lst: list[str] = []
+    session = object_session(family)
+    if not isinstance(session, Session):
+        logger.warning(
+            "Could not get session for family %s. Cannot delete.",
+            family,
+        )
+        return False
+
+    for family in objs:
+        num_gen = len(family.genera)
+        safe_str = utils.xml_safe(str(family))
+        fam_lst.append(safe_str)
+        if num_gen > 0:
+            msg = _(
+                "The family <i>%(fam)s</i> has %(num_gen)s genera.\n\n"
+                "You cannot remove a family with genera."
+            ) % {"fam": safe_str, "num_gen": num_gen}
+            utils.message_dialog(msg, typ=Gtk.MessageType.WARNING)
+
+            return False
+
+    msg = _(
+        "Are you sure you want to remove the following families <i>%s</i>?"
+    ) % ", ".join(fam_lst)
+    if not utils.yes_no_dialog(msg):
+
+        return False
+
+    for family in objs:
+        session.delete(family)
+    try:
+        session.commit()
+    except SQLAlchemyError as e:
+        msg = _("Could not delete.\n\n%s") % utils.xml_safe(e)
+        utils.message_details_dialog(
+            msg, traceback.format_exc(), Gtk.MessageType.ERROR
+        )
+        session.rollback()
+
+        return False
+
+    return True
 
 
 edit_action = Action(

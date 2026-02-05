@@ -23,7 +23,6 @@ import logging
 logger = logging.getLogger(__name__)
 
 import traceback
-from collections.abc import Sequence
 from pathlib import Path
 from typing import Self
 from typing import cast
@@ -33,7 +32,6 @@ from gi.repository import Gtk
 from sqlalchemy import select
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
-from sqlalchemy.orm.session import object_session
 
 import bauble
 from bauble import db
@@ -49,6 +47,7 @@ from bauble.ui.presenter import Response
 from bauble.ui.presenter import default_dialog_update
 from bauble.ui.widgets import LinksMenuButton
 from bauble.ui.widgets import NotesPresenter
+from bauble.ui.widgets import YesNoMessageBox
 
 from ..family import Family
 from ..family import FamilySynonym
@@ -94,7 +93,7 @@ class FamilyEditorDialog(
 
     __gtype_name__ = "FamilyEditorDialog"
 
-    notebook = cast(Gtk.Notebook, Gtk.Template.Child())
+    revealer = cast(Gtk.Revealer, Gtk.Template.Child())
     suprafam_expander = cast(Gtk.Expander, Gtk.Template.Child())
     order_entry = cast(Gtk.Entry, Gtk.Template.Child())
     suborder_entry = cast(Gtk.Entry, Gtk.Template.Child())
@@ -149,8 +148,8 @@ class FamilyEditorDialog(
             self.session,
             lambda session, text: (
                 session.query(Family)
-                .filter(utils.ilike(Family.family, f"{text}%%"))
-                .order_by(Family.family)
+                .filter(utils.ilike(Family.epithet, f"{text}%%"))
+                .order_by(Family.epithet)
             ),
         )
         self.links_menu_btn.init(model, FAMILY_WEB_BUTTON_DEFS_PREFS)
@@ -196,6 +195,50 @@ class FamilyEditorDialog(
             self.family_entry.emit("changed")
 
     @Gtk.Template.Callback()
+    def on_family_entry_changed(self, entry: Gtk.Entry) -> None:
+        epithet = entry.get_text()
+        existing = (
+            self.session.execute(
+                select(Family).where(Family.epithet == epithet)
+            )
+            .scalars()
+            .first()
+        )
+        if existing and existing is not self.model:
+            logger.debug("found existing genus with epithet %s", epithet)
+            self.notify_existing_family(existing)
+
+        self.on_family_author_entry_changed(entry)
+
+    def notify_existing_family(self, existing: Family) -> None:
+        def on_yes_clicked(_button: Gtk.Button) -> None:
+            self.revealer.set_reveal_child(False)
+            self.emit("response", Response.CANCEL)
+            edit_callback([existing])
+
+        def on_no_clicked(_button: Gtk.Button) -> None:
+            self.revealer.set_reveal_child(False)
+
+        msg = _(
+            "<b>%(family)s</b> already exists.\n\n"
+            "Would you like to edit the existing genus instead?"
+        ) % {
+            "family": utils.xml_safe(
+                existing.string(
+                    author=True,
+                    qualifier=True,
+                )
+            ),
+        }
+
+        message_box = YesNoMessageBox(msg, on_yes_clicked, on_no_clicked)
+
+        self.revealer.foreach(self.revealer.remove)
+        message_box.show_all()
+        self.revealer.add(message_box)
+        self.revealer.set_reveal_child(True)
+
+    @Gtk.Template.Callback()
     def on_family_author_entry_changed(self, entry: Gtk.Entry) -> None:
 
         self.remove_problem(self.PROBLEM_EMPTY, self.family_entry)
@@ -235,6 +278,7 @@ class FamilyEditorDialog(
             select(Family.order)
             .where(utils.ilike(Family.order, f"{text}%%"))
             .distinct()
+            .order_by(Family.order)
             .limit(20)
         )
 
@@ -254,6 +298,7 @@ class FamilyEditorDialog(
             select(Family.suborder)
             .where(utils.ilike(Family.suborder, f"{text}%%"))
             .distinct()
+            .order_by(Family.suborder)
             .limit(20)
         )
 
@@ -291,7 +336,7 @@ class FamilyEditorDialog(
                 return True
 
         if response == Response.NEXT:
-            edit_callback()
+            create_family()
 
         elif response == Response.ADD:
             add_genera_callback([self.model])
@@ -315,49 +360,4 @@ edit_callback = EditCreateCallback(
 
 create_family = edit_callback
 
-
-def remove_callback(
-    objs: Sequence["Family"],
-    **_kwargs,
-) -> bool:
-    family = objs[0]
-    fam_lst: list[str] = []
-    session = object_session(family)  # prefer not object session
-    if not isinstance(session, Session):
-        return False
-
-    for family in objs:
-        num_gen = len(family.genera)
-        safe_str = utils.xml_safe(str(family))
-        fam_lst.append(safe_str)
-        if num_gen > 0:
-            msg = _(
-                "The family <i>%(fam)s</i> has %(num_gen)s genera.\n\n"
-                "You cannot remove a family with genera."
-            ) % {"fam": safe_str, "num_gen": num_gen}
-            utils.message_dialog(msg, typ=Gtk.MessageType.WARNING)
-
-            return False
-
-    msg = _(
-        "Are you sure you want to remove the following families <i>%s</i>?"
-    ) % ", ".join(fam_lst)
-    if not utils.yes_no_dialog(msg):
-
-        return False
-
-    for family in objs:
-        session.delete(family)
-    try:
-        session.commit()
-    except SQLAlchemyError as e:
-        msg = _("Could not delete.\n\n%s") % utils.xml_safe(e)
-        utils.message_details_dialog(
-            msg, traceback.format_exc(), Gtk.MessageType.ERROR
-        )
-        session.rollback()
-
-        return False
-
-    return True
 add_genera_callback = AddCallback(GenusEditorDialog, Genus, "family")

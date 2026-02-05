@@ -21,11 +21,13 @@ from unittest import mock
 
 from gi.repository import Gtk
 
+from bauble import db
 from bauble import utils
 from bauble.plugins.plants.family import Family
 from bauble.test import BaubleTestCase
 from bauble.test import update_gui
 from bauble.ui.presenter import Response
+from bauble.ui.widgets.message_box import YesNoMessageBox
 
 from ..ui.family_editor import FamilyEditorDialog
 from ..ui.family_editor import validate_unique_family
@@ -37,6 +39,7 @@ class FamilyEditorDialogTests(BaubleTestCase):
         mock_gui.window = Gtk.Window()
         family = Family(epithet="Austrobaileyaceae")
         self.session.add(family)
+        self.session.commit()
         editor = FamilyEditorDialog(family, self.session)
 
         self.assertEqual(editor.get_transient_for(), mock_gui.window)
@@ -64,18 +67,42 @@ class FamilyEditorDialogTests(BaubleTestCase):
         editor.destroy()
 
     def test_init_existing_w_suprafamilial_parts(self):
-        family = Family(epithet="Austrobaileyaceae", order="Austrobaileyales")
+        family = Family(
+            epithet="Austrobaileyaceae",
+            order="Austrobaileyales",
+            suborder="Austrobaileyineae",
+        )
         self.session.add(family)
+        self.session.commit()
         editor = FamilyEditorDialog(family, self.session)
 
         self.assertEqual(editor.links_menu_btn.model, family)
         self.assertEqual(editor.synonyms_presenter.model, family)
         self.assertEqual(editor.family_entry.get_text(), "Austrobaileyaceae")
         self.assertEqual(editor.order_entry.get_text(), "Austrobaileyales")
+        self.assertEqual(editor.suborder_entry.get_text(), "Austrobaileyineae")
         self.assertTrue(editor.suprafam_expander.get_expanded())
         self.assertEqual(len(editor.problems), 0)
 
         editor.destroy()
+
+    def test_editor_doesnt_leak(self):
+        editor = FamilyEditorDialog(
+            model=Family(family="Fooaceae"),
+            session=db.Session(),
+        )
+        with mock.patch.object(editor, "run") as mock_run:
+            mock_run.return_value = Gtk.ResponseType.OK
+            editor.run()
+        editor.destroy()
+        del editor
+        update_gui()
+
+        self.assertEqual(
+            utils.gc_objects_by_type("FamilyEditorDialog"),
+            [],
+            "FamilyEditorDialog not deleted",
+        )
 
     def test_allow_ok_only(self):
         editor = FamilyEditorDialog(Family(), self.session)
@@ -91,6 +118,7 @@ class FamilyEditorDialogTests(BaubleTestCase):
         editor.destroy()
 
     def test_can_commit(self):
+        # new
         editor = FamilyEditorDialog(Family(), self.session)
 
         self.assertFalse(editor.can_commit)
@@ -98,6 +126,40 @@ class FamilyEditorDialogTests(BaubleTestCase):
         editor.family_entry.set_text("Myrtaceae")
 
         self.assertTrue(editor.can_commit)
+
+        editor.destroy()
+
+        # existing
+        family = Family(epithet="Austrobaileyaceae")
+        self.session.add(family)
+        self.session.commit()
+
+        editor = FamilyEditorDialog(family, self.session)
+
+        self.assertFalse(editor.can_commit)
+
+        editor.author_entry.set_text("Juss.")
+
+        self.assertTrue(editor.can_commit)
+
+        editor.destroy()
+
+    def test_ok_sensitive(self):
+        fam = Family()
+        self.session.add(fam)
+        editor = FamilyEditorDialog(fam, db.Session())
+        ok_button = editor.get_widget_for_response(-5)
+
+        self.assertFalse(ok_button.get_sensitive())
+
+        editor.destroy()
+
+        fam.family = "Spamaceae"
+        editor = FamilyEditorDialog(fam, db.Session())
+
+        ok_button = editor.get_widget_for_response(-5)
+
+        self.assertTrue(ok_button.get_sensitive())
 
         editor.destroy()
 
@@ -126,6 +188,36 @@ class FamilyEditorDialogTests(BaubleTestCase):
             widget = editor.get_widget_for_response(response.value)
             print(response.name)
             self.assertTrue(widget.get_sensitive())
+
+        editor.destroy()
+
+    @mock.patch("bauble.plugins.plants.ui.family_editor.edit_callback")
+    def test_on_family_entry_changed_family_exists(self, mock_callback):
+        family = Family(epithet="Myrtaceae")
+        self.session.add(family)
+        self.session.commit()
+        editor = FamilyEditorDialog(Family(), self.session)
+        editor.family_entry.set_text("Myrtaceae")
+
+        self.assertEqual(editor.model.epithet, "Myrtaceae")
+        self.assertEqual(len(editor.problems), 1)
+
+        child = editor.revealer.get_child()
+
+        self.assertIsInstance(child, YesNoMessageBox)
+
+        # no
+        mock_callback.reset_mock()
+        child.get_children()[1].get_children()[1].emit("clicked")
+
+        mock_callback.assert_not_called()
+
+        # yes
+        editor.family_entry.set_text("")
+        editor.family_entry.set_text("Myrtaceae")
+        child.get_children()[1].get_children()[0].emit("clicked")
+
+        mock_callback.assert_called_once()
 
         editor.destroy()
 
@@ -243,7 +335,7 @@ class FamilyEditorDialogTests(BaubleTestCase):
     @mock.patch(
         "bauble.plugins.plants.ui.family_editor.utils.message_details_dialog"
     )
-    def test_on_reponse_ok(self, mock_dlog):
+    def test_on_response_ok(self, mock_dlog):
         editor = FamilyEditorDialog(Family(), self.session)
         # change epithet to None to force an error,
         # NOTE that the editor should never allow this.
@@ -251,8 +343,6 @@ class FamilyEditorDialogTests(BaubleTestCase):
         # fails no epithet, use emit here to avoid warning due to:
         # `dialog.stop_emission_by_name("response")`
         editor.emit("response", Response.OK)
-        # self.assertTrue(editor.on_response(editor, Response.OK))  # triggers
-        # waring 'no emission of signal "response" to stop'
 
         update_gui()
         mock_dlog.assert_called_once()
@@ -266,15 +356,15 @@ class FamilyEditorDialogTests(BaubleTestCase):
 
         editor.destroy()
 
-    def test_on_reponse_cancel(self):
+    def test_on_response_cancel(self):
         editor = FamilyEditorDialog(Family(), self.session)
 
         self.assertFalse(editor.on_response(editor, Response.CANCEL))
 
         editor.destroy()
 
-    @mock.patch("bauble.plugins.plants.ui.family_editor.edit_callback")
-    def test_on_reponse_cancel_next(self, mock_callback):
+    @mock.patch("bauble.plugins.plants.ui.family_editor.create_family")
+    def test_on_response_next(self, mock_callback):
         mock_callback.return_value = False
         editor = FamilyEditorDialog(Family(epithet="Myrtcaeae"), self.session)
 
@@ -287,7 +377,7 @@ class FamilyEditorDialogTests(BaubleTestCase):
         editor.destroy()
 
     @mock.patch("bauble.plugins.plants.ui.family_editor.add_genera_callback")
-    def test_on_reponse_cancel_add(self, mock_callback):
+    def test_on_reponse_add(self, mock_callback):
         mock_callback.return_value = False
         editor = FamilyEditorDialog(Family(epithet="Myrtcaeae"), self.session)
 

@@ -171,7 +171,10 @@ class NotesPresenterTests(BaubleClassTestCase):
 
         # with note
         loc = Location(code="Loc1")
-        loc.notes.append(LocationNote(note="Test"))
+        note = LocationNote(category="Test", note="Test")
+        loc.notes.append(note)
+        self.session.add(note)
+        self.session.commit()
         presenter = NotesPresenter()
 
         presenter.init(loc)
