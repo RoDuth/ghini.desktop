@@ -339,6 +339,9 @@ class GenusEditorDialogTests(BaubleTestCase):
         "bauble.plugins.plants.ui.genus_editor.utils.message_details_dialog"
     )
     def test_on_response_ok(self, mock_dlog):
+        family = Family(epithet="Myrtaceae")
+        self.session.add(family)
+        self.session.commit()
         editor = GenusEditorDialog(Genus(), self.session)
         # fails no epithet or family, use emit here to avoid warning due to:
         # `dialog.stop_emission_by_name("response")`
@@ -348,7 +351,7 @@ class GenusEditorDialogTests(BaubleTestCase):
         mock_dlog.assert_called_once()
         mock_dlog.reset_mock()
 
-        editor.model.family = Family(epithet="Myrtaceae")
+        editor.model.family = family
         editor.genus_entry.set_text("Eucalyptus")
         self.assertFalse(editor.on_response(editor, Response.OK))
 
@@ -367,11 +370,13 @@ class GenusEditorDialogTests(BaubleTestCase):
     @mock.patch("bauble.plugins.plants.ui.genus_editor.create_genus")
     def test_on_response_next(self, mock_callback):
         mock_callback.return_value = False
+        family = Family(epithet="Myrtaceae")
+        self.session.add(family)
+        self.session.commit()
         editor = GenusEditorDialog(
-            Genus(epithet="Eucalyptus", family=Family(epithet="Myrtcaeae")),
+            Genus(epithet="Eucalyptus", family=family),
             self.session,
         )
-        family = editor.model.family
 
         self.assertFalse(editor.on_response(editor, Response.NEXT))
 
@@ -382,10 +387,13 @@ class GenusEditorDialogTests(BaubleTestCase):
         editor.destroy()
 
     @mock.patch("bauble.plugins.plants.ui.genus_editor.add_species_callback")
-    def test_on_reponse_add(self, mock_callback):
+    def test_on_response_add(self, mock_callback):
+        family = Family(epithet="Myrtaceae")
+        self.session.add(family)
+        self.session.commit()
         mock_callback.return_value = False
         editor = GenusEditorDialog(
-            Genus(epithet="Eucalyptus", family=Family(epithet="Myrtcaeae")),
+            Genus(epithet="Eucalyptus", family=family),
             self.session,
         )
 
