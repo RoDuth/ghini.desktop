@@ -25,6 +25,7 @@ from unittest import mock
 
 from gi.repository import Gtk
 from sqlalchemy import Column
+from sqlalchemy.orm.exc import DetachedInstanceError
 
 from bauble import btypes
 from bauble import db
@@ -191,8 +192,8 @@ class HandlerTests(TestCase):
             get_values=values_getter,
         )
 
-        self.assertEqual(len(list_store), 1)
-        self.assertCountEqual(list_store[0][0], "Foo bar")
+        # cleared to close the popup
+        self.assertEqual(len(list_store), 0)
         self.assertEqual(len(presenter.problems), 0)
         self.assertEqual(presenter.entry.get_text(), "Foo bar")
         self.assertEqual(presenter.model.value, "Foo bar")
@@ -264,7 +265,17 @@ class FunctionTests(TestCase):
 
         self.assertCountEqual(values, ["eggs", "ham", "spam", None])
 
-    def test_default_completion_cell_data_func(self):
+    def test_default_completion_cell_data_func_strings(self):
+        list_store = Gtk.ListStore(str)
+        list_store.append(["<Test>"])
+        mock_renderer = mock.MagicMock()
+
+        default_completion_cell_data_func(None, mock_renderer, list_store, 0)
+        mock_renderer.set_property.assert_called_once_with(
+            "markup", "&lt;Test&gt;"
+        )
+
+    def test_default_completion_cell_data_func_objects(self):
         mock_obj = mock.MagicMock()
         mock_obj.__str__.return_value = "<Test>"
         list_store = Gtk.ListStore(object)
@@ -275,6 +286,23 @@ class FunctionTests(TestCase):
         mock_renderer.set_property.assert_called_once_with(
             "markup", "&lt;Test&gt;"
         )
+
+    def test_default_completion_cell_data_func_detached_instance(self):
+        mock_obj = mock.MagicMock()
+        mock_obj.__str__.side_effect = DetachedInstanceError
+        list_store = Gtk.ListStore(object)
+        list_store.append([mock_obj])
+        mock_renderer = mock.MagicMock()
+
+        with self.assertLogs("bauble.ui.handlers", level="DEBUG") as logs:
+            default_completion_cell_data_func(
+                None,
+                mock_renderer,
+                list_store,
+                0,
+            )
+        self.assertIn("DetachedInstanceError", logs.output[0])
+        mock_renderer.set_property.assert_called_once_with("markup", "")
 
     def test_default_completion_match_func(self):
         mock_obj = mock.MagicMock()

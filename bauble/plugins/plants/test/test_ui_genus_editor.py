@@ -29,6 +29,7 @@ from bauble.plugins.plants.species import Species
 from bauble.test import BaubleTestCase
 from bauble.test import update_gui
 from bauble.ui.presenter import Response
+from bauble.ui.widgets import YesNoMessageBox
 
 from ..ui.genus_editor import GenusEditorDialog
 from ..ui.genus_editor import add_species_callback
@@ -68,7 +69,13 @@ class GenusEditorDialogTests(BaubleTestCase):
         self.assertEqual(len(editor.problems), 2)
         for problem, widget in editor.problems:
             self.assertIn(widget, [editor.family_entry, editor.genus_entry])
-            self.assertTrue(problem.startswith("empty::GenusEditorDialog"))
+            self.assertTrue(
+                problem.startswith(
+                    "not_matched::on_entry_w_completion_changed_match"
+                    "::GenusEditorDialog"
+                )
+                or problem.startswith("empty::GenusEditorDialog")
+            )
 
         editor.destroy()
 
@@ -179,6 +186,32 @@ class GenusEditorDialogTests(BaubleTestCase):
 
         editor.destroy()
 
+    def test_on_family_entry_changed_is_synonym(self):
+        family = Family(epithet="Malvaceae")
+        family2 = Family(epithet="Sterculiaceae")
+        family.synonyms.append(family2)
+        self.session.add(family)
+        self.session.commit()
+        editor = GenusEditorDialog(Genus(), self.session)
+
+        editor.family_entry.set_text("Sterculiaceae")
+
+        child = editor.revealer.get_child()
+
+        self.assertIsInstance(child, YesNoMessageBox)
+
+        # no
+        child.get_children()[1].get_children()[1].emit("clicked")
+        self.assertEqual(editor.family_entry.get_text(), "Sterculiaceae")
+
+        # yes
+        editor.family_entry.set_text("")
+        editor.family_entry.set_text("Malvaceae")
+        child.get_children()[1].get_children()[0].emit("clicked")
+        self.assertEqual(editor.family_entry.get_text(), "Malvaceae")
+
+        editor.destroy()
+
     def test_on_genus_author_entry_changes(self):
         # also picks up combobox changed
         family = Family(epithet="Myrtaceae")
@@ -230,6 +263,38 @@ class GenusEditorDialogTests(BaubleTestCase):
         utils.set_widget_value(editor.qualifier_combo, "s. str")
 
         self.assertEqual(len(editor.problems), 4)
+
+        editor.destroy()
+
+    @mock.patch("bauble.plugins.plants.ui.genus_editor.edit_callback")
+    def test_on_genus_entry_changed_existing(self, mock_callback):
+        family = Family(epithet="Malvaceae")
+        genus = Genus(epithet="Sterculia", family=family)
+        self.session.add(genus)
+        self.session.commit()
+        editor = GenusEditorDialog(Genus(), self.session)
+        editor.family_entry.set_text("Malvaceae")
+        editor.genus_entry.set_text("Sterculia")
+
+        self.assertEqual(editor.model.epithet, "Sterculia")
+        self.assertEqual(len(editor.problems), 2)
+
+        child = editor.revealer.get_child()
+
+        self.assertIsInstance(child, YesNoMessageBox)
+
+        # no
+        mock_callback.reset_mock()
+        child.get_children()[1].get_children()[1].emit("clicked")
+
+        mock_callback.assert_not_called()
+
+        # yes
+        editor.genus_entry.set_text("")
+        editor.genus_entry.set_text("Sterculia")
+        child.get_children()[1].get_children()[0].emit("clicked")
+
+        mock_callback.assert_called_once()
 
         editor.destroy()
 
