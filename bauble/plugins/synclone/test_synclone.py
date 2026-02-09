@@ -42,7 +42,7 @@ from bauble.plugins.plants import Genus
 from bauble.plugins.plants import Species
 from bauble.test import BaubleTestCase
 from bauble.test import uri
-from bauble.view import HomeCommandHandler
+from bauble.ui.views import HomeCommandHandler
 
 from .clone import DBCloner
 from .clone import DBCloneTool

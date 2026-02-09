@@ -49,7 +49,7 @@ from bauble.paths import lib_dir
 from bauble.search.query_builder import ExpressionRow
 from bauble.search.stored_queries import StoredQueriesButtonBox
 from bauble.ui.views import HistoryView
-from bauble.view import HomeView
+from bauble.ui.views import HomeView
 from bauble.view import SearchView
 from bauble.view import View
 

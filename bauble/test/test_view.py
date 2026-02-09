@@ -63,6 +63,9 @@ from bauble.test import get_setUp_data_funcs
 from bauble.test import update_gui
 from bauble.test import wait_on_threads
 from bauble.ui.views import HistoryView
+from bauble.ui.views import HomeCommandHandler
+from bauble.ui.views import HomeView
+from bauble.ui.views.home_view import SimpleSearchBox
 from bauble.view import _MAINSTR_TMPL
 from bauble.view import _SUBSTR_TMPL
 from bauble.view import BOTTOM_NOTEBOOK_PAGE_PREF
@@ -75,9 +78,7 @@ from bauble.view import SEARCH_POLL_SECS_PREF
 from bauble.view import SEARCH_REFRESH_PREF
 from bauble.view import BaubleLinkButton
 from bauble.view import DefaultCommandHandler
-from bauble.view import HomeView
 from bauble.view import DocumentsBottomPage
-from bauble.view import HomeCommandHandler
 from bauble.view import InfoBox
 from bauble.view import InfoBoxPage
 from bauble.view import LinksExpander
@@ -87,7 +88,6 @@ from bauble.view import PrefsResetDialog
 from bauble.view import PrefsView
 from bauble.view import PropertiesExpander
 from bauble.view import SearchView
-from bauble.view import SimpleSearchBox
 from bauble.view import View
 from bauble.view import _Node
 from bauble.view import get_search_view

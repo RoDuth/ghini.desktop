@@ -41,7 +41,7 @@ from bauble import search
 from bauble import utils
 from bauble.i18n import _
 from bauble.ui.views import HistoryView
-from bauble.view import HomeView
+from bauble.ui.views import HomeView
 from bauble.view import SearchView
 
 from .accession import BAUBLE_ACC_CODE_FORMAT

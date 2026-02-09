@@ -652,6 +652,7 @@ class LocationSearchMap(Gtk.Frame):
 
     def __init__(self) -> None:
         super().__init__(label=_("Location Search"))
+        cast(Gtk.Label, self.get_label_widget()).set_margin_start(8)
         proxy = get_map_tile_proxy()
         self.map_ = OsmGpsMap.Map(proxy_uri=proxy)
         self.map_.layer_add(

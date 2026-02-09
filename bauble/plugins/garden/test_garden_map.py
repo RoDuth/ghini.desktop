@@ -48,7 +48,7 @@ from bauble.test import update_gui
 from bauble.test import wait_on_threads
 from bauble.utils.web import PACFile
 from bauble.utils.web import get_net_sess
-from bauble.view import HomeView
+from bauble.ui.views import HomeView
 from bauble.view import SearchView
 from bauble.view import get_search_view
 
