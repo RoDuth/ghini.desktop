@@ -62,6 +62,7 @@ from bauble.test import BaubleTestCase
 from bauble.test import get_setUp_data_funcs
 from bauble.test import update_gui
 from bauble.test import wait_on_threads
+from bauble.ui.views import HistoryView
 from bauble.view import _MAINSTR_TMPL
 from bauble.view import _SUBSTR_TMPL
 from bauble.view import BOTTOM_NOTEBOOK_PAGE_PREF
@@ -76,7 +77,6 @@ from bauble.view import BaubleLinkButton
 from bauble.view import DefaultCommandHandler
 from bauble.view import DefaultView
 from bauble.view import DocumentsBottomPage
-from bauble.view import HistoryView
 from bauble.view import HomeCommandHandler
 from bauble.view import InfoBox
 from bauble.view import InfoBoxPage
@@ -2276,7 +2276,7 @@ class TestHistoryView(BaubleTestCase):
         hist_view.add_row(mock_hist_item2)
         self.assertEqual(len(hist_view.liststore), start_len + 1)
 
-    @mock.patch("bauble.view.HistoryView.TRUNCATE", 20)
+    @mock.patch("bauble.ui.views.HistoryView.TRUNCATE", 20)
     def test_add_row_truncate_single(self):
         mock_hist_item = mock.Mock(
             timestamp=datetime.today(),
@@ -2310,7 +2310,7 @@ class TestHistoryView(BaubleTestCase):
             first_row[hist_view.TVC_USER_FRIENDLY + 1], '{"test": "this",…'
         )
 
-    @mock.patch("bauble.view.HistoryView.TRUNCATE", 22)
+    @mock.patch("bauble.ui.views.HistoryView.TRUNCATE", 22)
     def test_add_row_truncate_list(self):
         # test type guard, no values should return early
         mock_hist_item = mock.Mock(
@@ -2408,7 +2408,7 @@ class TestHistoryView(BaubleTestCase):
         self.assertTrue(hist_view.on_button_release(None, mock.Mock(button=3)))
         mock_context.popup_at_pointer.assert_called()
 
-    @mock.patch("bauble.view.HistoryView.get_selected_value")
+    @mock.patch("bauble.ui.views.HistoryView.get_selected_value")
     def test_on_revert_to_history_type_guard(self, mock_get_selected):
         mock_get_selected.return_value = mock.Mock(id=None)
         hist_view = HistoryView()
@@ -2584,7 +2584,7 @@ class TestHistoryView(BaubleTestCase):
         wait_on_threads()
 
     @mock.patch("bauble.gui")
-    @mock.patch("bauble.view.HistoryView.get_selected_value")
+    @mock.patch("bauble.ui.views.HistoryView.get_selected_value")
     def test_on_copy_values(self, mock_get_selected, mock_gui):
         geojson = {"type": "Point", "coordinate": [1, 2]}
 
@@ -2634,7 +2634,7 @@ class TestHistoryView(BaubleTestCase):
         mock_gui.get_display_clipboard().set_text.assert_not_called()
 
     @mock.patch("bauble.gui")
-    @mock.patch("bauble.view.HistoryView.get_selected_value")
+    @mock.patch("bauble.ui.views.HistoryView.get_selected_value")
     def test_on_copy_geojson(self, mock_get_selected, mock_gui):
         geojson = {"type": "Point", "coordinate": [1, 2]}
         values = {
@@ -2836,7 +2836,7 @@ class TestHistoryView(BaubleTestCase):
         self.assertTrue(result[1].compare(db.History.table_name == "plant"))
         self.assertTrue(result[2].compare(db.History.operation == "insert"))
 
-    @mock.patch("bauble.view.HistoryView.add_rows")
+    @mock.patch("bauble.ui.views.HistoryView.add_rows")
     def test_on_history_tv_value_changed_at_top(self, mock_add_rows):
         mock_tv = mock.MagicMock()
         mock_tv.get_visible_range.return_value = [True, True]
@@ -2855,7 +2855,7 @@ class TestHistoryView(BaubleTestCase):
         hist_view.on_history_tv_value_changed()
         mock_add_rows.assert_not_called()
 
-    @mock.patch("bauble.view.HistoryView.add_rows")
+    @mock.patch("bauble.ui.views.HistoryView.add_rows")
     def test_on_history_tv_value_changed_towards_top(self, mock_add_rows):
         mock_tv = mock.MagicMock()
         mock_tv.get_visible_range.return_value = [True, True]
@@ -2874,7 +2874,7 @@ class TestHistoryView(BaubleTestCase):
         hist_view.on_history_tv_value_changed()
         mock_add_rows.assert_called()
 
-    @mock.patch("bauble.view.HistoryView.add_rows")
+    @mock.patch("bauble.ui.views.HistoryView.add_rows")
     def test_on_history_tv_value_changed_towards_bottom(self, mock_add_rows):
         mock_tv = mock.MagicMock()
         mock_tv.get_visible_range.return_value = [True, True]
@@ -2893,7 +2893,7 @@ class TestHistoryView(BaubleTestCase):
         hist_view.on_history_tv_value_changed()
         mock_add_rows.assert_called()
 
-    @mock.patch("bauble.view.HistoryView.add_rows")
+    @mock.patch("bauble.ui.views.HistoryView.add_rows")
     def test_on_history_tv_value_changed_at_bottom(self, mock_add_rows):
         mock_tv = mock.MagicMock()
         mock_tv.get_visible_range.return_value = [True, True]
@@ -2913,7 +2913,7 @@ class TestHistoryView(BaubleTestCase):
         mock_add_rows.assert_not_called()
 
     @mock.patch("bauble.gui")
-    @mock.patch("bauble.view.HistoryView.show_error_box")
+    @mock.patch("bauble.ui.views.HistoryView.show_error_box")
     def test_add_rows_w_exception(self, mock_show_error, _mock_gui):
         db._Session = mock.Mock()
         db._Session.side_effect = ValueError("boom")

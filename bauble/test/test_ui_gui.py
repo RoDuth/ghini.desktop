@@ -32,7 +32,7 @@ from bauble.test import BaubleTestCase
 from bauble.test import update_gui
 from bauble.ui.gui import GUI
 from bauble.view import DefaultView
-from bauble.view import HistoryView
+from bauble.ui.views import HistoryView
 from bauble.view import PrefsView
 from bauble.view import get_search_view
 

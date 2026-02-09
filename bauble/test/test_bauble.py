@@ -605,7 +605,7 @@ class GlobalFunctionsTests(BaubleTestCase):
         bauble.command_handler("history", None)
         mock_gui.get_view.assert_called()
 
-        from bauble.view import HistoryView
+        from bauble.ui.views import HistoryView
         from bauble.view import PrefsView
         from bauble.view import SearchView
 

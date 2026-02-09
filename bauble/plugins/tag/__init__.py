@@ -29,7 +29,7 @@ import bauble
 from bauble import db
 from bauble import pluginmgr
 from bauble import search
-from bauble.view import HistoryView
+from bauble.ui.views import HistoryView
 from bauble.view import SearchView
 
 from .model import Tag

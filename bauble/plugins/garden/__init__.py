@@ -40,8 +40,8 @@ from bauble import prefs
 from bauble import search
 from bauble import utils
 from bauble.i18n import _
+from bauble.ui.views import HistoryView
 from bauble.view import DefaultView
-from bauble.view import HistoryView
 from bauble.view import SearchView
 
 from .accession import BAUBLE_ACC_CODE_FORMAT

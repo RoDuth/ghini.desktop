@@ -48,8 +48,8 @@ from bauble.i18n import _
 from bauble.paths import lib_dir
 from bauble.search.query_builder import ExpressionRow
 from bauble.search.stored_queries import StoredQueriesButtonBox
+from bauble.ui.views import HistoryView
 from bauble.view import DefaultView
-from bauble.view import HistoryView
 from bauble.view import SearchView
 from bauble.view import View
 
