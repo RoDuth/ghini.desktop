@@ -25,6 +25,7 @@ import traceback
 from datetime import datetime
 from pathlib import Path
 from typing import TYPE_CHECKING
+from typing import cast
 
 logger = logging.getLogger(__name__)
 
@@ -65,6 +66,7 @@ from bauble.i18n import _
 from bauble.utils.geo import KMLMapCallbackFunctor
 from bauble.utils.geo import get_approx_area_from_geojson_sqm
 from bauble.view import Action
+from bauble.view import on_clicked_search
 
 if TYPE_CHECKING:
     from .accession import IntendedLocation
@@ -611,41 +613,43 @@ class LocationEditor(GenericModelViewPresenterEditor):
 
 
 from bauble.view import InfoBox
-from bauble.view import InfoExpander
+from bauble.view import InfoExpanderMixin
 from bauble.view import LinksExpander
 from bauble.view import PropertiesExpander
 
 
-class GeneralLocationExpander(InfoExpander):
+@Gtk.Template(
+    filename=str(Path(__file__).resolve().parent / "location_expander.ui")
+)
+class GeneralLocationExpander(
+    InfoExpanderMixin[Location],
+    Gtk.Expander,
+):
     """general expander for the PlantInfoBox"""
 
-    def __init__(self, widgets):
-        super().__init__(_("General"), widgets)
-        general_box = self.widgets.loc_gen_box
-        self.widgets.remove_parent(general_box)
-        self.vbox.pack_start(general_box, True, True, 0)
-        self.current_obj = None
+    __gtype_name__ = "GeneralLocationExpander"
 
-        def on_nplants_clicked(*_args):
-            cmd = f'plant where location.code="{self.current_obj.code}"'
-            bauble.gui.send_command(cmd)
+    name_label = cast(Gtk.Label, Gtk.Template.Child())
+    num_plants_label = cast(Gtk.Label, Gtk.Template.Child())
+    geojson_type_label = cast(Gtk.Label, Gtk.Template.Child())
+    approx_area_label = cast(Gtk.Label, Gtk.Template.Child())
 
+    def __init__(self) -> None:
+        super().__init__(label=_("General"))
+        self.connect("notify::expanded", self.on_expanded)
+
+    def update(self, row: Location) -> None:
         utils.make_label_clickable(
-            self.widgets.loc_nplants_data, on_nplants_clicked
+            self.num_plants_label,
+            on_clicked_search,
+            f"plant where location.code = {row.code}",
         )
 
-    def update(self, row):
-        self.current_obj = row
-
-        self.widget_set_value(
-            "loc_name_data",
-            f"<big>{utils.xml_safe(str(row))}</big>",
-            markup=True,
-        )
-        self.widget_set_value("loc_nplants_data", len(row.plants))
+        self.num_plants_label.set_label(str(len(row.plants)))
+        self.name_label.set_markup(f"<big>{utils.xml_safe(str(row))}</big>")
 
         # NOTE don't load geojson from the row or history will always record
-        # an unpdate and _last_updated will always chenge when a note is edited
+        # an unpdate and _last_updated will always change when a note is edited
         # (e.g. `shape = row.geojson...`) instead use a temp session
         with db.engine.begin() as connection:
             table = Location.__table__
@@ -661,49 +665,40 @@ class GeneralLocationExpander(InfoExpander):
                 area = get_approx_area_from_geojson_sqm(geojson)
                 approx_area = f"{area:.2f} m²"
 
-        self.widget_set_value("geojson_type", shape)
-        self.widget_set_value("approx_area", approx_area)
+        self.geojson_type_label.set_label(shape)
+        self.approx_area_label.set_label(approx_area)
 
 
-class DescriptionExpander(InfoExpander):
+class DescriptionExpander(
+    InfoExpanderMixin[Location],
+    Gtk.Expander,
+):
     """The location description"""
 
-    def __init__(self, widgets):
-        super().__init__(_("Description"), widgets)
-        descr_box = self.widgets.loc_descr_box
-        self.widgets.remove_parent(descr_box)
-        self.vbox.pack_start(descr_box, True, True, 0)
+    def __init__(self) -> None:
+        super().__init__(label=_("Description"))
+        scrolled_window = Gtk.ScrolledWindow()
+        self.description_text_view = Gtk.TextView(wrap_mode=Gtk.WrapMode.WORD)
+        scrolled_window.add(self.description_text_view)
+        self.add(scrolled_window)
 
-    def update(self, row):
+    def update(self, row: Location) -> None:
         if row.description is None:
             self.set_expanded(False)
             self.set_sensitive(False)
         else:
             self.set_expanded(True)
             self.set_sensitive(True)
-            self.widget_set_value("loc_descr_data", str(row.description))
+            buffer = self.description_text_view.get_buffer()
+            buffer.set_text(str(row.description))
 
 
-class LocationInfoBox(InfoBox):
+class LocationInfoBox(InfoBox[Location]):
     """an InfoBox for a Location table row"""
 
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__()
-        filename = os.path.join(
-            paths.lib_dir(), "plugins", "garden", "loc_infobox.glade"
-        )
-        self.widgets = utils.load_widgets(filename)
-        self.general = GeneralLocationExpander(self.widgets)
-        self.add_expander(self.general)
-        self.description = DescriptionExpander(self.widgets)
-        self.add_expander(self.description)
-        self.links = LinksExpander("notes")
-        self.add_expander(self.links)
-        self.props = PropertiesExpander()
-        self.add_expander(self.props)
-
-    def update(self, row):
-        self.general.update(row)
-        self.description.update(row)
-        self.links.update(row)
-        self.props.update(row)
+        self.add_expander(GeneralLocationExpander())
+        self.add_expander(DescriptionExpander())
+        self.add_expander(LinksExpander("notes"))
+        self.add_expander(PropertiesExpander())

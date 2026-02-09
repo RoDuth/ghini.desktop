@@ -35,7 +35,6 @@ from sqlalchemy.orm import object_session
 
 from bauble import db
 from bauble import meta
-from bauble import paths
 from bauble import prefs
 from bauble import utils
 from bauble.meta import BaubleMeta
@@ -4788,11 +4787,7 @@ class LocationTests(GardenTestCase):
         self.assertEqual(loc.pictures, [])
 
     def test_general_location_expander_update_w_geojson(self):
-        filename = os.path.join(
-            paths.lib_dir(), "plugins", "garden", "loc_infobox.glade"
-        )
-        widgets = utils.load_widgets(filename)
-        expander = GeneralLocationExpander(widgets)
+        expander = GeneralLocationExpander()
         loc = self.session.query(Location).first()
         loc.geojson = {
             "type": "Polygon",
@@ -4810,15 +4805,11 @@ class LocationTests(GardenTestCase):
 
         expander.update(loc)
 
-        self.assertEqual(widgets.geojson_type.get_text(), "Polygon")
-        self.assertEqual(widgets.approx_area.get_text(), "12309.07 m²")
+        self.assertEqual(expander.geojson_type_label.get_text(), "Polygon")
+        self.assertEqual(expander.approx_area_label.get_text(), "12309.07 m²")
 
     def test_desription_expander_expands(self):
-        filename = os.path.join(
-            paths.lib_dir(), "plugins", "garden", "loc_infobox.glade"
-        )
-        widgets = utils.load_widgets(filename)
-        expander = DescriptionExpander(widgets)
+        expander = DescriptionExpander()
         # with description
         loc = self.session.query(Location).first()
         expander.update(loc)

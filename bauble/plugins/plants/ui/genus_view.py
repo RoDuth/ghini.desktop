@@ -90,7 +90,6 @@ class GeneralGenusExpander(InfoExpanderMixin[Genus], Gtk.Expander):
 
     __gtype_name__ = "GeneralGenusExpander"
 
-    general_box = cast(Gtk.Box, Gtk.Template.Child())
     name_label = cast(Gtk.Label, Gtk.Template.Child())
     fam_label = cast(Gtk.Label, Gtk.Template.Child())
     subfam_label = cast(Gtk.Label, Gtk.Template.Child())
@@ -105,10 +104,8 @@ class GeneralGenusExpander(InfoExpanderMixin[Genus], Gtk.Expander):
     def __init__(self) -> None:
         super().__init__(label=_("General"))
         self.connect("notify::expanded", self.on_expanded)
-        self.has_details = False
 
     def update(self, row: Genus) -> None:
-        self.has_details = any((row.subfamily, row.tribe, row.subtribe))
         self.update_details(row)
         self.name_label.set_markup(
             f"<big>{row.markup()}</big> {utils.xml_safe(str(row.author))}",

@@ -100,7 +100,6 @@ class GeneralFamilyExpander(InfoExpanderMixin[Family], Gtk.Expander):
 
     __gtype_name__ = "GeneralFamilyExpander"
 
-    general_box = cast(Gtk.Box, Gtk.Template.Child())
     details_box = cast(Gtk.Box, Gtk.Template.Child())
     order_label = cast(Gtk.Label, Gtk.Template.Child())
     suborder_label = cast(Gtk.Label, Gtk.Template.Child())
@@ -221,8 +220,7 @@ class FamilyInfoBox(InfoBox[Family]):
 
     def __init__(self) -> None:
         super().__init__()
-        self.general = GeneralFamilyExpander()
-        self.add_expander(self.general)
+        self.add_expander(GeneralFamilyExpander())
         self.add_expander(SynonymsExpander[Family]())
 
         button_defs = []
