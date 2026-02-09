@@ -24,15 +24,14 @@ Source and associated tables, etc.
 import logging
 import os
 import re
-import threading
 import traceback
 import weakref
 from pathlib import Path
 from typing import TYPE_CHECKING
+from typing import cast as t_cast
 
 logger = logging.getLogger(__name__)
 
-from gi.repository import GLib
 from gi.repository import Gtk
 from sqlalchemy import Column
 from sqlalchemy import Float
@@ -65,7 +64,7 @@ from bauble.i18n import _
 from bauble.utils.geo import KMLMapCallbackFunctor
 from bauble.view import Action
 from bauble.view import InfoBox
-from bauble.view import InfoExpander
+from bauble.view import InfoExpanderMixin
 from bauble.view import PropertiesExpander
 
 from ..plants.geography import Geography
@@ -1433,54 +1432,53 @@ class SourceDetailPresenter(editor.GenericEditorPresenter):
         return self.on_textbuffer_changed(widget, value, attr="description")
 
 
-class GeneralSourceDetailExpander(InfoExpander):
-    """Displays name, number of accessions, address, email, fax, tel, type of
-    source.
-    """
+@Gtk.Template(
+    filename=str(Path(__file__).resolve().parent / "source_detail_expander.ui")
+)
+class GeneralSourceDetailExpander(
+    InfoExpanderMixin[SourceDetail],
+    Gtk.Expander,
+):
+    """General expander for the SourceDetailInfoBox"""
 
-    def __init__(self, widgets):
-        super().__init__(_("General"), widgets)
-        gen_box = self.widgets.sd_gen_box
-        self.widgets.remove_parent(gen_box)
-        self.vbox.pack_start(gen_box, True, True, 0)
+    __gtype_name__ = "GeneralSourceDetailExpander"
+
+    name_label = t_cast(Gtk.Label, Gtk.Template.Child())
+    num_acc_label = t_cast(Gtk.Label, Gtk.Template.Child())
+    type_label = t_cast(Gtk.Label, Gtk.Template.Child())
+    description_label = t_cast(Gtk.Label, Gtk.Template.Child())
+
+    def __init__(self) -> None:
+        super().__init__(label=_("General"))
+        self.connect("notify::expanded", self.on_expanded)
 
     def update(self, row):
-        self.widget_set_value(
-            "sd_name_data",
-            f"<big>{utils.xml_safe(row.name)}</big>",
-            markup=True,
-        )
+        self.name_label.set_markup(f"<big>{utils.xml_safe(str(row))}</big>")
+
         source_type = ""
         if row.source_type:
             source_type = utils.xml_safe(row.source_type)
-        self.widget_set_value("sd_type_data", source_type)
+
+        self.type_label.set_label(source_type)
 
         description = ""
         if row.description:
             description = utils.xml_safe(row.description)
-        self.widget_set_value("sd_desc_data", description, markup=True)
+
+        self.description_label.set_label(description)
 
         session = object_session(row)
-        nacc = (
+        num_acc = (
             session.query(Source)
             .filter(Source.source_detail_id == row.id)
             .count()
         )
-        self.widget_set_value("sd_nacc_data", nacc)
+
+        self.num_acc_label.set_label(str(num_acc))
 
 
 class SourceDetailInfoBox(InfoBox):
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__()
-        filename = os.path.join(
-            paths.lib_dir(), "plugins", "garden", "source_detail_infobox.glade"
-        )
-        self.widgets = utils.load_widgets(filename)
-        self.general = GeneralSourceDetailExpander(self.widgets)
-        self.add_expander(self.general)
-        self.props = PropertiesExpander()
-        self.add_expander(self.props)
-
-    def update(self, row):
-        self.general.update(row)
-        self.props.update(row)
+        self.add_expander(GeneralSourceDetailExpander())
+        self.add_expander(PropertiesExpander())

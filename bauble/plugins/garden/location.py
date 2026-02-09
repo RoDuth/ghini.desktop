@@ -625,7 +625,7 @@ class GeneralLocationExpander(
     InfoExpanderMixin[Location],
     Gtk.Expander,
 ):
-    """general expander for the PlantInfoBox"""
+    """General expander for the PlantInfoBox"""
 
     __gtype_name__ = "GeneralLocationExpander"
 
