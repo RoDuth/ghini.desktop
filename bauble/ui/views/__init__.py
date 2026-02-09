@@ -20,5 +20,6 @@ UI views
 from .history_view import HistoryView
 from .home_view import HomeCommandHandler
 from .home_view import HomeView
+from .prefs_view import PrefsView
 
-__all__ = ["HistoryView", "HomeView", "HomeCommandHandler"]
+__all__ = ["HistoryView", "HomeView", "HomeCommandHandler", "PrefsView"]

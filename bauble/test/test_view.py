@@ -65,7 +65,9 @@ from bauble.test import wait_on_threads
 from bauble.ui.views import HistoryView
 from bauble.ui.views import HomeCommandHandler
 from bauble.ui.views import HomeView
+from bauble.ui.views import PrefsView
 from bauble.ui.views.home_view import SimpleSearchBox
+from bauble.ui.views.prefs_view import PrefsResetDialog
 from bauble.view import _MAINSTR_TMPL
 from bauble.view import _SUBSTR_TMPL
 from bauble.view import BOTTOM_NOTEBOOK_PAGE_PREF
@@ -84,8 +86,6 @@ from bauble.view import InfoBoxPage
 from bauble.view import LinksExpander
 from bauble.view import NotesBottomPage
 from bauble.view import PicturesScroller
-from bauble.view import PrefsResetDialog
-from bauble.view import PrefsView
 from bauble.view import PropertiesExpander
 from bauble.view import SearchView
 from bauble.view import View
@@ -3093,7 +3093,7 @@ class PrefsViewTests(BaubleTestCase):
         prefs_view.on_prefs_restore_clicked(None, None)
         self.assertIsNone(prefs.prefs["bauble.test.option"])
 
-    @mock.patch("bauble.view.PrefsResetDialog.run")
+    @mock.patch("bauble.ui.views.prefs_view.PrefsResetDialog.run")
     def test_get_user_filtered(self, mock_run):
         mock_run.return_value = Gtk.ResponseType.CANCEL
         prefs_view = PrefsView()
@@ -3123,7 +3123,7 @@ class PrefsViewTests(BaubleTestCase):
 
         self.assertEqual(config.sections(), [])
 
-    @mock.patch("bauble.view.PrefsResetDialog.run")
+    @mock.patch("bauble.ui.views.prefs_view.PrefsResetDialog.run")
     def test_on_prefs_reset_clicked(self, mock_run):
         mock_run.return_value = Gtk.ResponseType.OK
         prefs_view = PrefsView()
@@ -3173,7 +3173,7 @@ class PrefsViewTests(BaubleTestCase):
         os.close(handle)
         os.remove(temp)
 
-    @mock.patch("bauble.view.PrefsResetDialog.run")
+    @mock.patch("bauble.ui.views.prefs_view.PrefsResetDialog.run")
     @mock.patch("bauble.view.Gtk.FileChooserNative.new")
     def test_on_update_share_clicked(self, mock_filechooser, mock_run):
         mock_run.return_value = Gtk.ResponseType.OK
