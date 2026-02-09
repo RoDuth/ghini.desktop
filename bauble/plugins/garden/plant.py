@@ -31,6 +31,7 @@ from collections.abc import Sequence
 from datetime import datetime
 from functools import lru_cache
 from pathlib import Path
+from typing import cast as t_cast
 
 logger = logging.getLogger(__name__)
 
@@ -79,6 +80,7 @@ from sqlalchemy.orm import synonym as sa_synonym
 from sqlalchemy.orm import validates
 from sqlalchemy.orm.attributes import get_history
 from sqlalchemy.orm.session import object_session
+from sqlalchemy.sql import cast
 from sqlalchemy.sql import column
 from sqlalchemy.sql import exists
 from sqlalchemy.sql import values
@@ -104,9 +106,10 @@ from bauble.search.strategies import UseStrategy
 from bauble.utils.geo import KMLMapCallbackFunctor
 from bauble.view import Action
 from bauble.view import InfoBox
-from bauble.view import InfoExpander
+from bauble.view import InfoExpanderMixin
 from bauble.view import LinksExpander
 from bauble.view import PropertiesExpander
+from bauble.view import on_clicked_select
 from bauble.view import select_in_search_results
 
 from .accession import Accession
@@ -971,7 +974,6 @@ class Plant(db.Domain, db.WithNotes):
     @active.expression  # type: ignore [no-redef]
     def active(cls):
         # pylint: disable=no-self-argument
-        from sqlalchemy.sql.expression import cast
 
         return cast(case([(cls.quantity > 0, 1)], else_=0), types.Boolean)
 
@@ -2363,33 +2365,42 @@ class PlantEditor(GenericModelViewPresenterEditor):
         return self._committed
 
 
-class GeneralPlantExpander(InfoExpander):
+@Gtk.Template(
+    filename=str(Path(__file__).resolve().parent / "plant_expander.ui")
+)
+class GeneralPlantExpander(
+    InfoExpanderMixin[Plant],
+    Gtk.Expander,
+):
     """general expander for the PlantInfoBox"""
 
-    def __init__(self, widgets):
-        super().__init__(_("General"), widgets)
-        general_box = self.widgets.general_box
-        self.widgets.remove_parent(general_box)
-        self.vbox.pack_start(general_box, True, True, 0)
+    __gtype_name__ = "GeneralPlantExpander"
 
-    def update(self, row):
+    acc_code_label = t_cast(Gtk.Label, Gtk.Template.Child())
+    plant_code_label = t_cast(Gtk.Label, Gtk.Template.Child())
+    name_label = t_cast(Gtk.Label, Gtk.Template.Child())
+    location_label = t_cast(Gtk.Label, Gtk.Template.Child())
+    quantity_label = t_cast(Gtk.Label, Gtk.Template.Child())
+    status_label = t_cast(Gtk.Label, Gtk.Template.Child())
+    type_label = t_cast(Gtk.Label, Gtk.Template.Child())
+    geojson_type_label = t_cast(Gtk.Label, Gtk.Template.Child())
+    memorial_image = t_cast(Gtk.Image, Gtk.Template.Child())
+
+    def __init__(self) -> None:
+        super().__init__(label=_("General"))
+        self.connect("notify::expanded", self.on_expanded)
+
+    def update(self, row: Plant) -> None:
         acc_code = str(row.accession)
         plant_code = str(row)
         head, tail = plant_code[: len(acc_code)], plant_code[len(acc_code) :]
 
-        self.widget_set_value(
-            "acc_code_data", f"<big>{utils.xml_safe(head)}</big>", markup=True
-        )
-        self.widget_set_value(
-            "plant_code_data",
-            f"<big>{utils.xml_safe(tail)}</big>",
-            markup=True,
-        )
-        self.widget_set_value(
-            "name_data", row.accession.species_str(markup=True), markup=True
-        )
-        self.widget_set_value("location_data", str(row.location))
-        self.widget_set_value("quantity_data", row.quantity)
+        self.acc_code_label.set_markup(f"<big>{utils.xml_safe(head)}</big>")
+        self.plant_code_label.set_markup(f"<big>{utils.xml_safe(tail)}</big>")
+        self.name_label.set_markup(row.accession.species_str(markup=True))
+        self.location_label.set_label(utils.xml_safe(row.location))
+        self.quantity_label.set_label(str(row.quantity))
+
         # NOTE don't load geojson from the row or history will always record
         # an update and _last_updated will always change when a relationship
         # (note, propagation, etc.) is edited. (e.g. `shape = row.geojson...`
@@ -2398,61 +2409,67 @@ class GeneralPlantExpander(InfoExpander):
             table = Plant.__table__
             stmt = select(table.c.geojson).where(table.c.id == row.id)
             geojson = connection.execute(stmt).scalar()
+
         shape = geojson.get("type", "") if geojson else ""
-        self.widget_set_value("geojson_type", shape)
+        self.geojson_type_label.set_label(shape)
 
         status_str = _("Alive")
         if row.quantity <= 0:
             status_str = _("Dead")
-        self.widget_set_value("status_data", status_str, False)
 
-        self.widget_set_value(
-            "type_data", acc_type_values[row.acc_type], False
-        )
+        self.status_label.set_label(status_str)
+        self.type_label.set_label(acc_type_values[row.acc_type])
 
-        image_size = Gtk.IconSize.MENU
         icon = None
         if row.memorial:
             icon = "object-select-symbolic"
 
-        self.widgets.memorial_image.set_from_icon_name(icon, image_size)
+        self.memorial_image.set_from_icon_name(icon, Gtk.IconSize.MENU)
 
-        on_clicked = utils.generate_on_clicked(select_in_search_results)
         utils.make_label_clickable(
-            self.widgets.acc_code_data, on_clicked, row.accession
+            self.acc_code_label,
+            on_clicked_select,
+            row.accession,
         )
 
         from ..plants.species import on_taxa_clicked
 
         utils.make_label_clickable(
-            self.widgets.name_data, on_taxa_clicked, row.accession.species
+            self.name_label,
+            on_taxa_clicked,
+            row.accession.species,
         )
         utils.make_label_clickable(
-            self.widgets.location_data, on_clicked, row.location
+            self.location_label,
+            on_clicked_select,
+            row.location,
         )
 
 
-class ChangesExpander(InfoExpander):
+class ChangesExpander(
+    InfoExpanderMixin[Plant],
+    Gtk.Expander,
+):
     """ChangesExpander"""
 
-    EXPANDED_PREF = "infobox.plant_changes_expanded"
-
-    def __init__(self, widgets):
-        super().__init__(_("Changes"), widgets)
+    def __init__(self) -> None:
+        super().__init__(label=_("Changes"))
+        self.connect("notify::expanded", self.on_expanded)
         self.add_change_grid()
 
-    def add_change_grid(self):
+    def add_change_grid(self) -> None:
         self.change_grid = Gtk.Grid()
         self.change_grid.set_column_spacing(3)
         self.change_grid.set_row_spacing(3)
-        self.vbox.pack_start(self.change_grid, False, False, 0)
+        self.add(self.change_grid)
 
-    def update(self, row):
-        self.reset()
-        self.vbox.remove(self.change_grid)
+    def update(self, row: Plant) -> None:
+        self.remove(self.change_grid)
         self.add_change_grid()
+
         if not row.changes:
             return
+
         self.set_sensitive(True)
 
         on_clicked = utils.generate_on_clicked(select_in_search_results)
@@ -2507,7 +2524,7 @@ class ChangesExpander(InfoExpander):
 
             if change.reason and not change.reason == "PLTD":
                 reason_lbl = Gtk.Label()
-                reason_lbl.set_text(change_reasons.get(change.reason))
+                reason_lbl.set_text(change_reasons.get(change.reason, ""))
                 reason_lbl.set_xalign(0.0)
                 reason_lbl.set_yalign(0.0)
                 self.change_grid.attach(reason_lbl, 0, count, 1, 1)
@@ -2545,27 +2562,32 @@ class ChangesExpander(InfoExpander):
         self.get_preferred_size()
 
 
-class PropagationExpander(InfoExpander):
+class PropagationExpander(
+    InfoExpanderMixin[Plant],
+    Gtk.Expander,
+):
     """Propagation Expander"""
 
-    EXPANDED_PREF = "infobox.plant_proagations_expanded"
-
-    def __init__(self, widgets):
-        super().__init__(_("Propagations"), widgets)
+    def __init__(self) -> None:
+        super().__init__(label=_("Propagations"))
         self.add_prop_grid()
 
-    def add_prop_grid(self):
+    def add_prop_grid(self) -> None:
         self.prop_grid = Gtk.Grid()
         self.prop_grid.set_column_spacing(3)
         self.prop_grid.set_row_spacing(3)
-        self.vbox.pack_start(self.prop_grid, False, False, 0)
+        self.add(self.prop_grid)
 
-    def update(self, row):
-        self.reset()
-        self.vbox.remove(self.prop_grid)
+    def update(self, row: Plant) -> None:
+        self.remove(self.prop_grid)
         self.add_prop_grid()
+
         if not row.propagations:
+            self.set_sensitive(False)
             return
+
+        self.set_sensitive(True)
+
         self.set_sensitive(True)
         frmt = prefs.prefs[prefs.date_format_pref]
         count = 0
@@ -2617,39 +2639,11 @@ class PlantInfoBox(InfoBox):
 
     def __init__(self):
         super().__init__()
-        filename = os.path.join(
-            paths.lib_dir(), "plugins", "garden", "plant_infobox.glade"
-        )
-        self.widgets = utils.load_widgets(filename)
-        self.general = GeneralPlantExpander(self.widgets)
-        self.add_expander(self.general)
-
-        self.changes = ChangesExpander(self.widgets)
-        self.add_expander(self.changes)
-
-        self.propagations = PropagationExpander(self.widgets)
-        self.add_expander(self.propagations)
-
-        self.links = LinksExpander("notes")
-        self.add_expander(self.links)
-
-        self.props = PropertiesExpander()
-        self.add_expander(self.props)
-
-    def update(self, row):
-        self.general.update(row)
-        self.changes.update(row)
-
-        if row.propagations:
-            self.propagations.set_sensitive(True)
-        else:
-            self.propagations.set_sensitive(False)
-
-        self.propagations.update(row)
-
-        self.links.update(row)
-
-        self.props.update(row)
+        self.add_expander(GeneralPlantExpander())
+        self.add_expander(ChangesExpander())
+        self.add_expander(PropagationExpander())
+        self.add_expander(LinksExpander("notes"))
+        self.add_expander(PropertiesExpander())
 
 
 def plant_to_string_matcher(plant: Plant, text: str) -> bool:
