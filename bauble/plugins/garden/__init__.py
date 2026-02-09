@@ -41,7 +41,7 @@ from bauble import search
 from bauble import utils
 from bauble.i18n import _
 from bauble.ui.views import HistoryView
-from bauble.view import DefaultView
+from bauble.view import HomeView
 from bauble.view import SearchView
 
 from .accession import BAUBLE_ACC_CODE_FORMAT
@@ -392,10 +392,10 @@ class GardenPlugin(pluginmgr.Plugin):
                 setup_garden_map()
                 loc_map = LocationSearchMap()
                 loc_map.clear_locations()
-                DefaultView.main_widget = loc_map
+                HomeView.main_widget = loc_map
             else:
                 logger.debug("removing garden map")
-                DefaultView.main_widget = None
+                HomeView.main_widget = None
 
 
 def init_location_comboentry(presenter, combo, on_select):

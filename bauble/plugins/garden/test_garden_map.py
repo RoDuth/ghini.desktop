@@ -48,7 +48,7 @@ from bauble.test import update_gui
 from bauble.test import wait_on_threads
 from bauble.utils.web import PACFile
 from bauble.utils.web import get_net_sess
-from bauble.view import DefaultView
+from bauble.view import HomeView
 from bauble.view import SearchView
 from bauble.view import get_search_view
 
@@ -388,14 +388,14 @@ class LocationSearchMapTests(BaubleTestCase):
 
     def test_main_widget_set_when_institution_coords_set(self):
         GardenPlugin.init()
-        self.assertIsInstance(DefaultView.main_widget, LocationSearchMap)
+        self.assertIsInstance(HomeView.main_widget, LocationSearchMap)
         # select then re init should clear
-        DefaultView.main_widget.loc_items = {
+        HomeView.main_widget.loc_items = {
             1: MapPoly(1, poly, colours["grey"])
         }
         GardenPlugin.init()
-        self.assertIsInstance(DefaultView.main_widget, LocationSearchMap)
-        self.assertFalse(DefaultView.main_widget.loc_items)
+        self.assertIsInstance(HomeView.main_widget, LocationSearchMap)
+        self.assertFalse(HomeView.main_widget.loc_items)
         # as if database has changed...
         institution = Institution()
         institution.geo_latitude = None
@@ -403,7 +403,7 @@ class LocationSearchMapTests(BaubleTestCase):
         institution.geo_zoom = None
         institution.write()
         GardenPlugin.init()
-        self.assertIsNone(DefaultView.main_widget)
+        self.assertIsNone(HomeView.main_widget)
 
     def test_loc_items_starts_empty(self):
         map_ = LocationSearchMap()

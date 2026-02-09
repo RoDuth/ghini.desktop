@@ -49,7 +49,7 @@ from bauble.paths import lib_dir
 from bauble.search.query_builder import ExpressionRow
 from bauble.search.stored_queries import StoredQueriesButtonBox
 from bauble.ui.views import HistoryView
-from bauble.view import DefaultView
+from bauble.view import HomeView
 from bauble.view import SearchView
 from bauble.view import View
 
@@ -703,9 +703,9 @@ class PlantsPlugin(pluginmgr.Plugin):
             context_menu=geography_context_menu,
         )
 
-        # now it's the turn of the DefaultView
+        # now it's the turn of the HomeView
         logger.debug("PlantsPlugin::init, registering home info box")
-        DefaultView.infoboxclass = HomeInfoBox
+        HomeView.infoboxclass = HomeInfoBox
 
         if bauble.gui is not None:
             bauble.gui.add_to_insert_menu(create_family, _("Family"))

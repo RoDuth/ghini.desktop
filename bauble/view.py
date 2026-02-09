@@ -3017,13 +3017,13 @@ class UpdateableWidget(Gtk.Widget, UpdateableNoArgs, metaclass=_UWMeta):
     pass
 
 
-class DefaultView(View, Gtk.Box):
-    """consider DefaultView a home screen.
+class HomeView(View, Gtk.Box):
+    """consider HomeView a home screen.
 
     It is displayed at program start and when home is selected.  it's the core
     of the "what do I do now" screen.
 
-    DefaultView is related to the HomeCommandHandler, not to the
+    HomeView is related to the HomeCommandHandler, not to the
     view.DefaultCommandHandler
     """
 
@@ -3051,19 +3051,19 @@ class DefaultView(View, Gtk.Box):
         self._main_widget: UpdateableWidget | Gtk.Widget | None = None
 
     def update(self, *_args) -> None:
-        logger.debug("DefaultView::update")
+        logger.debug("HomeView::update")
 
         self.search_box.update()
 
         if self.infoboxclass and not self.infobox:
-            logger.debug("DefaultView::update - creating infobox")
+            logger.debug("HomeView::update - creating infobox")
             self.infobox = self.infoboxclass()  # pylint: disable=not-callable
             self.hbox.pack_end(self.infobox, False, False, 8)
             self.infobox.set_vexpand(False)
             self.infobox.set_hexpand(False)
             self.infobox.show()
         if self.infobox:
-            logger.debug("DefaultView::update - updating infobox")
+            logger.debug("HomeView::update - updating infobox")
             self.infobox.update()
         self.set_main_widget()
         # pylint: disable=no-member
@@ -3098,12 +3098,12 @@ class DefaultView(View, Gtk.Box):
 
 class HomeCommandHandler(pluginmgr.CommandHandler):
     command = ["home"]
-    view: DefaultView | None = None
+    view: HomeView | None = None
 
     @classmethod
-    def get_view(cls) -> DefaultView:
+    def get_view(cls) -> HomeView:
         if cls.view is None:
-            cls.view = DefaultView()
+            cls.view = HomeView()
         return cls.view
 
     def __call__(self, cmd: str, arg: str | None) -> None:

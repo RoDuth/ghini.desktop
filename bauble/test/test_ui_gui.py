@@ -31,7 +31,7 @@ from bauble import view
 from bauble.test import BaubleTestCase
 from bauble.test import update_gui
 from bauble.ui.gui import GUI
-from bauble.view import DefaultView
+from bauble.view import HomeView
 from bauble.ui.views import HistoryView
 from bauble.view import PrefsView
 from bauble.view import get_search_view
@@ -527,8 +527,8 @@ class GUITests(BaubleTestCase):
     def test_set_get_view(self):
         gui = GUI()
         gui.init()
-        self.assertIsInstance(gui.views[0], DefaultView)
-        self.assertIsInstance(gui.get_view(), DefaultView)
+        self.assertIsInstance(gui.views[0], HomeView)
+        self.assertIsInstance(gui.get_view(), HomeView)
 
         first_view = gui.get_view()
 
@@ -550,7 +550,7 @@ class GUITests(BaubleTestCase):
         gui.set_view(HistoryView())
         self.assertEqual(
             [type(i).__name__ for i in gui.views],
-            ["SearchView", "DefaultView", "HistoryView"],
+            ["SearchView", "HomeView", "HistoryView"],
         )
 
         # switch back to previous
@@ -558,14 +558,14 @@ class GUITests(BaubleTestCase):
         self.assertTrue(gui.views)
         self.assertEqual(
             [type(i).__name__ for i in gui.views],
-            ["HistoryView", "SearchView", "DefaultView"],
+            ["HistoryView", "SearchView", "HomeView"],
         )
 
         # set to a previous view sets it back to the last view (rearranges)
         gui.set_view(search_view)
         self.assertEqual(
             [type(i).__name__ for i in gui.views],
-            ["HistoryView", "DefaultView", "SearchView"],
+            ["HistoryView", "HomeView", "SearchView"],
         )
 
         # switch to next
@@ -573,7 +573,7 @@ class GUITests(BaubleTestCase):
         self.assertTrue(gui.views)
         self.assertEqual(
             [type(i).__name__ for i in gui.views],
-            ["DefaultView", "SearchView", "HistoryView"],
+            ["HomeView", "SearchView", "HistoryView"],
         )
 
         # teardown

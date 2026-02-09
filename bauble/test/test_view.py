@@ -75,7 +75,7 @@ from bauble.view import SEARCH_POLL_SECS_PREF
 from bauble.view import SEARCH_REFRESH_PREF
 from bauble.view import BaubleLinkButton
 from bauble.view import DefaultCommandHandler
-from bauble.view import DefaultView
+from bauble.view import HomeView
 from bauble.view import DocumentsBottomPage
 from bauble.view import HomeCommandHandler
 from bauble.view import InfoBox
@@ -3295,12 +3295,12 @@ class PrefsResetDialogTests(BaubleTestCase):
         self.assertTrue(dialog.liststore[Gtk.TreePath.new_from_string("1")][1])
 
 
-class DefaultViewTests(BaubleTestCase):
+class HomeViewTests(BaubleTestCase):
     @mock.patch("bauble.gui")
     def test_update(self, mock_gui):
         mock_send = mock.Mock()
         mock_gui.send_command = mock_send
-        def_view = DefaultView()
+        def_view = HomeView()
         self.assertFalse(list(def_view.search_box.domain_combo.get_model()))
         self.assertFalse(def_view.infobox)
         def_view.update()
@@ -3316,21 +3316,21 @@ class DefaultViewTests(BaubleTestCase):
         # main_widget
         mock_widget = Gtk.Box()
         mock_widget.update = mock.Mock()
-        DefaultView.main_widget = mock_widget
+        HomeView.main_widget = mock_widget
         def_view.update()
         mock_widget.update.assert_called()
         # changing main widget works
         mock_widget2 = Gtk.Box()
         mock_widget2.update = mock.Mock()
-        DefaultView.main_widget = mock_widget2
+        HomeView.main_widget = mock_widget2
         def_view.update()
         mock_widget2.update.assert_called()
 
-    @mock.patch.object(DefaultView, "update")
+    @mock.patch.object(HomeView, "update")
     def test_homecommandhandler(self, mock_update):
         home = HomeCommandHandler()
-        self.assertIsInstance(home.get_view(), DefaultView)
-        self.assertIsInstance(home.view, DefaultView)
+        self.assertIsInstance(home.get_view(), HomeView)
+        self.assertIsInstance(home.view, HomeView)
         home(None, None)
         mock_update.assert_called()
 

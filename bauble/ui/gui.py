@@ -60,7 +60,7 @@ from bauble.search.query_builder import QueryBuilder
 from bauble.search.sql_search import SQLSearchDialog
 from bauble.search.stored_queries import StoredQueriesDialog
 from bauble.utils import desktop
-from bauble.view import DefaultView
+from bauble.view import HomeView
 from bauble.view import HomeCommandHandler
 from bauble.view import PrefsView
 from bauble.view import SearchView
@@ -419,7 +419,7 @@ class GUI:
 
         view = self.get_view()
 
-        if isinstance(view, (PrefsView, DefaultView)):
+        if isinstance(view, (PrefsView, HomeView)):
             view.update()
 
         get_search_view().rerun_last_search()
