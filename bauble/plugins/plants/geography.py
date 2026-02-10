@@ -82,7 +82,7 @@ from bauble.utils.geo import KMLMapCallbackFunctor
 from bauble.utils.geo import get_approx_area_from_geojson_sqm
 from bauble.view import Action
 from bauble.view import InfoBox
-from bauble.view import InfoExpanderMixin
+from bauble.view import InfoExpander
 from bauble.view import PropertiesExpander
 from bauble.view import on_clicked_select
 
@@ -1070,7 +1070,7 @@ class DistributionMapEventBox(Gtk.EventBox):
     filename=str(Path(__file__).resolve().parent / "geography_expander.ui")
 )
 class GeneralGeographyExpander(
-    InfoExpanderMixin[Geography],
+    InfoExpander[Geography],
     Gtk.Expander,
 ):
 

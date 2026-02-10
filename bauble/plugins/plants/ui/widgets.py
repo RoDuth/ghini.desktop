@@ -37,14 +37,14 @@ from bauble import utils
 from bauble.i18n import _
 from bauble.ui.handlers import default_completion_cell_data_func
 from bauble.ui.handlers import default_completion_match_func
-from bauble.view import InfoExpanderMixin
+from bauble.view import InfoExpander
 from bauble.view import on_clicked_select
 
 from ..model import Synonym
 from ..model import Taxon
 
 
-class SynonymsExpander[T: Taxon](InfoExpanderMixin[T], Gtk.Expander):
+class SynonymsExpander[T: Taxon](InfoExpander[T], Gtk.Expander):
     """Provides a generic InfoExpander that can be used with any Taxon's search
     view InfoBox.
     """

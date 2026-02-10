@@ -157,7 +157,7 @@ class ExpandedPref:  # pylint: disable=too-few-public-methods
         return f"infobox.{expander_name}d"
 
 
-class InfoExpanderMixin[T: db.Domain]:
+class InfoExpander[T: db.Domain]:
     """InfoExpander mixin that can be used with Gtk.Template decorated class
     that inherits from Gtk.Expander and supplies an update method.
 
@@ -167,7 +167,7 @@ class InfoExpanderMixin[T: db.Domain]:
     Example with Gtk.Template and no specific type::
 
         @Gtk.Template(filename="/path/to/file.ui"))
-        class HamExpander(InfoExpanderMixin, Gtk.Expander):
+        class HamExpander(InfoExpander, Gtk.Expander):
 
             __gtype_name__ = "HamExpander"
 
@@ -185,7 +185,7 @@ class InfoExpanderMixin[T: db.Domain]:
 
     Example without Gtk.Template and a specific type::
 
-        class EggsExpander(InfoExpanderMixin[EggsModel], Gtk.Expander):
+        class EggsExpander(InfoExpander[EggsModel], Gtk.Expander):
 
             def __init__(self) -> None:
                 super().__init__(label=_("Eggs"))
@@ -199,8 +199,6 @@ class InfoExpanderMixin[T: db.Domain]:
             def update(self, row: EggsModel) -> None:
                 self.label.set_text(row.yoke_count)
     """
-
-    # TODO long term deprecate InfoExpander for this approach
 
     EXPANDED_PREF = ExpandedPref()
     set_expanded: Callable[[bool], None]
@@ -219,57 +217,6 @@ class InfoExpanderMixin[T: db.Domain]:
         selected row.
         """
         raise NotImplementedError
-
-
-class InfoExpander(Gtk.Expander):
-    """An abstract class that is really just a generic expander with a vbox
-    to extend this you just have to implement the update() method
-    """
-
-    # preference for storing the expanded state
-    EXPANDED_PREF = ""
-
-    def __init__(self, label, widgets=None):
-        """
-        :param label: the name of this info expander, this is displayed on the
-        expander's expander
-
-        :param widgets: a bauble.utils.BuilderWidgets instance
-        """
-        super().__init__(label=label)
-        self.vbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=0)
-        self.vbox.set_border_width(5)
-        self.add(self.vbox)
-        self.widgets = widgets
-        self.display_widgets = []
-        if not self.EXPANDED_PREF:
-            self.set_expanded(True)
-        self.connect("notify::expanded", self.on_expanded)
-        self._sep = None
-
-    def on_expanded(self, expander, *_args):
-        if self.EXPANDED_PREF:
-            prefs.prefs[self.EXPANDED_PREF] = expander.get_expanded()
-            prefs.prefs.save()
-
-    def widget_set_value(self, widget_name, value, markup=False):
-        """A shorthand for `bauble.utils.set_widget_value()`"""
-        utils.set_widget_value(self.widgets[widget_name], value, markup)
-
-    def reset(self):
-        """Hide `display_widgets`, set set sensitive False and restore expanded
-        state.
-        """
-        if self.display_widgets:
-            utils.hide_widgets(self.display_widgets)
-        self.set_sensitive(False)
-        self.set_expanded(prefs.prefs.get(self.EXPANDED_PREF, True))
-
-    def update(self, row):
-        """This method should be implimented in subclass to update from the
-        selected row
-        """
-        raise NotImplementedError("InfoExpander.update(): not implemented")
 
 
 # beware, typing hack ahead (due to the lack of Intersection).
@@ -298,9 +245,7 @@ class UpdateableExpander(Gtk.Expander, Updateable, metaclass=_UEMeta):
 
 
 class InfoBoxPage[T: db.Domain](Gtk.ScrolledWindow):
-    """A `Gtk.ScrolledWindow` that contains `bauble.view.InfoExpander`
-    objects.
-    """
+    """A ``Gtk.ScrolledWindow`` that contains ``InfoExpander`` objects."""
 
     def __init__(self) -> None:
         super().__init__()
@@ -401,7 +346,7 @@ class InfoBox[T: db.Domain](Gtk.Notebook):
 
     def add_expander(
         self,
-        expander: InfoExpander | InfoExpanderMixin,
+        expander: InfoExpander,
         page_num: int = 0,
     ) -> None:
         """Add an expander to a page.
@@ -424,7 +369,7 @@ class InfoBox[T: db.Domain](Gtk.Notebook):
 
 
 @Gtk.Template(filename=str(Path(paths.lib_dir(), "properties_expander.ui")))
-class PropertiesExpander(InfoExpanderMixin[db.Domain], Gtk.Expander):
+class PropertiesExpander(InfoExpander[db.Domain], Gtk.Expander):
 
     __gtype_name__ = "PropertiesExpander"
 
@@ -471,7 +416,7 @@ class PropertiesExpander(InfoExpanderMixin[db.Domain], Gtk.Expander):
 
 
 @Gtk.Template(filename=str(Path(paths.lib_dir(), "links_expander.ui")))
-class LinksExpander(InfoExpanderMixin[db.Domain], Gtk.Expander):
+class LinksExpander(InfoExpander[db.Domain], Gtk.Expander):
 
     __gtype_name__ = "LinksExpander"
 

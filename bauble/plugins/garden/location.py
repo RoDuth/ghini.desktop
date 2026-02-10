@@ -613,7 +613,7 @@ class LocationEditor(GenericModelViewPresenterEditor):
 
 
 from bauble.view import InfoBox
-from bauble.view import InfoExpanderMixin
+from bauble.view import InfoExpander
 from bauble.view import LinksExpander
 from bauble.view import PropertiesExpander
 
@@ -622,7 +622,7 @@ from bauble.view import PropertiesExpander
     filename=str(Path(__file__).resolve().parent / "location_expander.ui")
 )
 class GeneralLocationExpander(
-    InfoExpanderMixin[Location],
+    InfoExpander[Location],
     Gtk.Expander,
 ):
     """General expander for the PlantInfoBox"""
@@ -670,7 +670,7 @@ class GeneralLocationExpander(
 
 
 class DescriptionExpander(
-    InfoExpanderMixin[Location],
+    InfoExpander[Location],
     Gtk.Expander,
 ):
     """The location description"""

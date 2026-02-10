@@ -106,7 +106,7 @@ from bauble.search.strategies import UseStrategy
 from bauble.utils.geo import KMLMapCallbackFunctor
 from bauble.view import Action
 from bauble.view import InfoBox
-from bauble.view import InfoExpanderMixin
+from bauble.view import InfoExpander
 from bauble.view import LinksExpander
 from bauble.view import PropertiesExpander
 from bauble.view import on_clicked_select
@@ -2369,7 +2369,7 @@ class PlantEditor(GenericModelViewPresenterEditor):
     filename=str(Path(__file__).resolve().parent / "plant_expander.ui")
 )
 class GeneralPlantExpander(
-    InfoExpanderMixin[Plant],
+    InfoExpander[Plant],
     Gtk.Expander,
 ):
     """general expander for the PlantInfoBox"""
@@ -2447,7 +2447,7 @@ class GeneralPlantExpander(
 
 
 class ChangesExpander(
-    InfoExpanderMixin[Plant],
+    InfoExpander[Plant],
     Gtk.Expander,
 ):
     """ChangesExpander"""
@@ -2563,7 +2563,7 @@ class ChangesExpander(
 
 
 class PropagationExpander(
-    InfoExpanderMixin[Plant],
+    InfoExpander[Plant],
     Gtk.Expander,
 ):
     """Propagation Expander"""

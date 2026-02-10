@@ -77,7 +77,7 @@ from bauble.utils import safe_int
 from bauble.utils.geo import KMLMapCallbackFunctor
 from bauble.view import Action
 from bauble.view import InfoBox
-from bauble.view import InfoExpanderMixin
+from bauble.view import InfoExpander
 from bauble.view import LinksExpander
 from bauble.view import PropertiesExpander
 from bauble.view import on_clicked_search
@@ -3481,7 +3481,7 @@ from ..plants.species_model import SpeciesSynonym
     filename=str(Path(__file__).resolve().parent / "accession_expander.ui")
 )
 class GeneralAccessionExpander(
-    InfoExpanderMixin[Accession],
+    InfoExpander[Accession],
     Gtk.Expander,
 ):
     """Generic information about an accession like number of clones, provenance
@@ -3607,7 +3607,7 @@ class GeneralAccessionExpander(
     filename=str(Path(__file__).resolve().parent / "source_expander.ui")
 )
 class SourceExpander(
-    InfoExpanderMixin[Accession],
+    InfoExpander[Accession],
     Gtk.Expander,
 ):
 
@@ -3808,7 +3808,7 @@ class SourceExpander(
 
 
 class VerificationsExpander(
-    InfoExpanderMixin[Accession],
+    InfoExpander[Accession],
     Gtk.Expander,
 ):
     """The accession's verifications"""
@@ -3851,7 +3851,7 @@ class VerificationsExpander(
 
 
 class VouchersExpander(
-    InfoExpanderMixin[Accession],
+    InfoExpander[Accession],
     Gtk.Expander,
 ):
     """The accession's vouchers"""

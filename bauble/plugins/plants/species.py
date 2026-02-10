@@ -61,7 +61,7 @@ from bauble.search.strategies import SearchStrategy
 from bauble.search.strategies import UseStrategy
 from bauble.view import Action
 from bauble.view import InfoBox
-from bauble.view import InfoExpanderMixin
+from bauble.view import InfoExpander
 from bauble.view import PropertiesExpander
 from bauble.view import on_clicked_search
 from bauble.view import on_clicked_select
@@ -500,7 +500,7 @@ class SynonymSearch(SearchStrategy):
         return queries
 
 
-class VernacularExpander(InfoExpanderMixin[Species], Gtk.Expander):
+class VernacularExpander(InfoExpander[Species], Gtk.Expander):
     DEFAULT_LBL = _("(default)")
 
     def __init__(self) -> None:
@@ -593,7 +593,7 @@ def infobox_counts(id_: int) -> dict[str, int]:
     filename=str(Path(__file__).resolve().parent / "species_expander.ui")
 )
 class GeneralSpeciesExpander(
-    InfoExpanderMixin[Species],
+    InfoExpander[Species],
     Gtk.Expander,
 ):
     """expander to present general information about a species"""

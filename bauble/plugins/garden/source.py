@@ -64,7 +64,7 @@ from bauble.i18n import _
 from bauble.utils.geo import KMLMapCallbackFunctor
 from bauble.view import Action
 from bauble.view import InfoBox
-from bauble.view import InfoExpanderMixin
+from bauble.view import InfoExpander
 from bauble.view import PropertiesExpander
 
 from ..plants.geography import Geography
@@ -1436,7 +1436,7 @@ class SourceDetailPresenter(editor.GenericEditorPresenter):
     filename=str(Path(__file__).resolve().parent / "source_detail_expander.ui")
 )
 class GeneralSourceDetailExpander(
-    InfoExpanderMixin[SourceDetail],
+    InfoExpander[SourceDetail],
     Gtk.Expander,
 ):
     """General expander for the SourceDetailInfoBox"""

@@ -35,7 +35,7 @@ from bauble import utils
 from bauble.i18n import _
 from bauble.view import Action
 from bauble.view import InfoBox
-from bauble.view import InfoExpanderMixin
+from bauble.view import InfoExpander
 from bauble.view import LinksExpander
 from bauble.view import PropertiesExpander
 from bauble.view import on_clicked_search
@@ -86,7 +86,7 @@ def infobox_counts(id_: int) -> dict[str, int]:
 @Gtk.Template(
     filename=str(Path(__file__).resolve().parent / "genus_expander.ui")
 )
-class GeneralGenusExpander(InfoExpanderMixin[Genus], Gtk.Expander):
+class GeneralGenusExpander(InfoExpander[Genus], Gtk.Expander):
 
     __gtype_name__ = "GeneralGenusExpander"
 
