@@ -1477,7 +1477,7 @@ class GeneralSourceDetailExpander(
         self.num_acc_label.set_label(str(num_acc))
 
 
-class SourceDetailInfoBox(InfoBox):
+class SourceDetailInfoBox(InfoBox[SourceDetail]):
     def __init__(self) -> None:
         super().__init__()
         self.add_expander(GeneralSourceDetailExpander())

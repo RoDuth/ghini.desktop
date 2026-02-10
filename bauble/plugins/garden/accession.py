@@ -34,6 +34,7 @@ from functools import partial
 from functools import reduce
 from operator import iconcat
 from pathlib import Path
+from typing import cast as t_cast
 
 logger = logging.getLogger(__name__)
 
@@ -62,7 +63,6 @@ from sqlalchemy.orm import relationship
 from sqlalchemy.orm import validates
 from sqlalchemy.orm.session import object_session
 
-import bauble
 from bauble import btypes as types
 from bauble import db
 from bauble import editor
@@ -72,14 +72,16 @@ from bauble import prefs
 from bauble import utils
 from bauble.error import check
 from bauble.i18n import _
+from bauble.utils import date_string
 from bauble.utils import safe_int
 from bauble.utils.geo import KMLMapCallbackFunctor
 from bauble.view import Action
 from bauble.view import InfoBox
-from bauble.view import InfoExpander
+from bauble.view import InfoExpanderMixin
 from bauble.view import LinksExpander
 from bauble.view import PropertiesExpander
-from bauble.view import select_in_search_results
+from bauble.view import on_clicked_search
+from bauble.view import on_clicked_select
 
 from ..plants.species_editor import generic_sp_get_completions
 from ..plants.species_editor import species_cell_data_func
@@ -3475,155 +3477,194 @@ from ..plants.species_model import Species
 from ..plants.species_model import SpeciesSynonym
 
 
-# TODO: i don't think this shows all field of an accession, like the
-# accuracy values
-class GeneralAccessionExpander(InfoExpander):
-    """generic information about an accession like number of clones, provenance
+@Gtk.Template(
+    filename=str(Path(__file__).resolve().parent / "accession_expander.ui")
+)
+class GeneralAccessionExpander(
+    InfoExpanderMixin[Accession],
+    Gtk.Expander,
+):
+    """Generic information about an accession like number of clones, provenance
     type, wild provenance type, speciess
     """
 
-    def __init__(self, widgets):
-        super().__init__(_("General"), widgets)
-        general_box = self.widgets.general_box
-        self.widgets.remove_parent(general_box)
-        self.vbox.pack_start(general_box, True, True, 0)
+    __gtype_name__ = "GeneralAccessionExpander"
 
-    def update(self, row):
-        self.widget_set_value(
-            "acc_code_data",
-            f"<big>{utils.xml_safe(str(row.code))}</big>",
-            markup=True,
+    code_label = t_cast(Gtk.Label, Gtk.Template.Child())
+    name_label = t_cast(Gtk.Label, Gtk.Template.Child())
+    supplied_name_label = t_cast(Gtk.Label, Gtk.Template.Child())
+    num_plants_label = t_cast(Gtk.Label, Gtk.Template.Child())
+    provenance_label = t_cast(Gtk.Label, Gtk.Template.Child())
+    date_accd_label = t_cast(Gtk.Label, Gtk.Template.Child())
+    date_received_label = t_cast(Gtk.Label, Gtk.Template.Child())
+    quantity_recvd_label = t_cast(Gtk.Label, Gtk.Template.Child())
+    received_type_label = t_cast(Gtk.Label, Gtk.Template.Child())
+    purchase_price_label = t_cast(Gtk.Label, Gtk.Template.Child())
+    private_image = t_cast(Gtk.Image, Gtk.Template.Child())
+    intended_locations_label = t_cast(Gtk.Label, Gtk.Template.Child())
+    living_plants_label = t_cast(Gtk.Label, Gtk.Template.Child())
+
+    def __init__(self):
+        super().__init__(label=_("General"))
+        self.connect("notify::expanded", self.on_expanded)
+
+    def update(self, row: Accession) -> None:
+        self.code_label.set_markup(
+            f"<big>{utils.xml_safe(str(row.code))}</big>"
         )
 
-        self.widget_set_value(
-            "name_data", row.species_str(markup=True), markup=True
+        self.name_label.set_markup(row.species_str(markup=True))
+
+        from ..plants.species import on_taxa_clicked
+
+        utils.make_label_clickable(
+            self.name_label,
+            on_taxa_clicked,
+            row.species,
         )
 
-        session = object_session(row)
-        plant_locations = {}
+        self.supplied_name_label.set_label(row.supplied_name or "")
+        self.num_plants_label.set_label(str(len(row.plants)))
+
+        utils.make_label_clickable(
+            self.num_plants_label,
+            on_clicked_search,
+            f'plant where accession.code = "{row.code}"',
+        )
+
+        self.update_provenance(row)
+        self.update_dates(row)
+
+        self.quantity_recvd_label.set_label(str(row.quantity_recvd or ""))
+        self.received_type_label.set_label(recvd_type_values[row.recvd_type])
+
+        price_str = ""
+        if row.purchase_price:
+            price_str = f"{row.purchase_price / 100:.2f} {row.price_unit}"
+        self.purchase_price_label.set_label(price_str)
+
+        icon = None
+        if row.private:
+            icon = "dialog-password-symbolic"
+        self.private_image.set_from_icon_name(icon, Gtk.IconSize.MENU)
+
+        self.update_locations(row)
+
+    def update_locations(self, row: Accession) -> None:
+        plant_locations: dict[str, int] = {}
         for plant in row.plants:
             if plant.quantity == 0:
                 continue
             qty = plant_locations.setdefault(plant.location, 0)
             plant_locations[plant.location] = qty + plant.quantity
+
+        string = "0"
         if plant_locations:
             strs = []
             for location, quantity in plant_locations.items():
                 strs.append(
                     _("%(quantity)s in %(location)s")
-                    % dict(location=str(location), quantity=quantity)
+                    % {"quantity": quantity, "location": str(location)}
                 )
             string = "\n".join(strs)
-        else:
-            string = "0"
-        self.widget_set_value("living_plants_data", string)
 
-        nplants = session.query(Plant).filter_by(accession_id=row.id).count()
-        self.widget_set_value("nplants_data", nplants)
+        self.living_plants_label.set_label(string)
 
-        on_clicked_search = utils.generate_on_clicked(bauble.gui.send_command)
-        date_format = prefs.prefs[prefs.date_format_pref]
-        self.widget_set_value("date_recvd_data", row.date_recvd)
-        if row.date_recvd:
-            date = row.date_recvd.strftime(date_format)
-            utils.make_label_clickable(
-                self.widgets.date_recvd_data,
-                on_clicked_search,
-                f"accession where date_recvd on {date}",
-            )
+        locations_str = "\n".join(
+            f"{i.location} : {i.quantity}" for i in row.intended_locations
+        )
+        self.intended_locations_label.set_label(locations_str)
 
-        self.widget_set_value("date_accd_data", row.date_accd)
-        if row.date_accd:
-            date = row.date_accd.strftime(date_format)
-            utils.make_label_clickable(
-                self.widgets.date_accd_data,
-                on_clicked_search,
-                f"accession where date_accd on {date}",
-            )
-
-        type_str = ""
-        if row.recvd_type:
-            type_str = recvd_type_values[row.recvd_type]
-        self.widget_set_value("recvd_type_data", type_str)
-        quantity_str = ""
-        if row.quantity_recvd:
-            quantity_str = row.quantity_recvd
-        self.widget_set_value("quantity_recvd_data", quantity_str)
-        self.widget_set_value("supplied_name", row.supplied_name or "")
-        price_str = ""
-        if row.purchase_price:
-            price_str = f"{row.purchase_price / 100:.2f} {row.price_unit}"
-        self.widget_set_value("purchase_price", price_str)
-
+    def update_provenance(self, row: Accession) -> None:
         prov_str = dict(prov_type_values)[row.prov_type]
         if row.prov_type == "Wild" and row.wild_prov_status:
             prov_status = dict(wild_prov_status_values)[row.wild_prov_status]
             prov_str += f" ({prov_status})"
 
-        self.widget_set_value("prov_data", prov_str, False)
+        self.provenance_label.set_label(prov_str)
 
-        image_size = Gtk.IconSize.MENU
-        icon = None
-        if row.private:
-            icon = "dialog-password-symbolic"
-        self.widgets.private_image.set_from_icon_name(icon, image_size)
+    def update_dates(self, row: Accession) -> None:
+        self.date_accd_label.set_label(date_string(row.date_accd))
 
-        locations_str = "\n".join(
-            f"{i.location} : {i.quantity}" for i in row.intended_locations
-        )
-        self.widget_set_value("intended_loc_data", locations_str)
-
-        from ..plants.species import on_taxa_clicked
-
-        utils.make_label_clickable(
-            self.widgets.name_data, on_taxa_clicked, row.species
-        )
-        on_clicked = utils.generate_on_clicked(select_in_search_results)
-        if row.source and row.source.plant_propagation:
+        if row.date_accd:
             utils.make_label_clickable(
-                self.widgets.parent_plant_data,
-                on_clicked,
-                row.source.plant_propagation.plant,
+                self.date_accd_label,
+                on_clicked_search,
+                f"accession where date_accd on {date_string(row.date_accd)}",
             )
 
-        cmd = f'plant where accession.code="{row.code}"'
-        utils.make_label_clickable(
-            self.widgets.nplants_data, on_clicked_search, cmd
-        )
+        self.date_received_label.set_label(date_string(row.date_recvd))
+
+        if row.date_recvd:
+            utils.make_label_clickable(
+                self.date_received_label,
+                on_clicked_search,
+                f"accession where date_recvd on {date_string(row.date_recvd)}",
+            )
 
 
-class SourceExpander(InfoExpander):
-    EXPANDED_PREF = "infobox.accession_source_expanded"
+@Gtk.Template(
+    filename=str(Path(__file__).resolve().parent / "source_expander.ui")
+)
+class SourceExpander(
+    InfoExpanderMixin[Accession],
+    Gtk.Expander,
+):
 
-    def __init__(self, widgets):
-        super().__init__(_("Source"), widgets)
-        source_box = self.widgets.source_box
-        self.widgets.remove_parent(source_box)
-        self.vbox.pack_start(source_box, True, True, 0)
+    __gtype_name__ = "SourceExpander"
+
+    source_name_label = t_cast(Gtk.Label, Gtk.Template.Child())
+    source_name_data_label = t_cast(Gtk.Label, Gtk.Template.Child())
+    sources_code_label = t_cast(Gtk.Label, Gtk.Template.Child())
+    sources_code_data_label = t_cast(Gtk.Label, Gtk.Template.Child())
+    source_notes_label = t_cast(Gtk.Label, Gtk.Template.Child())
+    source_notes_data_label = t_cast(Gtk.Label, Gtk.Template.Child())
+    parent_plant_label = t_cast(Gtk.Label, Gtk.Template.Child())
+    parent_plant_eventbox = t_cast(Gtk.EventBox, Gtk.Template.Child())
+    parent_plant_data_label = t_cast(Gtk.Label, Gtk.Template.Child())
+    propagation_label = t_cast(Gtk.Label, Gtk.Template.Child())
+    propagation_data_label = t_cast(Gtk.Label, Gtk.Template.Child())
+    collection_seperator = t_cast(Gtk.Separator, Gtk.Template.Child())
+    collection_expander = t_cast(Gtk.Expander, Gtk.Template.Child())
+    latitude_label = t_cast(Gtk.Label, Gtk.Template.Child())
+    longitude_label = t_cast(Gtk.Label, Gtk.Template.Child())
+    datum_label = t_cast(Gtk.Label, Gtk.Template.Child())
+    elevavation_label = t_cast(Gtk.Label, Gtk.Template.Child())
+    collection_region_label = t_cast(Gtk.Label, Gtk.Template.Child())
+    collector_label = t_cast(Gtk.Label, Gtk.Template.Child())
+    collection_date_label = t_cast(Gtk.Label, Gtk.Template.Child())
+    collectors_code_label = t_cast(Gtk.Label, Gtk.Template.Child())
+    locale_label = t_cast(Gtk.Label, Gtk.Template.Child())
+    habitat_textview = t_cast(Gtk.TextView, Gtk.Template.Child())
+    collection_notes_textview = t_cast(Gtk.TextView, Gtk.Template.Child())
+
+    def __init__(self) -> None:
+        super().__init__(label=_("Source"))
+        self.connect("notify::expanded", self.on_expanded)
 
         self.source_detail_widgets = [
-            self.widgets.source_name_label,
-            self.widgets.source_name_data,
+            self.source_name_label,
+            self.source_name_data_label,
         ]
         self.source_code_widgets = [
-            self.widgets.sources_code_data,
-            self.widgets.sources_code_label,
+            self.sources_code_label,
+            self.sources_code_data_label,
         ]
         self.source_notes_widgets = [
-            self.widgets.source_notes,
-            self.widgets.source_notes_label,
+            self.source_notes_label,
+            self.source_notes_data_label,
         ]
         self.plt_prop_widgets = [
-            self.widgets.parent_plant_label,
-            self.widgets.parent_plant_eventbox,
+            self.parent_plant_label,
+            self.parent_plant_eventbox,
         ]
         self.prop_widgets = [
-            self.widgets.propagation_label,
-            self.widgets.propagation_data,
+            self.propagation_label,
+            self.propagation_data_label,
         ]
         self.collection_widgets = [
-            self.widgets.collection_expander,
-            self.widgets.collection_seperator,
+            self.collection_expander,
+            self.collection_seperator,
         ]
 
         self.display_widgets = [
@@ -3635,15 +3676,75 @@ class SourceExpander(InfoExpander):
             *self.collection_widgets,
         ]
 
-    def update_collection(self, collection):
-        self.widget_set_value("loc_data", collection.locale)
-        self.widget_set_value("datum_data", collection.gps_datum)
+    def update(self, row: Accession) -> None:
+        utils.hide_widgets(self.display_widgets)
 
-        geo_accy = collection.geo_accy
-        if not geo_accy:
-            geo_accy = ""
+        if row.source:
+            self.set_sensitive(True)
         else:
-            geo_accy = f"(+/- {geo_accy}m)"
+            self.set_sensitive(False)
+            return
+
+        self.update_source(row)
+        self.update_propagation(row)
+
+        if row.source.collection:
+            utils.unhide_widgets(self.collection_widgets)
+            self.collection_expander.set_expanded(True)
+            self.update_collection(row.source.collection)
+
+    def update_source(self, row: Accession) -> None:
+        if row.source.source_detail:
+            utils.unhide_widgets(self.source_detail_widgets)
+            self.source_name_data_label.set_label(
+                str(row.source.source_detail)
+            )
+
+            utils.make_label_clickable(
+                self.source_name_data_label,
+                on_clicked_select,
+                row.source.source_detail,
+            )
+
+        if row.source.sources_code:
+            utils.unhide_widgets(self.source_code_widgets)
+            self.sources_code_data_label.set_label(
+                str(row.source.sources_code)
+            )
+
+        if row.source.notes:
+            utils.unhide_widgets(self.source_notes_widgets)
+            self.source_notes_data_label.set_label(str(row.source.notes))
+
+    def update_propagation(self, row: Accession) -> None:
+        prop_str = ""
+        if row.source.plant_propagation:
+            utils.unhide_widgets(self.plt_prop_widgets)
+            self.parent_plant_data_label.set_label(
+                str(row.source.plant_propagation.plant),
+            )
+            prop_str = row.source.plant_propagation.get_summary(partial=2)
+            utils.make_label_clickable(
+                self.parent_plant_data_label,
+                on_clicked_select,
+                row.source.plant_propagation.plant,
+            )
+
+        if row.source.propagation:
+            prop_str = row.source.propagation.get_summary()
+
+        self.propagation_data_label.set_label(prop_str)
+
+        if prop_str:
+            utils.unhide_widgets(self.prop_widgets)
+
+    def update_collection(self, collection: Collection) -> None:
+        self.locale_label.set_label(collection.locale or "")
+        self.datum_label.set_label(collection.gps_datum or "")
+
+        geo_accy = ""
+        if collection.geo_accy:
+            geo_accy = f"(+/- {collection.geo_accy}m)"
 
         lat_str = ""
         if collection.latitude is not None:
@@ -3652,7 +3753,7 @@ class SourceExpander(InfoExpander):
                 f"{collection.latitude} "
                 f"({direct} {degs}°{mins}'{secs}\") {geo_accy}"
             )
-        self.widget_set_value("lat_data", lat_str)
+        self.latitude_label.set_label(lat_str)
 
         long_str = ""
         if collection.longitude is not None:
@@ -3661,115 +3762,65 @@ class SourceExpander(InfoExpander):
                 f"{collection.longitude} "
                 f"({direct} {degs}°{mins}'{secs}\") {geo_accy}"
             )
-        self.widget_set_value("lon_data", long_str)
+        self.longitude_label.set_label(long_str)
 
         elevation = ""
         if collection.elevation:
             elevation = f"{collection.elevation}m"
             if collection.elevation_accy:
                 elevation += f" (+/- {collection.elevation_accy}m)"
-        self.widget_set_value("elev_data", elevation)
+        self.elevavation_label.set_label(elevation)
 
-        on_clicked_search = utils.generate_on_clicked(bauble.gui.send_command)
         region = ""
         if collection.region:
             region = f"{collection.region.name} ({collection.region.code})"
-            self.widget_set_value("col_region", region)
             utils.make_label_clickable(
-                self.widgets.col_region,
+                self.collection_region_label,
                 on_clicked_search,
                 "accession where source.collection.region.code = "
                 f"{collection.region.code}",
             )
+        self.collection_region_label.set_label(region)
 
-        self.widget_set_value("coll_data", collection.collector)
+        self.collector_label.set_label(collection.collector or "")
         if collection.collector:
             utils.make_label_clickable(
-                self.widgets.coll_data,
+                self.collector_label,
                 on_clicked_search,
                 "accession where source.collection.collector = "
                 f"'{collection.collector}'",
             )
 
-        self.widget_set_value("date_data", collection.date)
+        date_str = date_string(collection.date)
+        self.collection_date_label.set_label(date_str)
         if collection.date:
-            date_format = prefs.prefs[prefs.date_format_pref]
-            date = collection.date.strftime(date_format)
             utils.make_label_clickable(
-                self.widgets.date_data,
+                self.collection_date_label,
                 on_clicked_search,
-                f"accession where source.collection.date on {date}",
+                f"accession where source.collection.date on {date_str}",
             )
 
-        self.widget_set_value("collid_data", collection.collectors_code)
-        self.widget_set_value("habitat_data", collection.habitat)
-        self.widget_set_value("collnotes_data", collection.notes)
-
-    def update(self, row):
-        self.reset()
-
-        if row.source:
-            self.set_sensitive(True)
-        else:
-            return
-
-        if row.source.source_detail:
-            utils.unhide_widgets(self.source_detail_widgets)
-            self.widget_set_value(
-                "source_name_data", utils.nstr(row.source.source_detail)
-            )
-
-            on_clicked = utils.generate_on_clicked(select_in_search_results)
-            utils.make_label_clickable(
-                self.widgets.source_name_data,
-                on_clicked,
-                row.source.source_detail,
-            )
-
-        sources_code = ""
-        if row.source.sources_code:
-            utils.unhide_widgets(self.source_code_widgets)
-            sources_code = row.source.sources_code
-            self.widget_set_value("sources_code_data", str(sources_code))
-
-        source_notes = ""
-        if row.source.notes:
-            utils.unhide_widgets(self.source_notes_widgets)
-            source_notes = row.source.notes
-            self.widget_set_value("source_notes", str(source_notes))
-
-        prop_str = ""
-        if row.source.plant_propagation:
-            utils.unhide_widgets(self.plt_prop_widgets)
-            self.widget_set_value(
-                "parent_plant_data", str(row.source.plant_propagation.plant)
-            )
-            prop_str = row.source.plant_propagation.get_summary(partial=2)
-
-        if row.source.propagation:
-            prop_str = row.source.propagation.get_summary()
-
-        self.widget_set_value("propagation_data", prop_str)
-
-        if prop_str:
-            utils.unhide_widgets(self.prop_widgets)
-
-        if row.source.collection:
-            utils.unhide_widgets(self.collection_widgets)
-            self.widgets.collection_expander.set_expanded(True)
-            self.update_collection(row.source.collection)
+        self.collectors_code_label.set_label(collection.collectors_code or "")
+        buffer = self.habitat_textview.get_buffer()
+        buffer.set_text(collection.habitat or "")
+        buffer = self.collection_notes_textview.get_buffer()
+        buffer.set_text(collection.notes or "")
 
 
-class VerificationsExpander(InfoExpander):
-    """the accession's verifications"""
+class VerificationsExpander(
+    InfoExpanderMixin[Accession],
+    Gtk.Expander,
+):
+    """The accession's verifications"""
 
-    EXPANDED_PREF = "infobox.accession_verifications_expanded"
+    def __init__(self) -> None:
+        super().__init__(label=_("Verifications"))
+        self.connect("notify::expanded", self.on_expanded)
+        self.vbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=0)
+        self.vbox.set_border_width(5)
+        self.add(self.vbox)
 
-    def __init__(self, widgets):
-        super().__init__(_("Verifications"), widgets)
-
-    def update(self, row):
-        self.reset()
+    def update(self, row: Accession) -> None:
 
         for kid in self.vbox.get_children():
             self.vbox.remove(kid)
@@ -3777,20 +3828,21 @@ class VerificationsExpander(InfoExpander):
         if row.verifications:
             self.set_sensitive(True)
         else:
+            self.set_sensitive(False)
             return
 
-        frmt = prefs.prefs[prefs.date_format_pref]
-        for ver in sorted(
-            row.verifications, key=lambda v: v.date, reverse=True
+        for verification in sorted(
+            row.verifications, key=lambda v: v.date or 0, reverse=True
         ):
-            date = ver.date.strftime(frmt)
+            date = date_string(verification.date)
             date_lbl = Gtk.Label()
             date_lbl.set_markup(f"<b>{date}</b>")
             date_lbl.set_xalign(0.0)
             date_lbl.set_yalign(0.5)
             self.vbox.pack_start(date_lbl, True, True, 0)
             label = Gtk.Label()
-            string = f"verified as {ver.species.markup()} by {ver.verifier}"
+            sp = verification.species.markup()
+            string = f"verified as {sp} by {verification.verifier}"
             label.set_markup(string)
             label.set_xalign(0.0)
             label.set_yalign(0.5)
@@ -3798,16 +3850,20 @@ class VerificationsExpander(InfoExpander):
             label.show()
 
 
-class VouchersExpander(InfoExpander):
-    """the accession's vouchers"""
+class VouchersExpander(
+    InfoExpanderMixin[Accession],
+    Gtk.Expander,
+):
+    """The accession's vouchers"""
 
-    EXPANDED_PREF = "infobox.accession_vouchers_expanded"
+    def __init__(self) -> None:
+        super().__init__(label=_("Vouchers"))
+        self.connect("notify::expanded", self.on_expanded)
+        self.vbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=0)
+        self.vbox.set_border_width(5)
+        self.add(self.vbox)
 
-    def __init__(self, widgets):
-        super().__init__(_("Vouchers"), widgets)
-
-    def update(self, row):
-        self.reset()
+    def update(self, row: Accession) -> None:
 
         for kid in self.vbox.get_children():
             self.vbox.remove(kid)
@@ -3815,6 +3871,7 @@ class VouchersExpander(InfoExpander):
         if row.vouchers:
             self.set_sensitive(True)
         else:
+            self.set_sensitive(False)
             return
 
         parents = [v for v in row.vouchers if v.parent_material]
@@ -3836,48 +3893,23 @@ class VouchersExpander(InfoExpander):
             label.show()
 
 
-class AccessionInfoBox(InfoBox):
-    """Accession InfoBox
-    - general info
-    - source
-    """
+class AccessionInfoBox(InfoBox[Collection | Accession]):
+    """Accession InfoBox"""
 
     def __init__(self):
         super().__init__()
-        filename = os.path.join(
-            paths.lib_dir(), "plugins", "garden", "acc_infobox.glade"
-        )
-        self.widgets = utils.load_widgets(filename)
-        self.general = GeneralAccessionExpander(self.widgets)
-        self.add_expander(self.general)
-        self.source = SourceExpander(self.widgets)
-        self.add_expander(self.source)
+        self.add_expander(GeneralAccessionExpander())
+        self.add_expander(SourceExpander())
+        self.add_expander(VouchersExpander())
+        self.add_expander(VerificationsExpander())
+        self.add_expander(LinksExpander("notes"))
+        self.add_expander(PropertiesExpander())
 
-        self.vouchers = VouchersExpander(self.widgets)
-        self.add_expander(self.vouchers)
-        self.verifications = VerificationsExpander(self.widgets)
-        self.add_expander(self.verifications)
-
-        self.links = LinksExpander("notes")
-        self.add_expander(self.links)
-
-        self.props = PropertiesExpander()
-        self.add_expander(self.props)
-
-    def update(self, row):
+    def update(self, row: Accession | Collection) -> None:
         if isinstance(row, Collection):
             row = row.source.accession
 
-        self.general.update(row)
-        self.props.update(row)
-
-        self.verifications.update(row)
-
-        self.vouchers.update(row)
-
-        self.links.update(row)
-
-        self.source.update(row)
+        super().update(row)
 
 
 #

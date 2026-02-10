@@ -596,8 +596,18 @@ def _get_button_value(
     return widget.get_label()
 
 
+def date_string(value: datetime.date | None) -> str:
+    if not value:
+        return ""
+
+    from bauble import prefs
+
+    date_format = prefs.prefs.get(prefs.date_format_pref, "%Y-%m-%d")
+    return value.strftime(date_format)
+
+
 @singledispatch
-def set_widget_value(  # pylint: disable=too-many-statements,too-many-branches
+def set_widget_value(
     widget: GObject.Object,
     value: Any,
     markup: bool = False,
@@ -626,12 +636,8 @@ def _string(value: Any) -> str:
     value = "" if value is None else value
 
     if isinstance(value, datetime.date):
-        # assume that if value is a date then we want to display it with
-        # the default date format
-        from bauble import prefs
+        return date_string(value)
 
-        date_format = prefs.prefs[prefs.date_format_pref] or "%Y-%m-%d"
-        return value.strftime(date_format)
     return str(value)
 
 

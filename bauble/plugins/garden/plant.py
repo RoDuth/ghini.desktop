@@ -2570,6 +2570,7 @@ class PropagationExpander(
 
     def __init__(self) -> None:
         super().__init__(label=_("Propagations"))
+        self.connect("notify::expanded", self.on_expanded)
         self.add_prop_grid()
 
     def add_prop_grid(self) -> None:
@@ -2634,7 +2635,7 @@ class PropagationExpander(
         self.get_preferred_size()
 
 
-class PlantInfoBox(InfoBox):
+class PlantInfoBox(InfoBox[Plant]):
     """an InfoBox for a Plants table row"""
 
     def __init__(self):
