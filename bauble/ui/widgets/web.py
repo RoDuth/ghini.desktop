@@ -15,7 +15,7 @@
 # You should have received a copy of the GNU General Public License
 # along with ghini.desktop. If not, see <http://www.gnu.org/licenses/>.
 """
-MenuButton widget to dsiplay web links.
+MenuButton widget to display web links.
 """
 
 from gi.repository import Gio

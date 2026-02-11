@@ -17,10 +17,10 @@
 """
 Custom widgets
 """
-from .date_picker import DatePickerBox
-from .links_menu_button import LinksMenuButton
-from .message_box import YesNoMessageBox
-from .notes_presenter import NotesPresenter
+from .date import DatePickerBox
+from .message import YesNoMessageBox
+from .notes import NotesPresenter
+from .web import LinksMenuButton
 
 __all__ = [
     "LinksMenuButton",

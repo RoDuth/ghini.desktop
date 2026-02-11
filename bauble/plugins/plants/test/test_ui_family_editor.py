@@ -27,7 +27,7 @@ from bauble.plugins.plants.family import Family
 from bauble.test import BaubleTestCase
 from bauble.test import update_gui
 from bauble.ui.presenter import Response
-from bauble.ui.widgets.message_box import YesNoMessageBox
+from bauble.ui.widgets.message import YesNoMessageBox
 
 from ..ui.family_editor import FamilyEditorDialog
 from ..ui.family_editor import validate_unique_family

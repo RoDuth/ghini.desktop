@@ -31,9 +31,9 @@ from bauble.plugins.plants.family import Family
 from bauble.plugins.plants.geography import Geography
 from bauble.plugins.plants.ui.family_editor import FAMILY_WEB_BUTTON_DEFS_PREFS
 from bauble.test import BaubleClassTestCase
-from bauble.ui.widgets.date_picker import DatePickerBox
-from bauble.ui.widgets.links_menu_button import LinksMenuButton
-from bauble.ui.widgets.notes_presenter import NotesPresenter
+from bauble.ui.widgets.date import DatePickerBox
+from bauble.ui.widgets.notes import NotesPresenter
+from bauble.ui.widgets.web import LinksMenuButton
 
 
 class LinksMenuButtonTests(BaubleClassTestCase):
@@ -67,9 +67,7 @@ class LinksMenuButtonTests(BaubleClassTestCase):
         box = Gtk.Box()
         box.add(links_menu_button)
         fam = Family()
-        with mock.patch(
-            "bauble.ui.widgets.links_menu_button.prefs.prefs"
-        ) as mock_prefs:
+        with mock.patch("bauble.ui.widgets.web.prefs.prefs") as mock_prefs:
             mock_prefs.itersection.return_value = ((1, 2), (1, 2))
             links_menu_button.init(fam, FAMILY_WEB_BUTTON_DEFS_PREFS)
 
@@ -77,7 +75,7 @@ class LinksMenuButtonTests(BaubleClassTestCase):
         self.assertIsNone(links_menu_button.get_menu_model())
         box.destroy()
 
-    @mock.patch("bauble.ui.widgets.links_menu_button.desktop.open")
+    @mock.patch("bauble.ui.widgets.web.desktop.open")
     def test_on_item_selected_no_url(self, mock_open):
         links_menu_button = LinksMenuButton()
         links_menu_button.set_visible(True)
@@ -93,7 +91,7 @@ class LinksMenuButtonTests(BaubleClassTestCase):
 
         box.destroy()
 
-    @mock.patch("bauble.ui.widgets.links_menu_button.desktop.open")
+    @mock.patch("bauble.ui.widgets.web.desktop.open")
     def test_on_item_selected_w_url(self, mock_open):
         links_menu_button = LinksMenuButton()
         links_menu_button.set_visible(True)
