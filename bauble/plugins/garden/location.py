@@ -63,6 +63,10 @@ from bauble.editor import PicturesPresenter
 from bauble.editor import PresenterMapMixin
 from bauble.editor import StringOrNoneValidator
 from bauble.i18n import _
+from bauble.ui.views import InfoBox
+from bauble.ui.views import InfoExpander
+from bauble.ui.views import LinksExpander
+from bauble.ui.views import PropertiesExpander
 from bauble.utils.geo import KMLMapCallbackFunctor
 from bauble.utils.geo import get_approx_area_from_geojson_sqm
 from bauble.view import Action
@@ -610,12 +614,6 @@ class LocationEditor(GenericModelViewPresenterEditor):
         self.session.close()
         self.presenter.cleanup()
         return self._committed
-
-
-from bauble.view import InfoBox
-from bauble.view import InfoExpander
-from bauble.view import LinksExpander
-from bauble.view import PropertiesExpander
 
 
 @Gtk.Template(

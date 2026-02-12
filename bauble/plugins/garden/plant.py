@@ -103,12 +103,12 @@ from bauble.error import CheckConditionError
 from bauble.i18n import _
 from bauble.search.strategies import SearchStrategy
 from bauble.search.strategies import UseStrategy
+from bauble.ui.views import InfoBox
+from bauble.ui.views import InfoExpander
+from bauble.ui.views import LinksExpander
+from bauble.ui.views import PropertiesExpander
 from bauble.utils.geo import KMLMapCallbackFunctor
 from bauble.view import Action
-from bauble.view import InfoBox
-from bauble.view import InfoExpander
-from bauble.view import LinksExpander
-from bauble.view import PropertiesExpander
 from bauble.view import on_clicked_select
 from bauble.view import select_in_search_results
 

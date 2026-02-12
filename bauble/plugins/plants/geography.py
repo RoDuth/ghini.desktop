@@ -76,14 +76,14 @@ from bauble import prefs
 from bauble import utils
 from bauble.i18n import _
 from bauble.task import queue
+from bauble.ui.views import InfoBox
+from bauble.ui.views import InfoExpander
+from bauble.ui.views import PropertiesExpander
 from bauble.utils.geo import GEOJSONMultiPoly
 from bauble.utils.geo import GEOJSONPoly
 from bauble.utils.geo import KMLMapCallbackFunctor
 from bauble.utils.geo import get_approx_area_from_geojson_sqm
 from bauble.view import Action
-from bauble.view import InfoBox
-from bauble.view import InfoExpander
-from bauble.view import PropertiesExpander
 from bauble.view import on_clicked_select
 
 if TYPE_CHECKING:

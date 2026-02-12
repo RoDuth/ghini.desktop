@@ -61,11 +61,11 @@ from bauble import paths
 from bauble import prefs
 from bauble import utils
 from bauble.i18n import _
+from bauble.ui.views import InfoBox
+from bauble.ui.views import InfoExpander
+from bauble.ui.views import PropertiesExpander
 from bauble.utils.geo import KMLMapCallbackFunctor
 from bauble.view import Action
-from bauble.view import InfoBox
-from bauble.view import InfoExpander
-from bauble.view import PropertiesExpander
 
 from ..plants.geography import Geography
 from ..plants.geography import GeographyMenu

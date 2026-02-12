@@ -53,16 +53,16 @@ import bauble
 from bauble import db
 from bauble import prefs
 from bauble import utils
-from bauble import view
 from bauble.i18n import _
 from bauble.search.search import result_cache
 from bauble.search.statements import StatementAction
 from bauble.search.strategies import SearchStrategy
 from bauble.search.strategies import UseStrategy
+from bauble.ui.views import InfoBox
+from bauble.ui.views import InfoExpander
+from bauble.ui.views import LinksExpander
+from bauble.ui.views import PropertiesExpander
 from bauble.view import Action
-from bauble.view import InfoBox
-from bauble.view import InfoExpander
-from bauble.view import PropertiesExpander
 from bauble.view import on_clicked_search
 from bauble.view import on_clicked_select
 from bauble.view import select_in_search_results
@@ -983,7 +983,7 @@ class SpeciesInfoBox(InfoBox[Species]):
             button["name"] = name
             button_defs.append(button)
 
-        self.add_expander(view.LinksExpander("notes", links=button_defs))
+        self.add_expander(LinksExpander("notes", links=button_defs))
         self.add_expander(PropertiesExpander())
 
 

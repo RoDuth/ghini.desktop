@@ -37,7 +37,7 @@ from bauble import utils
 from bauble.i18n import _
 from bauble.ui.handlers import default_completion_cell_data_func
 from bauble.ui.handlers import default_completion_match_func
-from bauble.view import InfoExpander
+from bauble.ui.views import InfoExpander
 from bauble.view import on_clicked_select
 
 from ..model import Synonym

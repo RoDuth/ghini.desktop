@@ -72,14 +72,14 @@ from bauble import prefs
 from bauble import utils
 from bauble.error import check
 from bauble.i18n import _
+from bauble.ui.views import InfoBox
+from bauble.ui.views import InfoExpander
+from bauble.ui.views import LinksExpander
+from bauble.ui.views import PropertiesExpander
 from bauble.utils import date_string
 from bauble.utils import safe_int
 from bauble.utils.geo import KMLMapCallbackFunctor
 from bauble.view import Action
-from bauble.view import InfoBox
-from bauble.view import InfoExpander
-from bauble.view import LinksExpander
-from bauble.view import PropertiesExpander
 from bauble.view import on_clicked_search
 from bauble.view import on_clicked_select
 

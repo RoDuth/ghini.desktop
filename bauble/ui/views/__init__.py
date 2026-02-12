@@ -20,6 +20,19 @@ UI views
 from .history import HistoryView
 from .home import HomeCommandHandler
 from .home import HomeView
+from .infobox import InfoBox
+from .infobox import InfoExpander
+from .infobox import LinksExpander
+from .infobox import PropertiesExpander
 from .prefs import PrefsView
 
-__all__ = ["HistoryView", "HomeView", "HomeCommandHandler", "PrefsView"]
+__all__ = [
+    "HistoryView",
+    "HomeView",
+    "HomeCommandHandler",
+    "PrefsView",
+    "InfoBox",
+    "InfoExpander",
+    "LinksExpander",
+    "PropertiesExpander",
+]

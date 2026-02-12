@@ -33,9 +33,9 @@ import bauble
 from bauble import db
 from bauble import utils
 from bauble.i18n import _
-from bauble.view import InfoBox
-from bauble.view import InfoExpander
-from bauble.view import PropertiesExpander
+from bauble.ui.views import InfoBox
+from bauble.ui.views import InfoExpander
+from bauble.ui.views import PropertiesExpander
 
 from ..model import Tag
 

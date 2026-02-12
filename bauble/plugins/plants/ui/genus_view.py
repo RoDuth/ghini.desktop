@@ -33,11 +33,11 @@ from bauble import db
 from bauble import prefs
 from bauble import utils
 from bauble.i18n import _
+from bauble.ui.views import InfoBox
+from bauble.ui.views import InfoExpander
+from bauble.ui.views import LinksExpander
+from bauble.ui.views import PropertiesExpander
 from bauble.view import Action
-from bauble.view import InfoBox
-from bauble.view import InfoExpander
-from bauble.view import LinksExpander
-from bauble.view import PropertiesExpander
 from bauble.view import on_clicked_search
 
 from ..genus import Genus
