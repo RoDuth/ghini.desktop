@@ -103,14 +103,13 @@ from bauble.error import CheckConditionError
 from bauble.i18n import _
 from bauble.search.strategies import SearchStrategy
 from bauble.search.strategies import UseStrategy
+from bauble.ui.views import Action
 from bauble.ui.views import InfoBox
 from bauble.ui.views import InfoExpander
 from bauble.ui.views import LinksExpander
 from bauble.ui.views import PropertiesExpander
+from bauble.ui.views import on_clicked_select
 from bauble.utils.geo import KMLMapCallbackFunctor
-from bauble.view import Action
-from bauble.view import on_clicked_select
-from bauble.view import select_in_search_results
 
 from .accession import Accession
 from .location import Location
@@ -2472,8 +2471,6 @@ class ChangesExpander(
 
         self.set_sensitive(True)
 
-        on_clicked = utils.generate_on_clicked(select_in_search_results)
-
         frmt = prefs.prefs[prefs.date_format_pref]
         count = 0
         for change in sorted(
@@ -2541,7 +2538,7 @@ class ChangesExpander(
                 count += 1
 
                 utils.make_label_clickable(
-                    parent_lbl, on_clicked, change.parent_plant
+                    parent_lbl, on_clicked_select, change.parent_plant
                 )
 
             if change.child_plant:
@@ -2555,7 +2552,7 @@ class ChangesExpander(
                 count += 1
 
                 utils.make_label_clickable(
-                    div_lbl, on_clicked, change.child_plant
+                    div_lbl, on_clicked_select, change.child_plant
                 )
 
         # trigger resize
@@ -2593,8 +2590,6 @@ class PropagationExpander(
         frmt = prefs.prefs[prefs.date_format_pref]
         count = 0
 
-        on_clicked = utils.generate_on_clicked(select_in_search_results)
-
         for prop in row.propagations:
             date_lbl = Gtk.Label()
             date = prop.date.strftime(frmt)
@@ -2618,7 +2613,11 @@ class PropagationExpander(
                     accession_lbl.set_yalign(0.0)
                     accession_lbl.set_text(acc.code)
 
-                    utils.make_label_clickable(accession_lbl, on_clicked, acc)
+                    utils.make_label_clickable(
+                        accession_lbl,
+                        on_clicked_select,
+                        acc,
+                    )
                     self.prop_grid.attach(eventbox, 1, count, 2, 1)
                     count += 1
 

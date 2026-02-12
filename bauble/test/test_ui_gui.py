@@ -27,14 +27,14 @@ import bauble
 from bauble import pluginmgr
 from bauble import prefs
 from bauble import task
-from bauble import view
 from bauble.test import BaubleTestCase
 from bauble.test import update_gui
 from bauble.ui.gui import GUI
 from bauble.ui.views import HistoryView
 from bauble.ui.views import HomeView
 from bauble.ui.views import PrefsView
-from bauble.view import get_search_view
+from bauble.ui.views import SearchView
+from bauble.ui.views import get_search_view
 
 
 class GUITests(BaubleTestCase):
@@ -533,9 +533,9 @@ class GUITests(BaubleTestCase):
         first_view = gui.get_view()
 
         # set to SearchView
-        search_view = view.get_search_view()
+        search_view = get_search_view()
         gui.set_view(search_view)
-        self.assertIsInstance(gui.get_view(), view.SearchView)
+        self.assertIsInstance(gui.get_view(), SearchView)
         second_view = gui.get_view()
         self.assertTrue(gui.views)
         self.assertIs(gui.views[-2], first_view)
@@ -634,7 +634,7 @@ class GUITests(BaubleTestCase):
         mock_editor.assert_called_once()
 
         # function with SeachView
-        search_view = view.get_search_view()
+        search_view = get_search_view()
         gui.set_view(search_view)
         mock_editor.reset_mock()
         with mock.patch.object(search_view, "expand_to_all_rows") as mock_expd:

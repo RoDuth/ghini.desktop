@@ -26,7 +26,7 @@ from bauble import search
 from bauble import utils
 from bauble.plugins.garden import Accession
 from bauble.test import BaubleTestCase
-from bauble.view import SearchView
+from bauble.ui.views import SearchView
 
 from .. import TagPlugin
 from ..model import Tag

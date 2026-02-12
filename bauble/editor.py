@@ -58,7 +58,7 @@ from bauble.utils.web import FIELD_RE
 from bauble.utils.web import LinkDict
 from bauble.utils.web import get_formatted_url_for_obj
 from bauble.utils.web import update_deprecated_forms
-from bauble.view import get_search_view
+from bauble.ui.views import get_search_view
 
 # TODO: create a generic date entry that can take a mask for the date format
 # see the date entries for the accession and accession source presenters
@@ -297,7 +297,7 @@ class GenericEditorView:
 
     def get_selection(self):
         """return the selection in the graphic interface"""
-        from bauble.view import SearchView
+        from bauble.ui.views import SearchView
 
         view = bauble.gui.get_view()
         try:

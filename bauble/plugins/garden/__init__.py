@@ -42,7 +42,7 @@ from bauble import utils
 from bauble.i18n import _
 from bauble.ui.views import HistoryView
 from bauble.ui.views import HomeView
-from bauble.view import SearchView
+from bauble.ui.views import SearchView
 
 from .accession import BAUBLE_ACC_CODE_FORMAT
 from .accession import Accession

@@ -63,7 +63,7 @@ from bauble import task
 from bauble import utils
 from bauble.connmgr import start_connection_manager
 from bauble.i18n import _
-from bauble.view import View
+from bauble.ui.views import View
 
 from ..tag.ui import menu_manager
 from .clone import TOOLS_MENU_CATEGORY

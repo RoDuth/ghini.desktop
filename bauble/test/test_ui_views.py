@@ -69,30 +69,30 @@ from bauble.ui.views import InfoBox
 from bauble.ui.views import LinksExpander
 from bauble.ui.views import PrefsView
 from bauble.ui.views import PropertiesExpander
+from bauble.ui.views import SearchView
+from bauble.ui.views import get_search_view
+from bauble.ui.views import get_search_view_selected
 from bauble.ui.views.home import SimpleSearchBox
 from bauble.ui.views.infobox import InfoBoxPage
+from bauble.ui.views.notes import DocumentsScroller
+from bauble.ui.views.notes import NotesScroller
 from bauble.ui.views.prefs import PrefsResetDialog
+from bauble.ui.views.search import _MAINSTR_TMPL
+from bauble.ui.views.search import _SUBSTR_TMPL
+from bauble.ui.views.search import BOTTOM_NOTEBOOK_PAGE_PREF
+from bauble.ui.views.search import EXPAND_ON_ACTIVATE_PREF
+from bauble.ui.views.search import INFOBOXPAGE_WIDTH_PREF
+from bauble.ui.views.search import PIC_PANE_PAGE_PREF
+from bauble.ui.views.search import PIC_PANE_WIDTH_PREF
+from bauble.ui.views.search import SEARCH_CACHE_SIZE_PREF
+from bauble.ui.views.search import SEARCH_POLL_SECS_PREF
+from bauble.ui.views.search import SEARCH_REFRESH_PREF
+from bauble.ui.views.search import DefaultCommandHandler
+from bauble.ui.views.search import PicturesScroller
+from bauble.ui.views.search import View
+from bauble.ui.views.search import _Node
+from bauble.ui.views.search import select_in_search_results
 from bauble.utils.web import BaubleLinkButton
-from bauble.view import _MAINSTR_TMPL
-from bauble.view import _SUBSTR_TMPL
-from bauble.view import BOTTOM_NOTEBOOK_PAGE_PREF
-from bauble.view import EXPAND_ON_ACTIVATE_PREF
-from bauble.view import INFOBOXPAGE_WIDTH_PREF
-from bauble.view import PIC_PANE_PAGE_PREF
-from bauble.view import PIC_PANE_WIDTH_PREF
-from bauble.view import SEARCH_CACHE_SIZE_PREF
-from bauble.view import SEARCH_POLL_SECS_PREF
-from bauble.view import SEARCH_REFRESH_PREF
-from bauble.view import DefaultCommandHandler
-from bauble.view import DocumentsBottomPage
-from bauble.view import NotesBottomPage
-from bauble.view import PicturesScroller
-from bauble.view import SearchView
-from bauble.view import View
-from bauble.view import _Node
-from bauble.view import get_search_view
-from bauble.view import get_search_view_selected
-from bauble.view import select_in_search_results
 
 
 class DontStop(threading.Thread):
@@ -149,7 +149,7 @@ class TestSearchView(BaubleTestCase):
         super().tearDown()
 
     def test_init_no_db_raises(self):
-        with mock.patch("bauble.view.db._Session", None):
+        with mock.patch("bauble.ui.views.search.db._Session", None):
 
             self.assertRaises(error.DatabaseError, SearchView)
 
@@ -349,7 +349,7 @@ class TestSearchView(BaubleTestCase):
         kid = model.get_value(model.get_iter_from_string("0:1"), 0)
         self.assertEqual(kid.genus_id, 1)
 
-    @mock.patch("bauble.view.SearchView.append_children")
+    @mock.patch("bauble.ui.views.search.SearchView.append_children")
     def test_on_test_expand_row_sort_by_taxon(self, mock_append):
         for func in get_setUp_data_funcs():
             func()
@@ -428,7 +428,7 @@ class TestSearchView(BaubleTestCase):
             )
         mock_treeview.get_model().remove.assert_not_called()
 
-    @mock.patch("bauble.view.utils.search_tree_model")
+    @mock.patch("bauble.ui.views.search.utils.search_tree_model")
     def test_on_test_expand_row_invalid_request_returns_true_and_removes(
         self, mock_search_tm
     ):
@@ -479,7 +479,7 @@ class TestSearchView(BaubleTestCase):
         # parent still exists
         self.assertEqual(start, end)
 
-    @mock.patch("bauble.view.task")
+    @mock.patch("bauble.ui.views.search.task")
     def test_populate_results_large_result_uses_task(self, mock_task):
         search_view = self.search_view
         with mock.patch.object(search_view, "populate_callbacks", []):
@@ -521,7 +521,7 @@ class TestSearchView(BaubleTestCase):
 
         mock_callback.assert_called_with(values)
 
-    @mock.patch("bauble.view.utils.message_details_dialog")
+    @mock.patch("bauble.ui.views.search.utils.message_details_dialog")
     def test_on_action_activate_with_error_notifies(self, mock_dialog):
         search_view = self.search_view
         mock_callback = mock.Mock()
@@ -716,8 +716,8 @@ class TestSearchView(BaubleTestCase):
                 search_view.infobox, search_view.row_meta[klass].infobox
             )
 
-    @mock.patch("bauble.view.search.search")
-    @mock.patch("bauble.view.utils.yes_no_dialog")
+    @mock.patch("bauble.ui.views.search.search.search")
+    @mock.patch("bauble.ui.views.search.utils.yes_no_dialog")
     def test_search_large_result_allows_user_to_bail(
         self, mock_dialog, mock_search
     ):
@@ -781,7 +781,7 @@ class TestSearchView(BaubleTestCase):
         mock_gui.lookup_action.return_value = False
 
         with mock.patch(
-            "bauble.view.Gio.Application.get_default"
+            "bauble.ui.views.search.Gio.Application.get_default"
         ) as mock_default:
             self.search_view._add_meta_actions_to_context_menu(selected)
             mock_default().set_accels_for_action.assert_called()
@@ -830,7 +830,7 @@ class TestSearchView(BaubleTestCase):
             "get_history", self.search_view.on_get_history
         )
 
-    @mock.patch("bauble.view.SearchView.get_selected_values")
+    @mock.patch("bauble.ui.views.search.SearchView.get_selected_values")
     def test_on_get_history(self, mock_get_selected):
         mock_get_selected.return_value = None
         self.assertIsNone(self.search_view.on_get_history(None, None))
@@ -849,7 +849,7 @@ class TestSearchView(BaubleTestCase):
             self.search_view.on_get_history(None, None)
             mock_gui.send_command.assert_called_with(search_str)
 
-    @mock.patch("bauble.view.SearchView.get_selected_values")
+    @mock.patch("bauble.ui.views.search.SearchView.get_selected_values")
     def test_on_copy_selected(self, mock_get_selected):
         mock_data = mock.MagicMock(field="Mock Field")
         mock_data.__str__.return_value = "Mock Data"
@@ -871,7 +871,7 @@ class TestSearchView(BaubleTestCase):
                 "Mock Data, Mock Field", -1
             )
 
-    @mock.patch("bauble.view.SearchView.get_selected_values")
+    @mock.patch("bauble.ui.views.search.SearchView.get_selected_values")
     def test_on_copy_selected_bails_no_selected(self, mock_get_selected):
 
         mock_get_selected.return_value = []
@@ -881,7 +881,7 @@ class TestSearchView(BaubleTestCase):
             search_view.on_copy_selection(None, None)
             mock_gui.get_display_clipboard().set_text.assert_not_called()
 
-    @mock.patch("bauble.view.SearchView.get_selected_values")
+    @mock.patch("bauble.ui.views.search.SearchView.get_selected_values")
     def test_on_copy_selected_warns_user_if_exception(self, mock_get_selected):
         mock_data = mock.MagicMock(field="Mock Field")
         mock_data.__str__.side_effect = AttributeError("Boom")
@@ -890,7 +890,7 @@ class TestSearchView(BaubleTestCase):
         search_view = self.search_view
 
         with mock.patch(
-            "bauble.view.utils.message_details_dialog"
+            "bauble.ui.views.search.utils.message_details_dialog"
         ) as mock_dialog:
             search_view.on_copy_selection(None, None)
             mock_dialog.assert_called()
@@ -1766,7 +1766,7 @@ class TestSearchView(BaubleTestCase):
         )
         mock_callback.assert_not_called()
 
-    @mock.patch("bauble.view.Gtk.Menu.popup_at_pointer")
+    @mock.patch("bauble.ui.views.search.Gtk.Menu.popup_at_pointer")
     def test_on_view_button_release_3_returns_true(self, mock_popup):
         for func in get_setUp_data_funcs():
             func()
@@ -1789,7 +1789,7 @@ class TestSearchView(BaubleTestCase):
         mock_callback.assert_called()
         mock_popup.assert_called()
 
-    @mock.patch("bauble.view.Gtk.Menu.popup_at_pointer")
+    @mock.patch("bauble.ui.views.search.Gtk.Menu.popup_at_pointer")
     def test_on_view_button_release_long_press_returns_true(self, mock_popup):
         for func in get_setUp_data_funcs():
             func()
@@ -1816,7 +1816,7 @@ class TestSearchView(BaubleTestCase):
         mock_callback.assert_called()
         mock_popup.assert_called()
 
-    @mock.patch("bauble.view.Gtk.Menu.popup_at_pointer")
+    @mock.patch("bauble.ui.views.search.Gtk.Menu.popup_at_pointer")
     def test_on_view_button_release_3_not_selected_returns_true(
         self, mock_popup
     ):
@@ -3134,7 +3134,7 @@ class PrefsViewTests(BaubleTestCase):
 
         self.assertGreater(len(prefs_view.prefs_ls), 50)
 
-    @mock.patch("bauble.view.Gtk.FileChooserNative.new")
+    @mock.patch("bauble.ui.views.search.Gtk.FileChooserNative.new")
     def test_on_create_share_clicked(self, mock_filechooser):
         handle, temp = mkstemp(suffix=".cfg", text=True)
         path = Path(temp)
@@ -3174,7 +3174,7 @@ class PrefsViewTests(BaubleTestCase):
         os.remove(temp)
 
     @mock.patch("bauble.ui.views.prefs.PrefsResetDialog.run")
-    @mock.patch("bauble.view.Gtk.FileChooserNative.new")
+    @mock.patch("bauble.ui.views.search.Gtk.FileChooserNative.new")
     def test_on_update_share_clicked(self, mock_filechooser, mock_run):
         mock_run.return_value = Gtk.ResponseType.OK
         config_path = pluginmgr.get_config_files(pluginmgr.plugins.values())[0]
@@ -3582,10 +3582,10 @@ class TestPicturesScroller(BaubleTestCase):
         mock_handler.assert_called_with(picture_scroller, mock_pic)
 
 
-class DocumentsBottomPageTests(BaubleTestCase):
+class DocumentsScrollerTests(BaubleTestCase):
 
     def test_update_populates_makes_label_bold(self):
-        docs_page = DocumentsBottomPage()
+        docs_page = DocumentsScroller()
         now = datetime.now().date()
 
         mock_note = mock.Mock(
@@ -3610,7 +3610,7 @@ class DocumentsBottomPageTests(BaubleTestCase):
         self.assertFalse(docs_page.label.get_use_markup())
 
     def test_on_note_row_activated(self):
-        docs_page = DocumentsBottomPage()
+        docs_page = DocumentsScroller()
         now = datetime.now().date()
         mock_note = mock.Mock(
             date=now,
@@ -3629,10 +3629,10 @@ class DocumentsBottomPageTests(BaubleTestCase):
         )
 
 
-class NotesBottomPageTests(BaubleTestCase):
+class NotesScrollerTests(BaubleTestCase):
 
     def test_update_populates_makes_label_bold(self):
-        notes_page = NotesBottomPage()
+        notes_page = NotesScroller()
         now = datetime.now().date()
 
         mock_note = mock.Mock(date=now, user="me", category="foo", note="bar")
@@ -3651,7 +3651,7 @@ class NotesBottomPageTests(BaubleTestCase):
         self.assertFalse(notes_page.label.get_use_markup())
 
     def test_on_note_row_activated(self):
-        notes_page = NotesBottomPage()
+        notes_page = NotesScroller()
         now = datetime.now().date()
         mock_note = mock.Mock(
             date=now,
@@ -3777,6 +3777,6 @@ class GlobalFunctionsTests(BaubleTestCase):
             get_search_view_selected(), search_view.get_selected_values()
         )
 
-    @mock.patch("bauble.view.DefaultCommandHandler.view")
+    @mock.patch("bauble.ui.views.search.DefaultCommandHandler.view")
     def test_get_search_view_returns_search_view_only(self, mock_search_view):
         self.assertEqual(get_search_view(), mock_search_view)

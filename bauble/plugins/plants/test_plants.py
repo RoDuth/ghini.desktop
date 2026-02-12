@@ -56,7 +56,7 @@ from bauble.test import check_dupids
 from bauble.test import get_setUp_data_funcs
 from bauble.test import update_gui
 from bauble.test import wait_on_threads
-from bauble.view import SearchView
+from bauble.ui.views import SearchView
 
 from ..garden import Plant
 from . import HomeInfoBox

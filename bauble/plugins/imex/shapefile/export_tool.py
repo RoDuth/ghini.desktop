@@ -547,7 +547,7 @@ class ShapefileExportDialogPresenter(GenericEditorPresenter):
 
     def __init__(self, model, view):
         super().__init__(model=model, view=view, session=False)
-        from bauble.view import SearchView
+        from bauble.ui.views import SearchView
 
         # bauble.gui is None when testing
         main_view = None if bauble.gui is None else bauble.gui.get_view()

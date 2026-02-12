@@ -40,8 +40,8 @@ from bauble import db
 from bauble import utils
 from bauble.i18n import _
 from bauble.ui import idle_garbage_collect
-from bauble.view import SearchView
-from bauble.view import get_search_view_selected
+from bauble.ui.views import SearchView
+from bauble.ui.views import get_search_view_selected
 
 from ..model import Tag
 from ..model import tag_objects

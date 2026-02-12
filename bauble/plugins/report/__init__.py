@@ -871,7 +871,7 @@ class ReportTool(pluginmgr.Tool):  # pylint: disable=too-few-public-methods
     @classmethod
     def start(cls):
         # get the select results from the search view
-        from bauble.view import SearchView
+        from bauble.ui.views import SearchView
 
         view = bauble.gui.get_view()
         if not isinstance(view, SearchView):

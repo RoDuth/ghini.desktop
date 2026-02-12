@@ -58,14 +58,14 @@ from bauble import prefs
 from bauble import utils
 from bauble.i18n import _
 from bauble.pluginmgr import Viewable
+from bauble.ui.views import SearchView
+from bauble.ui.views import get_search_view
+from bauble.ui.views import get_search_view_selected
+from bauble.ui.views import select_in_search_results
 from bauble.utils import timed_cache
 from bauble.utils.geo import is_point_within_poly
 from bauble.utils.geo import polylabel
 from bauble.utils.web import get_net_sess
-from bauble.view import SearchView
-from bauble.view import get_search_view
-from bauble.view import get_search_view_selected
-from bauble.view import select_in_search_results
 
 from .institution import Institution
 from .location import Location

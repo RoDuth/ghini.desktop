@@ -58,14 +58,14 @@ from bauble.search.search import result_cache
 from bauble.search.statements import StatementAction
 from bauble.search.strategies import SearchStrategy
 from bauble.search.strategies import UseStrategy
+from bauble.ui.views import Action
 from bauble.ui.views import InfoBox
 from bauble.ui.views import InfoExpander
 from bauble.ui.views import LinksExpander
 from bauble.ui.views import PropertiesExpander
-from bauble.view import Action
-from bauble.view import on_clicked_search
-from bauble.view import on_clicked_select
-from bauble.view import select_in_search_results
+from bauble.ui.views import on_clicked_search
+from bauble.ui.views import on_clicked_select
+from bauble.ui.views import select_in_search_results
 
 from .family import Family
 from .family import FamilySynonym

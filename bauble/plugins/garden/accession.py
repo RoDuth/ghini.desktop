@@ -79,9 +79,9 @@ from bauble.ui.views import PropertiesExpander
 from bauble.utils import date_string
 from bauble.utils import safe_int
 from bauble.utils.geo import KMLMapCallbackFunctor
-from bauble.view import Action
-from bauble.view import on_clicked_search
-from bauble.view import on_clicked_select
+from bauble.ui.views import Action
+from bauble.ui.views import on_clicked_search
+from bauble.ui.views import on_clicked_select
 
 from ..plants.species_editor import generic_sp_get_completions
 from ..plants.species_editor import species_cell_data_func

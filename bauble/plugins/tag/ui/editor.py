@@ -40,7 +40,7 @@ from bauble import error
 from bauble import utils
 from bauble.i18n import _
 from bauble.ui import GenericPresenter
-from bauble.view import Action
+from bauble.ui.views import Action
 
 from ..model import Tag
 from ..model import get_tag_ids

@@ -10,7 +10,7 @@
       <column type="gchararray"/>
     </columns>
   </object>
-  <template class="TagsBottomPage" parent="GtkScrolledWindow">
+  <template class="TagsScroller" parent="GtkScrolledWindow">
     <property name="visible">True</property>
     <property name="can-focus">True</property>
     <child>

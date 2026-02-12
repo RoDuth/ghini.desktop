@@ -50,8 +50,8 @@ from bauble.search.query_builder import ExpressionRow
 from bauble.search.stored_queries import StoredQueriesButtonBox
 from bauble.ui.views import HistoryView
 from bauble.ui.views import HomeView
-from bauble.view import SearchView
-from bauble.view import View
+from bauble.ui.views import SearchView
+from bauble.ui.views import View
 
 from .family import Familia
 from .family import Family

@@ -49,8 +49,8 @@ from bauble.test import wait_on_threads
 from bauble.utils.web import PACFile
 from bauble.utils.web import get_net_sess
 from bauble.ui.views import HomeView
-from bauble.view import SearchView
-from bauble.view import get_search_view
+from bauble.ui.views import SearchView
+from bauble.ui.views import get_search_view
 
 from ..plants.species import SpeciesEditor
 from . import GardenPlugin

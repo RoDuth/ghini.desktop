@@ -506,7 +506,7 @@ class CSVExportToolTests(BaubleTestCase):
     @mock.patch("bauble.gui")
     def test_no_model_asks_to_search_first(self, mock_gui, mock_dialog):
         mock_searchview = mock.Mock()
-        from bauble.view import SearchView
+        from bauble.ui.views import SearchView
 
         mock_searchview.__class__ = SearchView
         mock_results_view = mock.Mock()
@@ -528,7 +528,7 @@ class CSVExportToolTests(BaubleTestCase):
         mock_exporter.return_value = mock_instance
         logger.debug("start %s", mock_exporter.start() is None)
         mock_searchview = mock.Mock()
-        from bauble.view import SearchView
+        from bauble.ui.views import SearchView
 
         mock_searchview.__class__ = SearchView
         mock_results_view = mock.Mock()

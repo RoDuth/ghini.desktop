@@ -42,8 +42,8 @@ from bauble.ui.views import InfoBox
 from bauble.ui.views import InfoExpander
 from bauble.ui.views import LinksExpander
 from bauble.ui.views import PropertiesExpander
-from bauble.view import Action
-from bauble.view import on_clicked_search
+from bauble.ui.views import Action
+from bauble.ui.views import on_clicked_search
 
 from ..family import Family
 from ..genus import Genus

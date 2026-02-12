@@ -2215,7 +2215,7 @@ class ShapefileExportTests(ShapefileTestCase):
     def test_search_view_option_is_sensitive_if_model(self):
         # Mock a search view with resuls_view model of location
         mock_result_view = mock.Mock(**{"get_model.return_value": Location})
-        from bauble.view import SearchView
+        from bauble.ui.views import SearchView
 
         mock_search_view = mock.Mock(spec=SearchView)
         mock_search_view.results_view = mock_result_view

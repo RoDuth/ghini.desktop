@@ -106,12 +106,13 @@ class TagInfoBox(InfoBox[Tag]):
 
 
 @Gtk.Template(filename=str(Path(__file__).resolve().parent / "tags_page.ui"))
-class TagsBottomPage(Gtk.ScrolledWindow):
-    """Page to append to ``SearchView.bottom_notebook``, shows the tags
-    attached to the selected object.
+class TagsScroller(Gtk.ScrolledWindow):
+    """Display Tags attached to the supplied domain object.
+
+    Can be used as a page to append to ``SearchView.bottom_notebook``.
     """
 
-    __gtype_name__ = "TagsBottomPage"
+    __gtype_name__ = "TagsScroller"
 
     treeview = cast(Gtk.TreeView, Gtk.Template.Child())
     liststore = cast(Gtk.ListStore, Gtk.Template.Child())

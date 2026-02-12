@@ -607,7 +607,7 @@ class GlobalFunctionsTests(BaubleTestCase):
 
         from bauble.ui.views import HistoryView
         from bauble.ui.views import PrefsView
-        from bauble.view import SearchView
+        from bauble.ui.views import SearchView
 
         mock_gui.set_view.assert_called()
         self.assertIsInstance(mock_gui.set_view.call_args[0][0], HistoryView)

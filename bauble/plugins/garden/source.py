@@ -65,7 +65,7 @@ from bauble.ui.views import InfoBox
 from bauble.ui.views import InfoExpander
 from bauble.ui.views import PropertiesExpander
 from bauble.utils.geo import KMLMapCallbackFunctor
-from bauble.view import Action
+from bauble.ui.views import Action
 
 from ..plants.geography import Geography
 from ..plants.geography import GeographyMenu

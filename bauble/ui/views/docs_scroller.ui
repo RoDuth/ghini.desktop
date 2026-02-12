@@ -16,7 +16,7 @@
       <column type="gchararray"/>
     </columns>
   </object>
-  <template class="DocumentsBottomPage" parent="GtkScrolledWindow">
+  <template class="DocumentsScroller" parent="GtkScrolledWindow">
     <property name="visible">True</property>
     <property name="can-focus">True</property>
     <child>

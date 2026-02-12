@@ -83,8 +83,8 @@ from bauble.utils.geo import GEOJSONMultiPoly
 from bauble.utils.geo import GEOJSONPoly
 from bauble.utils.geo import KMLMapCallbackFunctor
 from bauble.utils.geo import get_approx_area_from_geojson_sqm
-from bauble.view import Action
-from bauble.view import on_clicked_select
+from bauble.ui.views import Action
+from bauble.ui.views import on_clicked_select
 
 if TYPE_CHECKING:
     from . import SpeciesDistribution

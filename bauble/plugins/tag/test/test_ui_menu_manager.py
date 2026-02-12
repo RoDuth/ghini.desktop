@@ -32,7 +32,7 @@ import bauble
 from bauble.plugins.plants import Family
 from bauble.test import BaubleTestCase
 from bauble.ui.gui import GUI
-from bauble.view import SearchView
+from bauble.ui.views import SearchView
 
 from .. import Tag
 from ..model import tag_objects

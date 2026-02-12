@@ -30,20 +30,20 @@ from bauble import db
 from bauble import pluginmgr
 from bauble import search
 from bauble.ui.views import HistoryView
-from bauble.view import SearchView
+from bauble.ui.views import SearchView
 
 from .model import Tag
 from .ui import menu_manager
 from .ui.editor import edit_callback
 from .ui.editor import tag_context_menu
 from .ui.view import TagInfoBox
-from .ui.view import TagsBottomPage
+from .ui.view import TagsScroller
 
 
 class TagPlugin(pluginmgr.Plugin):
 
     tags_infobox: TagInfoBox | None = None
-    tags_page: TagsBottomPage | None = None
+    tags_page: TagsScroller | None = None
 
     @classmethod
     def init(cls) -> None:
@@ -67,7 +67,7 @@ class TagPlugin(pluginmgr.Plugin):
         )
 
         if cls.tags_page is None:
-            cls.tags_page = TagsBottomPage()
+            cls.tags_page = TagsScroller()
 
         SearchView.bottom_pages.add((cls.tags_page, cls.tags_page.label))
 

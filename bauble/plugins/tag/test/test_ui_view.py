@@ -28,7 +28,7 @@ from bauble.test import BaubleTestCase
 
 from .. import Tag
 from ..ui.view import TagInfoBox
-from ..ui.view import TagsBottomPage
+from ..ui.view import TagsScroller
 
 
 class TagInfoBoxTest(BaubleTestCase):
@@ -86,7 +86,7 @@ class TagInfoBoxTest(BaubleTestCase):
         ib.destroy()
 
 
-class TagsBottomPageTests(BaubleTestCase):
+class TagsScrollerTests(BaubleTestCase):
 
     def test_update_populates_makes_label_bold(self):
         tag1 = Tag(tag="tag1")
@@ -95,7 +95,7 @@ class TagsBottomPageTests(BaubleTestCase):
         self.session.commit()
         tag1.tag_objects([tag2])
         self.session.commit()
-        tags_page = TagsBottomPage()
+        tags_page = TagsScroller()
 
         tags_page.update(tag2)
 
@@ -108,7 +108,7 @@ class TagsBottomPageTests(BaubleTestCase):
         self.assertFalse(tags_page.label.get_use_markup())
 
     def test_on_note_row_activated(self):
-        tags_page = TagsBottomPage()
+        tags_page = TagsScroller()
         tags_page.liststore.append(("foo", "bar"))
         mock_send = mock.Mock()
 

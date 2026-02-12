@@ -60,8 +60,8 @@ from bauble.search.query_builder import QueryBuilder
 from bauble.search.sql_search import SQLSearchDialog
 from bauble.search.stored_queries import StoredQueriesDialog
 from bauble.utils import desktop
-from bauble.view import SearchView
-from bauble.view import get_search_view
+from bauble.ui.views import SearchView
+from bauble.ui.views import get_search_view
 
 from .views import HomeCommandHandler
 from .views import HomeView

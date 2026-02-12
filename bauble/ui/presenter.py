@@ -35,7 +35,7 @@ from sqlalchemy.orm import Session
 
 from bauble import db
 from bauble import utils
-from bauble.view import get_search_view
+from bauble.ui.views import get_search_view
 
 from .handlers import ComboBoxHandler
 from .handlers import EntryHandler
