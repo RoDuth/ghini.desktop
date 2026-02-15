@@ -22,11 +22,41 @@ from unittest import mock
 from gi.repository import Gtk
 from sqlalchemy.exc import SQLAlchemyError
 
+from bauble import prefs
+from bauble import utils
 from bauble.test import BaubleTestCase
 
 from ..family import Family
 from ..genus import Genus
+from ..test_plants import PlantTestCase
+from ..ui.family_editor import FAMILY_WEB_BUTTON_DEFS_PREFS
+from ..ui.family_view import FamilyInfoBox
+from ..ui.family_view import GeneralFamilyExpander
 from ..ui.family_view import remove_callback
+
+
+class InfoBoxTests(PlantTestCase):
+    def test_general_expander(self):
+        # at least tests nothing errors
+        fams = self.session.query(Family).filter(Family.id.in_((3, 8, 10, 11)))
+
+        general = GeneralFamilyExpander()
+        for fam in fams:
+            general.update(fam)
+            self.assertEqual(
+                general.name_label.get_label(),
+                f"<big>{fam}</big> {utils.xml_safe(str(fam.author))}",
+            )
+
+    def test_family_info_box_links(self):
+        infobox = FamilyInfoBox()
+        links = infobox.get_nth_page(0).expanders["Links"]
+        self.assertTrue(len(links.web_links) > 0)
+
+        self.assertEqual(
+            len(links.web_links),
+            len(list(prefs.prefs.itersection(FAMILY_WEB_BUTTON_DEFS_PREFS))),
+        )
 
 
 class FunctionTests(BaubleTestCase):

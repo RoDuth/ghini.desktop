@@ -37,7 +37,7 @@ from ..ui.genus_view import GenusInfoBox
 from ..ui.genus_view import remove_callback
 
 
-class FunctionTests(BaubleTestCase):
+class InfoBoxTests(BaubleTestCase):
     def test_general_expander(self):
         setup_plants_data()
         # at least tests nothing errors
@@ -63,6 +63,8 @@ class FunctionTests(BaubleTestCase):
             len(list(prefs.prefs.itersection(GENUS_WEB_BUTTON_DEFS_PREFS))),
         )
 
+
+class FunctionTests(BaubleTestCase):
     def test_remove_callback_no_species_no_confirm(self):
         caricaceae = Family(family="Caricaceae")
         gen = Genus(epithet="Carica", family=caricaceae)
