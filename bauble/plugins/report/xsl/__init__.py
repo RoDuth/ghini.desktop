@@ -46,6 +46,7 @@ from bauble.plugins.abcd import ABCDCreator
 from bauble.plugins.abcd import AccessionABCDAdapter
 from bauble.plugins.abcd import PlantABCDAdapter
 from bauble.plugins.abcd import SpeciesABCDAdapter
+from bauble.ui.dialogs import run_file_chooser_dialog
 
 from .. import FormatterPlugin
 from .. import SettingsBox
@@ -263,7 +264,7 @@ class XSLFormatterSettingsBox(SettingsBox):
             last_folder = str(Path(previously).parent)
         else:
             last_folder = paths.templates_dir()
-        utils.run_file_chooser_dialog(
+        run_file_chooser_dialog(
             _("Select a stylesheet"),
             None,
             Gtk.FileChooserAction.OPEN,
@@ -283,7 +284,7 @@ class XSLFormatterSettingsBox(SettingsBox):
             last_folder = str(Path(previously).parent)
         else:
             last_folder = str(Path.home())
-        utils.run_file_chooser_dialog(
+        run_file_chooser_dialog(
             _("Save to file"),
             None,
             Gtk.FileChooserAction.SAVE,

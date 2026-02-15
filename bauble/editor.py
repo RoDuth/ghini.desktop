@@ -53,6 +53,7 @@ from bauble.error import CheckConditionError
 from bauble.error import check
 from bauble.i18n import _
 from bauble.ui import Problem
+from bauble.ui.dialogs import run_file_chooser_dialog
 from bauble.ui.utils import ImageLoader
 from bauble.ui.utils import clear_model
 from bauble.ui.utils import combo_get_value_iter
@@ -270,7 +271,7 @@ class GenericEditorView:
             filter.
         """
         target = self.__get_widget(target)
-        utils.run_file_chooser_dialog(
+        run_file_chooser_dialog(
             text, parent, action, last_folder, target, suffix
         )
 

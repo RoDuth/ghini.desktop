@@ -41,6 +41,7 @@ from bauble.editor import GenericEditorPresenter
 from bauble.editor import GenericEditorView
 from bauble.editor import Problem
 from bauble.i18n import _
+from bauble.ui.dialogs import run_file_chooser_dialog
 
 
 def element_factory(parent, name, **kwargs):
@@ -69,7 +70,7 @@ class XMLExportDialogPresenter(GenericEditorPresenter):
         self.refresh_sensitivity()
 
     def on_btnbrowse_clicked(self, _button):
-        utils.run_file_chooser_dialog(
+        run_file_chooser_dialog(
             _("Select a folder"),
             None,
             Gtk.FileChooserAction.CREATE_FOLDER,

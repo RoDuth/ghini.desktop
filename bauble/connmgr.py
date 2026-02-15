@@ -58,6 +58,7 @@ from bauble.i18n import _
 from bauble.ui import EntryHandler
 from bauble.ui import GenericPresenter
 from bauble.ui import Validator
+from bauble.ui.dialogs import run_file_chooser_dialog
 from bauble.utils.web import get_net_sess
 
 pyodbc: ModuleType | None
@@ -489,7 +490,7 @@ class ConnectionBox(
         """Generic button browse handler for file and directory entries."""
         previously = entry.get_text()
         last_folder = self.get_parent_folder(previously)
-        utils.run_file_chooser_dialog(
+        run_file_chooser_dialog(
             _("Choose a file…"),
             None,
             action=action,

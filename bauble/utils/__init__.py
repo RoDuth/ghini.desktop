@@ -1337,44 +1337,6 @@ def get_user_display_name():
     return fname
 
 
-def run_file_chooser_dialog(
-    text, parent, action, last_folder, target, suffix=None
-):
-    """Create and run a FileChooserNative, then write result in target entry
-    widget.
-
-    this is just a bit more than a wrapper. it adds 'last_folder', a
-    string indicationg the location where to put the FileChooserNative,
-    and 'target', an Entry widget.
-
-    :param text: window label text.
-    :param parent: the parent window or None.
-    :param action: a Gtk.FileChooserAction value.
-    :param last_folder: the folder to open the window at.
-    :param target: widget that has it value set to the selected filename.
-    :param suffix: an extension as a str (e.g. '.csv'). Used as a file filter.
-    """
-    chooser = Gtk.FileChooserNative.new(text, parent, action)
-    if suffix:
-        filter_ = Gtk.FileFilter.new()
-        filter_.add_pattern("*" + suffix)
-        chooser.add_filter(filter_)
-
-    try:
-        if last_folder:
-            chooser.set_current_folder(last_folder)
-        if chooser.run() == Gtk.ResponseType.ACCEPT:
-            filename = chooser.get_filename()
-            if filename:
-                if suffix:
-                    filename = str(Path(filename).with_suffix(suffix))
-                target.set_text(filename)
-                target.set_position(len(filename))
-    except Exception as e:  # pylint: disable=broad-except
-        logger.warning("unhandled %s exception: %s", type(e).__name__, e)
-    chooser.destroy()
-
-
 def copy_tree(src_dir, dest_dir, suffixes=None, over_write=False):
     """Copy a directory tree from source to destination.
 

@@ -35,6 +35,7 @@ from mako.template import Template  # type: ignore [import-untyped]
 from bauble import paths
 from bauble import utils
 from bauble.i18n import _
+from bauble.ui.dialogs import run_file_chooser_dialog
 from bauble.ui.utils import set_widget_value
 
 from .. import FormatterPlugin
@@ -79,7 +80,7 @@ class MakoFormatterSettingsBox(SettingsBox):
             last_folder = str(Path(previously).parent)
         else:
             last_folder = paths.templates_dir()
-        utils.run_file_chooser_dialog(
+        run_file_chooser_dialog(
             _("Select a stylesheet"),
             None,
             Gtk.FileChooserAction.OPEN,
@@ -213,7 +214,7 @@ class MakoFormatterSettingsBox(SettingsBox):
             last_folder = str(Path(previously).parent)
         else:
             last_folder = str(Path.home())
-        utils.run_file_chooser_dialog(
+        run_file_chooser_dialog(
             _("Select a file"),
             None,
             Gtk.FileChooserAction.OPEN,
