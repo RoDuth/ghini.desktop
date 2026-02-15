@@ -48,6 +48,7 @@ from bauble.i18n import _
 from bauble.paths import lib_dir
 from bauble.search.query_builder import ExpressionRow
 from bauble.search.stored_queries import StoredQueriesButtonBox
+from bauble.ui.utils import clear_model
 from bauble.ui.views import HistoryView
 from bauble.ui.views import HomeView
 from bauble.ui.views import SearchView
@@ -190,7 +191,7 @@ class SynonymsPresenter(editor.GenericEditorPresenter):
         col = self.view.widgets.syn_column
         col.set_cell_data_func(self.view.widgets.syn_cell, _syn_data_func)
 
-        utils.clear_model(self.treeview)
+        clear_model(self.treeview)
         tree_model = Gtk.ListStore(object)
         for syn in sorted(self.model._synonyms, key=str):
             tree_model.append([syn])

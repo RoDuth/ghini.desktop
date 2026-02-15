@@ -53,12 +53,18 @@ from bauble.error import CheckConditionError
 from bauble.error import check
 from bauble.i18n import _
 from bauble.ui import Problem
+from bauble.ui.utils import ImageLoader
+from bauble.ui.utils import clear_model
+from bauble.ui.utils import combo_get_value_iter
+from bauble.ui.utils import get_widget_value
+from bauble.ui.utils import search_tree_model
+from bauble.ui.utils import set_widget_value
+from bauble.ui.views import get_search_view
 from bauble.utils import desktop
 from bauble.utils.web import FIELD_RE
 from bauble.utils.web import LinkDict
 from bauble.utils.web import get_formatted_url_for_obj
 from bauble.utils.web import update_deprecated_forms
-from bauble.ui.views import get_search_view
 
 # TODO: create a generic date entry that can take a mask for the date format
 # see the date entries for the accession and accession source presenters
@@ -507,7 +513,7 @@ class GenericEditorView:
 
     def widget_get_value(self, widget):
         widget = self.__get_widget(widget)
-        return utils.get_widget_value(widget)
+        return get_widget_value(widget)
 
     def widget_set_value(self, widget, value, markup=False, index=0):
         """This method calls bauble.utils.set_widget_value()
@@ -518,9 +524,9 @@ class GenericEditorView:
         :param index: the row index to use for those widgets who use a model
         """
         if isinstance(widget, Gtk.Widget):
-            utils.set_widget_value(widget, value, markup, index)
+            set_widget_value(widget, value, markup, index)
         else:
-            utils.set_widget_value(self.widgets[widget], value, markup, index)
+            set_widget_value(self.widgets[widget], value, markup, index)
 
     def on_dialog_response(self, dialog, response, *_args):
         """Called if self.get_window() is a Gtk.Dialog and it receives the
@@ -651,7 +657,7 @@ class GenericEditorView:
             combo.connect("format-entry-text", utils.format_combo_entry_text)
 
         if default is not None:
-            treeiter = utils.combo_get_value_iter(combo, default)
+            treeiter = combo_get_value_iter(combo, default)
             combo.set_active_iter(treeiter)
 
     def save_state(self):
@@ -1409,7 +1415,7 @@ class GenericEditorPresenter:
             values = get_completions(text)
 
             completion = widget.get_completion()
-            utils.clear_model(completion)
+            clear_model(completion)
             completion_model = Gtk.ListStore(object)
             for v in values:
                 completion_model.append([v])
@@ -1459,7 +1465,7 @@ class GenericEditorPresenter:
                     if comparer is None:
                         comparer = _cmp
 
-                    found = utils.search_tree_model(comp_model, text, comparer)
+                    found = search_tree_model(comp_model, text, comparer)
                     logger.debug("matches found in ListStore: %s", str(found))
                     if not found:
                         logger.debug("nothing found, nothing to select from")
@@ -1861,9 +1867,7 @@ class GenericNoteBox:
         mapper = object_mapper(self.model)
         values = utils.get_distinct_values(mapper.c["category"], self.session)
         utils.setup_text_combobox(self.category_comboentry, values)
-        utils.set_widget_value(
-            self.category_comboentry, self.model.category or ""
-        )
+        set_widget_value(self.category_comboentry, self.model.category or "")
         utils.setup_date_button(None, self.date_entry, self.date_button)
         date_str = utils.today_str()
         if self.model.date:
@@ -1873,9 +1877,9 @@ class GenericNoteBox:
             except AttributeError:
                 # new note, date already a string
                 pass
-        utils.set_widget_value(self.date_entry, date_str)
+        set_widget_value(self.date_entry, date_str)
 
-        utils.set_widget_value(self.user_entry, self.model.user or "")
+        set_widget_value(self.user_entry, self.model.user or "")
 
         self.set_content(getattr(self.model, self.note_attr))
 
@@ -2031,7 +2035,7 @@ class NoteBox(GenericNoteBox, Gtk.Box):
     def set_content(self, text):
         buff = Gtk.TextBuffer()
         self.note_textview.set_buffer(buff)
-        utils.set_widget_value(self.note_textview, text or "")
+        set_widget_value(self.note_textview, text or "")
         if not text:
             self.presenter.add_problem(
                 self.presenter.PROBLEM_EMPTY, self.note_textview
@@ -2141,7 +2145,7 @@ class PictureBox(GenericNoteBox, NoteBoxMenuBtnMixin, Gtk.Box):
             widget.destroy()
         if text.startswith("http://") or text.startswith("https://"):
             img = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
-            utils.ImageLoader(img, text).start()
+            ImageLoader(img, text).start()
             self.file_btnbrowse.set_sensitive(False)
         elif text:
             img = Gtk.Image()
@@ -2294,9 +2298,7 @@ class PictureBox(GenericNoteBox, NoteBoxMenuBtnMixin, Gtk.Box):
     ) -> None:
         utils.copy_picture_with_thumbnail(self.last_folder, name, rename)
         box.file_entry.set_text(name)
-        utils.set_widget_value(
-            box.category_comboentry, self.model.category or ""
-        )
+        set_widget_value(box.category_comboentry, self.model.category or "")
         box.set_expanded(True)
 
     def on_text_entry_changed(self, widget):
@@ -2359,7 +2361,7 @@ class DocumentBox(GenericNoteBox, NoteBoxMenuBtnMixin, Gtk.Box):
     def set_note_content(self, text):
         buff = Gtk.TextBuffer()
         self.note_textview.set_buffer(buff)
-        utils.set_widget_value(self.note_textview, text or "")
+        set_widget_value(self.note_textview, text or "")
         if not text:
             self.presenter.add_problem(
                 self.presenter.PROBLEM_EMPTY, self.note_textview

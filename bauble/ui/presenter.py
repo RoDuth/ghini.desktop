@@ -34,7 +34,7 @@ from gi.repository import Gtk
 from sqlalchemy.orm import Session
 
 from bauble import db
-from bauble import utils
+from bauble.ui import utils
 from bauble.ui.views import get_search_view
 
 from .handlers import ComboBoxHandler

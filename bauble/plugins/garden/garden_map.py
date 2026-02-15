@@ -58,6 +58,8 @@ from bauble import prefs
 from bauble import utils
 from bauble.i18n import _
 from bauble.pluginmgr import Viewable
+from bauble.ui.utils import search_tree_model
+from bauble.ui.utils import tree_model_has
 from bauble.ui.views import SearchView
 from bauble.ui.views import get_search_view
 from bauble.ui.views import get_search_view_selected
@@ -943,7 +945,7 @@ class SearchViewMapPresenter:
         if not model or plant is None:
             return
 
-        if utils.tree_model_has(model, plant):
+        if tree_model_has(model, plant):
             itr = select_in_search_results(plant)
             path = model.get_path(itr)
             search_view.results_view.scroll_to_cell(path, None, True, 0.5, 0.0)
@@ -952,7 +954,7 @@ class SearchViewMapPresenter:
 
         for objs in plant.parent_objects():
             for obj in objs:
-                if found := utils.search_tree_model(model, obj):
+                if found := search_tree_model(model, obj):
                     logger.debug("found = %s", obj)
                     itr = found[0]
                     path = model.get_path(itr)
@@ -961,7 +963,7 @@ class SearchViewMapPresenter:
                         search_view.results_view, itr, path
                     )
                     search_view.results_view.expand_to_path(path)
-                    if utils.tree_model_has(model, plant):
+                    if tree_model_has(model, plant):
                         # select, scroll to centre and return
                         itr = select_in_search_results(plant)
                         path = model.get_path(itr)

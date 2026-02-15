@@ -72,16 +72,19 @@ from bauble import prefs
 from bauble import utils
 from bauble.error import check
 from bauble.i18n import _
+from bauble.ui.utils import clear_model
+from bauble.ui.utils import search_tree_model
+from bauble.ui.utils import set_widget_value
+from bauble.ui.views import Action
 from bauble.ui.views import InfoBox
 from bauble.ui.views import InfoExpander
 from bauble.ui.views import LinksExpander
 from bauble.ui.views import PropertiesExpander
+from bauble.ui.views import on_clicked_search
+from bauble.ui.views import on_clicked_select
 from bauble.utils import date_string
 from bauble.utils import safe_int
 from bauble.utils.geo import KMLMapCallbackFunctor
-from bauble.ui.views import Action
-from bauble.ui.views import on_clicked_search
-from bauble.ui.views import on_clicked_select
 
 from ..plants.species_editor import generic_sp_get_completions
 from ..plants.species_editor import species_cell_data_func
@@ -1658,7 +1661,7 @@ class VoucherPresenter(editor.GenericEditorPresenter):
 
         # intialize vouchers treeview
         treeview = self.view.widgets.voucher_treeview
-        utils.clear_model(treeview)
+        clear_model(treeview)
         model = Gtk.ListStore(object)
         for voucher in self.model.vouchers:
             if not voucher.parent_material:
@@ -1671,7 +1674,7 @@ class VoucherPresenter(editor.GenericEditorPresenter):
 
         # initialize parent vouchers treeview
         treeview = self.view.widgets.parent_voucher_treeview
-        utils.clear_model(treeview)
+        clear_model(treeview)
         model = Gtk.ListStore(object)
         for voucher in self.model.vouchers:
             if voucher.parent_material:
@@ -1711,7 +1714,7 @@ class VoucherPresenter(editor.GenericEditorPresenter):
         voucher = treemodel[path][0]
         if getattr(voucher, prop) == new_text:
             return  # didn't change
-        setattr(voucher, prop, utils.nstr(new_text))
+        setattr(voucher, prop, new_text)
         self._dirty = True
         self.parent_ref().refresh_sensitivity()
 
@@ -1779,7 +1782,7 @@ class VerificationBox(Gtk.Box):
             self.model = Verification()
             self.new = True
             self.model.prev_species = self.presenter().model.species
-            utils.set_widget_value(self.date_entry, datetime.date.today())
+            set_widget_value(self.date_entry, datetime.date.today())
 
         if self.model.verifier:
             self.verifier_entry.set_text(self.model.verifier)
@@ -1795,7 +1798,7 @@ class VerificationBox(Gtk.Box):
         )
 
         if self.model.date:
-            utils.set_widget_value(self.date_entry, self.model.date)
+            set_widget_value(self.date_entry, self.model.date)
 
         utils.setup_date_button(
             self.presenter().view, self.date_entry, self.date_button
@@ -1877,7 +1880,7 @@ class VerificationBox(Gtk.Box):
             model.append([level, descr])
         self.level_combo.set_model(model)
         if self.model.level is not None:
-            utils.set_widget_value(self.level_combo, self.model.level)
+            set_widget_value(self.level_combo, self.model.level)
         self.presenter().view.connect(
             self.level_combo, "changed", self.on_level_combo_changed
         )
@@ -2478,7 +2481,7 @@ class SourcePresenter(editor.GenericEditorPresenter):
         combo.get_child().get_completion().set_model(model)
 
         if active:
-            results = utils.search_tree_model(model, active)
+            results = search_tree_model(model, active)
             if results:
                 combo.set_active_iter(results[0])
             else:
@@ -2564,7 +2567,7 @@ class SourcePresenter(editor.GenericEditorPresenter):
                 return row[0].name.lower() == data.lower()
             return False
 
-        found = utils.search_tree_model(comp.get_model(), text, cmp=_cmp)
+        found = search_tree_model(comp.get_model(), text, cmp=_cmp)
 
         if len(found) == 1:
             # the model and iter here should technically be the tree
@@ -2738,9 +2741,7 @@ class AccessionEditorPresenter(editor.GenericEditorPresenter):
         if self.model in self.session.new:
             # new accession, set date accessioned to today
             date_str = utils.today_str()
-            utils.set_widget_value(
-                self.view.widgets.acc_date_accd_entry, date_str
-            )
+            set_widget_value(self.view.widgets.acc_date_accd_entry, date_str)
             self.model.date_accd = date_str
         self.view.connect(
             "acc_date_accd_entry",
@@ -2832,7 +2833,7 @@ class AccessionEditorPresenter(editor.GenericEditorPresenter):
             combo.get_child().set_text(text)
 
     def on_price_unit_entry_changed(self, entry, *_args):
-        value = utils.nstr(entry.get_text())
+        value = entry.get_text()
         if not value:
             value = None
         self.set_model_attr("price_unit", value)
@@ -2885,9 +2886,7 @@ class AccessionEditorPresenter(editor.GenericEditorPresenter):
                 self.set_model_attr("species", syn.species)
                 self.refresh_view()
                 # remove id_qualifiers
-                utils.set_widget_value(
-                    self.view.widgets.acc_id_qual_combo, None
-                )
+                set_widget_value(self.view.widgets.acc_id_qual_combo, None)
 
         box = self.view.add_message_box(utils.MESSAGE_BOX_YESNO)
         box.message = msg
@@ -2993,7 +2992,7 @@ class AccessionEditorPresenter(editor.GenericEditorPresenter):
     def refresh_id_qual_rank_combo(self):
         """Populate the id_qual_rank_combo with the parts of the species string"""
         combo = self.view.widgets.acc_id_qual_rank_combo
-        utils.clear_model(combo)
+        clear_model(combo)
 
         if not self.model.species:
             return
@@ -3071,7 +3070,7 @@ class AccessionEditorPresenter(editor.GenericEditorPresenter):
                 or str(row[1]).lower() == str(data).lower()
             )
 
-        results = utils.search_tree_model(model, text, match_func)
+        results = search_tree_model(model, text, match_func)
         if results and len(results) == 1:  # is match is unique
             self.remove_problem(self.PROBLEM_BAD_RECVD_TYPE, entry)
             self.set_model_attr("recvd_type", model[results[0]][0])
@@ -3207,13 +3206,13 @@ class AccessionEditorPresenter(editor.GenericEditorPresenter):
             self.view.widgets.acc_id_qual_rank_combo.set_sensitive(True)
             if self.model.id_qual and not self.model.id_qual_rank:
                 # set default
-                utils.set_widget_value(
+                set_widget_value(
                     self.view.widgets.acc_id_qual_rank_combo, "genus", index=1
                 )
         else:
             self.view.widgets.acc_id_qual_rank_combo.set_sensitive(False)
             if self.view.widgets.acc_id_qual_rank_combo.get_model():
-                utils.set_widget_value(
+                set_widget_value(
                     self.view.widgets.acc_id_qual_rank_combo, None, index=1
                 )
 

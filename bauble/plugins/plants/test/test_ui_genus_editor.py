@@ -29,6 +29,7 @@ from bauble.plugins.plants.species import Species
 from bauble.test import BaubleTestCase
 from bauble.test import update_gui
 from bauble.ui.presenter import Response
+from bauble.ui.utils import set_widget_value
 from bauble.ui.widgets import YesNoMessageBox
 
 from ..ui.genus_editor import GenusEditorDialog
@@ -232,13 +233,13 @@ class GenusEditorDialogTests(BaubleTestCase):
         self.assertEqual(editor.model.epithet, "Acmena")
         self.assertEqual(len(editor.problems), 0)
 
-        utils.set_widget_value(editor.qualifier_combo, "s. str")
+        set_widget_value(editor.qualifier_combo, "s. str")
         self.assertEqual(editor.model.qualifier, "s. str")
 
         self.assertEqual(len(editor.problems), 0)
 
         # reset
-        utils.set_widget_value(editor.qualifier_combo, "")
+        set_widget_value(editor.qualifier_combo, "")
         # add a Genus
         self.session.add(
             Genus(
@@ -260,7 +261,7 @@ class GenusEditorDialogTests(BaubleTestCase):
         self.assertEqual(len(editor.problems), 0)
 
         # same epithet, author and qualifier
-        utils.set_widget_value(editor.qualifier_combo, "s. str")
+        set_widget_value(editor.qualifier_combo, "s. str")
 
         self.assertEqual(len(editor.problems), 4)
 

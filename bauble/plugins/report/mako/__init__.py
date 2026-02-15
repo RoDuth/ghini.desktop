@@ -35,6 +35,7 @@ from mako.template import Template  # type: ignore [import-untyped]
 from bauble import paths
 from bauble import utils
 from bauble.i18n import _
+from bauble.ui.utils import set_widget_value
 
 from .. import FormatterPlugin
 from .. import SettingsBox
@@ -123,7 +124,7 @@ class MakoFormatterSettingsBox(SettingsBox):
                 )
                 widget, __ = widget_and_default_val
                 try:
-                    utils.set_widget_value(widget, val)
+                    set_widget_value(widget, val)
                 except TypeError as e:
                     logger.debug("%s(%s)", type(e).__name__, e)
 
@@ -191,7 +192,7 @@ class MakoFormatterSettingsBox(SettingsBox):
             if isinstance(entry, Gtk.CheckButton):
                 entry.set_active(text.lower() in ["1", "true"])
             else:
-                utils.set_widget_value(entry, text)
+                set_widget_value(entry, text)
 
     @staticmethod
     def entry_set_option(widget, fname):

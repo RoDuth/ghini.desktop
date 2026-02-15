@@ -50,6 +50,8 @@ from bauble.plugins.plants import Geography
 from bauble.plugins.plants import Species
 from bauble.plugins.plants import VernacularName
 from bauble.plugins.tag import Tag
+from bauble.ui.utils import set_combo_from_value
+from bauble.ui.utils import tree_model_has
 
 from .template_downloader import TemplateDownloadTool
 
@@ -607,7 +609,7 @@ class ReportToolDialogPresenter:
         elif isinstance(val, int):
             combo.set_active(val)
         else:
-            utils.combo_set_active_text(combo, val)
+            set_combo_from_value(combo, val)
 
     def set_formatter_combo(self, val):
         """Set the formatter combo to val and emit the 'changed' signal.
@@ -622,7 +624,7 @@ class ReportToolDialogPresenter:
             combo.set_active(val)
             combo.emit("changed")
         else:
-            utils.combo_set_active_text(combo, val)
+            set_combo_from_value(combo, val)
 
     @staticmethod
     def set_prefs_for(name, formatter_title, settings):
@@ -652,8 +654,7 @@ class ReportToolDialogPresenter:
         def on_entry_changed(_entry):
             _name = entry.get_text()
             if _name == "" or (
-                names_model is not None
-                and utils.tree_model_has(names_model, _name)
+                names_model is not None and tree_model_has(names_model, _name)
             ):
                 entry.get_style_context().add_class("problem")
                 dialog.set_response_sensitive(Gtk.ResponseType.OK, False)
@@ -673,7 +674,7 @@ class ReportToolDialogPresenter:
             name = entry.get_text()
             self.set_prefs_for(name, None, {})
             self.populate_names_combo()
-            utils.combo_set_active_text(self.view.widgets.names_combo, name)
+            set_combo_from_value(self.view.widgets.names_combo, name)
         dialog.destroy()
 
     def on_remove_button_clicked(self, _button):

@@ -24,7 +24,7 @@ import urllib.parse
 
 logger = logging.getLogger(__name__)
 
-from bauble.utils import get_net_sess
+from bauble.utils.web import get_net_sess
 
 
 class AskTPL(threading.Thread):

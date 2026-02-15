@@ -27,6 +27,7 @@ from bauble.plugins.plants.family import Family
 from bauble.test import BaubleTestCase
 from bauble.test import update_gui
 from bauble.ui.presenter import Response
+from bauble.ui.utils import set_widget_value
 from bauble.ui.widgets.message import YesNoMessageBox
 
 from ..ui.family_editor import FamilyEditorDialog
@@ -238,13 +239,13 @@ class FamilyEditorDialogTests(BaubleTestCase):
         self.assertEqual(editor.model.epithet, "Myrtaceae")
         self.assertEqual(len(editor.problems), 0)
 
-        utils.set_widget_value(editor.qualifier_combo, "s. str.")
+        set_widget_value(editor.qualifier_combo, "s. str.")
         self.assertEqual(editor.model.qualifier, "s. str.")
 
         self.assertEqual(len(editor.problems), 0)
 
         # reset
-        utils.set_widget_value(editor.qualifier_combo, "")
+        set_widget_value(editor.qualifier_combo, "")
         # add a family
         self.session.add(
             Family(epithet="Fabaceae", author="Lindl.", qualifier="s. str.")
@@ -261,7 +262,7 @@ class FamilyEditorDialogTests(BaubleTestCase):
         self.assertEqual(len(editor.problems), 0)
 
         # same epithet, author and qualifier
-        utils.set_widget_value(editor.qualifier_combo, "s. str.")
+        set_widget_value(editor.qualifier_combo, "s. str.")
 
         self.assertEqual(len(editor.problems), 3)
 

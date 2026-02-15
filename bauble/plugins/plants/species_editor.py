@@ -51,6 +51,9 @@ from bauble import paths
 from bauble import prefs
 from bauble import utils
 from bauble.i18n import _
+from bauble.ui.utils import clear_model
+from bauble.ui.utils import set_combo_from_value
+from bauble.ui.utils import set_widget_value
 
 from .family import Family
 from .genus import Genus
@@ -391,7 +394,7 @@ class SpeciesEditorPresenter(
         values = set(values + ["", "™", "®"])
         combo = self.view.widgets.sp_trademark_combo
         utils.setup_text_combobox(combo, values)
-        utils.set_widget_value(combo, self.model.trademark_symbol or "")
+        set_widget_value(combo, self.model.trademark_symbol or "")
 
         # set the model values in the widgets
         self.refresh_view()
@@ -565,7 +568,7 @@ class SpeciesEditorPresenter(
         completion = self.view.widgets.sp_genus_entry.get_completion()
         # TEMP solution
         # may not have a completion model yet, so create one
-        utils.clear_model(completion)
+        clear_model(completion)
         completion_model = Gtk.ListStore(object)
         completion_model.append([new_genus])
         completion.set_model(completion_model)
@@ -695,9 +698,7 @@ class SpeciesEditorPresenter(
             if values:
                 combo = getattr(self.view.widgets, column_name + "_combo")
                 utils.setup_text_combobox(combo, values)
-                utils.set_widget_value(
-                    combo, getattr(self.model, column_name, "")
-                )
+                set_widget_value(combo, getattr(self.model, column_name, ""))
                 combo.set_visible(True)
                 self.assign_simple_handler(
                     column_name + "_combo",
@@ -1155,7 +1156,7 @@ class SpeciesEditorPresenter(
         # then change the value to the habit
         code = entry.get_text()
         try:
-            utils.set_combo_from_value(
+            set_combo_from_value(
                 combo, code.lower(), cmp=lambda r, v: r[0].lower() == v.lower()
             )
         except ValueError as e:
@@ -1375,7 +1376,7 @@ class SpeciesEditorPresenter(
             logger.debug("%s, %s, %s(%s)", widget, field, type(value), value)
             self.view.widget_set_value(widget, value)
 
-        utils.set_widget_value(
+        set_widget_value(
             self.view.widgets.sp_habit_comboentry, self.model.habit or ""
         )
         self.vern_presenter.refresh_view()
@@ -1403,7 +1404,7 @@ class InfraspRow:
 
         # epithet entry
         self.epithet_entry = Gtk.Entry(hexpand=True)
-        utils.set_widget_value(self.epithet_entry, epithet)
+        set_widget_value(self.epithet_entry, epithet)
         presenter.view.connect(
             self.epithet_entry, "changed", self.on_epithet_entry_changed
         )
@@ -1411,7 +1412,7 @@ class InfraspRow:
 
         # author entry
         self.author_entry = Gtk.Entry(hexpand=True)
-        utils.set_widget_value(self.author_entry, author)
+        set_widget_value(self.author_entry, author)
         presenter.view.connect(
             self.author_entry, "changed", self.on_author_entry_changed
         )
@@ -1457,7 +1458,7 @@ class InfraspRow:
         )
         if block:
             self.rank_combo.handler_block(self._rank_sid)
-        utils.set_widget_value(self.rank_combo, rank)
+        set_widget_value(self.rank_combo, rank)
         if block:
             self.rank_combo.handler_unblock(self._rank_sid)
 
@@ -2038,7 +2039,7 @@ class VernacularNamePresenter(editor.GenericEditorPresenter):
         )
         self.view.connect(cell, "toggled", self.on_default_toggled)
 
-        utils.clear_model(self.treeview)
+        clear_model(self.treeview)
 
         # add the vernacular names to the tree
         tree_model = Gtk.ListStore(object)

@@ -60,6 +60,8 @@ from bauble import prefs
 from bauble import utils
 from bauble.db import Base
 from bauble.i18n import _
+from bauble.ui.utils import get_widget_value
+from bauble.ui.utils import set_widget_value
 
 from .parser import and_
 from .parser import domain
@@ -453,7 +455,7 @@ class ExpressionRow:  # pylint: disable=too-many-instance-attributes
             self.cond_combo.handler_unblock(handler_id=self.cond_handler)
             self.cond_combo.set_tooltip_text("How to search")
 
-        val = utils.get_widget_value(self.value_widget)
+        val = get_widget_value(self.value_widget)
         set_value_widget = self.get_set_value_widget(path)
         set_value_widget(prop, val)
 
@@ -487,7 +489,7 @@ class ExpressionRow:  # pylint: disable=too-many-instance-attributes
             self.value_widget.append_text(str(value))
         self.value_widget.set_tooltip_text("select a value")
         self.value_widget.connect("changed", self.on_value_changed)
-        utils.set_widget_value(self.value_widget, val)
+        set_widget_value(self.value_widget, val)
 
     def set_enum_widget(self, prop: ColumnProperty, val: str) -> None:
         self.value_widget = Gtk.ComboBox()
@@ -505,7 +507,7 @@ class ExpressionRow:  # pylint: disable=too-many-instance-attributes
             'select a value, "None" means no value has been set'
         )
         self.value_widget.connect("changed", self.on_value_changed)
-        utils.set_widget_value(self.value_widget, val)
+        set_widget_value(self.value_widget, val)
 
     def set_int_widget(self, _prop, val: int | str) -> None:
         adjustment = Gtk.Adjustment(
@@ -551,9 +553,7 @@ class ExpressionRow:  # pylint: disable=too-many-instance-attributes
             self.value_widget.append_text(value)
         self.value_widget.set_tooltip_text("Select a value")
         self.value_widget.connect("changed", self.on_value_changed)
-        utils.set_widget_value(
-            self.value_widget, val if val in values else "False"
-        )
+        set_widget_value(self.value_widget, val if val in values else "False")
 
     def set_date_widget(self, prop: ColumnProperty, val: str) -> None:
         self.value_widget = Gtk.Entry()

@@ -36,6 +36,7 @@ from bauble.search.query_builder import SchemaMenu
 from bauble.search.query_builder import parse_typed_value
 from bauble.search.tokens import EmptyToken
 from bauble.test import BaubleTestCase
+from bauble.ui.utils import tree_model_has
 
 
 class ParseTypedValueTests(BaubleTestCase):
@@ -541,7 +542,6 @@ class QueryBuilderTests(BaubleTestCase):
         query = "family where _created on 1/1/2021"
         qb.set_query(query)
         self.assertTrue(qb.validate())
-        from bauble.utils import tree_model_has
 
         self.assertTrue(
             tree_model_has(qb.expression_rows[0].cond_combo.get_model(), "on")

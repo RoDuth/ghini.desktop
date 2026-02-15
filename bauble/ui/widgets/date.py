@@ -22,8 +22,8 @@ from datetime import datetime
 from gi.repository import GObject
 from gi.repository import Gtk
 
-from bauble import utils
 from bauble.btypes import parse_str_date
+from bauble.ui import utils
 
 
 class DatePickerButton(Gtk.MenuButton):

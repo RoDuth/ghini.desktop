@@ -103,6 +103,8 @@ from bauble.error import CheckConditionError
 from bauble.i18n import _
 from bauble.search.strategies import SearchStrategy
 from bauble.search.strategies import UseStrategy
+from bauble.ui.utils import clear_model
+from bauble.ui.utils import set_widget_value
 from bauble.ui.views import Action
 from bauble.ui.views import InfoBox
 from bauble.ui.views import InfoExpander
@@ -1613,12 +1615,12 @@ class PlantEditorPresenter(GenericEditorPresenter, PresenterMapMixin):
         self.setup_change()
         self.init_changes_history_view()
         self.reset_plant_date_entry()
-        utils.set_widget_value(self.view.widgets.reason_combo, None)
+        set_widget_value(self.view.widgets.reason_combo, None)
         self._init_reason_combo()
 
     def reset_plant_date_entry(self):
         date_str = utils.today_str()
-        utils.set_widget_value(self.view.widgets.plant_date_entry, date_str)
+        set_widget_value(self.view.widgets.plant_date_entry, date_str)
         self.view.disconnect_widget_signals("plant_date_entry")
         self._date_sid = self.view.connect(
             "plant_date_entry",
@@ -1825,7 +1827,7 @@ class PlantEditorPresenter(GenericEditorPresenter, PresenterMapMixin):
             "person",
         )
 
-        utils.clear_model(changes_treeview)
+        clear_model(changes_treeview)
         store = Gtk.ListStore(object)
 
         # all but the current/active change
@@ -1881,11 +1883,11 @@ class PlantEditorPresenter(GenericEditorPresenter, PresenterMapMixin):
 
     def on_plant_code_entry_changed(self, entry):
         """Validates the accession number and the plant code from the editor"""
-        text = utils.nstr(entry.get_text())
+        text = entry.get_text()
         if text == "":
             self.set_model_attr("code", None)
         else:
-            self.set_model_attr("code", utils.nstr(text))
+            self.set_model_attr("code", text)
 
         if not self.model.accession:
             self.remove_problem(self.PROBLEM_DUPLICATE_PLANT_CODE, entry)

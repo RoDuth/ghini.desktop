@@ -40,8 +40,6 @@ from bauble import prefs
 from bauble import utils
 from bauble.error import CheckConditionError
 from bauble.test import BaubleTestCase
-from bauble.test import update_gui
-from bauble.test import wait_on_threads
 
 
 class UtilsTest(TestCase):
@@ -107,32 +105,6 @@ class UtilsTest(TestCase):
                 Gtk.ButtonsType.OK,
                 None,
             )
-
-    def test_search_tree_model(self):
-        """
-        Test bauble.utils.search_tree_model
-        """
-        model = Gtk.TreeStore(str)
-
-        # the rows that should be found
-        to_find = []
-
-        row = model.append(None, ["1"])
-        model.append(row, ["1.1"])
-        to_find.append(model.append(row, ["something"]))
-        model.append(row, ["1.3"])
-
-        row = model.append(None, ["2"])
-        to_find.append(model.append(row, ["something"]))
-        model.append(row, ["2.1"])
-
-        to_find.append(model.append(None, ["something"]))
-
-        root = model.get_iter_first()
-        results = utils.search_tree_model(model[root], "something")
-        self.assertTrue(
-            sorted([model.get_path(r) for r in results]), sorted(to_find)
-        )
 
     def test_xml_safe(self):
         """
@@ -433,108 +405,38 @@ class UtilsDBTests(BaubleTestCase):
 
         # no tables depend on table 3
         depends = list(utils.find_dependent_tables(table3, metadata))
-        self.assertTrue(depends == [])
+        self.assertEqual(depends, [])
 
         # table that depend on table 4 are 3
         depends = list(utils.find_dependent_tables(table4, metadata))
-        self.assertTrue(depends == [table3])
+        self.assertEqual(depends, [table3])
 
 
 class CacheTests(TestCase):
-    def test_create_store_retrieve(self):
-        from functools import partial
+    def test_lru_cache(self):
+        cache = utils.LRUCache()
+        # load the cache
+        for i in range(100):
+            cache[i] = mock.Mock()
 
-        from bauble.utils import Cache
+        self.assertEqual(len(cache), 100)
+        self.assertIsNotNone(cache.get(0))
 
-        invoked = []
+        # removes first entry
+        cache[100] = mock.Mock()
 
-        def getter(x):
-            invoked.append(x)
-            return x
+        self.assertEqual(len(cache), 100)
+        self.assertIsNone(cache.get(0))
 
-        cache = Cache(2)
-        v = cache.get(1, partial(getter, 1))
-        self.assertEqual(v, 1)
-        self.assertEqual(invoked, [1])
-        v = cache.get(1, partial(getter, 1))
-        self.assertEqual(v, 1)
-        self.assertEqual(invoked, [1])
+        # if get first does not remove it first
+        self.assertIsNotNone(cache[1])
+        self.assertEqual(len(cache), 100)
 
-    def test_respect_size(self):
-        from functools import partial
+        cache[101] = mock.Mock()
+        self.assertIsNotNone(cache.get(1))
 
-        from bauble.utils import Cache
-
-        invoked = []
-
-        def getter(x):
-            invoked.append(x)
-            return x
-
-        cache = Cache(2)
-        cache.get(1, partial(getter, 1))
-        cache.get(2, partial(getter, 2))
-        cache.get(3, partial(getter, 3))
-        cache.get(4, partial(getter, 4))
-        self.assertEqual(invoked, [1, 2, 3, 4])
-        self.assertEqual(sorted(cache.storage.keys()), [3, 4])
-
-    def test_respect_timing(self):
-        from functools import partial
-
-        from bauble.utils import Cache
-
-        invoked = []
-
-        def getter(x):
-            invoked.append(x)
-            return x
-
-        cache = Cache(2)
-        from time import sleep
-
-        cache.get(1, partial(getter, 1))
-        sleep(0.01)
-        cache.get(2, partial(getter, 2))
-        sleep(0.01)
-        cache.get(1, partial(getter, 1))
-        sleep(0.01)
-        cache.get(3, partial(getter, 3))
-        sleep(0.01)
-        cache.get(1, partial(getter, 1))
-        sleep(0.01)
-        cache.get(4, partial(getter, 4))
-        self.assertEqual(invoked, [1, 2, 3, 4])
-        self.assertEqual(sorted(cache.storage.keys()), [1, 4])
-
-    def test_cache_on_hit(self):
-        from functools import partial
-
-        from bauble.utils import Cache
-
-        invoked = []
-
-        def getter(x):
-            return x
-
-        cache = Cache(2)
-        from time import sleep
-
-        cache.get(1, partial(getter, 1), on_hit=invoked.append)
-        sleep(0.01)
-        cache.get(1, partial(getter, 1), on_hit=invoked.append)
-        sleep(0.01)
-        cache.get(2, partial(getter, 2), on_hit=invoked.append)
-        sleep(0.01)
-        cache.get(1, partial(getter, 1), on_hit=invoked.append)
-        sleep(0.01)
-        cache.get(3, partial(getter, 3), on_hit=invoked.append)
-        sleep(0.01)
-        cache.get(1, partial(getter, 1), on_hit=invoked.append)
-        sleep(0.01)
-        cache.get(4, partial(getter, 4), on_hit=invoked.append)
-        self.assertEqual(invoked, [1, 1, 1])
-        self.assertEqual(sorted(cache.storage.keys()), [1, 4])
+        # removes second
+        self.assertIsNone(cache.get(2))
 
 
 class ResetSequenceTests(BaubleTestCase):
@@ -872,334 +774,3 @@ class TimedCacheTest(TestCase):
         mock_func.assert_called_with("test9")
 
         self.assertEqual(mock_func.call_count, 11)
-
-
-class ImageLoaderTests(BaubleTestCase):
-    def setUp(self):
-        super().setUp()
-        utils.ImageLoader.cache.storage.clear()
-
-    def test_image_loader_local_url(self):
-        path = os.path.join(paths.lib_dir(), "images", "bauble_logo.png")
-        pic_box = Gtk.Box()
-        # needs a window for size-allocate signal
-        win = Gtk.Window(title="test_window")
-        win.add(pic_box)
-        win.show_all()
-        mock_size_alloc = mock.Mock()
-        mock_size_alloc.return_value = False
-        utils.ImageLoader(
-            pic_box,
-            path,
-            on_size_allocated=mock_size_alloc,
-        ).start()
-        mock_size_alloc.assert_not_called()
-        wait_on_threads()
-        update_gui()
-        image = pic_box.get_children()[0]
-        self.assertIsInstance(image, Gtk.Image)
-        while not mock_size_alloc.called:
-            # WARNING this could deadlock if the signal hanlder doesn't call
-            # but is required for the nested idle_add
-            update_gui()
-        # kind of redundant
-        mock_size_alloc.assert_called()
-        self.assertIsInstance(mock_size_alloc.call_args.args[0], Gtk.Image)
-        win.destroy()
-
-    @mock.patch("bauble.utils.get_net_sess")
-    def test_image_loader_global_url(self, mock_get_sess):
-        mock_resp = mock.Mock()
-        path = Path(paths.lib_dir(), "images", "bauble_logo.png")
-        with path.open("rb") as f:
-            img = f.read()
-        mock_resp.content = img
-        mock_get_sess().get.return_value = mock_resp
-        pic_box = Gtk.Box()
-        # needs a window for size-allocate signal
-        win = Gtk.Window(title="test_window")
-        win.add(pic_box)
-        win.show_all()
-        mock_size_alloc = mock.Mock()
-        mock_size_alloc.return_value = False
-        utils.ImageLoader(
-            pic_box,
-            "https://test.org",
-            on_size_allocated=mock_size_alloc,
-        ).start()
-        mock_size_alloc.assert_not_called()
-        wait_on_threads()
-        update_gui()
-        self.assertIsInstance(pic_box.get_children()[0], Gtk.Image)
-        while not mock_size_alloc.called:
-            # WARNING this could deadlock if the signal hanlder doesn't call
-            # but is required for the nested idle_add
-            update_gui()
-        # kind of redundant
-        mock_size_alloc.assert_called()
-        self.assertIsInstance(mock_size_alloc.call_args.args[0], Gtk.Image)
-        win.destroy()
-
-    @mock.patch("bauble.utils.get_net_sess")
-    def test_image_loader_global_url_fails_to_retrieve(self, mock_get_sess):
-        # failure to retrieve
-        mock_get_sess().get.side_effect = Exception
-        pic_box = Gtk.Box()
-        # needs a window for size-allocate signal
-        win = Gtk.Window(title="test_window")
-        win.add(pic_box)
-        win.show_all()
-        mock_size_alloc = mock.Mock()
-        mock_size_alloc.return_value = False
-        utils.ImageLoader(
-            pic_box,
-            "https://test.org",
-            on_size_allocated=mock_size_alloc,
-        ).start()
-        mock_size_alloc.assert_not_called()
-        wait_on_threads()
-        update_gui()
-        self.assertIsInstance(pic_box.get_children()[0], Gtk.Label)
-        while not mock_size_alloc.called:
-            # WARNING this could deadlock if the signal hanlder doesn't call
-            # but is required for the nested idle_add
-            update_gui()
-        # kind of redundant
-        mock_size_alloc.assert_called()
-        self.assertIsInstance(mock_size_alloc.call_args.args[0], Gtk.Label)
-        win.destroy()
-
-    def test_image_loader_glib_error(self):
-        pic_box = Gtk.Box()
-        # needs a window for size-allocate signal
-        win = Gtk.Window(title="test_window")
-        win.add(pic_box)
-        win.show_all()
-        mock_size_alloc = mock.Mock()
-        mock_size_alloc.return_value = False
-        utils.ImageLoader(
-            pic_box,
-            "junk_data",
-            on_size_allocated=mock_size_alloc,
-        ).start()
-        mock_size_alloc.assert_not_called()
-        wait_on_threads()
-        while not mock_size_alloc.called:
-            # WARNING this could deadlock if the signal hanlder doesn't call
-            # but is required for the nested idle_add
-            update_gui()
-        self.assertIsInstance(pic_box.get_children()[0], Gtk.Label)
-        mock_size_alloc.assert_called()
-        self.assertIsInstance(mock_size_alloc.call_args.args[0], Gtk.Label)
-        win.destroy()
-
-    def test_image_loader_exception(self):
-        # exactly the same test as test_image_loader_local_url except for
-        # raising an Exception
-        path = os.path.join(paths.lib_dir(), "images", "bauble_logo.png")
-        pic_box = Gtk.Box()
-        # needs a window for size-allocate signal
-        win = Gtk.Window(title="test_window")
-        win.add(pic_box)
-        win.show_all()
-        mock_size_alloc = mock.Mock()
-        mock_size_alloc.return_value = False
-        mock_loader = mock.Mock()
-        img_loader = utils.ImageLoader(
-            pic_box,
-            path,
-            on_size_allocated=mock_size_alloc,
-            loader=mock_loader,
-        )
-        mock_loader.close.side_effect = Exception
-        img_loader.loader = mock_loader
-        img_loader.start()
-        mock_size_alloc.assert_not_called()
-        wait_on_threads()
-        while not mock_size_alloc.called:
-            # WARNING this could deadlock if the signal hanlder doesn't call
-            # but is required for the nested idle_add
-            update_gui()
-        self.assertIsInstance(pic_box.get_children()[0], Gtk.Label)
-        mock_size_alloc.assert_called()
-        self.assertIsInstance(mock_size_alloc.call_args.args[0], Gtk.Label)
-        win.destroy()
-
-
-class UIUtilsTests(BaubleTestCase):
-    def test_get_widget_value_label(self):
-        label = Gtk.Label(label="Foo")
-        self.assertEqual(utils.get_widget_value(label), "Foo")
-
-    def test_get_widget_value_entry(self):
-        entry = Gtk.Entry()
-        entry.set_text("Bar")
-        self.assertEqual(utils.get_widget_value(entry), "Bar")
-
-    def test_get_widget_value_textview(self):
-        entry = Gtk.TextView()
-        entry.get_buffer().set_text("Baz")
-        self.assertEqual(utils.get_widget_value(entry), "Baz")
-
-    def test_get_widget_value_comboboxtext_w_entry(self):
-        combo = Gtk.ComboBoxText.new_with_entry()
-        combo.append_text("foo")
-        combo.append_text("baz")
-        combo.get_child().set_text("bar")
-        self.assertEqual(utils.get_widget_value(combo), "bar")
-
-    def test_get_widget_value_comboboxtext_wo_entry(self):
-        combo = Gtk.ComboBoxText()
-        combo.append_text("foo")
-        combo.append_text("bar")
-        combo.append_text("baz")
-        combo.set_active(1)
-        self.assertEqual(utils.get_widget_value(combo), "bar")
-
-    def test_get_widget_value_combobox_w_entry(self):
-        combo = Gtk.ComboBox.new_with_entry()
-        model = Gtk.ListStore(str)
-        model.append(("foo",))
-        model.append(("baz",))
-        combo.set_model(model)
-        combo.get_child().set_text("bar")
-        self.assertEqual(utils.get_widget_value(combo), "bar")
-
-    def test_get_widget_value_combobox_wo_entry(self):
-        combo = Gtk.ComboBox()
-        model = Gtk.ListStore(str)
-        model.append(("foo",))
-        model.append(("bar",))
-        model.append(("baz",))
-        combo.set_model(model)
-        combo.set_active(1)
-        self.assertEqual(utils.get_widget_value(combo), "bar")
-
-    def test_get_widget_value_togglebutton(self):
-        button = Gtk.ToggleButton.new_with_label(label="FOO")
-        self.assertFalse(utils.get_widget_value(button))
-        button.set_active(True)
-        self.assertTrue(utils.get_widget_value(button))
-
-    def test_get_widget_value_checkbutton(self):
-        button = Gtk.CheckButton.new_with_label(label="FOO")
-        self.assertFalse(utils.get_widget_value(button))
-        button.set_active(True)
-        self.assertTrue(utils.get_widget_value(button))
-
-    def test_get_widget_value_radiobutton(self):
-        button1 = Gtk.RadioButton.new_with_label(None, "FOO")
-        button2 = Gtk.RadioButton.new_with_label_from_widget(button1, "BAR")
-        self.assertFalse(utils.get_widget_value(button2))
-        button2.set_active(True)
-        self.assertTrue(utils.get_widget_value(button2))
-        self.assertFalse(utils.get_widget_value(button1))
-
-    def test_get_widget_value_button(self):
-        button = Gtk.Button(label="BAZ")
-        self.assertEqual(utils.get_widget_value(button), "BAZ")
-
-    def test_get_widget_value_unknown_raises(self):
-        self.assertRaises(TypeError, utils.get_widget_value, mock.Mock())
-
-    def test_set_widget_value_label(self):
-        label = Gtk.Label(label="Foo")
-        utils.set_widget_value(label, "Bar")
-        self.assertEqual(label.get_text(), "Bar")
-
-    def test_set_widget_value_label_w_markup(self):
-        label = Gtk.Label(label="Foo")
-        utils.set_widget_value(label, "<b>Bar</b>", markup=True)
-        self.assertEqual(label.get_text(), "Bar")
-        self.assertTrue(label.get_use_markup())
-
-    def test_set_widget_value_textview(self):
-        entry = Gtk.TextView()
-        buffer = entry.get_buffer()
-        buffer.set_text("Baz")
-        utils.set_widget_value(entry, "Bar")
-        self.assertEqual(
-            entry.get_buffer().get_text(*buffer.get_bounds(), False), "Bar"
-        )
-
-    def test_set_widget_value_textbuffer(self):
-        buffer = Gtk.TextBuffer()
-        buffer.set_text("Baz")
-        utils.set_widget_value(buffer, "Bar")
-        self.assertEqual(buffer.get_text(*buffer.get_bounds(), False), "Bar")
-
-    def test_set_widget_value_spinbutton(self):
-        adj = Gtk.Adjustment(
-            lower=-10, upper=10, step_increment=0.1, page_increment=1
-        )
-        spin = Gtk.SpinButton(adjustment=adj, numeric=True)
-        spin.set_value(-5)
-        utils.set_widget_value(spin, 5)
-        self.assertEqual(spin.get_value(), 5)
-
-    def test_set_widget_value_entry(self):
-        entry = Gtk.Entry()
-        utils.set_widget_value(entry, "Bar")
-        self.assertEqual(entry.get_text(), "Bar")
-
-    def test_set_widget_value_comboboxtext_w_entry(self):
-        combo = Gtk.ComboBoxText.new_with_entry()
-        combo.append_text("foo")
-        combo.append_text("baz")
-        utils.set_widget_value(combo, "bar")
-        self.assertEqual(combo.get_child().get_text(), "bar")
-
-    def test_set_widget_value_comboboxtext_wo_entry(self):
-        combo = Gtk.ComboBoxText()
-        combo.append_text("foo")
-        combo.append_text("bar")
-        combo.append_text("baz")
-        utils.set_widget_value(combo, "bar")
-        self.assertEqual(combo.get_active(), 1)
-
-    def test_set_widget_value_combobox_w_entry(self):
-        combo = Gtk.ComboBox.new_with_entry()
-        model = Gtk.ListStore(str)
-        model.append(("foo",))
-        model.append(("baz",))
-        combo.set_model(model)
-        utils.set_widget_value(combo, "bar")
-        self.assertEqual(combo.get_child().get_text(), "bar")
-
-    def test_set_widget_value_combobox_wo_entry(self):
-        combo = Gtk.ComboBox()
-        model = Gtk.ListStore(str)
-        model.append(("foo",))
-        model.append(("bar",))
-        model.append(("baz",))
-        combo.set_model(model)
-        utils.set_widget_value(combo, "bar")
-        self.assertEqual(combo.get_active(), 1)
-
-    def test_set_widget_value_togglebutton(self):
-        button = Gtk.ToggleButton.new_with_label(label="FOO")
-        self.assertFalse(button.get_active())
-        utils.set_widget_value(button, True)
-        self.assertTrue(button.get_active())
-
-    def test_set_widget_value_checkbutton(self):
-        button = Gtk.CheckButton.new_with_label(label="FOO")
-        self.assertFalse(button.get_active())
-        utils.set_widget_value(button, True)
-        self.assertTrue(button.get_active())
-
-    def test_set_widget_value_radiobutton(self):
-        button1 = Gtk.RadioButton.new_with_label(None, "FOO")
-        button2 = Gtk.RadioButton.new_with_label_from_widget(button1, "BAR")
-        self.assertFalse(button2.get_active())
-        utils.set_widget_value(button2, True)
-        self.assertTrue(button2.get_active())
-        self.assertFalse(button1.get_active())
-
-    def test_set_widget_value_button(self):
-        button = Gtk.Button(label="BAZ")
-        utils.set_widget_value(button, "FOO")
-        self.assertEqual(button.get_label(), "FOO")
-
-    def test_set_widget_value_unknown_raises(self):
-        self.assertRaises(TypeError, utils.set_widget_value, mock.Mock())

@@ -44,6 +44,7 @@ from bauble import pluginmgr
 from bauble import utils
 from bauble.error import check
 from bauble.i18n import _
+from bauble.ui.utils import clear_model
 
 # WARNING: "roles" are specific to PostgreSQL databases and won't work on other
 # database types
@@ -566,7 +567,7 @@ class UsersDialogPresenter(editor.GenericEditorPresenter):
             permissions on the database.
         """
         tree = self.view.widgets.users_tree
-        utils.clear_model(tree)
+        clear_model(tree)
         model = Gtk.ListStore(str)
         if has_privileges(current_user(), "admin"):
             for user in get_users():

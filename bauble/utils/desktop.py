@@ -266,7 +266,7 @@ def open(url, desktop=None, wait=0.5, dialog_on_error=False):
             )
     except Exception as e:
         if dialog_on_error:
-            utils.message_dialog(utils.nstr(e))
+            utils.message_dialog(str(e))
         else:
             raise
 

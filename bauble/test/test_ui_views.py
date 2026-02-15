@@ -62,6 +62,7 @@ from bauble.test import BaubleTestCase
 from bauble.test import get_setUp_data_funcs
 from bauble.test import update_gui
 from bauble.test import wait_on_threads
+from bauble.ui.utils import tree_model_has
 from bauble.ui.views import HistoryView
 from bauble.ui.views import HomeCommandHandler
 from bauble.ui.views import HomeView
@@ -428,7 +429,7 @@ class TestSearchView(BaubleTestCase):
             )
         mock_treeview.get_model().remove.assert_not_called()
 
-    @mock.patch("bauble.ui.views.search.utils.search_tree_model")
+    @mock.patch("bauble.ui.utils.search_tree_model")
     def test_on_test_expand_row_invalid_request_returns_true_and_removes(
         self, mock_search_tm
     ):
@@ -3383,7 +3384,7 @@ class SimpleSearchBoxTest(BaubleTestCase):
         self.simplesearch.on_entry_changed(mock_entry)
         update_gui()
 
-        self.assertTrue(utils.tree_model_has(completion.get_model(), sp.sp))
+        self.assertTrue(tree_model_has(completion.get_model(), sp.sp))
 
         # too short bails
         mock_completion = mock.Mock()
@@ -3412,7 +3413,7 @@ class SimpleSearchBoxTest(BaubleTestCase):
 
         mock_completion.set_model.assert_called()
         liststore = mock_completion.set_model.call_args[0][0]
-        self.assertTrue(utils.tree_model_has(liststore, "foo"))
+        self.assertTrue(tree_model_has(liststore, "foo"))
 
     def test_update(self):
         self.assertFalse(list(self.simplesearch.domain_combo.get_model()))

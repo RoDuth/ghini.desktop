@@ -35,6 +35,8 @@ from bauble import db
 from bauble import prefs
 from bauble import utils
 
+from ..utils import ImageLoader
+
 
 class PicturesScroller(Gtk.ScrolledWindow):
     # pylint: disable=too-many-instance-attributes
@@ -164,7 +166,7 @@ class PicturesScroller(Gtk.ScrolledWindow):
             )
             pic_box = Gtk.Box()
             self.waiting_on_realise += 1
-            utils.ImageLoader(
+            ImageLoader(
                 pic_box,
                 pic.picture,
                 on_size_allocated=self.on_image_size_allocated,

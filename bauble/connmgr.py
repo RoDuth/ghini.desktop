@@ -58,6 +58,7 @@ from bauble.i18n import _
 from bauble.ui import EntryHandler
 from bauble.ui import GenericPresenter
 from bauble.ui import Validator
+from bauble.utils.web import get_net_sess
 
 pyodbc: ModuleType | None
 try:
@@ -88,7 +89,7 @@ def retrieve_latest_release_data() -> list | dict | None:
     github_releases_uri = (
         "https://api.github.com/repos/RoDuth/ghini.desktop/releases"
     )
-    net_sess = utils.get_net_sess()
+    net_sess = get_net_sess()
     try:
         response = net_sess.get(github_releases_uri, timeout=5)
         if response.ok:

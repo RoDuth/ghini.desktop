@@ -56,6 +56,7 @@ from bauble.test import check_dupids
 from bauble.test import get_setUp_data_funcs
 from bauble.test import update_gui
 from bauble.test import wait_on_threads
+from bauble.ui.utils import get_widget_value
 from bauble.ui.views import SearchView
 
 from ..garden import Plant
@@ -73,7 +74,6 @@ from .genus import genus_cell_data_func
 from .genus import genus_match_func
 from .genus import genus_to_string_matcher
 from .geography import GEO_PACIFIC_CENTRIC
-from .geography import DistMapCache
 from .geography import DistributionMap
 from .geography import DistributionMapEventBox
 from .geography import GeneralGeographyExpander
@@ -127,7 +127,6 @@ from .species_model import markup_italics
 from .species_model import update_all_full_names_handler
 from .species_model import update_all_full_names_task
 from .ui.family_editor import FAMILY_WEB_BUTTON_DEFS_PREFS
-from .ui.family_editor import FamilyEditorDialog
 from .ui.family_view import FamilyInfoBox
 from .ui.family_view import GeneralFamilyExpander
 
@@ -4732,7 +4731,7 @@ class DistributionMapTests(BaubleClassTestCase):
     def setUp(self):
         DistributionMap._world = ""
         DistributionMap._world_pixbuf = None
-        DistributionMap._image_cache = DistMapCache()
+        DistributionMap._image_cache = utils.LRUCache()
 
     def test_world_template(self):
         # calling world generates the template
@@ -4797,7 +4796,7 @@ class DistributionMapTests(BaubleClassTestCase):
         self.assertNotEqual(dist._world_pixbuf, dist.as_image().get_pixbuf())
 
     def test_dist_map_cache(self):
-        cache = DistMapCache()
+        cache = utils.LRUCache(size=121)
         # load the cache
         for i in range(121):
             cache[i] = Gtk.Image()
@@ -6782,7 +6781,7 @@ class SpeciesEditorPresenterTests(PlantTestCase):
             view.widgets._sp_custom1_label.get_text(), "NCA Status"
         )
         self.assertEqual(
-            utils.get_widget_value(view.widgets._sp_custom1_combo),
+            get_widget_value(view.widgets._sp_custom1_combo),
             "vulnerable",
         )
 

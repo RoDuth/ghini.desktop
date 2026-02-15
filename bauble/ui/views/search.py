@@ -63,6 +63,8 @@ from bauble import utils
 from bauble.error import BaubleError
 from bauble.error import check
 from bauble.i18n import _
+from bauble.ui.utils import clear_model
+from bauble.ui.utils import search_tree_model
 from bauble.ui.views.base import View
 from bauble.ui.views.infobox import INFOBOXPAGE_WIDTH_PREF
 from bauble.ui.views.infobox import InfoBox
@@ -698,7 +700,7 @@ class SearchView(View, Gtk.Box):
 
         # avoid triggering on_selection_changed
         self.selection.handler_block(self._selection_changed_sigid)
-        utils.clear_model(self.results_view)
+        clear_model(self.results_view)
         self.selection.handler_unblock(
             handler_id=self._selection_changed_sigid
         )
@@ -1015,7 +1017,7 @@ class SearchView(View, Gtk.Box):
             logger.debug("on_test_expand_row: %s:%s", type(e).__name__, e)
 
             # model no longer in database, remove
-            for found in utils.search_tree_model(model, obj):
+            for found in search_tree_model(model, obj):
                 model.remove(found)
 
             return True
@@ -1060,7 +1062,7 @@ class SearchView(View, Gtk.Box):
             Gtk.TREE_SORTABLE_UNSORTED_SORT_COLUMN_ID, Gtk.SortType.ASCENDING
         )
         logger.debug("_populate_worker clear model")
-        utils.clear_model(self.results_view)
+        clear_model(self.results_view)
 
         five_percent = int(len_results / 20) or 200
         steps_so_far = 0
@@ -1147,7 +1149,7 @@ class SearchView(View, Gtk.Box):
 
         model = cast(Gtk.TreeStore, self.results_view.get_model())
 
-        for found in utils.search_tree_model(model, obj):
+        for found in search_tree_model(model, obj):
             model.remove(found)
 
     @utils.timed_cache()
@@ -1459,7 +1461,7 @@ class SearchView(View, Gtk.Box):
         for kid in kids:
 
             if picture in kid.pictures:
-                itr = utils.search_tree_model(model, obj)[0]
+                itr = search_tree_model(model, obj)[0]
                 path = model.get_path(itr)
                 # expand (on_test_expand_row needed for test)
                 self.on_test_expand_row(self.results_view, itr, path)
@@ -1558,7 +1560,7 @@ def select_in_search_results(obj, expand_current_first=False) -> Gtk.TreeIter:
             and view.row_meta[type(selected[0])].children is not None
         ):
             model = view.results_view.get_model()
-            found = utils.search_tree_model(model, selected[0])
+            found = search_tree_model(cast(Gtk.TreeModel, model), selected[0])
             if found and model:
                 path = model.get_path(found[0])
                 view.on_test_expand_row(view.results_view, found[0], path)
@@ -1577,7 +1579,7 @@ def select_in_search_results(obj, expand_current_first=False) -> Gtk.TreeIter:
             "select_in_search_results called when results_view is None."
         )
 
-    found = utils.search_tree_model(model, obj)
+    found = search_tree_model(model, obj)
     row_iter = None
 
     if len(found) > 0:

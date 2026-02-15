@@ -28,7 +28,7 @@ from typing import cast
 from gi.repository import Gtk
 
 from bauble import db
-from bauble import utils
+from bauble.ui.utils import set_widget_value
 
 from .strategies import MapperSearch
 from .strategies import get_strategies
@@ -154,5 +154,5 @@ class SQLSearchDialog(Gtk.Dialog):
             logger.debug("domain %s not valid", domain)
             return
 
-        utils.set_widget_value(self.domain_combo, domain)
+        set_widget_value(self.domain_combo, domain)
         self.sql_textbuffer.set_text(sql)

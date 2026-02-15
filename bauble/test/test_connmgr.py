@@ -1217,7 +1217,7 @@ class GlobalFunctionsTests(BaubleTestCase):
             bauble.release_date, dateutil.parser.isoparse(created_date)
         )
 
-    @mock.patch("bauble.connmgr.utils.get_net_sess")
+    @mock.patch("bauble.connmgr.get_net_sess")
     def test_retrieve_latest_release_data_returns_none_wo_bad_response(
         self, mock_get_net_sess
     ):
@@ -1230,7 +1230,7 @@ class GlobalFunctionsTests(BaubleTestCase):
         mock_response.get.asset_called()
         mock_response.json.asset_not_called()
 
-    @mock.patch("bauble.connmgr.utils.get_net_sess")
+    @mock.patch("bauble.connmgr.get_net_sess")
     def test_retrieve_latest_release_data_returns_none_w_error(
         self, mock_get_net_sess
     ):
@@ -1244,7 +1244,7 @@ class GlobalFunctionsTests(BaubleTestCase):
             logs.records[0].getMessage(),
         )
 
-    @mock.patch("bauble.connmgr.utils.get_net_sess")
+    @mock.patch("bauble.connmgr.get_net_sess")
     def test_retrieve_latest_release_data_returns_response(
         self, mock_get_net_sess
     ):

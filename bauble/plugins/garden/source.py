@@ -61,11 +61,11 @@ from bauble import paths
 from bauble import prefs
 from bauble import utils
 from bauble.i18n import _
+from bauble.ui.views import Action
 from bauble.ui.views import InfoBox
 from bauble.ui.views import InfoExpander
 from bauble.ui.views import PropertiesExpander
 from bauble.utils.geo import KMLMapCallbackFunctor
-from bauble.ui.views import Action
 
 from ..plants.geography import Geography
 from ..plants.geography import GeographyMenu
@@ -845,7 +845,7 @@ class CollectionPresenter(editor.ChildPresenter):
         if text is None or text.strip() == "":
             self.set_model_attr("latitude", None)
         else:
-            self.set_model_attr("latitude", utils.nstr(latitude))
+            self.set_model_attr("latitude", str(latitude))
 
     def on_lon_entry_changed(self, entry):
         from .accession import longitude_to_dms
@@ -890,7 +890,7 @@ class CollectionPresenter(editor.ChildPresenter):
         if text is None or text.strip() == "":
             self.set_model_attr("longitude", None)
         else:
-            self.set_model_attr("longitude", utils.nstr(longitude))
+            self.set_model_attr("longitude", str(longitude))
 
 
 class PropagationChooserPresenter(editor.ChildPresenter):

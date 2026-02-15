@@ -1363,7 +1363,7 @@ class TestSearchViewMapPresenter(BaubleTestCase):
             mock_thread.is_alive.assert_called()
             self.assertFalse(mock_thread.is_alive())
 
-    @mock.patch("bauble.utils.tree_model_has")
+    @mock.patch("bauble.ui.utils.tree_model_has")
     def test_select_plant_by_id_bails_no_gui(self, mock_has):
         map_ = Map()
         gmap = GardenMap(map_)
@@ -1374,7 +1374,7 @@ class TestSearchViewMapPresenter(BaubleTestCase):
         mock_has.assert_not_called()
 
     @mock.patch("bauble.plugins.garden.garden_map.get_search_view")
-    @mock.patch("bauble.utils.tree_model_has")
+    @mock.patch("bauble.ui.utils.tree_model_has")
     @mock.patch("bauble.gui")
     def test_select_plant_by_id_bails_no_model(
         self, _mock_gui, mock_has, mock_get

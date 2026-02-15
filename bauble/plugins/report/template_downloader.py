@@ -35,8 +35,8 @@ from bauble import pluginmgr  # , task
 from bauble import prefs
 from bauble.i18n import _
 from bauble.task import set_message
-from bauble.utils import get_net_sess
 from bauble.utils import yes_no_dialog
+from bauble.utils.web import get_net_sess
 
 CONFIG_LIST_PREF = "report.configs"
 

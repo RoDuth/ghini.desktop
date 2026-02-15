@@ -40,6 +40,7 @@ from bauble import prefs
 from bauble import search
 from bauble import utils
 from bauble.i18n import _
+from bauble.ui.utils import search_tree_model
 from bauble.ui.views import HistoryView
 from bauble.ui.views import HomeView
 from bauble.ui.views import SearchView
@@ -486,7 +487,7 @@ def init_location_comboentry(presenter, combo, on_select):
         def _cmp(row, data):
             return str(row[0]) == data
 
-        found = utils.search_tree_model(compl_model, text, _cmp)
+        found = search_tree_model(compl_model, text, _cmp)
         if len(found) == 1:
             comp.emit("match-selected", compl_model, found[0])
             return True

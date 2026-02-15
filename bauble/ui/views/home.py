@@ -39,6 +39,7 @@ from bauble import search
 from bauble import utils
 from bauble.i18n import _
 
+from ..utils import clear_model
 from .base import View
 
 
@@ -117,7 +118,7 @@ class SimpleSearchBox(Gtk.Frame):
         text = entry.get_text()
         completion = entry.get_completion()
         key_length = completion.get_minimum_key_length()
-        utils.clear_model(completion)
+        clear_model(completion)
 
         if len(text) < key_length:
             return

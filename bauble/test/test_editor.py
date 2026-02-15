@@ -48,6 +48,8 @@ from bauble.editor import PresenterMapMixin
 from bauble.search.strategies import MapperSearch
 from bauble.test import BaubleTestCase
 from bauble.test import get_setUp_data_funcs
+from bauble.ui.utils import get_widget_value
+from bauble.ui.utils import set_widget_value
 
 
 class BaubleTests(BaubleTestCase):
@@ -158,7 +160,7 @@ class NoteBoxTests(BaubleTestCase):
         # test set_contents set widget value.
         test_str = "test string"
         box.set_content(test_str)
-        self.assertEqual(utils.get_widget_value(box.note_textview), test_str)
+        self.assertEqual(get_widget_value(box.note_textview), test_str)
 
     def test_note_box_set_widget_set_model(self):
         presenter = mock.Mock(model=self.model)
@@ -166,7 +168,7 @@ class NoteBoxTests(BaubleTestCase):
         self.assertTrue(box)
         # test set widget sets model value
         test_str = "test string"
-        utils.set_widget_value(box.note_textview, test_str)
+        set_widget_value(box.note_textview, test_str)
         self.assertEqual(self.model.note, test_str)
 
     def test_note_box_on_notes_remove_button_removes_note(self):
@@ -197,7 +199,7 @@ class NoteBoxTests(BaubleTestCase):
         box = NoteBox(presenter, self.model)
         self.assertIsNone(self.model.date)
         cat = "Test Category"
-        utils.set_widget_value(box.category_comboentry, cat)
+        set_widget_value(box.category_comboentry, cat)
         self.assertEqual(self.model.category, cat)
 
     def test_presenter_on_add_button_adds_context_box(self):
@@ -247,7 +249,7 @@ class PictureBoxTests(BaubleTestCase):
                 self.session.add(self.model)
                 break
 
-    @mock.patch("bauble.utils.ImageLoader")
+    @mock.patch("bauble.editor.ImageLoader")
     def test_picture_box_set_contents_calls_imageloader_for_url(
         self, mockloader
     ):
@@ -257,7 +259,7 @@ class PictureBoxTests(BaubleTestCase):
         # sets widgets
         test_str = "http://test.org"
         box.set_content(test_str)
-        self.assertEqual(utils.get_widget_value(box.file_entry), test_str)
+        self.assertEqual(get_widget_value(box.file_entry), test_str)
         self.assertIsInstance(box.picture_box.get_children()[0], Gtk.Box)
         mockloader.assert_called()
 
@@ -268,7 +270,7 @@ class PictureBoxTests(BaubleTestCase):
         # sets widgets none existing image
         test_str = "test.jpg"
         box.set_content(test_str)
-        self.assertEqual(utils.get_widget_value(box.file_entry), test_str)
+        self.assertEqual(get_widget_value(box.file_entry), test_str)
         self.assertIsInstance(box.picture_box.get_children()[0], Gtk.Label)
         self.assertIn(test_str, box.picture_box.get_children()[0].get_text())
 
@@ -281,7 +283,7 @@ class PictureBoxTests(BaubleTestCase):
         # sets widgets none existing image
         test_str = "dmg_background.png"
         box.set_content(test_str)
-        self.assertEqual(utils.get_widget_value(box.file_entry), test_str)
+        self.assertEqual(get_widget_value(box.file_entry), test_str)
         self.assertIsInstance(box.picture_box.get_children()[0], Gtk.Image)
 
     def test_picture_box_set_contents_adds_label_for_none(self):
@@ -290,7 +292,7 @@ class PictureBoxTests(BaubleTestCase):
         self.assertTrue(box)
         # sets widgets none existing image
         box.set_content(None)
-        self.assertEqual(utils.get_widget_value(box.file_entry), "")
+        self.assertEqual(get_widget_value(box.file_entry), "")
         self.assertIsInstance(box.picture_box.get_children()[0], Gtk.Label)
         self.assertIn(
             "Choose a file", box.picture_box.get_children()[0].get_text()
@@ -530,7 +532,7 @@ class PictureBoxTests(BaubleTestCase):
         parent = Gtk.Box()
         pic_presenter = PicturesPresenter(presenter, "pictures", parent)
         box = PictureBox(pic_presenter, self.model)
-        utils.set_widget_value(box.category_comboentry, "test")
+        set_widget_value(box.category_comboentry, "test")
         self.assertEqual(self.model.category, "test")
         box.on_file_btnbrowse_clicked(None)
         self.assertEqual(len(self.parent_model.pictures), 2)
@@ -642,7 +644,7 @@ class DocumentBoxTests(BaubleTestCase):
         # test set_contents set widget value.
         test_str = "test string"
         box.set_content(test_str)
-        self.assertEqual(utils.get_widget_value(box.file_entry), test_str)
+        self.assertEqual(get_widget_value(box.file_entry), test_str)
 
     def test_set_note_contents_sets_widget(self):
         presenter = mock.Mock(model=self.model)
@@ -651,7 +653,7 @@ class DocumentBoxTests(BaubleTestCase):
         # test set_contents set widget value.
         test_str = "test string"
         box.set_note_content(test_str)
-        self.assertEqual(utils.get_widget_value(box.note_textview), test_str)
+        self.assertEqual(get_widget_value(box.note_textview), test_str)
 
     def test_set_widget_set_model(self):
         presenter = mock.Mock(model=self.model)
@@ -659,7 +661,7 @@ class DocumentBoxTests(BaubleTestCase):
         self.assertTrue(box)
         # test set widget sets model value
         test_str = "test string"
-        utils.set_widget_value(box.note_textview, test_str)
+        set_widget_value(box.note_textview, test_str)
         self.assertEqual(self.model.note, test_str)
 
     def test_on_notes_remove_button_removes_note(self):
@@ -690,7 +692,7 @@ class DocumentBoxTests(BaubleTestCase):
         box = DocumentBox(presenter, self.model)
         self.assertIsNone(self.model.date)
         cat = "Test Category"
-        utils.set_widget_value(box.category_comboentry, cat)
+        set_widget_value(box.category_comboentry, cat)
         self.assertEqual(self.model.category, cat)
 
     @mock.patch(
@@ -853,7 +855,7 @@ class DocumentBoxTests(BaubleTestCase):
         box = DocumentBox(presenter, self.model)
         # test set widget sets model value
         test_str = "test.txt"
-        utils.set_widget_value(box.file_entry, test_str)
+        set_widget_value(box.file_entry, test_str)
         box.on_file_open_clicked(None)
         self.assertEqual(
             mock_open.call_args.args[0], os.path.join("documents", test_str)
@@ -868,7 +870,7 @@ class DocumentBoxTests(BaubleTestCase):
         box = DocumentBox(presenter, self.model)
         # test set widget sets model value
         test_str = "test.txt"
-        utils.set_widget_value(box.file_entry, test_str)
+        set_widget_value(box.file_entry, test_str)
         box.on_copy_filename(None)
         mock_clipboard.set_text.assert_called_with(test_str, -1)
 

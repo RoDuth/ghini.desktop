@@ -76,15 +76,15 @@ from bauble import prefs
 from bauble import utils
 from bauble.i18n import _
 from bauble.task import queue
+from bauble.ui.views import Action
 from bauble.ui.views import InfoBox
 from bauble.ui.views import InfoExpander
 from bauble.ui.views import PropertiesExpander
+from bauble.ui.views import on_clicked_select
 from bauble.utils.geo import GEOJSONMultiPoly
 from bauble.utils.geo import GEOJSONPoly
 from bauble.utils.geo import KMLMapCallbackFunctor
 from bauble.utils.geo import get_approx_area_from_geojson_sqm
-from bauble.ui.views import Action
-from bauble.ui.views import on_clicked_select
 
 if TYPE_CHECKING:
     from . import SpeciesDistribution
@@ -655,30 +655,12 @@ def get_world_paths(fill: str, pacific_centric: bool) -> str:
     return "".join(svg_paths)
 
 
-class DistMapCache(OrderedDict[int, Gtk.Image]):
-    """Limited size LRU image cache dict.
-
-    When items are accessed via square brackets they are moved to the end,
-    making them last to be popped from the cache.  Use `get` method if you wish
-    to avoid this.
-    """
-
-    def __setitem__(self, key: int, value: Gtk.Image) -> None:
-        if len(self) > 120:
-            self.popitem(last=False)
-        super().__setitem__(key, value)
-
-    def __getitem__(self, key: int) -> Gtk.Image:
-        self.move_to_end(key)
-        return super().__getitem__(key)
-
-
 class DistributionMap:
     """Provide map images for geographies."""
 
     _world: str = ""
     _world_pixbuf: GdkPixbuf.Pixbuf | None = None
-    _image_cache = DistMapCache()
+    _image_cache = utils.LRUCache[int, Gtk.Image](size=120)
     _pacific_centric: bool = False
 
     def __init__(self, ids: Sequence[int]) -> None:
@@ -889,7 +871,7 @@ class DistributionMap:
         logger.debug("reset distribution map cache")
         cls._world = ""
         cls._world_pixbuf = None
-        cls._image_cache = DistMapCache()
+        cls._image_cache = utils.LRUCache()
 
     def get_max_zoom(self) -> int:
         longs, lats = split_lats_longs(self.areas)

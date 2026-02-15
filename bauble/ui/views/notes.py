@@ -58,7 +58,7 @@ class NotesScroller(Gtk.ScrolledWindow):
     liststore = cast(Gtk.ListStore, Gtk.Template.Child())
 
     LABEL_STR = _("Notes")
-    label = Gtk.Label(label=LABEL_STR)
+    label: Gtk.Label = Gtk.Label(label=LABEL_STR)
 
     def __init__(self) -> None:
         super().__init__()
@@ -130,7 +130,7 @@ class DocumentsScroller(Gtk.ScrolledWindow):
     liststore = cast(Gtk.ListStore, Gtk.Template.Child())
 
     LABEL_STR = _("Docs")
-    label = Gtk.Label(label=LABEL_STR)
+    label: Gtk.Label = Gtk.Label(label=LABEL_STR)
 
     def __init__(self) -> None:
         super().__init__()

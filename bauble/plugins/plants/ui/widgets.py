@@ -37,6 +37,7 @@ from bauble import utils
 from bauble.i18n import _
 from bauble.ui.handlers import default_completion_cell_data_func
 from bauble.ui.handlers import default_completion_match_func
+from bauble.ui.utils import clear_model
 from bauble.ui.views import InfoExpander
 from bauble.ui.views import on_clicked_select
 
@@ -247,7 +248,7 @@ class SynonymsPresenter(Gtk.Frame):
 
         self.column.set_cell_data_func(self.cell_renderer, _syn_data_func)
 
-        utils.clear_model(self.treeview)
+        clear_model(self.treeview)
         tree_model = Gtk.ListStore(object)
 
         for synonym in sorted(self.model._synonyms, key=str):

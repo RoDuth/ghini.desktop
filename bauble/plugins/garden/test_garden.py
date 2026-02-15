@@ -43,6 +43,8 @@ from bauble.test import check_dupids
 from bauble.test import mockfunc
 from bauble.test import update_gui
 from bauble.test import wait_on_threads
+from bauble.ui.utils import set_combo_from_value
+from bauble.ui.utils import set_widget_value
 
 from ..plants import test_plants as plants_test
 from ..plants.family import Family
@@ -2086,12 +2088,10 @@ class PropagationTests(GardenTestCase):
         acc1 = self.session.query(Accession).first()
         propagation.used_source = [acc1.source]
         editor = PropagationEditor(model=propagation)
-        utils.set_combo_from_value(
+        set_combo_from_value(
             editor.presenter.view.widgets.prop_type_combo, "Other"
         )
-        utils.set_widget_value(
-            editor.presenter.view.widgets.notes_textview, "TEST"
-        )
+        set_widget_value(editor.presenter.view.widgets.notes_textview, "TEST")
         propagation = editor.start()
         logger.debug(propagation)
         self.assertTrue(propagation.accessions)
@@ -2381,11 +2381,11 @@ class SourcePresenterTests(GardenTestCase):
         update_gui()
 
         self.assertFalse(view.widgets.source_garden_prop_box.get_visible())
-        utils.set_widget_value(view.widgets.source_type_combo, "garden_prop")
+        set_widget_value(view.widgets.source_type_combo, "garden_prop")
         combo = view.widgets.acc_source_comboentry
         self.assertEqual(len(combo.get_model()), 2)
         self.assertTrue(view.widgets.source_garden_prop_box.get_visible())
-        utils.set_widget_value(view.widgets.source_type_combo, "contact")
+        set_widget_value(view.widgets.source_type_combo, "contact")
         self.assertEqual(len(combo.get_model()), len(source_detail_data) + 1)
         self.assertFalse(view.widgets.source_garden_prop_box.get_visible())
         presenter.cleanup()
@@ -2476,7 +2476,7 @@ class SourcePresenterTests(GardenTestCase):
             self.session,
         )
         update_gui()
-        utils.set_widget_value(view.widgets.source_type_combo, "Commercial")
+        set_widget_value(view.widgets.source_type_combo, "Commercial")
 
         def mock_start():
             source = mock_presenter.call_args_list[1][0][0]
@@ -3728,14 +3728,6 @@ class AccessionUpdatedTests(BaubleTestCase):
 
 
 class IntendedLocationsTests(GardenTestCase):
-    @staticmethod
-    def set_combo_from_value(combo, value):
-        model = combo.props.model
-        matches = utils.search_tree_model(model, value)
-        if len(matches) == 0:
-            raise ValueError(f"could not find value in combo: {value}")
-        combo.set_active_iter(matches[0])
-        combo.emit("changed")
 
     def test_intended_locations_cascades_delete_accession(self):
         sp = self.session.query(Species).first()
@@ -3906,10 +3898,10 @@ class IntendedLocationsTests(GardenTestCase):
         mockrefresh = unittest.mock.Mock()
         presenter.refresh = mockrefresh
         # no change
-        self.set_combo_from_value(combo, loc1)
+        set_combo_from_value(combo, loc1)
         mockrefresh.assert_not_called()
         # changed
-        self.set_combo_from_value(combo, loc2)
+        set_combo_from_value(combo, loc2)
         mockrefresh.assert_called()
         presenter.cleanup()
 
@@ -4381,23 +4373,23 @@ class VerificationTests(GardenTestCase):
             mock_parent, acc, AccessionEditorView(), self.session
         )
         ver_box = VerificationBox(presenter, ver)
-        utils.set_widget_value(ver_box.date_entry, "2/9/23")
-        utils.set_widget_value(ver_box.date_entry, "")
+        set_widget_value(ver_box.date_entry, "2/9/23")
+        set_widget_value(ver_box.date_entry, "")
         self.assertTrue(presenter.has_problems(ver_box.date_entry))
-        utils.set_widget_value(ver_box.date_entry, "2/9/23")
+        set_widget_value(ver_box.date_entry, "2/9/23")
         self.assertTrue(presenter.has_problems(ver_box.verifier_entry))
         self.assertTrue(presenter.has_problems(ver_box.new_taxon_entry))
         self.assertTrue(presenter.has_problems(ver_box.prev_taxon_entry))
         self.assertTrue(presenter.has_problems(ver_box.level_combo))
-        utils.set_widget_value(ver_box.verifier_entry, "some expert")
+        set_widget_value(ver_box.verifier_entry, "some expert")
         self.assertFalse(presenter.has_problems(ver_box.verifier_entry))
-        utils.set_widget_value(ver_box.new_taxon_entry, sp.string())
+        set_widget_value(ver_box.new_taxon_entry, sp.string())
         ver_box.on_sp_select(sp)
         self.assertFalse(presenter.has_problems(ver_box.new_taxon_entry))
-        utils.set_widget_value(ver_box.prev_taxon_entry, acc.species.string())
+        set_widget_value(ver_box.prev_taxon_entry, acc.species.string())
         ver_box.on_sp_select(acc.species, attr="prev_species")
         self.assertFalse(presenter.has_problems(ver_box.prev_taxon_entry))
-        utils.set_widget_value(ver_box.level_combo, 1)
+        set_widget_value(ver_box.level_combo, 1)
         self.assertFalse(presenter.has_problems(ver_box.level_combo))
         self.session.commit()
         from bauble.btypes import Date
