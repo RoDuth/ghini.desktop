@@ -37,8 +37,8 @@ from sqlalchemy.orm.session import object_session
 
 import bauble
 from bauble import db
-from bauble import utils
 from bauble.i18n import _
+from bauble.ui import dialogs
 from bauble.ui import idle_garbage_collect
 from bauble.ui.views import SearchView
 from bauble.ui.views import get_search_view_selected
@@ -373,7 +373,7 @@ class _TagsMenuManager:
         self,
         applying: Callable[[str, list], None],
         *,
-        message_dialog: Callable[[str], None] = utils.message_dialog,
+        message_dialog: Callable = dialogs.message_dialog,
     ) -> None:
         view = bauble.gui.get_view()
 

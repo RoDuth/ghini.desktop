@@ -24,7 +24,6 @@ World Geographical Scheme for Recording Plant Distributions (WGSRPD)
 import logging
 import threading
 import traceback
-from collections import OrderedDict
 from collections.abc import Callable
 from collections.abc import Iterable
 from collections.abc import Iterator
@@ -76,6 +75,7 @@ from bauble import prefs
 from bauble import utils
 from bauble.i18n import _
 from bauble.task import queue
+from bauble.ui import dialogs
 from bauble.ui.views import Action
 from bauble.ui.views import InfoBox
 from bauble.ui.views import InfoExpander
@@ -1300,7 +1300,7 @@ def update_all_approx_areas_handler(*_args) -> None:
     try:
         queue(update_all_approx_areas_task())
     except Exception as e:  # pylint: disable=broad-except
-        utils.message_details_dialog(
+        dialogs.message_details_dialog(
             utils.xml_safe(str(e)),
             traceback.format_exc(),
             Gtk.MessageType.ERROR,

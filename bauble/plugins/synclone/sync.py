@@ -63,6 +63,7 @@ from bauble import task
 from bauble import utils
 from bauble.connmgr import start_connection_manager
 from bauble.i18n import _
+from bauble.ui import dialogs
 from bauble.ui.views import View
 
 from ..tag.ui import menu_manager
@@ -556,7 +557,7 @@ class DBSyncroniser:
                         msg = _("Would you like to abort the sync?")
                         parent = bauble.gui.window if bauble.gui else None
                         # if user selects no the record is skipped only
-                        if utils.yes_no_dialog(msg=msg, parent=parent):
+                        if dialogs.yes_no_dialog(msg=msg, parent=parent):
                             # raise exception to trigger a rollback
                             raise error.DatabaseError("Sync aborted.")
 
@@ -806,7 +807,7 @@ class ResolutionCentreView(View, Gtk.Box):
                 "sync?"
             )
             parent = bauble.gui.window if bauble.gui else None
-            if utils.yes_no_dialog(msg=msg, parent=parent):
+            if dialogs.yes_no_dialog(msg=msg, parent=parent):
                 logger.debug("rebase back into %s", repr(self.uri))
 
                 try:
@@ -826,7 +827,7 @@ class ResolutionCentreView(View, Gtk.Box):
                 "report the issue)"
             )
             parent = bauble.gui.window if bauble.gui else None
-            if utils.yes_no_dialog(msg=msg, parent=parent):
+            if dialogs.yes_no_dialog(msg=msg, parent=parent):
                 cloner = DBCloner()
                 cloner.start(self.uri)
 
@@ -981,7 +982,7 @@ class DBSyncTool(pluginmgr.Tool):
 
         if current_uri == uri:
             msg = _("Can not sync from the same database.")
-            utils.message_dialog(msg, Gtk.MessageType.ERROR)
+            dialogs.message_dialog(msg, Gtk.MessageType.ERROR)
             logger.debug("can not sync, uri is same as current")
             return
 

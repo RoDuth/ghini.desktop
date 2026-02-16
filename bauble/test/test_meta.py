@@ -136,13 +136,13 @@ class MetaTests(BaubleTestCase):
             mock_session.assert_called()
             self.assertEqual(val, value2)
 
-    @mock.patch("bauble.meta.utils.create_message_dialog")
+    @mock.patch("bauble.meta.create_message_dialog")
     def test_set_value_single_no_value_returns_none(self, mock_dialog):
         mock_dialog().run.return_value = Gtk.ResponseType.OK
         self.assertEqual(meta.set_value("foo", "", "baz"), [])
         self.assertEqual(meta.get_default("foo"), None)
 
-    @mock.patch("bauble.meta.utils.create_message_dialog")
+    @mock.patch("bauble.meta.create_message_dialog")
     def test_set_value_mutliple_w_value_returns_metas(self, mock_dialog):
         mock_dialog().run.return_value = Gtk.ResponseType.OK
         self.assertEqual(

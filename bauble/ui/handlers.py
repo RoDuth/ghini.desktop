@@ -43,6 +43,7 @@ from sqlalchemy.orm.exc import DetachedInstanceError
 from bauble import db
 from bauble import utils
 
+from . import dialogs
 from .validators import Validator
 from .validators import ValidatorError
 
@@ -201,7 +202,7 @@ class HandlerMethodDescriptor[T: GObject.Object](ABC):
                 f"<b>{type(e).__name__} setting '{field_name}' to "
                 f"'{value}' on model '{model_name}'</b>\n\n"
             )
-            utils.message_details_dialog(
+            dialogs.message_details_dialog(
                 msg,
                 str(e),
                 type_=Gtk.MessageType.ERROR,

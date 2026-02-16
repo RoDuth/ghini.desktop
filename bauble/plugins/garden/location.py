@@ -63,14 +63,15 @@ from bauble.editor import PicturesPresenter
 from bauble.editor import PresenterMapMixin
 from bauble.editor import StringOrNoneValidator
 from bauble.i18n import _
+from bauble.ui import dialogs
+from bauble.ui.views import Action
 from bauble.ui.views import InfoBox
 from bauble.ui.views import InfoExpander
 from bauble.ui.views import LinksExpander
 from bauble.ui.views import PropertiesExpander
+from bauble.ui.views import on_clicked_search
 from bauble.utils.geo import KMLMapCallbackFunctor
 from bauble.utils.geo import get_approx_area_from_geojson_sqm
-from bauble.ui.views import Action
-from bauble.ui.views import on_clicked_search
 
 if TYPE_CHECKING:
     from .accession import IntendedLocation
@@ -106,12 +107,12 @@ def remove_callback(objs, **kwargs):
                 "Please remove the plants from <b>%s</b> "
                 "before deleting it."
             ) % utils.xml_safe(loc)
-            utils.message_dialog(msg, typ=Gtk.MessageType.WARNING)
+            dialogs.message_dialog(msg, typ=Gtk.MessageType.WARNING)
             return False
     msg = _(
         "Are you sure you want to remove the following locations <b>%s</b>?"
     ) % ", ".join(i for i in loc_lst)
-    if not utils.yes_no_dialog(msg):
+    if not dialogs.yes_no_dialog(msg):
         return False
     session = object_session(loc)
     for loc in locations:
@@ -120,7 +121,7 @@ def remove_callback(objs, **kwargs):
         session.commit()
     except Exception as e:  # pylint: disable=broad-except
         msg = _("Could not delete.\n\n%s") % utils.xml_safe(e)
-        utils.message_details_dialog(
+        dialogs.message_details_dialog(
             msg, traceback.format_exc(), Gtk.MessageType.ERROR
         )
     finally:
@@ -559,7 +560,7 @@ class LocationEditor(GenericModelViewPresenterEditor):
                 msg = _("Error committing changes.\n\n%s") % utils.xml_safe(
                     e.orig
                 )
-                utils.message_details_dialog(
+                dialogs.message_details_dialog(
                     msg, str(e), Gtk.MessageType.ERROR
                 )
                 self.session.rollback()
@@ -569,14 +570,14 @@ class LocationEditor(GenericModelViewPresenterEditor):
                     "Unknown error when committing changes. See the "
                     "details for more information.\n\n%s"
                 ) % utils.xml_safe(e)
-                utils.message_details_dialog(
+                dialogs.message_details_dialog(
                     msg, traceback.format_exc(), Gtk.MessageType.ERROR
                 )
                 self.session.rollback()
                 return False
         elif (
             self.presenter.is_dirty()
-            and utils.yes_no_dialog(not_ok_msg)
+            and dialogs.yes_no_dialog(not_ok_msg)
             or not self.presenter.is_dirty()
         ):
             self.session.rollback()

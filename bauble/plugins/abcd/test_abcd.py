@@ -24,8 +24,6 @@ import os
 import tempfile
 from unittest import mock
 
-from lxml import etree
-
 import bauble.plugins.garden.test_garden as garden_test
 
 # from bauble.plugins.garden import Plant, Accession
@@ -45,7 +43,7 @@ class ABCDTestCase(BaubleTestCase):
         plants_test.setUp_data()
         garden_test.setUp_data()
 
-    @mock.patch("bauble.utils.message_dialog")
+    @mock.patch("bauble.ui.dialogs.message_dialog")
     def test_export(self, mock_dialog):
         """Test the ABCDExporter.  If message_dialog is called fail. i.e.
         validation fails

@@ -37,6 +37,7 @@ import bauble
 from bauble import db
 from bauble import utils
 from bauble.i18n import _
+from bauble.ui import dialogs
 from bauble.ui.handlers import EntryWCompletionHandler
 from bauble.ui.handlers import populate_enum_combo
 from bauble.ui.presenter import AddCallback
@@ -316,7 +317,7 @@ class FamilyEditorDialog(
             return True
         except SQLAlchemyError as e:
             msg = _("Error committing changes.\n\n%s") % utils.xml_safe(e)
-            utils.message_details_dialog(
+            dialogs.message_details_dialog(
                 msg, traceback.format_exc(), Gtk.MessageType.ERROR
             )
             self.session.rollback()

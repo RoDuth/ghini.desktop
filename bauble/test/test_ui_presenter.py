@@ -333,7 +333,7 @@ class GenericPresenterTests(TestCase):
         self.assertEqual(mock_model.foo, "test")
         presenter.update.assert_called_once()
 
-    @mock.patch("bauble.editor.utils.message_details_dialog")
+    @mock.patch("bauble.editor.dialogs.message_details_dialog")
     def test_on_text_entry_changed_w_error_notifies(self, mock_dlog):
         mock_model = mock.MagicMock()
         type(mock_model).foo = mock.PropertyMock(

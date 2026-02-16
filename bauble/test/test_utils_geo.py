@@ -1045,7 +1045,7 @@ class TestPolyLabel(TestCase):
 
 class TestKMLMapCallbackFunctor(TestCase):
     @mock.patch("bauble.gui")
-    @mock.patch("bauble.utils.message_dialog")
+    @mock.patch("bauble.ui.dialogs.message_dialog")
     @mock.patch("bauble.utils.geo.Template")
     def test_fails_single(self, mock_template, mock_dialog, mock_gui):
         call_back = KMLMapCallbackFunctor(None)
@@ -1057,7 +1057,7 @@ class TestKMLMapCallbackFunctor(TestCase):
         mock_gui.widgets.statusbar.push.assert_called()
         mock_dialog.assert_called()
 
-    @mock.patch("bauble.utils.message_dialog")
+    @mock.patch("bauble.ui.dialogs.message_dialog")
     @mock.patch("bauble.utils.geo.Template")
     def test_fails_multiple(self, mock_template, mock_dialog):
         call_back = KMLMapCallbackFunctor(None)
@@ -1068,7 +1068,7 @@ class TestKMLMapCallbackFunctor(TestCase):
         self.assertTrue(all("None: test" in i for i in logs.output))
         mock_dialog.assert_called()
 
-    @mock.patch("bauble.utils.message_dialog")
+    @mock.patch("bauble.ui.dialogs.message_dialog")
     @mock.patch("bauble.utils.desktop.open")
     @mock.patch("bauble.utils.geo.Template")
     def test_open_fails_oserror(self, mock_template, mock_open, mock_dialog):

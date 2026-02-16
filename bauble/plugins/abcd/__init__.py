@@ -52,6 +52,7 @@ from bauble import utils
 from bauble.i18n import _
 from bauble.plugins.garden import institution
 from bauble.plugins.garden.plant import Plant
+from bauble.ui import dialogs
 
 # NOTE: see biocase provider software for reading and writing ABCD data
 # files, already downloaded software to desktop
@@ -589,7 +590,7 @@ class ABCDCreator:
                 "Name, Technical Contact, Email, Contact and Institution "
                 "Code fields are filled in."
             )
-            utils.message_dialog(msg)
+            dialogs.message_dialog(msg)
             institution.InstitutionTool().start()
             self.inst = institution.Institution()
             return self._create_units_element()
@@ -786,7 +787,7 @@ class ABCDExporter:
                 "Exporting this many plants may take a while."
                 "\n\n<i>Would you like to continue?</i>"
             ) % {"nplants": self.nplants}
-            if not utils.yes_no_dialog(msg):
+            if not dialogs.yes_no_dialog(msg):
                 return
         self.run(filename, plants)
 
@@ -828,7 +829,7 @@ class ABCDExporter:
                 "The ABCD file was created but failed to validate "
                 "correctly against the ABCD standard.\n\n%s"
             ) % utils.xml_safe(e)
-            utils.message_dialog(msg, Gtk.MessageType.WARNING)
+            dialogs.message_dialog(msg, Gtk.MessageType.WARNING)
 
 
 class ABCDExportTool(pluginmgr.Tool):

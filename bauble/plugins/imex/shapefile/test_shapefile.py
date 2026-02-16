@@ -1283,7 +1283,7 @@ class ExportSettingsBoxTests(ShapefileTestCase):
         mock_dialog = MockDialog()
 
         with mock.patch(
-            "bauble.utils.create_message_dialog", return_value=mock_dialog
+            "bauble.ui.dialogs.create_message_dialog", return_value=mock_dialog
         ):
             settings_box.on_gen_button_clicked(None)
         grid = mock_dialog.get_message_area().get_children()[0]
@@ -1298,7 +1298,7 @@ class ExportSettingsBoxTests(ShapefileTestCase):
         mock_dialog.response = Gtk.ResponseType.CANCEL
 
         with mock.patch(
-            "bauble.utils.create_message_dialog", return_value=mock_dialog
+            "bauble.ui.dialogs.create_message_dialog", return_value=mock_dialog
         ):
             settings_box.on_gen_button_clicked(None)
         grid = mock_dialog.get_message_area().get_children()[0]
@@ -2045,7 +2045,7 @@ class ShapefileExportTests(ShapefileTestCase):
                 },
             )
 
-    @mock.patch("bauble.utils.message_dialog")
+    @mock.patch("bauble.ui.dialogs.message_dialog")
     def test_exports_search_all_w_generated_plants_over_400(self, mock_dialog):
         accs = self.session.query(Accession).all()
         bulk_plants = [
@@ -3378,7 +3378,8 @@ class ShapefileImportTests(ShapefileTestCase):
 
     @mock.patch("bauble.utils.desktop.open")
     @mock.patch(
-        "bauble.utils.Gtk.MessageDialog.run", return_value=Gtk.ResponseType.YES
+        "bauble.ui.dialogs.Gtk.MessageDialog.run",
+        return_value=Gtk.ResponseType.YES,
     )
     def test_add_or_update_all_records_plants_some_bad_records(
         self, mock_dialog, mock_open
@@ -3448,7 +3449,8 @@ class ShapefileImportTests(ShapefileTestCase):
 
     @mock.patch("bauble.utils.desktop.open")
     @mock.patch(
-        "bauble.utils.Gtk.MessageDialog.run", return_value=Gtk.ResponseType.YES
+        "bauble.ui.dialogs.Gtk.MessageDialog.run",
+        return_value=Gtk.ResponseType.YES,
     )
     def test_update_all_records_plants_unresolved_rec_existing_geojson(
         self, mock_dialog, mock_open
@@ -3503,7 +3505,8 @@ class ShapefileImportTests(ShapefileTestCase):
 
     @mock.patch("bauble.utils.desktop.open")
     @mock.patch(
-        "bauble.utils.Gtk.MessageDialog.run", return_value=Gtk.ResponseType.YES
+        "bauble.ui.dialogs.Gtk.MessageDialog.run",
+        return_value=Gtk.ResponseType.YES,
     )
     def test_update_all_records_plants_bad_records_fails_commit(
         self, mock_dialog, mock_open
@@ -4270,7 +4273,7 @@ class ShapefileImportTests(ShapefileTestCase):
         importer.projection = "epsg:4326"
         self.assertRaises(BaubleError, importer.run)
 
-    @mock.patch("bauble.utils.create_yes_no_dialog")
+    @mock.patch("bauble.ui.dialogs.create_yes_no_dialog")
     def test_import_task_doubleups_skip(self, mock_dialog):
         # single shapefile but with doubleups
         mock_dialog().run.return_value = -8
@@ -4292,7 +4295,7 @@ class ShapefileImportTests(ShapefileTestCase):
         updated = self.session.query(Location).get(1)
         self.assertEqual(updated.code, "QCC01")
 
-    @mock.patch("bauble.utils.create_yes_no_dialog")
+    @mock.patch("bauble.ui.dialogs.create_yes_no_dialog")
     def test_import_task_doubleups_cancel(self, mock_dialog):
         mock_dialog().run.return_value = -6
         importer = self.importer
@@ -4313,7 +4316,7 @@ class ShapefileImportTests(ShapefileTestCase):
         updated = self.session.query(Location).get(1)
         self.assertEqual(updated.code, "QCC01")
 
-    @mock.patch("bauble.utils.create_yes_no_dialog")
+    @mock.patch("bauble.ui.dialogs.create_yes_no_dialog")
     def test_import_task_multi_doubleups_overwrite(self, mock_dialog):
         # multiple files
         mock_dialog().run.return_value = -9
@@ -4354,7 +4357,7 @@ class ShapefileImportTests(ShapefileTestCase):
         updated2 = self.session.query(Location).get(2)
         self.assertEqual(updated2.code, "QCC02")
 
-    @mock.patch("bauble.utils.create_yes_no_dialog")
+    @mock.patch("bauble.ui.dialogs.create_yes_no_dialog")
     def test_import_task_multi_w_filter(self, mock_dialog):
         # multiple files with a filter
         plt1 = self.session.query(Plant).get(1)

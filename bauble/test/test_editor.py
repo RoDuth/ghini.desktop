@@ -299,7 +299,7 @@ class PictureBoxTests(BaubleTestCase):
         )
 
     @mock.patch(
-        "bauble.utils.yes_no_dialog", return_value=Gtk.ResponseType.YES
+        "bauble.ui.dialogs.yes_no_dialog", return_value=Gtk.ResponseType.YES
     )
     @mock.patch("bauble.editor.get_search_view")
     def test_picture_box_on_notes_remove_button_empty_entry(
@@ -324,7 +324,7 @@ class PictureBoxTests(BaubleTestCase):
         self.assertEqual(mock_get_sv().pictures_scroller.selection, [])
 
     @mock.patch(
-        "bauble.utils.yes_no_dialog", return_value=Gtk.ResponseType.YES
+        "bauble.ui.dialogs.yes_no_dialog", return_value=Gtk.ResponseType.YES
     )
     @mock.patch("bauble.editor.get_search_view")
     def test_picture_box_on_notes_remove_button_removes_image(
@@ -366,7 +366,7 @@ class PictureBoxTests(BaubleTestCase):
         self.assertEqual(mock_get_sv().pictures_scroller.selection, [])
 
     @mock.patch(
-        "bauble.utils.yes_no_dialog", return_value=Gtk.ResponseType.YES
+        "bauble.ui.dialogs.yes_no_dialog", return_value=Gtk.ResponseType.YES
     )
     @mock.patch("bauble.editor.get_search_view")
     def test_picture_box_remove_others_same_type_warns(
@@ -433,7 +433,7 @@ class PictureBoxTests(BaubleTestCase):
         self.assertIn(f"of type {note_cls.__tablename__}", msg)
 
     @mock.patch(
-        "bauble.utils.yes_no_dialog", return_value=Gtk.ResponseType.YES
+        "bauble.ui.dialogs.yes_no_dialog", return_value=Gtk.ResponseType.YES
     )
     @mock.patch("bauble.editor.get_search_view")
     def test_picture_box_remove_others_dif_types_warns(
@@ -569,7 +569,7 @@ class PictureBoxTests(BaubleTestCase):
         pic_root = prefs.prefs[prefs.picture_root_pref]
         Path(pic_root, img_name).touch()
         with mock.patch(
-            "bauble.editor.utils.yes_no_dialog",
+            "bauble.editor.dialogs.yes_no_dialog",
             return_value=Gtk.ResponseType.YES,
         ) as mock_dialog:
             box.on_file_btnbrowse_clicked(None)
@@ -601,7 +601,7 @@ class PictureBoxTests(BaubleTestCase):
         Path(pic_root, img_name).touch()
         Path(pic_root, img_name2).touch()
         with mock.patch(
-            "bauble.editor.utils.yes_no_dialog", return_value=False
+            "bauble.editor.dialogs.yes_no_dialog", return_value=False
         ) as mock_dialog:
             box.on_file_btnbrowse_clicked(None)
             self.assertEqual(mock_dialog.call_count, 2)
@@ -696,7 +696,7 @@ class DocumentBoxTests(BaubleTestCase):
         self.assertEqual(self.model.category, cat)
 
     @mock.patch(
-        "bauble.utils.yes_no_dialog", return_value=Gtk.ResponseType.YES
+        "bauble.ui.dialogs.yes_no_dialog", return_value=Gtk.ResponseType.YES
     )
     def test_on_notes_remove_button_empty_entry(self, mock_dlog):
         temp = tempfile.mkdtemp()
@@ -717,7 +717,7 @@ class DocumentBoxTests(BaubleTestCase):
         self.assertNotIn(self.model, presenter.notes)
 
     @mock.patch(
-        "bauble.utils.yes_no_dialog", return_value=Gtk.ResponseType.YES
+        "bauble.ui.dialogs.yes_no_dialog", return_value=Gtk.ResponseType.YES
     )
     def test_on_notes_remove_button_removes_document(self, mock_dlog):
         temp = tempfile.mkdtemp()
@@ -745,7 +745,7 @@ class DocumentBoxTests(BaubleTestCase):
         self.assertNotIn("the same file", msg)
 
     @mock.patch(
-        "bauble.utils.yes_no_dialog", return_value=Gtk.ResponseType.YES
+        "bauble.ui.dialogs.yes_no_dialog", return_value=Gtk.ResponseType.YES
     )
     def test_remove_others_same_type_warns(self, mock_dlog):
         for func in get_setUp_data_funcs():
@@ -834,7 +834,7 @@ class DocumentBoxTests(BaubleTestCase):
         box = DocumentBox(presenter, self.model)
         Path(temp, "documents", self.doc_name).touch()
         with mock.patch(
-            "bauble.editor.utils.yes_no_dialog",
+            "bauble.editor.dialogs.yes_no_dialog",
             return_value=Gtk.ResponseType.YES,
         ) as mock_dialog:
             box.on_file_btnbrowse_clicked(None)
@@ -974,7 +974,7 @@ class MapMixinTests(BaubleTestCase):
 
     def test_on_map_delete(self):
         self.assertEqual(self.mixin.model.geojson, self.geojson)
-        with mock.patch("bauble.editor.utils.yes_no_dialog") as mock_dialog:
+        with mock.patch("bauble.editor.dialogs.yes_no_dialog") as mock_dialog:
             mock_dialog.return_value = True
             self.mixin.on_map_delete()
             mock_dialog.assert_called_once()

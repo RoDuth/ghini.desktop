@@ -46,7 +46,7 @@ from bauble.plugins.abcd import ABCDCreator
 from bauble.plugins.abcd import AccessionABCDAdapter
 from bauble.plugins.abcd import PlantABCDAdapter
 from bauble.plugins.abcd import SpeciesABCDAdapter
-from bauble.ui.dialogs import run_file_chooser_dialog
+from bauble.ui import dialogs
 
 from .. import FormatterPlugin
 from .. import SettingsBox
@@ -264,7 +264,7 @@ class XSLFormatterSettingsBox(SettingsBox):
             last_folder = str(Path(previously).parent)
         else:
             last_folder = paths.templates_dir()
-        run_file_chooser_dialog(
+        dialogs.file_chooser_dialog(
             _("Select a stylesheet"),
             None,
             Gtk.FileChooserAction.OPEN,
@@ -284,7 +284,7 @@ class XSLFormatterSettingsBox(SettingsBox):
             last_folder = str(Path(previously).parent)
         else:
             last_folder = str(Path.home())
-        run_file_chooser_dialog(
+        dialogs.file_chooser_dialog(
             _("Save to file"),
             None,
             Gtk.FileChooserAction.SAVE,
@@ -388,7 +388,7 @@ class XSLFormatterPlugin(FormatterPlugin):
         source_type = kwargs.get("source_type")
         if not stylesheet:
             msg = _("Please select a stylesheet.")
-            utils.message_dialog(msg, Gtk.MessageType.WARNING)
+            dialogs.message_dialog(msg, Gtk.MessageType.WARNING)
             logger.debug(msg)
             return False
 
@@ -398,7 +398,7 @@ class XSLFormatterPlugin(FormatterPlugin):
                 "Could not find Apache FOP renderer.  Have you changed "
                 "your preferences?  You may need to install FOP and java."
             )
-            utils.message_dialog(msg, Gtk.MessageType.ERROR)
+            dialogs.message_dialog(msg, Gtk.MessageType.ERROR)
             logger.debug(msg)
             return False
 
@@ -455,7 +455,7 @@ class XSLFormatterPlugin(FormatterPlugin):
         logger.debug(filename)
 
         if not Path(filename).exists():
-            utils.message_dialog(
+            dialogs.message_dialog(
                 _(
                     "Error creating the file. Please "
                     "ensure that your formatter is "
@@ -486,7 +486,7 @@ class XSLFormatterPlugin(FormatterPlugin):
                     )
                     % filename
                 )
-            utils.message_dialog(msg)
+            dialogs.message_dialog(msg)
             logger.debug(msg)
 
         return True

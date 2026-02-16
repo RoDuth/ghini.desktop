@@ -42,7 +42,7 @@ from bauble import utils
 from bauble.connmgr import ConnectionManagerDialog
 from bauble.connmgr import start_connection_manager
 from bauble.i18n import _
-
+from bauble.ui import dialogs
 
 
 class Application(Gtk.Application):
@@ -156,7 +156,7 @@ class Application(Gtk.Application):
             except Exception as e:  # pylint: disable=broad-except
                 logger.debug("%s(%s)", type(e).__name__, e)
                 msg = _("Could not open connection.\n\n%s") % e
-                utils.message_details_dialog(
+                dialogs.message_details_dialog(
                     msg, traceback.format_exc(), Gtk.MessageType.ERROR
                 )
                 uri = None
@@ -184,7 +184,7 @@ class Application(Gtk.Application):
                     "already a database at this connection any existing "
                     "data will be destroyed!</i>"
                 )
-                if utils.yes_no_dialog(msg, yes_delay=2):
+                if dialogs.yes_no_dialog(msg, yes_delay=2):
                     try:
                         db.create()
                         # db.create() creates all tables registered with
@@ -197,7 +197,7 @@ class Application(Gtk.Application):
                             bauble.conn_name
                         )
                     except Exception as e:  # pylint: disable=broad-except
-                        utils.message_details_dialog(
+                        dialogs.message_details_dialog(
                             utils.xml_safe(e),
                             traceback.format_exc(),
                             Gtk.MessageType.ERROR,
@@ -211,7 +211,7 @@ class Application(Gtk.Application):
                 "%s\n%s(%s)", traceback.format_exc(), type(e).__name__, e
             )
             msg = utils.xml_safe(f"{type(e).__name__}({e})")
-            utils.message_dialog(msg, Gtk.MessageType.WARNING)
+            dialogs.message_dialog(msg, Gtk.MessageType.WARNING)
             return False
         # update the home screen
         home = bauble.gui.get_view()

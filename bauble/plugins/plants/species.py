@@ -58,6 +58,7 @@ from bauble.search.search import result_cache
 from bauble.search.statements import StatementAction
 from bauble.search.strategies import SearchStrategy
 from bauble.search.strategies import UseStrategy
+from bauble.ui import dialogs
 from bauble.ui.views import Action
 from bauble.ui.views import InfoBox
 from bauble.ui.views import InfoExpander
@@ -134,14 +135,14 @@ def remove_callback(
                 "You cannot remove a species with accessions."
             ) % {"sp": safe_str, "num_acc": num_acc}
 
-            utils.message_dialog(msg, typ=Gtk.MessageType.WARNING)
+            dialogs.message_dialog(msg, typ=Gtk.MessageType.WARNING)
 
             return False
 
     msg = _(
         "Are you sure you want to remove the following species <i>%s</i>?"
     ) % ", ".join(sp_lst)
-    if not utils.yes_no_dialog(msg):
+    if not dialogs.yes_no_dialog(msg):
         return False
 
     for species in objs:
@@ -150,7 +151,7 @@ def remove_callback(
         session.commit()
     except SQLAlchemyError as e:
         msg = _("Could not delete.\n\n%s") % utils.xml_safe(e)
-        utils.message_details_dialog(
+        dialogs.message_details_dialog(
             msg, traceback.format_exc(), Gtk.MessageType.ERROR
         )
         session.rollback()

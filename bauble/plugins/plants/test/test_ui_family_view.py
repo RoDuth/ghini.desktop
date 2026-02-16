@@ -61,7 +61,7 @@ class InfoBoxTests(PlantTestCase):
 
 class FunctionTests(BaubleTestCase):
 
-    @mock.patch("bauble.utils.yes_no_dialog")
+    @mock.patch("bauble.ui.dialogs.yes_no_dialog")
     def test_remove_callback_user_backs_out(self, mock_dlog):
         family = Family(family="Araucariaceae")
         self.session.add(family)
@@ -79,7 +79,7 @@ class FunctionTests(BaubleTestCase):
             [family],
         )
 
-    @mock.patch("bauble.utils.yes_no_dialog")
+    @mock.patch("bauble.ui.dialogs.yes_no_dialog")
     def test_remove_callback_user_confirms(self, mock_dlog):
         family = Family(family="Araucariaceae")
         self.session.add(family)
@@ -98,7 +98,7 @@ class FunctionTests(BaubleTestCase):
             [],
         )
 
-    @mock.patch("bauble.utils.message_dialog")
+    @mock.patch("bauble.ui.dialogs.message_dialog")
     def test_remove_callback_with_genera(self, mock_dlog):
         family = Family(family="Araucariaceae")
         gen = Genus(family=family, genus="Araucaria")
@@ -122,8 +122,8 @@ class FunctionTests(BaubleTestCase):
             [gen],
         )
 
-    @mock.patch("bauble.utils.yes_no_dialog")
-    @mock.patch("bauble.utils.message_details_dialog")
+    @mock.patch("bauble.ui.dialogs.yes_no_dialog")
+    @mock.patch("bauble.ui.dialogs.message_details_dialog")
     def test_remove_callback_commit_exception(self, mock_d_dlog, mock_yn_dlog):
         mock_yn_dlog.return_value = True
         mock_d_dlog.return_value = True

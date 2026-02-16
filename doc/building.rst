@@ -371,9 +371,9 @@ genera::
             self.session.flush()
 
 We do not want the function being tested to invoke the interactive
-``utils.yes_no_dialog`` function, we want ``remove_callback`` to invoke a
+``dialogs.yes_no_dialog`` function, we want ``remove_callback`` to invoke a
 non-interactive replacement function. We achieve this simply by making
-``utils.yes_no_dialog`` point to a ``lambda`` expression which, like the
+``dialogs.yes_no_dialog`` point to a ``lambda`` expression which, like the
 original interactive function, accepts one parameter and returns a
 boolean. In this case: ``False``::
 
@@ -384,7 +384,7 @@ boolean. In this case: ``False``::
             self.session.flush()
 
             # action
-            utils.yes_no_dialog = lambda x: False
+            dialogs.yes_no_dialog = lambda x: False
             from bauble.plugins.plants.family import remove_callback
             remove_callback(f5)
 
@@ -418,9 +418,9 @@ function now looks like this::
         self.invoked = []
 
         # action
-        utils.yes_no_dialog = partial(
+        dialogs.yes_no_dialog = partial(
             mockfunc, name='yes_no_dialog', caller=self, result=False)
-        utils.message_details_dialog = partial(
+        dialogs.message_details_dialog = partial(
             mockfunc, name='message_details_dialog', caller=self)
         from bauble.plugins.plants.family import remove_callback
         result = remove_callback([f5])
@@ -448,7 +448,7 @@ And so on
     so on`
 
 Next test is almost the same, with the difference that the
-``utils.yes_no_dialog`` should return ``True`` (this we achieve by
+``dialogs.yes_no_dialog`` should return ``True`` (this we achieve by
 specifying ``result=True`` in the partial application of the generic
 ``mockfunc``). 
 
@@ -463,9 +463,9 @@ With this action, the value returned by ``remove_callback`` should be
         self.invoked = []
 
         # action
-        utils.yes_no_dialog = partial(
+        dialogs.yes_no_dialog = partial(
             mockfunc, name='yes_no_dialog', caller=self, result=True)
-        utils.message_details_dialog = partial(
+        dialogs.message_details_dialog = partial(
             mockfunc, name='message_details_dialog', caller=self)
         from bauble.plugins.plants.family import remove_callback
         result = remove_callback([f5])

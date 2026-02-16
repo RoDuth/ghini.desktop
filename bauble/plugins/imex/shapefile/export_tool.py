@@ -40,8 +40,6 @@ from bauble import task
 from bauble.editor import GenericEditorPresenter
 from bauble.editor import GenericEditorView
 from bauble.editor import Problem
-
-# NOTE importing shapefile Writer above wipes out gettext _
 from bauble.i18n import _
 from bauble.meta import get_default
 from bauble.plugins.garden.location import Location
@@ -55,6 +53,7 @@ from bauble.plugins.garden.plant import (  # noqa pylint: disable=unused-import
     PlantNote,
 )
 from bauble.search.query_builder import SchemaMenu
+from bauble.ui import dialogs
 from bauble.utils.geo import ProjDB
 
 from .. import GenericExporter
@@ -252,7 +251,6 @@ class ShapefileExportSettingsBox(Gtk.ScrolledWindow):
 
     def generated_points_settings_dialog(self):
         """Settings for generated points."""
-        from bauble.utils import create_message_dialog
 
         msg = _(
             "Auto generated points for plants that don't currently "
@@ -262,7 +260,7 @@ class ShapefileExportSettingsBox(Gtk.ScrolledWindow):
             "instituion's latitude and longitude in the Institution "
             "Editor in the tools menu."
         )
-        dialog = create_message_dialog(msg=msg)
+        dialog = dialogs.create_message_dialog(msg=msg)
         dialog.set_keep_above(True)
         box = dialog.get_message_area()
         grid = Gtk.Grid(column_spacing=6, row_spacing=6)
@@ -567,7 +565,7 @@ class ShapefileExportDialogPresenter(GenericEditorPresenter):
         self.refresh_sensitivity()
 
     def on_btnbrowse_clicked(self, _widget):
-        self.view.run_file_chooser_dialog(
+        self.view.file_chooser_dialog(
             _("Select a shapefile"),
             None,
             Gtk.FileChooserAction.CREATE_FOLDER,
@@ -949,9 +947,8 @@ class ShapefileExporter(GenericExporter):
                         "too many points to generate, please select a "
                         "smaller search.</b>"
                     )
-                    from bauble.utils import message_dialog
 
-                    message_dialog(msg)
+                    dialogs.message_dialog(msg)
                     self.generated_items = []
                     self._generate_points -= 2
                     return

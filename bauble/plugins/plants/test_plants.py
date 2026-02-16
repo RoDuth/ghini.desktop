@@ -2373,7 +2373,7 @@ class SpeciesTests(PlantTestCase):
 
         from .species import remove_callback
 
-        with mock.patch("bauble.utils.yes_no_dialog") as mock_dlog:
+        with mock.patch("bauble.ui.dialogs.yes_no_dialog") as mock_dlog:
             mock_dlog.return_value = False
             result = remove_callback([sp])
             mock_dlog.assert_called_once_with(
@@ -2396,7 +2396,7 @@ class SpeciesTests(PlantTestCase):
 
         from .species import remove_callback
 
-        with mock.patch("bauble.utils.yes_no_dialog") as mock_dlog:
+        with mock.patch("bauble.ui.dialogs.yes_no_dialog") as mock_dlog:
             mock_dlog.return_value = True
             result = remove_callback([sp])
             mock_dlog.assert_called_once_with(
@@ -2425,7 +2425,7 @@ class SpeciesTests(PlantTestCase):
 
         from .species import remove_callback
 
-        with mock.patch("bauble.utils.message_dialog") as mock_dlog:
+        with mock.patch("bauble.ui.dialogs.message_dialog") as mock_dlog:
             mock_dlog.return_value = True
             result = remove_callback([vern])
             mock_dlog.assert_called_once_with(
@@ -2456,8 +2456,8 @@ class SpeciesTests(PlantTestCase):
         with mock.patch("bauble.plugins.plants.species.object_session"):
             self.assertFalse(remove_callback([sp]))
 
-    @mock.patch("bauble.utils.yes_no_dialog")
-    @mock.patch("bauble.utils.message_details_dialog")
+    @mock.patch("bauble.ui.dialogs.yes_no_dialog")
+    @mock.patch("bauble.ui.dialogs.message_details_dialog")
     def test_remove_callback_commit_exception(self, mock_d_dlog, mock_yn_dlog):
         mock_yn_dlog.return_value = True
         mock_d_dlog.return_value = True
@@ -5249,7 +5249,9 @@ class GeographyApproxAreaTests(BaubleTestCase):
             self.session.refresh(geo)
             self.assertEqual(geo.approx_area, 0.0)
 
-    @mock.patch("bauble.plugins.plants.geography.utils.message_details_dialog")
+    @mock.patch(
+        "bauble.plugins.plants.geography.dialogs.message_details_dialog"
+    )
     def test_update_all_approx_areas_handler_exception(self, mock_dialog):
         with mock.patch("bauble.plugins.plants.geography.queue") as que:
             que.side_effect = Exception
@@ -5826,7 +5828,7 @@ class SpeciesEditorTests(BaubleTestCase):
         )
         self.assertEqual(utils.gc_objects_by_type("SpeciesEditorView"), [])
 
-    @mock.patch("bauble.utils.message_dialog")
+    @mock.patch("bauble.ui.dialogs.message_dialog")
     def test_start_bails_if_no_genera(self, mock_dialog):
         editor = SpeciesEditor(model=Species())
         update_gui()
@@ -5877,7 +5879,7 @@ class SpeciesEditorTests(BaubleTestCase):
         del editor
         update_gui()
 
-    @mock.patch("bauble.utils.yes_no_dialog")
+    @mock.patch("bauble.ui.dialogs.yes_no_dialog")
     @mock.patch("bauble.editor.GenericEditorView.start")
     def test_handle_response_rolls_back_on_cancel(self, mock_start, mock_dlog):
         mock_dlog.return_value = True
@@ -7349,7 +7351,7 @@ class DistributionPresenterTests(BaubleClassTestCase):
         presenter.cleanup()
         del presenter
 
-    @mock.patch("bauble.utils.message_dialog")
+    @mock.patch("bauble.ui.dialogs.message_dialog")
     def test_append_dists_from_clipboard_text(self, mock_dialog):
         # haven't split these up as setUp is slow
         fam = Family(family="family5")
@@ -7680,7 +7682,7 @@ class VernacularNamePresenterTests(PlantTestCase):
 
         del presenter
 
-    @mock.patch("bauble.utils.yes_no_dialog")
+    @mock.patch("bauble.ui.dialogs.yes_no_dialog")
     def test_on_remove_button_clicked_existing(self, mock_dlog):
         mock_dlog.return_value = True
         mock_parent = mock.Mock()
@@ -7943,7 +7945,7 @@ class VernacularNamePresenterTests(PlantTestCase):
 
         del presenter
 
-    @mock.patch("bauble.utils.message_dialog")
+    @mock.patch("bauble.ui.dialogs.message_dialog")
     def test_refresh_view_set_default_when_none(self, mock_dialog):
         mock_parent = mock.Mock()
         mock_parent.view = SpeciesEditorView()
@@ -8054,7 +8056,7 @@ class SynonymsPresenterTests(PlantTestCase):
 
         del presenter
 
-    @mock.patch("bauble.utils.yes_no_dialog")
+    @mock.patch("bauble.ui.dialogs.yes_no_dialog")
     def test_on_remove_button_clicked(self, mock_dialog):
         mock_dialog.return_value = True
         mock_parent = mock.Mock()
@@ -8077,7 +8079,7 @@ class SynonymsPresenterTests(PlantTestCase):
 
         del presenter
 
-    @mock.patch("bauble.utils.yes_no_dialog")
+    @mock.patch("bauble.ui.dialogs.yes_no_dialog")
     def test_on_remove_button_clicked_after_add(self, mock_dialog):
         # test adding multiple via adding a sp with synonyms then removing
         # them.  Should not undo the original synonym, or add a synonym here.

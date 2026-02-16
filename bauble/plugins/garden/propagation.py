@@ -48,6 +48,7 @@ from bauble import paths
 from bauble import prefs
 from bauble import utils
 from bauble.i18n import _
+from bauble.ui import dialogs
 
 if TYPE_CHECKING:
     from . import Plant
@@ -590,7 +591,7 @@ class PropagationTabPresenter(editor.GenericEditorPresenter):
                     "Are you sure you want to remove\n"
                     "this propagation trial?"
                 )
-            if not utils.yes_no_dialog(msg):
+            if not dialogs.yes_no_dialog(msg):
                 return False
         else:
             if count == 1:
@@ -611,7 +612,7 @@ class PropagationTabPresenter(editor.GenericEditorPresenter):
                     )
                     % count
                 )
-            utils.message_dialog(msg, typ=Gtk.MessageType.WARNING)
+            dialogs.message_dialog(msg, typ=Gtk.MessageType.WARNING)
             return False
         self.model.propagations.remove(propagation)
         self.view.widgets.prop_tab_box.remove(box)
@@ -1283,7 +1284,7 @@ class PropagationEditor(editor.GenericModelViewPresenterEditor):
                 msg = _("Error committing changes.\n\n%s") % utils.xml_safe(
                     str(e.orig)
                 )
-                utils.message_details_dialog(
+                dialogs.message_details_dialog(
                     msg, str(e), Gtk.MessageType.ERROR
                 )
                 self.session.rollback()
@@ -1294,14 +1295,14 @@ class PropagationEditor(editor.GenericModelViewPresenterEditor):
                     "details for more information.\n\n%s"
                 ) % utils.xml_safe(e)
                 logger.debug(traceback.format_exc())
-                utils.message_details_dialog(
+                dialogs.message_details_dialog(
                     msg, traceback.format_exc(), Gtk.MessageType.ERROR
                 )
                 self.session.rollback()
                 return False
         elif (
             self.presenter.is_dirty()
-            and utils.yes_no_dialog(not_ok_msg)
+            and dialogs.yes_no_dialog(not_ok_msg)
             or not self.presenter.is_dirty()
         ):
             self.session.rollback()

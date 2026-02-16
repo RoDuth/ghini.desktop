@@ -41,7 +41,7 @@ from bauble.editor import GenericEditorPresenter
 from bauble.editor import GenericEditorView
 from bauble.editor import Problem
 from bauble.i18n import _
-from bauble.ui.dialogs import run_file_chooser_dialog
+from bauble.ui import dialogs
 
 
 def element_factory(parent, name, **kwargs):
@@ -70,7 +70,7 @@ class XMLExportDialogPresenter(GenericEditorPresenter):
         self.refresh_sensitivity()
 
     def on_btnbrowse_clicked(self, _button):
-        run_file_chooser_dialog(
+        dialogs.file_chooser_dialog(
             _("Select a folder"),
             None,
             Gtk.FileChooserAction.CREATE_FOLDER,
@@ -159,7 +159,7 @@ class XMLExporter:
                             text=row[col],
                         )
             except ValueError as e:
-                utils.message_details_dialog(
+                dialogs.message_details_dialog(
                     utils.xml_safe(e),
                     traceback.format_exc(),
                     Gtk.MessageType.ERROR,
@@ -218,7 +218,7 @@ class XMLImexPlugin(pluginmgr.Plugin):
 try:
     from lxml import etree
 except ImportError:
-    utils.message_dialog(
+    dialogs.message_dialog(
         "The <i>lxml</i> package is required for the "
         "XML Import/Exporter plugin"
     )

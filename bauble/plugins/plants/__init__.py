@@ -48,6 +48,7 @@ from bauble.i18n import _
 from bauble.paths import lib_dir
 from bauble.search.query_builder import ExpressionRow
 from bauble.search.stored_queries import StoredQueriesButtonBox
+from bauble.ui import dialogs
 from bauble.ui.utils import clear_model
 from bauble.ui.views import HistoryView
 from bauble.ui.views import HomeView
@@ -243,7 +244,7 @@ class SynonymsPresenter(editor.GenericEditorPresenter):
             "Are you sure you want to remove %s as a synonym? \n\n"
             "<i>Note: This will not remove %s from the database.</i>"
         ) % (syn, syn)
-        if not utils.yes_no_dialog(msg, parent=self.view.get_window()):
+        if not dialogs.yes_no_dialog(msg, parent=self.view.get_window()):
             return
 
         tree_model.remove(tree_model.get_iter(path))
@@ -852,7 +853,7 @@ class PlantsPlugin(pluginmgr.Plugin):
                     "\n\n<b>Do you want to overwrite these tables and "
                     "their related synonym tables?</b>"
                 )
-                if not utils.yes_no_dialog(msg, yes_delay=2):
+                if not dialogs.yes_no_dialog(msg, yes_delay=2):
                     return
         # pylint: disable=no-member
         geo_table = Geography.__table__

@@ -63,6 +63,7 @@ from bauble import utils
 from bauble.error import BaubleError
 from bauble.error import check
 from bauble.i18n import _
+from bauble.ui import dialogs
 from bauble.ui.utils import clear_model
 from bauble.ui.utils import search_tree_model
 from bauble.ui.views.base import View
@@ -530,7 +531,7 @@ class SearchView(View, Gtk.Box):
         except Exception as e:  # pylint: disable=broad-except
             msg = utils.xml_safe(str(e))
             trace = utils.xml_safe(traceback.format_exc())
-            utils.message_details_dialog(msg, trace, Gtk.MessageType.ERROR)
+            dialogs.message_details_dialog(msg, trace, Gtk.MessageType.ERROR)
             logger.warning(traceback.format_exc())
         if result:
             # can lead to update called twice but ensures its called when not
@@ -660,7 +661,7 @@ class SearchView(View, Gtk.Box):
                 "Copy error.  Check your copy_templates in Preferences?"
                 "\n\n%s"
             ) % utils.xml_safe(str(e))
-            utils.message_details_dialog(
+            dialogs.message_details_dialog(
                 msg, traceback.format_exc(), Gtk.MessageType.ERROR
             )
 
@@ -746,7 +747,7 @@ class SearchView(View, Gtk.Box):
                 "while to display all the data. Are you sure you "
                 "want to continue?"
             ) % len(results)
-            if not utils.yes_no_dialog(msg):
+            if not dialogs.yes_no_dialog(msg):
                 return
 
         # no result (not error)

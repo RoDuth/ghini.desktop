@@ -651,7 +651,7 @@ class ReportToolDialogNoFOPTests(BaubleTestCase):
         prefs.prefs[DEFAULT_CONFIG_PREF] = "plant csv"
         with (
             mock.patch("bauble.gui"),
-            mock.patch("bauble.utils.message_dialog"),
+            mock.patch("bauble.ui.dialogs.message_dialog"),
             mock.patch(
                 "bauble.gui.window",
                 new_callable=mock.PropertyMock(return_value=Gtk.Window()),
@@ -691,7 +691,7 @@ class ReportToolDialogTests(BaubleTestCase):
         prefs.prefs[DEFAULT_CONFIG_PREF] = "plant csv"
         with (
             mock.patch("bauble.gui"),
-            mock.patch("bauble.utils.message_dialog"),
+            mock.patch("bauble.ui.dialogs.message_dialog"),
             mock.patch(
                 "bauble.gui.window",
                 new_callable=mock.PropertyMock(return_value=Gtk.Window()),
@@ -704,7 +704,7 @@ class ReportToolDialogTests(BaubleTestCase):
         self.report_view.dialog.destroy()
         super().tearDown()
 
-    @mock.patch("bauble.utils.message_dialog")
+    @mock.patch("bauble.ui.dialogs.message_dialog")
     def test_set_name_combo(self, _mock_dialog):
         self.report_presenter.set_names_combo(0)
         self.assertEqual(self.report_view.widgets.names_combo.get_active(), 0)

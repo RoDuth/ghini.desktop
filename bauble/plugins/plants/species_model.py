@@ -1349,7 +1349,7 @@ def update_all_full_names_handler(*_args):
     try:
         queue(update_all_full_names_task())
     except Exception as e:  # pylint: disable=broad-except
-        utils.message_details_dialog(
+        dialogs.message_details_dialog(
             utils.xml_safe(str(e)),
             traceback.format_exc(),
             Gtk.MessageType.ERROR,

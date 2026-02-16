@@ -308,7 +308,7 @@ class XSLFormatterPluginTests(XSLTestCase):
             self.formatter.get_settings_box(), XSLFormatterSettingsBox
         )
 
-    @mock.patch("bauble.utils.message_dialog")
+    @mock.patch("bauble.ui.dialogs.message_dialog")
     def test_format_no_stylesheet_notifies(self, mock_dialog):
         # NOTE this will not get to open the file step becuase fop is not run
         # and hence no file is created
@@ -328,7 +328,7 @@ class XSLFormatterPluginTests(XSLTestCase):
         )
 
     @mock.patch("bauble.plugins.report.xsl._fop.set_fop_command")
-    @mock.patch("bauble.utils.message_dialog")
+    @mock.patch("bauble.ui.dialogs.message_dialog")
     def test_format_min_settings_no_fop_notifies(
         self, mock_dialog, mock_set_fop
     ):
@@ -354,7 +354,7 @@ class XSLFormatterPluginTests(XSLTestCase):
 
     @mock.patch("bauble.plugins.report.xsl._fop.set_fop_command")
     @mock.patch("bauble.plugins.report.xsl.subprocess.run")
-    @mock.patch("bauble.utils.message_dialog")
+    @mock.patch("bauble.ui.dialogs.message_dialog")
     def test_format_min_settings_no_fop_output_notifies(
         self, mock_dialog, mock_run, mock_set_fop
     ):

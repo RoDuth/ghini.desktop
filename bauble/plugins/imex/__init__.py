@@ -24,7 +24,6 @@ Description: plugin to provide importing and exporting
 """
 
 import csv
-import datetime
 import logging
 from abc import ABC
 from abc import abstractmethod
@@ -42,6 +41,7 @@ from bauble import prefs
 from bauble import task
 from bauble import utils
 from bauble.i18n import _
+from bauble.ui import dialogs
 
 # TODO: it might be best to do something like the reporter plugin so
 # that this plugin provides a generic interface for importing and exporting
@@ -140,7 +140,7 @@ class GenericImporter(ABC):  # pylint: disable=too-many-instance-attributes
                 )
                 % self._errors
             )
-            if utils.yes_no_dialog(msg):
+            if dialogs.yes_no_dialog(msg):
                 filepath = utils.get_temp_path().with_suffix(".csv")
                 with filepath.open("w", encoding="utf-8-sig", newline="") as f:
                     writer = csv.DictWriter(f, self._err_recs[0].keys())
@@ -179,7 +179,7 @@ class GenericImporter(ABC):  # pylint: disable=too-many-instance-attributes
                 "of: <b>%s</b> \nWould you like to skip this entry?\nOr "
                 "select Cancel to stop importing any further?"
             ) % utils.xml_safe(match_str)
-            dialog = utils.create_yes_no_dialog(msg)
+            dialog = dialogs.create_yes_no_dialog(msg)
             dialog.add_button("Cancel", -6)
             response = dialog.run()
             dialog.destroy()

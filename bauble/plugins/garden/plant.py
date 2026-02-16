@@ -103,6 +103,7 @@ from bauble.error import CheckConditionError
 from bauble.i18n import _
 from bauble.search.strategies import SearchStrategy
 from bauble.search.strategies import UseStrategy
+from bauble.ui import dialogs
 from bauble.ui.utils import clear_model
 from bauble.ui.utils import set_widget_value
 from bauble.ui.views import Action
@@ -145,7 +146,7 @@ def branch_callback(objs: Sequence["Plant"], **kwargs) -> bool:
             "Not enough plants to split.  A plant should have at least "
             "a quantity of 2 before it can be divided"
         )
-        utils.message_dialog(msg, Gtk.MessageType.WARNING)
+        dialogs.message_dialog(msg, Gtk.MessageType.WARNING)
         return False
 
     e = PlantEditor(model=plants[0], branch_mode=True)
@@ -161,7 +162,7 @@ def remove_callback(objs, **kwargs):
         "the plant has died set its quantity to zero rather than delete "
         "it.</small>"
     ) % utils.xml_safe(p_str)
-    if not utils.yes_no_dialog(msg):
+    if not dialogs.yes_no_dialog(msg):
         return False
 
     session = object_session(plants[0])
@@ -172,7 +173,7 @@ def remove_callback(objs, **kwargs):
                 "will destroy their link back.  Are you sure you want to "
                 "want to delete it?"
             ) % utils.xml_safe(plant)
-            if not utils.yes_no_dialog(msg):
+            if not dialogs.yes_no_dialog(msg):
                 plants.remove(plant)
                 continue
         if plant.propagations:
@@ -182,7 +183,7 @@ def remove_callback(objs, **kwargs):
                 "accessions created from them.  Are you sure you want to "
                 "want to delete it?"
             ) % utils.xml_safe(plant)
-            if not utils.yes_no_dialog(msg):
+            if not dialogs.yes_no_dialog(msg):
                 plants.remove(plant)
                 continue
         session.delete(plant)
@@ -191,7 +192,7 @@ def remove_callback(objs, **kwargs):
     except Exception as e:  # pylint: disable=broad-except
         msg = _("Could not delete.\n\n%s") % utils.xml_safe(e)
         logger.debug("remove_callback - (%s(%s)", type(e).__name__, e)
-        utils.message_details_dialog(
+        dialogs.message_details_dialog(
             msg, traceback.format_exc(), Gtk.MessageType.ERROR
         )
         session.rollback()
@@ -2263,7 +2264,7 @@ class PlantEditor(GenericModelViewPresenterEditor):
                 exc = traceback.format_exc()
                 logger.debug(exc)
                 msg = _("Error committing changes.\n\n%s") % e.orig
-                utils.message_details_dialog(
+                dialogs.message_details_dialog(
                     msg, str(e), Gtk.MessageType.ERROR
                 )
                 self.session.rollback()
@@ -2274,13 +2275,13 @@ class PlantEditor(GenericModelViewPresenterEditor):
                     "details for more information.\n\n%s"
                 ) % utils.xml_safe(e)
                 logger.debug(traceback.format_exc())
-                utils.message_details_dialog(
+                dialogs.message_details_dialog(
                     msg, traceback.format_exc(), Gtk.MessageType.ERROR
                 )
                 self.session.rollback()
                 return False
         elif (
-            self.presenter.is_dirty() and utils.yes_no_dialog(not_ok_msg)
+            self.presenter.is_dirty() and dialogs.yes_no_dialog(not_ok_msg)
         ) or not self.presenter.is_dirty():
             self.session.rollback()
             return True
@@ -2313,7 +2314,7 @@ class PlantEditor(GenericModelViewPresenterEditor):
                 "the database before you can add plants.\n\nWould you like "
                 "to open the Accession editor?"
             )
-            if utils.yes_no_dialog(msg):
+            if dialogs.yes_no_dialog(msg):
                 # cleanup in case we start a new PlantEditor
                 self.presenter.cleanup()
                 from bauble.plugins.garden.accession import AccessionEditor
@@ -2328,7 +2329,7 @@ class PlantEditor(GenericModelViewPresenterEditor):
                 "the database before you can add plants.\n\nWould you "
                 "like to open the Location editor?"
             )
-            if utils.yes_no_dialog(msg):
+            if dialogs.yes_no_dialog(msg):
                 # cleanup in case we start a new PlantEditor
                 self.presenter.cleanup()
                 sub_editor = LocationEditor()

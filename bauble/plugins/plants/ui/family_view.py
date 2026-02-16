@@ -38,11 +38,12 @@ from bauble import db
 from bauble import prefs
 from bauble import utils
 from bauble.i18n import _
+from bauble.ui import dialogs
+from bauble.ui.views import Action
 from bauble.ui.views import InfoBox
 from bauble.ui.views import InfoExpander
 from bauble.ui.views import LinksExpander
 from bauble.ui.views import PropertiesExpander
-from bauble.ui.views import Action
 from bauble.ui.views import on_clicked_search
 
 from ..family import Family
@@ -256,14 +257,14 @@ def remove_callback(
                 "The family <i>%(fam)s</i> has %(num_gen)s genera.\n\n"
                 "You cannot remove a family with genera."
             ) % {"fam": safe_str, "num_gen": num_gen}
-            utils.message_dialog(msg, typ=Gtk.MessageType.WARNING)
+            dialogs.message_dialog(msg, typ=Gtk.MessageType.WARNING)
 
             return False
 
     msg = _(
         "Are you sure you want to remove the following families <i>%s</i>?"
     ) % ", ".join(fam_lst)
-    if not utils.yes_no_dialog(msg):
+    if not dialogs.yes_no_dialog(msg):
 
         return False
 
@@ -273,7 +274,7 @@ def remove_callback(
         session.commit()
     except SQLAlchemyError as e:
         msg = _("Could not delete.\n\n%s") % utils.xml_safe(e)
-        utils.message_details_dialog(
+        dialogs.message_details_dialog(
             msg, traceback.format_exc(), Gtk.MessageType.ERROR
         )
         session.rollback()

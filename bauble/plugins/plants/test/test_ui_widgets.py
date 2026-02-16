@@ -299,7 +299,7 @@ class SynonymsPresenterTests(BaubleTestCase):
 
         syns_presenter.destroy()
 
-    @mock.patch("bauble.plugins.plants.ui.widgets.utils.yes_no_dialog")
+    @mock.patch("bauble.plugins.plants.ui.widgets.dialogs.yes_no_dialog")
     def test_on_remove_button_clicked(self, mock_dlog):
         mock_dlog.return_value = True
         myrtaceae = Family(epithet="Myrtaceae")
@@ -334,7 +334,7 @@ class SynonymsPresenterTests(BaubleTestCase):
 
         syns_presenter.destroy()
 
-    @mock.patch("bauble.plugins.plants.ui.widgets.utils.yes_no_dialog")
+    @mock.patch("bauble.plugins.plants.ui.widgets.dialogs.yes_no_dialog")
     def test_on_remove_button_clicked_w_additional(self, mock_dlog):
         mock_dlog.return_value = True
         myrtaceae = Family(epithet="Myrtaceae")

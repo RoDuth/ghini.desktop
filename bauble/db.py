@@ -62,6 +62,7 @@ from bauble import btypes as types
 from bauble import error
 from bauble import utils
 from bauble.i18n import _
+from bauble.ui.dialogs import message_dialog
 
 
 def sqlalchemy_debug(verbose):
@@ -810,7 +811,7 @@ def verify_connection(new_engine, show_error_dialogs=False):
         except error.EmptyDatabaseError as e:
             logger.info("%s(%s)", type(e).__name__, e)
             msg = _("The database you have connected to is empty.")
-            utils.message_dialog(msg, Gtk.MessageType.ERROR)
+            message_dialog(msg, Gtk.MessageType.ERROR)
             raise
         except error.MetaTableError as e:
             logger.info("%s(%s)", type(e).__name__, e)
@@ -820,7 +821,7 @@ def verify_connection(new_engine, show_error_dialogs=False):
                 "is either corrupt or it was created with an old version "
                 "of Ghini"
             )
-            utils.message_dialog(msg, Gtk.MessageType.ERROR)
+            message_dialog(msg, Gtk.MessageType.ERROR)
             raise
         except error.TimestampError as e:
             logger.info("%s(%s)", type(e).__name__, e)
@@ -831,7 +832,7 @@ def verify_connection(new_engine, show_error_dialogs=False):
                 "database or the database you connected to wasn't "
                 "created with Ghini."
             )
-            utils.message_dialog(msg, Gtk.MessageType.ERROR)
+            message_dialog(msg, Gtk.MessageType.ERROR)
             raise
         except error.VersionError as e:
             logger.info("%s(%s)", type(e).__name__, e)
@@ -842,7 +843,7 @@ def verify_connection(new_engine, show_error_dialogs=False):
                 "or some of your data may become unexpectedly "
                 "corrupted."
             ) % {"version": bauble.version, "db_version": str(e.version)}
-            utils.message_dialog(msg, Gtk.MessageType.ERROR)
+            message_dialog(msg, Gtk.MessageType.ERROR)
             raise
 
     # check if the database has any tables

@@ -50,6 +50,7 @@ from bauble.plugins.plants import Geography
 from bauble.plugins.plants import Species
 from bauble.plugins.plants import VernacularName
 from bauble.plugins.tag import Tag
+from bauble.ui import dialogs
 from bauble.ui.utils import set_combo_from_value
 from bauble.ui.utils import tree_model_has
 
@@ -637,7 +638,7 @@ class ReportToolDialogPresenter:
 
     def on_new_button_clicked(self, _button):
         text = "<b>" + _("Enter a name for the new formatter") + "</b>"
-        dialog = utils.create_message_dialog(
+        dialog = dialogs.create_message_dialog(
             text,
             buttons=Gtk.ButtonsType.OK_CANCEL,
             parent=self.view.dialog,
@@ -700,7 +701,7 @@ class ReportToolDialogPresenter:
             formatter_title, _settings = formatters.get(name)
         except (KeyError, TypeError) as e:
             logger.debug("%s(%s)", type(e).__name__, e)
-            utils.message_dialog(
+            dialogs.message_dialog(
                 _("%s does not exists in your preferences") % name
             )
             return
@@ -708,7 +709,7 @@ class ReportToolDialogPresenter:
         try:
             self.set_formatter_combo(formatter_title)
         except ValueError as e:
-            utils.message_dialog(
+            dialogs.message_dialog(
                 _("%s does not exist, have you edited your preferences?")
                 % name
             )
@@ -783,7 +784,7 @@ class ReportToolDialogPresenter:
 
         # should always have at least the default formatter
         if len(plugins) == 0:
-            utils.message_dialog(
+            dialogs.message_dialog(
                 _("No formatter plugins defined"), Gtk.MessageType.WARNING
             )
             return
@@ -821,7 +822,7 @@ class ReportToolDialogPresenter:
                 "No formatters found. To create a new formatter click "
                 'the "New" button.'
             )
-            utils.message_dialog(msg, parent=self.view.dialog)
+            dialogs.message_dialog(msg, parent=self.view.dialog)
             self.view.widgets.names_combo.remove_all()
         self.populate_names_combo()
 
@@ -876,12 +877,12 @@ class ReportTool(pluginmgr.Tool):  # pylint: disable=too-few-public-methods
 
         view = bauble.gui.get_view()
         if not isinstance(view, SearchView):
-            utils.message_dialog(_("Search for something first."))
+            dialogs.message_dialog(_("Search for something first."))
             return
 
         model = view.results_view.get_model()
         if model is None:
-            utils.message_dialog(_("Search for something first."))
+            dialogs.message_dialog(_("Search for something first."))
             return
 
         bauble.gui.set_busy(True, "not-allowed")
@@ -899,14 +900,14 @@ class ReportTool(pluginmgr.Tool):  # pylint: disable=too-few-public-methods
             logger.debug("%s(%s)", type(e).__name__, e)
             logger.debug(traceback.format_exc())
 
-            utils.message_details_dialog(
+            dialogs.message_details_dialog(
                 utils.xml_safe(e),
                 traceback.format_exc(),
                 Gtk.MessageType.ERROR,
             )
         except Exception as e:  # pylint: disable=broad-except
             logger.debug(traceback.format_exc())
-            utils.message_details_dialog(
+            dialogs.message_details_dialog(
                 _("Formatting Error\n\n%s") % utils.xml_safe(e),
                 traceback.format_exc(),
                 Gtk.MessageType.ERROR,

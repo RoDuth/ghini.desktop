@@ -334,7 +334,7 @@ class FamilyEditorDialogTests(BaubleTestCase):
         editor.destroy()
 
     @mock.patch(
-        "bauble.plugins.plants.ui.family_editor.utils.message_details_dialog"
+        "bauble.plugins.plants.ui.family_editor.dialogs.message_details_dialog"
     )
     def test_on_response_ok(self, mock_dlog):
         editor = FamilyEditorDialog(Family(), self.session)

@@ -42,8 +42,8 @@ from bauble.editor import Problem
 from bauble.i18n import _
 from bauble.search.query_builder import SchemaMenu
 from bauble.search.strategies import MapperSearch
+from bauble.ui.dialogs import message_dialog
 from bauble.utils import desktop
-from bauble.utils import message_dialog
 
 from . import GenericExporter
 from . import GenericImporter
@@ -105,7 +105,7 @@ class CSVExportDialogPresenter(GenericEditorPresenter):
             self.view.widgets.out_filename_entry.set_text(self.last_file)
 
     def on_btnbrowse_clicked(self, _button):
-        self.view.run_file_chooser_dialog(
+        self.view.file_chooser_dialog(
             _("Select CSV file"),
             None,
             Gtk.FileChooserAction.SAVE,
@@ -447,7 +447,7 @@ class CSVImportDialogPresenter(GenericEditorPresenter):
         self.view.set_accept_buttons_sensitive(sensitive)
 
     def on_btnbrowse_clicked(self, _button):
-        self.view.run_file_chooser_dialog(
+        self.view.file_chooser_dialog(
             _("Select CSV file"),
             None,
             Gtk.FileChooserAction.OPEN,

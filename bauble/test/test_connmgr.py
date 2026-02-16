@@ -96,7 +96,7 @@ class ConnectionManagerTests(BaubleTestCase):
         self.assertTrue(presenter.noconnectionlabel.get_visible())
         presenter.destroy()
 
-    @mock.patch("bauble.connmgr.utils.yes_no_dialog")
+    @mock.patch("bauble.connmgr.dialogs.yes_no_dialog")
     def test_on_remove_no_connection_name_bails(self, mock_dialog):
         prefs.prefs[bauble.CONN_LIST_PREF] = {
             "nugkui": {
@@ -113,7 +113,7 @@ class ConnectionManagerTests(BaubleTestCase):
         mock_dialog.assert_not_called()
         presenter.destroy()
 
-    @mock.patch("bauble.connmgr.utils.yes_no_dialog")
+    @mock.patch("bauble.connmgr.dialogs.yes_no_dialog")
     def test_one_connection_on_remove_confirm_negative(self, mock_dialog):
         mock_dialog.return_value = False
         prefs.prefs[bauble.CONN_LIST_PREF] = {
@@ -131,7 +131,7 @@ class ConnectionManagerTests(BaubleTestCase):
         self.assertFalse(presenter.noconnectionlabel.get_visible())
         presenter.destroy()
 
-    @mock.patch("bauble.connmgr.utils.yes_no_dialog")
+    @mock.patch("bauble.connmgr.dialogs.yes_no_dialog")
     def test_one_connection_on_remove_confirm_positive(self, mock_dialog):
         mock_dialog.return_value = True
         prefs.prefs[bauble.CONN_LIST_PREF] = {
@@ -235,7 +235,7 @@ class ConnectionManagerTests(BaubleTestCase):
 
         presenter.destroy()
 
-    @mock.patch("bauble.connmgr.utils.yes_no_dialog")
+    @mock.patch("bauble.connmgr.dialogs.yes_no_dialog")
     def test_two_connection_on_remove_confirm_positive(self, mock_dialog):
         mock_dialog.return_value = True
         prefs.prefs[bauble.CONN_LIST_PREF] = {
@@ -626,7 +626,7 @@ class ConnectionManagerTests(BaubleTestCase):
 
         presenter.destroy()
 
-    @mock.patch("bauble.connmgr.utils.yes_no_dialog")
+    @mock.patch("bauble.connmgr.dialogs.yes_no_dialog")
     def test_on_name_combo_changed_asks_saves_unsaved(self, mock_yn):
         prefs.prefs[bauble.CONN_LIST_PREF] = {
             "spam": {
@@ -893,7 +893,7 @@ class AddConnectionTests(BaubleTestCase):
         self.assertIsNone(presenter.get_connection_box())
         presenter.destroy()
 
-    @mock.patch("bauble.connmgr.utils.yes_no_dialog")
+    @mock.patch("bauble.connmgr.dialogs.yes_no_dialog")
     def test_on_add_button_clicked_w_changes_asks_to_save(self, mock_yn):
         mock_yn.return_value = True
         prefs.prefs[bauble.CONN_LIST_PREF] = {
@@ -1427,7 +1427,7 @@ class ButtonBrowseButtons(BaubleTestCase):
 
 
 class OnDialogResponseTests(BaubleTestCase):
-    @mock.patch("bauble.connmgr.utils.message_dialog")
+    @mock.patch("bauble.connmgr.dialogs.message_dialog")
     def test_on_dialog_response_ok_invalid_params(self, mock_dialog):
         presenter = ConnectionManagerDialog()
         # emit here to avoid warning "no emission of signal "response" to stop"
@@ -1474,7 +1474,7 @@ class OnDialogResponseTests(BaubleTestCase):
         )
         presenter.destroy()
 
-    @mock.patch("bauble.connmgr.utils.yes_no_dialog")
+    @mock.patch("bauble.connmgr.dialogs.yes_no_dialog")
     def test_on_dialog_response_cancel_params_changed_dont_save(
         self, mock_dialog
     ):
@@ -1499,7 +1499,7 @@ class OnDialogResponseTests(BaubleTestCase):
         self.assertEqual(prefs.prefs[bauble.CONN_LIST_PREF], con_pref)
         presenter.destroy()
 
-    @mock.patch("bauble.connmgr.utils.yes_no_dialog")
+    @mock.patch("bauble.connmgr.dialogs.yes_no_dialog")
     def test_on_dialog_response_cancel_params_changed_do_save(
         self, mock_dialog
     ):

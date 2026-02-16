@@ -690,7 +690,7 @@ class GUITests(BaubleTestCase):
         gui.destroy()
 
     @mock.patch("bauble.ui.gui.db.create")
-    @mock.patch("bauble.ui.gui.utils.yes_no_dialog")
+    @mock.patch("bauble.ui.gui.dialogs.yes_no_dialog")
     @mock.patch("bauble.ui.gui.bauble.command_handler")
     def test_on_file_menu_new(self, mock_handler, mock_dialog, mock_create):
         gui = GUI()
@@ -710,7 +710,7 @@ class GUITests(BaubleTestCase):
         mock_create.assert_called()
         gui.get_view.assert_called()
         with mock.patch(
-            "bauble.ui.gui.utils.message_details_dialog"
+            "bauble.ui.gui.dialogs.message_details_dialog"
         ) as mock_details_dialog:
             mock_create.side_effect = Exception("Boom")
             gui.on_file_menu_new(None, None)
@@ -751,7 +751,7 @@ class GUITests(BaubleTestCase):
         mock_open.assert_called()
 
         with mock.patch(
-            "bauble.ui.gui.utils.message_details_dialog"
+            "bauble.ui.gui.dialogs.message_details_dialog"
         ) as mock_details_dialog:
             mock_start.side_effect = [
                 ("test2", "test_conn2"),
@@ -788,7 +788,7 @@ class GUITests(BaubleTestCase):
         self.assertTrue(gui.lic_path.exists())
         gui.destroy()
 
-    @mock.patch("bauble.ui.gui.bauble.utils.yes_no_dialog")
+    @mock.patch("bauble.ui.dialogs.yes_no_dialog")
     @mock.patch("bauble.ui.gui.bauble.task.running")
     def test_on_delete_event(self, mock_running, mock_dialog):
         gui = GUI()

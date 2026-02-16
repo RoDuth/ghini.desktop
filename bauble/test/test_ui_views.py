@@ -522,7 +522,7 @@ class TestSearchView(BaubleTestCase):
 
         mock_callback.assert_called_with(values)
 
-    @mock.patch("bauble.ui.views.search.utils.message_details_dialog")
+    @mock.patch("bauble.ui.views.search.dialogs.message_details_dialog")
     def test_on_action_activate_with_error_notifies(self, mock_dialog):
         search_view = self.search_view
         mock_callback = mock.Mock()
@@ -718,7 +718,7 @@ class TestSearchView(BaubleTestCase):
             )
 
     @mock.patch("bauble.ui.views.search.search.search")
-    @mock.patch("bauble.ui.views.search.utils.yes_no_dialog")
+    @mock.patch("bauble.ui.views.search.dialogs.yes_no_dialog")
     def test_search_large_result_allows_user_to_bail(
         self, mock_dialog, mock_search
     ):
@@ -891,7 +891,7 @@ class TestSearchView(BaubleTestCase):
         search_view = self.search_view
 
         with mock.patch(
-            "bauble.ui.views.search.utils.message_details_dialog"
+            "bauble.ui.views.search.dialogs.message_details_dialog"
         ) as mock_dialog:
             search_view.on_copy_selection(None, None)
             mock_dialog.assert_called()
@@ -2419,7 +2419,7 @@ class TestHistoryView(BaubleTestCase):
         with self.assertNoLogs(level="DEBUG"):
             hist_view.on_revert_to_history(None, None)
 
-    @mock.patch("bauble.utils.yes_no_dialog")
+    @mock.patch("bauble.ui.dialogs.yes_no_dialog")
     def test_on_revert_to_history_not_cloned(self, mock_dialog):
         mock_dialog.return_value = True
         # load history
@@ -2469,7 +2469,7 @@ class TestHistoryView(BaubleTestCase):
         )
         wait_on_threads()
 
-    @mock.patch("bauble.utils.message_dialog")
+    @mock.patch("bauble.ui.dialogs.message_dialog")
     def test_on_revert_to_history_wont_revert_past_cloned(self, mock_dialog):
         # set clone point
         clone_point = 4
@@ -2527,7 +2527,7 @@ class TestHistoryView(BaubleTestCase):
         )
         wait_on_threads()
 
-    @mock.patch("bauble.utils.yes_no_dialog")
+    @mock.patch("bauble.ui.dialogs.yes_no_dialog")
     def test_on_revert_to_history_will_revert_before_cloned(self, mock_dialog):
         # set clone point
         clone_point = 4
@@ -2977,7 +2977,7 @@ class PrefsViewTests(BaubleTestCase):
         prefs_view.on_prefs_insert_activate(None, None)
         mock_dialog.assert_called()
 
-    @mock.patch("bauble.utils.yes_no_dialog")
+    @mock.patch("bauble.ui.dialogs.yes_no_dialog")
     def test_on_prefs_edit_toggled(self, mock_dialog):
 
         prefs_view = PrefsView()
@@ -3010,7 +3010,7 @@ class PrefsViewTests(BaubleTestCase):
         self.assertFalse(prefs_view.prefs_data_renderer.props.editable)
         self.assertIsNone(prefs_view.button_press_sid)
 
-    @mock.patch("bauble.utils.yes_no_dialog")
+    @mock.patch("bauble.ui.dialogs.yes_no_dialog")
     def test_on_prefs_edited(self, mock_dialog):
         # pylint: disable=not-an-iterable
         key = "bauble.keys"
@@ -3064,7 +3064,7 @@ class PrefsViewTests(BaubleTestCase):
         string = f"adding new pref option {key}"
         self.assertTrue(any(string in i for i in logs.output))
 
-    @mock.patch("bauble.prefs.utils.message_dialog")
+    @mock.patch("bauble.ui.dialogs.message_dialog")
     def test_on_prefs_backup_restore(self, mock_dialog):
         prefs.prefs.save(force=True)
         prefs_view = PrefsView()

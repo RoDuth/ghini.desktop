@@ -59,6 +59,7 @@ from bauble.prefs import datetime_format_pref
 from bauble.search.query_builder import QueryBuilder
 from bauble.search.sql_search import SQLSearchDialog
 from bauble.search.stored_queries import StoredQueriesDialog
+from bauble.ui import dialogs
 from bauble.ui.utils import clear_model
 from bauble.ui.views import SearchView
 from bauble.ui.views import get_search_view
@@ -970,7 +971,7 @@ class GUI:
         try:
             tool.start()
         except Exception as e:  # pylint: disable=broad-except
-            utils.message_details_dialog(
+            dialogs.message_details_dialog(
                 utils.xml_safe(str(e)),
                 traceback.format_exc(),
                 Gtk.MessageType.ERROR,
@@ -1004,7 +1005,7 @@ class GUI:
                 view.expand_to_all_rows(expanded_rows)
 
         except Exception as e:  # pylint: disable=broad-except
-            utils.message_details_dialog(
+            dialogs.message_details_dialog(
                 utils.xml_safe(str(e)),
                 traceback.format_exc(),
                 Gtk.MessageType.ERROR,
@@ -1088,7 +1089,7 @@ class GUI:
             "<i>Are you sure this is what you want to do?</i>"
         )
 
-        if not utils.yes_no_dialog(msg, yes_delay=2):
+        if not dialogs.yes_no_dialog(msg, yes_delay=2):
             return
 
         bauble.command_handler("home", None)
@@ -1102,7 +1103,7 @@ class GUI:
                 e
             )
             traceb = utils.xml_safe(traceback.format_exc())
-            utils.message_details_dialog(msg, traceb, Gtk.MessageType.ERROR)
+            dialogs.message_details_dialog(msg, traceb, Gtk.MessageType.ERROR)
             return
 
         view = self.get_view()
@@ -1127,7 +1128,7 @@ class GUI:
                 engine = db.open_conn(uri, True, True)
         except Exception as e:  # pylint: disable=broad-except
             msg = _("Could not open connection.\n\n%s") % e
-            utils.message_details_dialog(
+            dialogs.message_details_dialog(
                 msg, traceback.format_exc(), Gtk.MessageType.ERROR
             )
             logger.warning(e)
@@ -1252,12 +1253,12 @@ class GUI:
     ) -> bool:
         if bauble.task.running():
             msg = _("Would you like to cancel the current tasks?")
-            if not utils.yes_no_dialog(msg):
+            if not dialogs.yes_no_dialog(msg):
                 # stop other handlers from being invoked for this event
                 return True
             bauble.task.kill()
             msg = _("Close Ghini?")
-            if not utils.yes_no_dialog(msg):
+            if not dialogs.yes_no_dialog(msg):
                 # don't close
                 return True
         return False

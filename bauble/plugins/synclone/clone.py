@@ -44,6 +44,7 @@ from bauble import task
 from bauble import utils
 from bauble.connmgr import start_connection_manager
 from bauble.i18n import _
+from bauble.ui import dialogs
 
 TOOLS_MENU_CATEGORY = _("Sync or Clone")
 
@@ -102,7 +103,7 @@ class DBCloner:
 
         if current_uri == uri:
             msg = _("Can not clone to the same database.")
-            utils.message_dialog(msg, Gtk.MessageType.ERROR)
+            dialogs.message_dialog(msg, Gtk.MessageType.ERROR)
             logger.debug("can not clone, uri is same as current")
             return None
 
@@ -215,7 +216,7 @@ class DBCloner:
                     self.__cancel = True
                     logger.debug("%s(%s)", type(e).__name__, e)
                     msg = _("Error cloning.\n\n%s") % utils.xml_safe(e)
-                    utils.message_details_dialog(
+                    dialogs.message_details_dialog(
                         msg, str(e), Gtk.MessageType.ERROR
                     )
         # for postgres need to reset the sequences
@@ -273,7 +274,7 @@ class DBCloneTool(pluginmgr.Tool):
             "database.\n\n<b>CAUTION! only proceed if you know what you "
             "are doing</b>.\n\n<i>Would you like to continue?</i>"
         )
-        if utils.yes_no_dialog(msg, yes_delay=2):
+        if dialogs.yes_no_dialog(msg, yes_delay=2):
             cloner = DBCloner()
             cloner.start()
             bauble.command_handler("home", None)

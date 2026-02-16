@@ -33,11 +33,12 @@ from bauble import db
 from bauble import prefs
 from bauble import utils
 from bauble.i18n import _
+from bauble.ui import dialogs
+from bauble.ui.views import Action
 from bauble.ui.views import InfoBox
 from bauble.ui.views import InfoExpander
 from bauble.ui.views import LinksExpander
 from bauble.ui.views import PropertiesExpander
-from bauble.ui.views import Action
 from bauble.ui.views import on_clicked_search
 
 from ..genus import Genus
@@ -253,7 +254,7 @@ def remove_callback(
                 "The genus <i>%(gen)s</i> has %(num_sp)s species.\n\n"
                 "You cannot remove a genus with species."
             ) % {"gen": safe_str, "num_sp": num_sp}
-            utils.message_dialog(msg, typ=Gtk.MessageType.WARNING)
+            dialogs.message_dialog(msg, typ=Gtk.MessageType.WARNING)
 
             return False
 
@@ -261,7 +262,7 @@ def remove_callback(
             "Are you sure you want to remove the following genera "
             "<i>%s</i>?"
         ) % ", ".join(gen_lst)
-    if not utils.yes_no_dialog(msg):
+    if not dialogs.yes_no_dialog(msg):
 
         return False
 
@@ -271,7 +272,7 @@ def remove_callback(
         session.commit()
     except Exception as e:  # pylint: disable=broad-except
         msg = _("Could not delete.\n\n%s") % utils.xml_safe(e)
-        utils.message_details_dialog(
+        dialogs.message_details_dialog(
             msg, traceback.format_exc(), Gtk.MessageType.ERROR
         )
         session.rollback()

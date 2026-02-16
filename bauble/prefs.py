@@ -52,9 +52,9 @@ from gi.repository import Gtk
 import bauble
 from bauble import meta
 from bauble import paths
-from bauble import utils
 from bauble.error import DatabaseError
 from bauble.i18n import _
+from bauble.ui import dialogs
 
 testing = os.environ.get("BAUBLE_TEST")  # set this to True when testing
 
@@ -608,7 +608,7 @@ class _prefs(UserDict):
                     % self._filename
                 )
                 if bauble.gui is not None and bauble.gui.window is not None:
-                    utils.message_dialog(
+                    dialogs.message_dialog(
                         msg,
                         typ=Gtk.MessageType.ERROR,
                         parent=bauble.gui.window,

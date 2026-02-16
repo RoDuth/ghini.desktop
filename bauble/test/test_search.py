@@ -247,8 +247,9 @@ class SearchTests(BaubleClassTestCase):
         mapper_search = search.strategies.get_strategy("NotExisting")
         self.assertIsNone(mapper_search)
 
-    @patch("bauble.search.statements.utils.yes_no_dialog")
-    def test_search_by_small_values_questions(self, mock_dialog):
+    @patch("bauble.gui")
+    @patch("bauble.ui.dialogs.yes_no_dialog")
+    def test_search_by_small_values_questions(self, mock_dialog, _mock_gui):
         mock_dialog.return_value = False
         vl_search = search.strategies.get_strategy("ValueListSearch")
         self.assertTrue(

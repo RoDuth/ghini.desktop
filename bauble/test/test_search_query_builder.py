@@ -645,7 +645,7 @@ class QueryBuilderTests(BaubleTestCase):
 
         qb.destroy()
 
-    @mock.patch("bauble.search.query_builder.utils.create_message_dialog")
+    @mock.patch("bauble.search.query_builder.create_message_dialog")
     def test_on_help_clicked_opens_dialog(self, mock_create_dialog):
         mock_dialog = mock.Mock()
         mock_create_dialog.return_value = mock_dialog

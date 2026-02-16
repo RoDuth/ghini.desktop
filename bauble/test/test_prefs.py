@@ -318,7 +318,7 @@ class PreferencesTests(BaubleTestCase):
 
 
 class GlobalFunctionsTests(BaubleTestCase):
-    @mock.patch("bauble.utils.create_message_dialog")
+    @mock.patch("bauble.meta.create_message_dialog")
     def test_set_global_root_creates_directories(self, mock_create):
         temp_dir = mkdtemp()
         prefs.prefs[prefs.root_directory_pref] = temp_dir

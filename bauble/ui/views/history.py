@@ -62,6 +62,7 @@ from bauble import search
 from bauble import utils
 from bauble.i18n import _
 from bauble.meta import BaubleMeta
+from bauble.ui import dialogs
 
 from .base import View
 
@@ -266,7 +267,7 @@ class HistoryView(View, Gtk.Box):
                 )
                 % self.clone_hist_id
             )
-            utils.message_dialog(msg)
+            dialogs.message_dialog(msg)
             return
 
         logger.debug(
@@ -291,7 +292,7 @@ class HistoryView(View, Gtk.Box):
             )
             % rows
         )
-        if utils.yes_no_dialog(msg):
+        if dialogs.yes_no_dialog(msg):
             if selected:
                 db.History.revert_to(selected.id)
             self.update(self.last_arg)

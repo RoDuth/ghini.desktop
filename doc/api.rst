@@ -162,11 +162,11 @@ API Documentation
 .. autofunction:: bauble.utils.combo_get_value_iter
 .. autofunction:: bauble.utils.set_widget_value
 .. autofunction:: bauble.utils.create_message_dialog
-.. autofunction:: bauble.utils.message_dialog
+.. autofunction:: bauble.dialogs.message_dialog
 .. autofunction:: bauble.utils.create_yes_no_dialog
-.. autofunction:: bauble.utils.yes_no_dialog
+.. autofunction:: bauble.dialogs.yes_no_dialog
 .. autofunction:: bauble.utils.create_message_details_dialog
-.. autofunction:: bauble.utils.message_details_dialog
+.. autofunction:: bauble.dialogs.message_details_dialog
 .. autofunction:: bauble.utils.setup_text_combobox
 .. autofunction:: bauble.utils.setup_date_button
 .. autofunction:: bauble.utils.to_unicode

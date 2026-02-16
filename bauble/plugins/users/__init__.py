@@ -591,7 +591,7 @@ class UsersDialogPresenter(editor.GenericEditorPresenter):
             try:
                 set_privilege(role, priv)
             except DatabaseError as e:
-                utils.message_dialog(
+                dialogs.message_dialog(
                     str(e),
                     Gtk.MessageType.ERROR,
                     parent=self.view.get_window(),
@@ -618,7 +618,7 @@ class UsersDialogPresenter(editor.GenericEditorPresenter):
             create_user(name)
             set_privilege(name, "read")
         except DatabaseError as e:
-            utils.message_dialog(
+            dialogs.message_dialog(
                 str(e), Gtk.MessageType.ERROR, parent=self.view.get_window()
             )
             model.remove(model.get_iter(path))
@@ -632,13 +632,13 @@ class UsersDialogPresenter(editor.GenericEditorPresenter):
             "<i>It is possible that this user could have permissions "
             "on other databases not related to Ghini.</i>"
         ) % {"name": user}
-        if not utils.yes_no_dialog(msg):
+        if not dialogs.yes_no_dialog(msg):
             return
 
         try:
             drop(user, revoke=True)
         except DatabaseError as e:
-            utils.message_dialog(
+            dialogs.message_dialog(
                 str(e), Gtk.MessageType.ERROR, parent=self.view.get_window()
             )
         else:
@@ -667,7 +667,7 @@ class UsersDialogPresenter(editor.GenericEditorPresenter):
                     )
                     % user
                 )
-                utils.message_dialog(
+                dialogs.message_dialog(
                     msg, Gtk.MessageType.WARNING, parent=self.view.get_window()
                 )
                 return
@@ -679,14 +679,14 @@ class UsersDialogPresenter(editor.GenericEditorPresenter):
                     )
                     % user
                 )
-                utils.message_dialog(
+                dialogs.message_dialog(
                     msg, Gtk.MessageType.WARNING, parent=self.view.get_window()
                 )
                 return
             try:
                 set_password(pwd1, user)
             except DatabaseError as e:
-                utils.message_dialog(
+                dialogs.message_dialog(
                     str(e),
                     Gtk.MessageType.ERROR,
                     parent=self.view.get_window(),

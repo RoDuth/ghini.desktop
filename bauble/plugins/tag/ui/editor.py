@@ -40,6 +40,7 @@ from bauble import error
 from bauble import utils
 from bauble.i18n import _
 from bauble.ui import GenericPresenter
+from bauble.ui import dialogs
 from bauble.ui.views import Action
 
 from ..model import Tag
@@ -197,7 +198,7 @@ class TagItemsDialog(Gtk.Dialog):
         else:
             return
 
-        yn_dialog = yn_dialog or utils.yes_no_dialog
+        yn_dialog = yn_dialog or dialogs.yes_no_dialog
 
         msg = _('Are you sure you want to delete the tag: "%s"?') % tag_name
 
@@ -222,11 +223,11 @@ def remove_callback(
     Notify user of any problems, update SearchView and reset tags menu.
     """
     yes_no_dialog: Callable[[str], bool] = kwargs.get(
-        "yes_no_dialog", utils.yes_no_dialog
+        "yes_no_dialog", dialogs.yes_no_dialog
     )
     message_details_dialog: Callable[[str, str, int], bool] = kwargs.get(
         "message_details_dialog",
-        utils.message_details_dialog,
+        dialogs.message_details_dialog,
     )
     menu_reset: Callable[[], None] = kwargs.get(
         "menu_reset", menu_manager.reset

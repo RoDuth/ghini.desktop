@@ -51,6 +51,7 @@ from bauble.i18n import _
 from bauble.meta import confirm_default
 from bauble.paths import main_dir
 from bauble.paths import main_is_frozen
+from bauble.ui import dialogs
 
 if main_is_frozen():
     import pyproj
@@ -321,14 +322,14 @@ class KMLMapCallbackFunctor:  # pylint: disable=too-few-public-methods
             try:
                 utils.desktop.open(filename)
             except OSError:
-                utils.message_dialog(
+                dialogs.message_dialog(
                     _("Could not open the kml file. It can be found here %s")
                     % filename
                 )
                 break
 
         if count == 0:
-            utils.message_dialog(_("No map data for selected item(s)."))
+            dialogs.message_dialog(_("No map data for selected item(s)."))
 
         return False
 

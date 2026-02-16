@@ -72,6 +72,7 @@ from bauble import prefs
 from bauble import utils
 from bauble.error import check
 from bauble.i18n import _
+from bauble.ui import dialogs
 from bauble.ui.utils import clear_model
 from bauble.ui.utils import search_tree_model
 from bauble.ui.utils import set_widget_value
@@ -225,13 +226,13 @@ def remove_callback(objs, **kwargs):
                 "%(num_plants)s plants depend on this accession: "
                 "<b>%(plant_codes)s</b>\n\n"
             ) % values + _("You cannot remove an accession with plants.")
-            utils.message_dialog(msg, typ=Gtk.MessageType.WARNING)
+            dialogs.message_dialog(msg, typ=Gtk.MessageType.WARNING)
             return False
     msg = _(
         "Are you sure you want to remove the following accessions "
         "<b>%s</b>?"
     ) % ", ".join(i for i in a_lst)
-    if not utils.yes_no_dialog(msg):
+    if not dialogs.yes_no_dialog(msg):
         return False
 
     session = object_session(accessions[0])
@@ -241,7 +242,7 @@ def remove_callback(objs, **kwargs):
         session.commit()
     except Exception as e:  # pylint: disable=broad-except
         msg = _("Could not delete.\n\n%s") % utils.xml_safe(str(e))
-        utils.message_details_dialog(
+        dialogs.message_details_dialog(
             msg, traceback.format_exc(), Gtk.MessageType.ERROR
         )
         session.rollback()
@@ -1506,7 +1507,7 @@ class IntendedLocationPresenter(editor.GenericEditorPresenter):
                 "adding plants from intended locations.  Do you wish to "
                 "commit this accession in its current state first?"
             )
-            if not utils.yes_no_dialog(msg):
+            if not dialogs.yes_no_dialog(msg):
                 return
             self.session.commit()
 
@@ -1973,7 +1974,7 @@ class VerificationBox(Gtk.Box):
             "Are you sure you want to copy this verification to the "
             "general taxon?"
         )
-        if not utils.yes_no_dialog(msg):
+        if not dialogs.yes_no_dialog(msg):
             return
         # copy verification species to general tab
         if self.model.accession:
@@ -1998,7 +1999,7 @@ class VerificationBox(Gtk.Box):
     def on_remove_button_clicked(self, _button):
         parent = self.get_parent()
         msg = _("Are you sure you want to remove this verification?")
-        if not utils.yes_no_dialog(msg):
+        if not dialogs.yes_no_dialog(msg):
             return
         if parent:
             parent.remove(self)
@@ -3333,7 +3334,7 @@ class AccessionEditor(editor.GenericModelViewPresenterEditor):
                 msg = _("Error committing changes.\n\n%s") % utils.xml_safe(
                     str(e.orig)
                 )
-                utils.message_details_dialog(
+                dialogs.message_details_dialog(
                     msg, str(e), Gtk.MessageType.ERROR
                 )
                 return False
@@ -3342,12 +3343,12 @@ class AccessionEditor(editor.GenericModelViewPresenterEditor):
                     "Unknown error when committing changes. See the "
                     "details for more information.\n\n%s"
                 ) % utils.xml_safe(e)
-                utils.message_details_dialog(
+                dialogs.message_details_dialog(
                     msg, traceback.format_exc(), Gtk.MessageType.ERROR
                 )
                 return False
         elif (
-            self.presenter.is_dirty() and utils.yes_no_dialog(not_ok_msg)
+            self.presenter.is_dirty() and dialogs.yes_no_dialog(not_ok_msg)
         ) or not self.presenter.is_dirty():
             self.session.rollback()
             return True
@@ -3410,7 +3411,7 @@ class AccessionEditor(editor.GenericModelViewPresenterEditor):
                 "You must first add or import at least one species into "
                 "the database before you can add accessions."
             )
-            utils.message_dialog(msg)
+            dialogs.message_dialog(msg)
             # close session here or __del__ will commit the blank accession
             self.session.close()
             self.presenter.cleanup()

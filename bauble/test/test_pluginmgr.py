@@ -267,7 +267,7 @@ class GlobalFunctionsTests(TestCase):
         self.assertEqual(plugins, [])
         self.assertEqual(errors, {})
 
-    @mock.patch("bauble.pluginmgr.utils.message_details_dialog")
+    @mock.patch("bauble.pluginmgr.dialogs.message_details_dialog")
     def test_load_w_error_notifies(self, mock_dialog):
         directory = mkdtemp()
         path = Path(directory, "test")
@@ -341,7 +341,7 @@ class GlobalFunctionsTests(TestCase):
         self.assertFalse(pluginmgr.PluginRegistry.exists(plug_a))
 
     @mock.patch("bauble.pluginmgr.register_command")
-    @mock.patch("bauble.pluginmgr.utils.message_dialog")
+    @mock.patch("bauble.pluginmgr.dialogs.message_dialog")
     def test_register_commands_exception(self, mock_dialog, mock_reg):
         mock_reg.side_effect = ValueError("Boom")
         plug_a = A()
@@ -394,7 +394,7 @@ class StandalonePluginMgrTests(TestCase):
         # just for the coverage
         self.assertIsNone(DumbHandler.get_view())
 
-    @mock.patch("bauble.pluginmgr.utils.message_dialog")
+    @mock.patch("bauble.pluginmgr.dialogs.message_dialog")
     @mock.patch("bauble.pluginmgr._get_registered_unregistered")
     def test_init_unregistered(self, mock_unreg, mock_dialog):
         db.open_conn(make_url(uri), verify=False)
@@ -437,7 +437,9 @@ class StandalonePluginMgrTests(TestCase):
         pluginmgr.plugins[DependsOnFailingInitPlugin.__name__] = (
             DependsOnFailingInitPlugin()
         )
-        with mock.patch("bauble.utils.message_details_dialog") as mock_dialog:
+        with mock.patch(
+            "bauble.ui.dialogs.message_details_dialog"
+        ) as mock_dialog:
             pluginmgr.init(force=True)
 
             mock_dialog.assert_called()

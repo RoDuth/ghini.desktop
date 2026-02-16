@@ -632,7 +632,7 @@ class GlobalFunctionsTests(BaubleTestCase):
 
         del pluginmgr.commands[None]
 
-        with mock.patch("bauble.utils.message_dialog") as mock_dialog:
+        with mock.patch("bauble.ui.dialogs.message_dialog") as mock_dialog:
             bauble.command_handler(None, None)
             mock_dialog.assert_called_with("No default handler registered")
             mock_dialog.reset_mock()

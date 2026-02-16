@@ -41,6 +41,7 @@ from bauble import pluginmgr
 from bauble import prefs
 from bauble import utils
 from bauble.i18n import _
+from bauble.ui import dialogs
 
 from .base import View
 
@@ -241,8 +242,8 @@ class PrefsView(View, Gtk.Box):
         selected = [model[row][0] for row in tree_paths][0]
         section = selected.rsplit(".", 1)[0]
         logger.debug("start a dialog for new section %s", section)
-        dialog = utils.create_message_dialog(msg=msg)
-        message_area = dialog.get_message_area()
+        dialog = dialogs.create_message_dialog(msg=msg)
+        message_area = cast(Gtk.Box, dialog.get_message_area())
         box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
         option_entry = Gtk.Entry()
 
@@ -275,7 +276,7 @@ class PrefsView(View, Gtk.Box):
             "changes will not take effect until restarted."
         )
         parent = bauble.gui.window if bauble.gui else None
-        if state and utils.yes_no_dialog(msg, parent=parent):
+        if state and dialogs.yes_no_dialog(msg, parent=parent):
             logger.debug("enable editing prefs")
             self.prefs_data_renderer.set_property("editable", state)
             self.button_press_sid = self.prefs_tv.connect(
@@ -305,7 +306,7 @@ class PrefsView(View, Gtk.Box):
         if new_text == "":
             msg = _("Delete the %s preference key?") % key
             parent = bauble.gui.window if bauble.gui else None
-            if utils.yes_no_dialog(msg, parent=parent):
+            if dialogs.yes_no_dialog(msg, parent=parent):
                 del prefs.prefs[key]
                 prefs.prefs.save()
                 self.refresh_view()
@@ -353,7 +354,7 @@ class PrefsView(View, Gtk.Box):
             prefs.prefs.reload()
             self.update()
         else:
-            utils.message_dialog(_("No backup found"))
+            dialogs.message_dialog(_("No backup found"))
 
     @staticmethod
     def get_user_filtered(config: ConfigParser) -> ConfigParser:

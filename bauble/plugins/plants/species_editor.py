@@ -51,6 +51,7 @@ from bauble import paths
 from bauble import prefs
 from bauble import utils
 from bauble.i18n import _
+from bauble.ui import dialogs
 from bauble.ui.utils import clear_model
 from bauble.ui.utils import set_combo_from_value
 from bauble.ui.utils import set_widget_value
@@ -1716,7 +1717,7 @@ class DistributionPresenter(editor.GenericEditorPresenter):
 
         if unresolved:
             msg = _('Could not resolve "%s"') % ", ".join(unresolved)
-            utils.message_dialog(
+            dialogs.message_dialog(
                 msg,
                 Gtk.MessageType.ERROR,
                 parent=self.parent_ref().view.get_window(),
@@ -1897,7 +1898,7 @@ class VernacularNamePresenter(editor.GenericEditorPresenter):
         if (
             vernacular.name
             and vernacular not in self.session.new
-            and not utils.yes_no_dialog(msg, parent=self.view.get_window())
+            and not dialogs.yes_no_dialog(msg, parent=self.view.get_window())
         ):
             return
 
@@ -2067,7 +2068,7 @@ class VernacularNamePresenter(editor.GenericEditorPresenter):
                 "selected as the default. The first vernacular name in "
                 "the list has been automatically selected."
             )
-            utils.message_dialog(msg)
+            dialogs.message_dialog(msg)
             first = tree_model.get_iter_first()
             value = tree_model[first][0]
             self.model.default_vernacular_name = value
@@ -2254,7 +2255,7 @@ class SpeciesEditor(editor.GenericModelViewPresenterEditor):
                     e.orig
                 )
                 logger.debug(traceback.format_exc())
-                utils.message_details_dialog(
+                dialogs.message_details_dialog(
                     msg, str(e), Gtk.MessageType.ERROR
                 )
                 return False
@@ -2264,13 +2265,13 @@ class SpeciesEditor(editor.GenericModelViewPresenterEditor):
                     "details for more information.\n\n%s"
                 ) % utils.xml_safe(e)
                 logger.debug(traceback.format_exc())
-                utils.message_details_dialog(
+                dialogs.message_details_dialog(
                     msg, traceback.format_exc(), Gtk.MessageType.ERROR
                 )
                 return False
         elif (
             self.presenter.is_dirty()
-            and utils.yes_no_dialog(not_ok_msg)
+            and dialogs.yes_no_dialog(not_ok_msg)
             or not self.presenter.is_dirty()
         ):
             self.session.rollback()
@@ -2325,7 +2326,7 @@ class SpeciesEditor(editor.GenericModelViewPresenterEditor):
                 "You must first add or import at least one genus into the "
                 "database before you can add species."
             )
-            utils.message_dialog(msg)
+            dialogs.message_dialog(msg)
             return None
 
         while True:

@@ -1047,7 +1047,7 @@ class GenericImporterTests(BaubleTestCase):
         item = importer.get_db_item(self.session, record, add=True)
         self.assertFalse(item in self.session)
 
-    @mock.patch("bauble.utils.create_yes_no_dialog")
+    @mock.patch("bauble.ui.dialogs.create_yes_no_dialog")
     def test_get_db_item_duplicate_yes(self, mock_dialog):
         mock_dialog().run.return_value = -8
         for func in get_setUp_data_funcs():
@@ -1072,7 +1072,7 @@ class GenericImporterTests(BaubleTestCase):
         self.assertIsNone(item)
         mock_dialog.assert_called()
 
-    @mock.patch("bauble.utils.create_yes_no_dialog")
+    @mock.patch("bauble.ui.dialogs.create_yes_no_dialog")
     def test_get_db_item_duplicate_skip_cancel(self, mock_dialog):
         mock_dialog().run.return_value = -6
         for func in get_setUp_data_funcs():
@@ -1102,7 +1102,7 @@ class GenericImporterTests(BaubleTestCase):
         )
         mock_dialog.assert_called()
 
-    @mock.patch("bauble.utils.create_yes_no_dialog")
+    @mock.patch("bauble.ui.dialogs.create_yes_no_dialog")
     def test_get_db_item_duplicate_skip_no(self, mock_dialog):
         mock_dialog().run.return_value = -9
         for func in get_setUp_data_funcs():

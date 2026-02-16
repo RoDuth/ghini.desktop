@@ -402,7 +402,7 @@ class GenusEditorDialogTests(BaubleTestCase):
         editor.destroy()
 
     @mock.patch(
-        "bauble.plugins.plants.ui.genus_editor.utils.message_details_dialog"
+        "bauble.plugins.plants.ui.genus_editor.dialogs.message_details_dialog"
     )
     def test_on_response_ok(self, mock_dlog):
         family = Family(epithet="Myrtaceae")

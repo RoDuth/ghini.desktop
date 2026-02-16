@@ -92,7 +92,7 @@ class DBClonerTests(BaubleTestCase):
     def test_get_uri_succeeds(self, _mock_start_cm):
         self.assertEqual(str(DBCloner._get_uri()), "sqlite:///test.db")
 
-    @mock.patch("bauble.plugins.synclone.clone.utils.message_dialog")
+    @mock.patch("bauble.plugins.synclone.clone.dialogs.message_dialog")
     @mock.patch(
         "bauble.plugins.synclone.clone.start_connection_manager",
         return_value=(None, make_url(uri)),
@@ -175,7 +175,7 @@ class DBClonerTests(BaubleTestCase):
                 "bauble.plugins.synclone.clone.DBCloner.get_line_count"
             ),
             mock.patch(
-                "bauble.plugins.synclone.clone.utils.message_details_dialog"
+                "bauble.plugins.synclone.clone.dialogs.message_details_dialog"
             ) as mock_dialog,
         ):
             mock_execute.side_effect = SQLAlchemyError
@@ -320,7 +320,7 @@ class DBClonerTests(BaubleTestCase):
             self.assertEqual(conn.execute(stmt).scalar(), "1")
 
     @mock.patch("bauble.plugins.synclone.clone.DBCloner")
-    @mock.patch("bauble.plugins.synclone.clone.utils.yes_no_dialog")
+    @mock.patch("bauble.plugins.synclone.clone.dialogs.yes_no_dialog")
     @mock.patch("bauble.plugins.synclone.clone.bauble.command_handler")
     def test_db_clone_tool_start(self, mock_handler, mock_dialog, mock_cloner):
         mock_dialog.return_value = True
@@ -1104,7 +1104,7 @@ class DBSyncTests(BaubleTestCase):
         self.assertEqual(self.session.query(Species).all(), [])
         self.assertEqual(self.session.query(Accession).all(), [])
 
-    @mock.patch("bauble.utils.yes_no_dialog")
+    @mock.patch("bauble.ui.dialogs.yes_no_dialog")
     @mock.patch("bauble.plugins.synclone.sync.ResolverDialog.run")
     def test_dbsyncroniser_on_delete_asks_quit(self, mock_run, mock_dialog):
         # NOTE if quiting this way failed is not returned
@@ -2072,7 +2072,7 @@ class ResolutionCentreViewTests(BaubleTestCase):
         # no rows left
         self.assertEqual(len(rows), 0)
 
-    @mock.patch("bauble.utils.yes_no_dialog")
+    @mock.patch("bauble.ui.dialogs.yes_no_dialog")
     @mock.patch("bauble.plugins.synclone.sync._rebase")
     @mock.patch("bauble.plugins.synclone.sync.command_handler")
     def test_on_sync_selected_btn_clicked_succeeds_all(
@@ -2195,7 +2195,7 @@ class ResolutionCentreViewTests(BaubleTestCase):
         )
         self.assertEqual(loc.description, "the first location")
 
-    @mock.patch("bauble.utils.yes_no_dialog")
+    @mock.patch("bauble.ui.dialogs.yes_no_dialog")
     @mock.patch("bauble.plugins.synclone.sync._rebase")
     @mock.patch("bauble.plugins.synclone.sync.command_handler")
     def test_on_sync_selected_btn_clicked_succeeds_one(
@@ -2281,7 +2281,7 @@ class ResolutionCentreViewTests(BaubleTestCase):
             [str(i) for i in self.session.query(Family)], ["Sterculiaceae"]
         )
 
-    @mock.patch("bauble.utils.yes_no_dialog")
+    @mock.patch("bauble.ui.dialogs.yes_no_dialog")
     @mock.patch("bauble.plugins.synclone.sync._rebase")
     @mock.patch("bauble.plugins.synclone.sync.DBCloner")
     @mock.patch("bauble.plugins.synclone.sync.command_handler")
@@ -2609,7 +2609,7 @@ class SyncToolTests(BaubleTestCase):
         tool.start()
         mock_handler.assert_not_called()
 
-    @mock.patch("bauble.plugins.synclone.sync.utils.message_dialog")
+    @mock.patch("bauble.plugins.synclone.sync.dialogs.message_dialog")
     @mock.patch("bauble.plugins.synclone.sync.start_connection_manager")
     @mock.patch("bauble.plugins.synclone.sync.command_handler")
     def test_db_sync_tool_start_returns_notifies_if_same_uri(

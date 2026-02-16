@@ -53,12 +53,11 @@ from sqlalchemy.engine import URL
 import bauble
 from bauble import paths
 from bauble import prefs
-from bauble import utils
 from bauble.i18n import _
 from bauble.ui import EntryHandler
 from bauble.ui import GenericPresenter
 from bauble.ui import Validator
-from bauble.ui.dialogs import run_file_chooser_dialog
+from bauble.ui import dialogs
 from bauble.utils.web import get_net_sess
 
 pyodbc: ModuleType | None
@@ -490,7 +489,7 @@ class ConnectionBox(
         """Generic button browse handler for file and directory entries."""
         previously = entry.get_text()
         last_folder = self.get_parent_folder(previously)
-        run_file_chooser_dialog(
+        dialogs.file_chooser_dialog(
             _("Choose a file…"),
             None,
             action=action,
@@ -808,7 +807,7 @@ class ConnectionManagerDialog(Gtk.Dialog):
 
             if not valid:
                 # don't close the dialog
-                utils.message_dialog(msg, Gtk.MessageType.ERROR)
+                dialogs.message_dialog(msg, Gtk.MessageType.ERROR)
                 dialog.stop_emission_by_name("response")
                 return True
 
@@ -838,7 +837,7 @@ class ConnectionManagerDialog(Gtk.Dialog):
                     _("Do you want to save your changes to %s?")
                     % self.model.connection_name
                 )
-                if utils.yes_no_dialog(msg):
+                if dialogs.yes_no_dialog(msg):
                     self.model.save()
 
         return False
@@ -903,7 +902,7 @@ class ConnectionManagerDialog(Gtk.Dialog):
                 previous_model.connection_name
             )
 
-            if utils.yes_no_dialog(msg):
+            if dialogs.yes_no_dialog(msg):
                 previous_model.save()
 
     @Gtk.Template.Callback()
@@ -989,7 +988,7 @@ class ConnectionManagerDialog(Gtk.Dialog):
             % self.connection_name
         )
 
-        if not utils.yes_no_dialog(msg):
+        if not dialogs.yes_no_dialog(msg):
             return
 
         self.remove_connection()
@@ -1002,7 +1001,7 @@ class ConnectionManagerDialog(Gtk.Dialog):
                 % self.model.connection_name
             )
 
-            if utils.yes_no_dialog(msg):
+            if dialogs.yes_no_dialog(msg):
                 self.model.save()
 
         name = self.run_entry_dialog(_("Enter a connection name"))

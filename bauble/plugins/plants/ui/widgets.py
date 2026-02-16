@@ -35,6 +35,7 @@ from sqlalchemy.orm import object_session
 
 from bauble import utils
 from bauble.i18n import _
+from bauble.ui import dialogs
 from bauble.ui.handlers import default_completion_cell_data_func
 from bauble.ui.handlers import default_completion_match_func
 from bauble.ui.utils import clear_model
@@ -315,7 +316,7 @@ class SynonymsPresenter(Gtk.Frame):
         toplevel = self.get_toplevel()
         parent = None if toplevel is self else toplevel
 
-        if not utils.yes_no_dialog(msg, parent=parent):
+        if not dialogs.yes_no_dialog(msg, parent=parent):
             return
 
         tree_model.remove(tree_model.get_iter(path))

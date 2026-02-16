@@ -61,6 +61,7 @@ from bauble import paths
 from bauble import prefs
 from bauble import utils
 from bauble.i18n import _
+from bauble.ui import dialogs
 from bauble.ui.views import Action
 from bauble.ui.views import InfoBox
 from bauble.ui.views import InfoExpander
@@ -1149,7 +1150,7 @@ def source_detail_remove_callback(objs, **kwargs):
     msg = _(
         "Are you sure you want to remove the following sources: \n" "%s?"
     ) % ", ".join(i for i in s_lst)
-    if not utils.yes_no_dialog(msg):
+    if not dialogs.yes_no_dialog(msg):
         return False
     session = object_session(detail)
     for detail in objs:
@@ -1158,7 +1159,7 @@ def source_detail_remove_callback(objs, **kwargs):
         session.commit()
     except Exception as e:  # pylint: disable=broad-except
         msg = _("Could not delete.\n\n%s") % utils.xml_safe(e)
-        utils.message_details_dialog(
+        dialogs.message_details_dialog(
             msg, traceback.format_exc(), Gtk.MessageType.ERROR
         )
         session.rollback()

@@ -35,7 +35,7 @@ from mako.template import Template  # type: ignore [import-untyped]
 from bauble import paths
 from bauble import utils
 from bauble.i18n import _
-from bauble.ui.dialogs import run_file_chooser_dialog
+from bauble.ui.dialogs import file_chooser_dialog
 from bauble.ui.utils import set_widget_value
 
 from .. import FormatterPlugin
@@ -80,7 +80,7 @@ class MakoFormatterSettingsBox(SettingsBox):
             last_folder = str(Path(previously).parent)
         else:
             last_folder = paths.templates_dir()
-        run_file_chooser_dialog(
+        file_chooser_dialog(
             _("Select a stylesheet"),
             None,
             Gtk.FileChooserAction.OPEN,
@@ -214,7 +214,7 @@ class MakoFormatterSettingsBox(SettingsBox):
             last_folder = str(Path(previously).parent)
         else:
             last_folder = str(Path.home())
-        run_file_chooser_dialog(
+        file_chooser_dialog(
             _("Select a file"),
             None,
             Gtk.FileChooserAction.OPEN,
@@ -312,7 +312,7 @@ class MakoFormatterPlugin(FormatterPlugin):
         template_filename = kwargs.get("template")
         if not template_filename:
             msg = _("Please select a template.")
-            utils.message_dialog(msg, Gtk.MessageType.WARNING)
+            dialogs.message_dialog(msg, Gtk.MessageType.WARNING)
             return False
         _head, ext = os.path.splitext(template_filename)
         output_encoding = "utf-8-sig" if ext == ".csv" else "utf-8"
@@ -336,7 +336,7 @@ class MakoFormatterPlugin(FormatterPlugin):
             utils.desktop.open(filename)
         except OSError as e:
             logger.debug("%s(%s)", type(e).__name__, e)
-            utils.message_dialog(
+            dialogs.message_dialog(
                 _(
                     "Could not open the report with the default program. You "
                     "can open the file manually at %s"

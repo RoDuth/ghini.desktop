@@ -71,7 +71,7 @@ class FunctionTests(BaubleTestCase):
         self.session.add(gen)
         self.session.flush()
 
-        with mock.patch("bauble.utils.yes_no_dialog") as mock_dlog:
+        with mock.patch("bauble.ui.dialogs.yes_no_dialog") as mock_dlog:
             mock_dlog.return_value = False
             result = remove_callback([gen])
             mock_dlog.assert_called_once_with(
@@ -91,7 +91,7 @@ class FunctionTests(BaubleTestCase):
         self.session.add(gen)
         self.session.flush()
 
-        with mock.patch("bauble.utils.yes_no_dialog") as mock_dlog:
+        with mock.patch("bauble.ui.dialogs.yes_no_dialog") as mock_dlog:
             mock_dlog.return_value = True
             result = remove_callback([gen])
             mock_dlog.assert_called_once_with(
@@ -112,7 +112,7 @@ class FunctionTests(BaubleTestCase):
         self.session.add(sp)
         self.session.flush()
 
-        with mock.patch("bauble.utils.message_dialog") as mock_dlog:
+        with mock.patch("bauble.ui.dialogs.message_dialog") as mock_dlog:
             mock_dlog.return_value = True
             result = remove_callback([gen])
             mock_dlog.assert_called_once_with(
@@ -143,8 +143,8 @@ class FunctionTests(BaubleTestCase):
             self.assertFalse(remove_callback([gen]))
             mock_obj_sess.assert_called_once_with(gen)
 
-    @mock.patch("bauble.utils.yes_no_dialog")
-    @mock.patch("bauble.utils.message_details_dialog")
+    @mock.patch("bauble.ui.dialogs.yes_no_dialog")
+    @mock.patch("bauble.ui.dialogs.message_details_dialog")
     def test_remove_callback_commit_exception(self, mock_d_dlog, mock_yn_dlog):
         mock_yn_dlog.return_value = True
         mock_d_dlog.return_value = True

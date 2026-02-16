@@ -50,6 +50,7 @@ from bauble import pluginmgr
 from bauble import utils
 from bauble.connmgr import comparable_version
 from bauble.i18n import _
+from bauble.ui import dialogs
 
 # TODO: i've also had a problem with bad insert statements, e.g. importing a
 # geography table after creating a new database and it doesn't use the
@@ -184,7 +185,7 @@ class CSVRestore:
                         )
                         % ORIG_SUFFIX
                     )
-                    if utils.yes_no_dialog(msg):
+                    if dialogs.yes_no_dialog(msg):
                         change_lst = [
                             i
                             for i in filenames
@@ -224,7 +225,7 @@ class CSVRestore:
                         )
                         % ORIG_SUFFIX
                     )
-                    if utils.yes_no_dialog(msg):
+                    if dialogs.yes_no_dialog(msg):
                         upgraders["genus"] = (self.genus_upgrader, filenames)
                         upgraders["species"] = (
                             self.species_upgrader,
@@ -249,7 +250,7 @@ class CSVRestore:
                         )
                         % ORIG_SUFFIX
                     )
-                    if utils.yes_no_dialog(msg):
+                    if dialogs.yes_no_dialog(msg):
                         upgraders["red_list"] = (
                             self.red_list_upgrader,
                             filenames,
@@ -844,7 +845,7 @@ class CSVRestore:
             msg = _("Error connecting to database.\n\n{}").format(
                 utils.xml_safe(e)
             )
-            utils.message_dialog(msg, Gtk.MessageType.ERROR)
+            dialogs.message_dialog(msg, Gtk.MessageType.ERROR)
             return
 
         # create a mapping of table names to filenames
@@ -860,7 +861,7 @@ class CSVRestore:
                     f"<b>{safe(table_name)}</b>: "
                     f"{safe(filename_dict.get(table_name))}, {safe(f)}"
                 )
-                utils.message_dialog(msg, Gtk.MessageType.ERROR)
+                dialogs.message_dialog(msg, Gtk.MessageType.ERROR)
                 return
             filename_dict[table_name] = f
 
@@ -877,7 +878,7 @@ class CSVRestore:
                 "Could not match all filenames to table names.\n\n"
                 f"{filename_dict}"
             )
-            utils.message_dialog(msg, Gtk.MessageType.ERROR)
+            dialogs.message_dialog(msg, Gtk.MessageType.ERROR)
             return
 
         total_lines = 0
@@ -925,7 +926,7 @@ class CSVRestore:
                         "are doing</b>.\n\nWould you like to continue a "
                         "full restore?"
                     )
-                    response = utils.yes_no_dialog(msg)
+                    response = dialogs.yes_no_dialog(msg)
                     if response:
                         force = True
 
@@ -937,7 +938,7 @@ class CSVRestore:
                         f"\n\n<b>{deps_names}</b>\n\n"
                         "Would you like to continue?"
                     )
-                    response = utils.yes_no_dialog(msg)
+                    response = dialogs.yes_no_dialog(msg)
                 else:
                     response = True
 
@@ -996,7 +997,7 @@ class CSVRestore:
                             )
                             % table.name
                         )
-                        response = utils.yes_no_dialog(msg)
+                        response = dialogs.yes_no_dialog(msg)
                     else:
                         response = True
                     if response:
@@ -1195,7 +1196,7 @@ class CSVRestore:
             msg = _(
                 "Error: Could not set the sequence for column: " f"{col_name}"
             )
-            utils.message_details_dialog(
+            dialogs.message_details_dialog(
                 utils.xml_safe(msg),
                 traceback.format_exc(),
                 Gtk.MessageType.ERROR,
@@ -1252,7 +1253,7 @@ class CSVBackup:
                     "<b>%(table)s</b> table already exists.\n\n<i>Would "
                     "you like to continue?</i>"
                 ) % {"filename": filename, "table": table.name}
-                if not utils.yes_no_dialog(msg):  # if NO: return
+                if not dialogs.yes_no_dialog(msg):  # if NO: return
                     return
 
         def replace(string):
@@ -1331,7 +1332,7 @@ class CSVRestoreTool(pluginmgr.Tool):
             "Restoring data into this database will destroy or corrupt "
             "any existing data.\n\n<i>Would you like to continue?</i>"
         )
-        if utils.yes_no_dialog(msg, yes_delay=2):
+        if dialogs.yes_no_dialog(msg, yes_delay=2):
             bauble.command_handler("home", None)
             csv_im = CSVRestore()
             csv_im.start()

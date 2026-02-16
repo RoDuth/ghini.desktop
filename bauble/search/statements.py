@@ -41,6 +41,7 @@ from sqlalchemy.orm import Query
 from sqlalchemy.orm import class_mapper
 from sqlalchemy.sql.elements import BinaryExpression
 
+import bauble
 from bauble import utils
 from bauble.error import check
 from bauble.i18n import _
@@ -209,9 +210,12 @@ class ValueListStatement(StatementAction["ValueListSearch"]):
                 "return results.\n\n"
                 "<b>Is this what you intended?</b>\n\n"
             )
-            if not utils.yes_no_dialog(msg, yes_delay=1):
-                logger.debug("user aborted")
-                return []
+            if bauble.gui:
+                from bauble.ui.dialogs import yes_no_dialog
+
+                if not yes_no_dialog(msg, yes_delay=1):
+                    logger.debug("user aborted")
+                    return []
 
         queries = []
         for cls, columns in search_strategy.properties.items():

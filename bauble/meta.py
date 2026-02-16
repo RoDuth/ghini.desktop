@@ -23,6 +23,7 @@ from __future__ import annotations
 
 import logging
 from collections.abc import Iterable
+from typing import cast
 
 from sqlalchemy import Column
 from sqlalchemy import Unicode
@@ -36,6 +37,7 @@ from gi.repository import Gtk
 
 from bauble import db
 from bauble import utils
+from bauble.ui.dialogs import create_message_dialog
 
 VERSION_KEY = "version"
 CREATED_KEY = "created"
@@ -64,10 +66,8 @@ def confirm_default(
     """
     current_default = get_default(name)
     if not current_default:
-        dialog = utils.create_message_dialog(
-            msg=msg, parent=parent, resizable=False
-        )
-        box = dialog.get_message_area()
+        dialog = create_message_dialog(msg=msg, parent=parent, resizable=False)
+        box = cast(Gtk.Box, dialog.get_message_area())
         frame = Gtk.Frame(shadow_type=Gtk.ShadowType.NONE)
         label = Gtk.Label(justify=Gtk.Justification.LEFT)
         label.set_markup(f"<b>{name}:</b>")
@@ -104,10 +104,8 @@ def set_value(  # pylint: disable=too-many-locals
     """
     logger.debug("set_value for %s", names)
     meta = None
-    dialog = utils.create_message_dialog(
-        msg=msg, parent=parent, resizable=False
-    )
-    box = dialog.get_message_area()
+    dialog = create_message_dialog(msg=msg, parent=parent, resizable=False)
+    box = cast(Gtk.Box, dialog.get_message_area())
 
     if isinstance(names, str):
         names = [names]

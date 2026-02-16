@@ -81,8 +81,8 @@ def connect_empty_db_dont_populate(que):
     bauble.gui = GUI()
     setup_prefs()
     with (
-        mock.patch("bauble.utils.message_dialog") as mock_msg_dialog,
-        mock.patch("bauble.main.utils.yes_no_dialog") as mock_yn_dialog,
+        mock.patch("bauble.db.message_dialog") as mock_msg_dialog,
+        mock.patch("bauble.main.dialogs.yes_no_dialog") as mock_yn_dialog,
         mock.patch("bauble.main.start_connection_manager") as mock_connmgr,
     ):
         mock_connmgr.return_value = "test", uri
@@ -104,7 +104,7 @@ def post_loop_fails_quits(que):
     prefs.prefs[bauble.CONN_DONT_ASK_PREF] = True
     with (
         mock.patch("bauble.main.Application._post_loop") as mock_post_loop,
-        mock.patch("bauble.utils.message_dialog") as mock_dialog,
+        mock.patch("bauble.db.message_dialog") as mock_dialog,
         mock.patch("bauble.main.start_connection_manager") as mock_connmgr,
     ):
         mock_connmgr.return_value = "test", uri
@@ -124,8 +124,8 @@ def connect_empty_populate(que):
     bauble.gui = GUI()
     setup_prefs()
     with (
-        mock.patch("bauble.utils.message_dialog") as mock_msg_dialog,
-        mock.patch("bauble.main.utils.yes_no_dialog") as mock_yn_dialog,
+        mock.patch("bauble.db.message_dialog") as mock_msg_dialog,
+        mock.patch("bauble.main.dialogs.yes_no_dialog") as mock_yn_dialog,
         mock.patch("bauble.main.start_connection_manager") as mock_connmgr,
         mock.patch("bauble.plugins.garden.start_institution_editor") as m_inst,
     ):
@@ -194,8 +194,8 @@ def connect_existing(que, db_uri):
     bauble.gui = GUI()
     setup_prefs()
     with (
-        mock.patch("bauble.utils.message_dialog") as mock_msg_dialog,
-        mock.patch("bauble.main.utils.yes_no_dialog") as mock_yn_dialog,
+        mock.patch("bauble.main.dialogs.message_dialog") as mock_msg_dialog,
+        mock.patch("bauble.main.dialogs.yes_no_dialog") as mock_yn_dialog,
         mock.patch("bauble.main.start_connection_manager") as mock_connmgr,
         mock.patch("bauble.plugins.garden.start_institution_editor"),
     ):
@@ -244,9 +244,9 @@ class ExistingDBTests(TestCase):
 
 
 class MethodTests(TestCase):
-    @mock.patch("bauble.main.utils.yes_no_dialog")
+    @mock.patch("bauble.main.dialogs.yes_no_dialog")
     @mock.patch("bauble.db.create")
-    @mock.patch("bauble.main.utils.message_details_dialog")
+    @mock.patch("bauble.main.dialogs.message_details_dialog")
     def test_post_loop_create_errors(
         self, mock_msg_dialog, mock_create, mock_yn_dialog
     ):
@@ -259,14 +259,14 @@ class MethodTests(TestCase):
         mock_msg_dialog.assert_called()
 
     @mock.patch("bauble.main.pluginmgr.init")
-    @mock.patch("bauble.main.utils.message_dialog")
+    @mock.patch("bauble.main.dialogs.message_dialog")
     def test_post_loop_pluginmgr_errors(self, mock_dialog, mock_init):
         mock_init.side_effect = Exception("boom")
         self.assertFalse(bauble.main.Application._post_loop(None))
         mock_dialog.assert_called()
         mock_init.assert_called()
 
-    @mock.patch("bauble.main.utils.message_details_dialog")
+    @mock.patch("bauble.main.dialogs.message_details_dialog")
     @mock.patch("bauble.main.start_connection_manager")
     @mock.patch("bauble.db.open_conn")
     def test_get_connection_open_conn_fails(

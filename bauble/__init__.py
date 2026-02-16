@@ -178,6 +178,7 @@ def command_handler(cmd, arg):
 
     from bauble import pluginmgr
     from bauble import utils
+    from bauble.ui import dialogs
 
     global last_handler
     handler_cls = None
@@ -185,9 +186,9 @@ def command_handler(cmd, arg):
         handler_cls = pluginmgr.commands[cmd]
     except KeyError:
         if cmd is None:
-            utils.message_dialog(_("No default handler registered"))
+            dialogs.message_dialog(_("No default handler registered"))
         else:
-            utils.message_dialog(_("No command handler for %s") % cmd)
+            dialogs.message_dialog(_("No command handler for %s") % cmd)
         return
 
     if not isinstance(last_handler, handler_cls):
@@ -210,7 +211,7 @@ def command_handler(cmd, arg):
     except Exception as e:
         msg = utils.xml_safe(e)
         logger.error("bauble.command_handler(): %s", msg)
-        utils.message_details_dialog(
+        dialogs.message_details_dialog(
             msg, traceback.format_exc(), Gtk.MessageType.ERROR
         )
 

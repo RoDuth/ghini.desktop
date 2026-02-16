@@ -43,6 +43,7 @@ from bauble.test import check_dupids
 from bauble.test import mockfunc
 from bauble.test import update_gui
 from bauble.test import wait_on_threads
+from bauble.ui import dialogs
 from bauble.ui.utils import set_combo_from_value
 from bauble.ui.utils import set_widget_value
 
@@ -700,13 +701,9 @@ class PlantTests(GardenTestCase):
             "PlantEditorView not deleted",
         )
 
-    def test_remove_callback(self):
+    @unittest.mock.patch("bauble.ui.dialogs.yes_no_dialog")
+    def test_remove_callback(self, mock_dialog):
         # action
-        self.invoked = []
-        orig_yes_no_dialog = utils.yes_no_dialog
-        utils.yes_no_dialog = partial(
-            mockfunc, name="yes_no_dialog", caller=self, result=True
-        )
         from bauble.plugins.garden.plant import remove_callback
 
         result = remove_callback([self.plant])
@@ -714,12 +711,11 @@ class PlantTests(GardenTestCase):
         self.session.flush()
 
         # effect
-        self.assertTrue("yes_no_dialog" in [f for (f, m) in self.invoked])
+        mock_dialog.assert_called()
         match = (
             self.session.query(Plant).filter_by(accession=self.accession).all()
         )
         self.assertEqual(match, [])
-        utils.yes_no_dialog = orig_yes_no_dialog
 
     def test_branch_change(self):
         plant = Plant(
@@ -793,7 +789,9 @@ class PlantTests(GardenTestCase):
         # searchview's session not the editors.
         from bauble.plugins.garden.plant import remove_callback
 
-        with unittest.mock.patch("bauble.utils.yes_no_dialog") as mock_dialog:
+        with unittest.mock.patch(
+            "bauble.ui.dialogs.yes_no_dialog"
+        ) as mock_dialog:
             mock_dialog.return_value = True
             result = remove_callback([plant])
             self.assertTrue(result)
@@ -3081,12 +3079,12 @@ class AccessionTests(GardenTestCase):
         self.invoked = []
 
         # action
-        orig_yes_no_dialog = utils.yes_no_dialog
-        orig_message_details_dialog = utils.message_details_dialog
-        utils.yes_no_dialog = partial(
+        orig_yes_no_dialog = dialogs.yes_no_dialog
+        orig_message_details_dialog = dialogs.message_details_dialog
+        dialogs.yes_no_dialog = partial(
             mockfunc, name="yes_no_dialog", caller=self, result=False
         )
-        utils.message_details_dialog = partial(
+        dialogs.message_details_dialog = partial(
             mockfunc, name="message_details_dialog", caller=self
         )
         from bauble.plugins.garden.accession import remove_callback
@@ -3110,8 +3108,8 @@ class AccessionTests(GardenTestCase):
         q = self.session.query(Accession).filter_by(code="010101", species=sp)
         matching = q.all()
         self.assertEqual(matching, [acc])
-        utils.yes_no_dialog = orig_yes_no_dialog
-        utils.message_details_dialog = orig_message_details_dialog
+        dialogs.yes_no_dialog = orig_yes_no_dialog
+        dialogs.message_details_dialog = orig_message_details_dialog
 
     def test_remove_callback_no_accessions_confirm(self):
         # T_0
@@ -3126,12 +3124,12 @@ class AccessionTests(GardenTestCase):
         self.invoked = []
 
         # action
-        orig_yes_no_dialog = utils.yes_no_dialog
-        orig_message_details_dialog = utils.message_details_dialog
-        utils.yes_no_dialog = partial(
+        orig_yes_no_dialog = dialogs.yes_no_dialog
+        orig_message_details_dialog = dialogs.message_details_dialog
+        dialogs.yes_no_dialog = partial(
             mockfunc, name="yes_no_dialog", caller=self, result=True
         )
-        utils.message_details_dialog = partial(
+        dialogs.message_details_dialog = partial(
             mockfunc, name="message_details_dialog", caller=self
         )
         from bauble.plugins.garden.accession import remove_callback
@@ -3156,8 +3154,8 @@ class AccessionTests(GardenTestCase):
         q = self.session.query(Species).filter_by(sp="Carica")
         matching = q.all()
         self.assertEqual(matching, [])
-        utils.yes_no_dialog = orig_yes_no_dialog
-        utils.message_details_dialog = orig_message_details_dialog
+        dialogs.yes_no_dialog = orig_yes_no_dialog
+        dialogs.message_details_dialog = orig_message_details_dialog
 
     def test_remove_callback_with_accessions_cant_cascade(self):
         # T_0
@@ -3176,16 +3174,16 @@ class AccessionTests(GardenTestCase):
         self.invoked = []
 
         # action
-        orig_yes_no_dialog = utils.yes_no_dialog
-        orig_message_dialog = utils.message_dialog
-        orig_message_details_dialog = utils.message_details_dialog
-        utils.yes_no_dialog = partial(
+        orig_yes_no_dialog = dialogs.yes_no_dialog
+        orig_message_dialog = dialogs.message_dialog
+        orig_message_details_dialog = dialogs.message_details_dialog
+        dialogs.yes_no_dialog = partial(
             mockfunc, name="yes_no_dialog", caller=self, result=True
         )
-        utils.message_dialog = partial(
+        dialogs.message_dialog = partial(
             mockfunc, name="message_dialog", caller=self, result=True
         )
-        utils.message_details_dialog = partial(
+        dialogs.message_details_dialog = partial(
             mockfunc, name="message_details_dialog", caller=self
         )
         from bauble.plugins.garden.accession import remove_callback
@@ -3211,9 +3209,9 @@ class AccessionTests(GardenTestCase):
         q = self.session.query(Plant).filter_by(accession=acc)
         matching = q.all()
         self.assertEqual(matching, [plant])
-        utils.yes_no_dialog = orig_yes_no_dialog
-        utils.message_dialog = orig_message_dialog
-        utils.message_details_dialog = orig_message_details_dialog
+        dialogs.yes_no_dialog = orig_yes_no_dialog
+        dialogs.message_dialog = orig_message_dialog
+        dialogs.message_details_dialog = orig_message_details_dialog
 
     def test_active_no_plants(self):
         acc = self.create(Accession, species=self.species, code="1")
@@ -4111,7 +4109,7 @@ class IntendedLocationsTests(GardenTestCase):
 
         presenter.cleanup()
 
-    @unittest.mock.patch("bauble.utils.yes_no_dialog")
+    @unittest.mock.patch("bauble.ui.dialogs.yes_no_dialog")
     @unittest.mock.patch("bauble.plugins.garden.accession.PlantEditor")
     def test_on_add_plant_asks_to_commit(self, mockeditor, mock_dialog):
         sp = self.session.query(Species).first()
@@ -4400,7 +4398,9 @@ class VerificationTests(GardenTestCase):
         self.assertEqual(ver.prev_species, acc.species)
         self.assertEqual(ver.level, 1)
 
-    @unittest.mock.patch("bauble.plugins.garden.accession.utils.yes_no_dialog")
+    @unittest.mock.patch(
+        "bauble.plugins.garden.accession.dialogs.yes_no_dialog"
+    )
     def test_on_remove_button_clicked(self, mock_dialog):
         acc = self.session.query(Accession).get(2)
         sp = (
@@ -4427,7 +4427,9 @@ class VerificationTests(GardenTestCase):
         mock_dialog.assert_called()
         self.assertEqual(acc.verifications, [])
 
-    @unittest.mock.patch("bauble.plugins.garden.accession.utils.yes_no_dialog")
+    @unittest.mock.patch(
+        "bauble.plugins.garden.accession.dialogs.yes_no_dialog"
+    )
     def test_on_remove_button_clicked_user_backout(self, mock_dialog):
         acc = self.session.query(Accession).get(2)
         sp = (
@@ -4514,7 +4516,9 @@ class VerificationTests(GardenTestCase):
             ver_box.verifier_get_completions("some"), [ver1.verifier]
         )
 
-    @unittest.mock.patch("bauble.plugins.garden.accession.utils.yes_no_dialog")
+    @unittest.mock.patch(
+        "bauble.plugins.garden.accession.dialogs.yes_no_dialog"
+    )
     def test_on_copy_to_taxon_general_clicked(self, mock_dialog):
         acc = self.session.query(Accession).get(1)
         sp = (
@@ -4542,7 +4546,9 @@ class VerificationTests(GardenTestCase):
         mock_dialog.assert_called()
         self.assertEqual(acc.species, sp)
 
-    @unittest.mock.patch("bauble.plugins.garden.accession.utils.yes_no_dialog")
+    @unittest.mock.patch(
+        "bauble.plugins.garden.accession.dialogs.yes_no_dialog"
+    )
     def test_on_copy_to_taxon_general_clicked_user_backout(self, mock_dialog):
         acc = self.session.query(Accession).get(1)
         sp = (

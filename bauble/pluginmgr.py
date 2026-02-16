@@ -69,6 +69,7 @@ from bauble import utils
 from bauble.error import BaubleError
 from bauble.i18n import _
 from bauble.search import parser
+from bauble.ui import dialogs
 
 plugins: dict[str, Plugin] = {}
 commands: dict[str | None, type[CommandHandler]] = {}
@@ -153,7 +154,7 @@ def load(path: str | None = None) -> None:
         exc_str = utils.xml_safe(error)
         values = {"name": ", ".join(sorted(errors.keys())), "exc_str": exc_str}
         tb_str = "".join(traceback.format_tb(error.__traceback__))
-        utils.message_details_dialog(
+        dialogs.message_details_dialog(
             _("Could not load plugin: \n\n%(name)s\n\n%(exc_str)s") % values,
             tb_str,
             Gtk.MessageType.ERROR,
@@ -200,7 +201,9 @@ def init(force: bool = False) -> None:
             )
             % not_loaded_str
         )
-        utils.message_dialog(utils.xml_safe(msg), typ=Gtk.MessageType.WARNING)
+        dialogs.message_dialog(
+            utils.xml_safe(msg), typ=Gtk.MessageType.WARNING
+        )
 
     if not registered:
         logging.warning("no plugins to initialise")
@@ -233,7 +236,7 @@ def init(force: bool = False) -> None:
                 "entry_name": type(plugin).__name__,
                 "exception": utils.xml_safe(e),
             }
-            utils.message_details_dialog(
+            dialogs.message_details_dialog(
                 _(
                     "Error: Couldn't initialize %(entry_name)s\n\n"
                     "%(exception)s."
@@ -305,7 +308,7 @@ def _register_commands(registered: list[Plugin]) -> None:
                 msg = _(
                     "Error: Could not register command handler.\n\n" f"{cmd}"
                 )
-                utils.message_dialog(msg, Gtk.MessageType.ERROR)
+                dialogs.message_dialog(msg, Gtk.MessageType.ERROR)
 
 
 def _get_registered_unregistered() -> tuple[list[Plugin], list[str]]:
@@ -355,7 +358,7 @@ def _install_unregistered(force: bool = False) -> None:
             )
             % not_registered_str
         )
-        if force or utils.yes_no_dialog(msg):
+        if force or dialogs.yes_no_dialog(msg):
             install(not_installed)
 
 

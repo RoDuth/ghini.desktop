@@ -686,7 +686,7 @@ class GlobalFunctionsTests(BaubleTestCase):
             [mock_child1, mock_child2, mock_child3],
         )
 
-    @mock.patch("bauble.db.utils.message_dialog")
+    @mock.patch("bauble.db.message_dialog")
     def test_verify_connection_empty_raises(self, mock_dialog):
         engine = create_engine("sqlite:///:memory:")
         self.assertRaises(
@@ -702,7 +702,7 @@ class GlobalFunctionsTests(BaubleTestCase):
         )
         mock_dialog.assert_called()
 
-    @mock.patch("bauble.db.utils.message_dialog")
+    @mock.patch("bauble.db.message_dialog")
     def test_verify_connection_no_meta_raises(self, mock_dialog):
         engine = create_engine("sqlite:///:memory:")
         with engine.connect() as connection:
@@ -723,7 +723,7 @@ class GlobalFunctionsTests(BaubleTestCase):
         )
         mock_dialog.assert_called()
 
-    @mock.patch("bauble.db.utils.message_dialog")
+    @mock.patch("bauble.db.message_dialog")
     def test_verify_connection_no_timestamp_raises(self, mock_dialog):
         engine = create_engine("sqlite:///:memory:")
         with engine.connect() as connection:
@@ -739,7 +739,7 @@ class GlobalFunctionsTests(BaubleTestCase):
         )
         mock_dialog.assert_called()
 
-    @mock.patch("bauble.db.utils.message_dialog")
+    @mock.patch("bauble.db.message_dialog")
     def test_verify_connection_no_version_raises(self, mock_dialog):
         engine = create_engine("sqlite:///:memory:")
         meta_table = meta.BaubleMeta.__table__
@@ -760,7 +760,7 @@ class GlobalFunctionsTests(BaubleTestCase):
         )
         mock_dialog.assert_called()
 
-    @mock.patch("bauble.db.utils.message_dialog")
+    @mock.patch("bauble.db.message_dialog")
     def test_verify_connection_bad_version_raises(self, mock_dialog):
         engine = create_engine("sqlite:///:memory:")
         meta_table = meta.BaubleMeta.__table__
@@ -785,7 +785,7 @@ class GlobalFunctionsTests(BaubleTestCase):
         )
         mock_dialog.assert_called()
 
-    @mock.patch("bauble.db.utils.message_dialog")
+    @mock.patch("bauble.db.message_dialog")
     def test_verify_connection_prior_version_raises(self, mock_dialog):
         engine = create_engine("sqlite:///:memory:")
         meta_table = meta.BaubleMeta.__table__

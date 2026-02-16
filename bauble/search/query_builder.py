@@ -60,6 +60,7 @@ from bauble import prefs
 from bauble import utils
 from bauble.db import Base
 from bauble.i18n import _
+from bauble.ui.dialogs import create_message_dialog
 from bauble.ui.utils import get_widget_value
 from bauble.ui.utils import set_widget_value
 
@@ -840,7 +841,7 @@ class QueryBuilder(Gtk.Dialog):
             "        <tt>plant where planted.date > -10</tt>\n"
             "Return plants that where planted in the last 10 days.\n"
         )
-        dialog = utils.create_message_dialog(msg, parent=self, resizable=False)
+        dialog = create_message_dialog(msg, parent=self, resizable=False)
         dialog.set_title(_("Basic Intro to Queries"))
         dialog.run()
         dialog.destroy()

@@ -53,7 +53,7 @@ from bauble.error import CheckConditionError
 from bauble.error import check
 from bauble.i18n import _
 from bauble.ui import Problem
-from bauble.ui.dialogs import run_file_chooser_dialog
+from bauble.ui import dialogs
 from bauble.ui.utils import ImageLoader
 from bauble.ui.utils import clear_model
 from bauble.ui.utils import combo_get_value_iter
@@ -252,13 +252,13 @@ class GenericEditorView:
                 self.connect(window, "response", self.on_dialog_response)
         self.box = set()  # the top level, meant for warnings.
 
-    def run_file_chooser_dialog(
+    def file_chooser_dialog(
         self, text, parent, action, last_folder, target, suffix=None
     ):
         """create and run FileChooser, then write result in target
 
         This is just a bit more than a wrapper for
-        `utils.run_file_chooser_dialog` allowing the Entry widget or its name
+        `dialogs.file_chooser_dialog` allowing the Entry widget or its name
         as a string.
 
         :param text: window label text.
@@ -271,7 +271,7 @@ class GenericEditorView:
             filter.
         """
         target = self.__get_widget(target)
-        run_file_chooser_dialog(
+        dialogs.file_chooser_dialog(
             text, parent, action, last_folder, target, suffix
         )
 
@@ -300,7 +300,7 @@ class GenericEditorView:
     def run_message_dialog(
         msg, typ=Gtk.MessageType.INFO, buttons=Gtk.ButtonsType.OK, parent=None
     ):
-        utils.message_dialog(msg, typ, buttons, parent)
+        dialogs.message_dialog(msg, typ, buttons, parent)
 
     def get_selection(self):
         """return the selection in the graphic interface"""
@@ -759,11 +759,11 @@ class MockView:
         "fakes main UI search result - selection"
         return self.selection
 
-    def run_file_chooser_dialog(
+    def file_chooser_dialog(
         self, text, parent, action, last_folder, target, suffix=None
     ):
         args = [text, parent, action, last_folder, target, suffix]
-        self.invoked.append("run_file_chooser_dialog")
+        self.invoked.append("file_chooser_dialog")
         self.invoked_detailed.append((self.invoked[-1], args))
         reply = self.reply_file_chooser_dialog.pop()
         self.widget_set_value(target, reply)
@@ -1685,7 +1685,7 @@ class PresenterMapMixin:
 
     def on_map_delete(self, *_args):
         msg = _("Are you sure you want to delete spatial data?")
-        if utils.yes_no_dialog(msg, None, yes_delay=1):
+        if dialogs.yes_no_dialog(msg, None, yes_delay=1):
             if self.model.geojson:
                 self.model.geojson = None
                 self._dirty = True
@@ -2223,7 +2223,7 @@ class PictureBox(GenericNoteBox, NoteBoxMenuBtnMixin, Gtk.Box):
                         " %s other picture(s) of type %s exist using "
                         "the same file, "
                     ) % (others, table.name)
-            if utils.yes_no_dialog(msg, parent=parent, yes_delay=0.5):
+            if dialogs.yes_no_dialog(msg, parent=parent, yes_delay=0.5):
                 try:
                     if os.path.isfile(thumbname):
                         os.remove(thumbname)
@@ -2231,7 +2231,7 @@ class PictureBox(GenericNoteBox, NoteBoxMenuBtnMixin, Gtk.Box):
                         os.remove(filename)
                 except Exception as e:
                     logger.debug("%s(%s)", type(e).__name__, e)
-                    utils.create_message_details_dialog(
+                    dialogs.create_message_details_dialog(
                         _("Error removing file...  File in use?"),
                         parent=parent,
                         details=e,
@@ -2277,7 +2277,7 @@ class PictureBox(GenericNoteBox, NoteBoxMenuBtnMixin, Gtk.Box):
                     parent = None
                     if self.presenter.parent_ref().view:
                         parent = self.presenter.parent_ref().view.get_window()
-                    if utils.yes_no_dialog(msg, parent=parent):
+                    if dialogs.yes_no_dialog(msg, parent=parent):
                         name, ext = os.path.splitext(basename)
                         tstamp = datetime.datetime.now().strftime("%Y%m%d%M%S")
                         rename = name + "_" + tstamp + ext
@@ -2411,13 +2411,13 @@ class DocumentBox(GenericNoteBox, NoteBoxMenuBtnMixin, Gtk.Box):
                         " %s other documents(s) of type %s exist using "
                         "the same file, "
                     ) % (others, table.name)
-            if utils.yes_no_dialog(msg, parent=parent, yes_delay=0.5):
+            if dialogs.yes_no_dialog(msg, parent=parent, yes_delay=0.5):
                 try:
                     if os.path.isfile(filename):
                         os.remove(filename)
                 except Exception as e:
                     logger.debug("%s(%s)", type(e).__name__, e)
-                    utils.create_message_details_dialog(
+                    dialogs.create_message_details_dialog(
                         _("Error removing file...  File in use?"),
                         parent=parent,
                         details=e,
@@ -2453,7 +2453,7 @@ class DocumentBox(GenericNoteBox, NoteBoxMenuBtnMixin, Gtk.Box):
                     parent = None
                     if self.presenter.parent_ref().view:
                         parent = self.presenter.parent_ref().view.get_window()
-                    if utils.yes_no_dialog(msg, parent=parent):
+                    if dialogs.yes_no_dialog(msg, parent=parent):
                         name, ext = os.path.splitext(basename)
                         tstamp = datetime.datetime.now().strftime("%Y%m%d%M%S")
                         basename = name + "_" + tstamp + ext
