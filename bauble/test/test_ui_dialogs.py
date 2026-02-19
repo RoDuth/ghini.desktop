@@ -28,6 +28,7 @@ from gi.repository import Gtk
 from bauble.test import update_gui
 from bauble.ui.dialogs import create_message_details_dialog
 from bauble.ui.dialogs import create_message_dialog
+from bauble.ui.dialogs import entry_dialog
 from bauble.ui.dialogs import file_chooser_dialog
 from bauble.ui.dialogs import message_details_dialog
 from bauble.ui.dialogs import message_dialog
@@ -49,6 +50,30 @@ class DialogTest(TestCase):
         expander = dlog.get_content_area().get_children()[1]
         buffer = expander.get_children()[0].get_children()[0].get_buffer()
 
+        self.assertEqual(buffer.get_line_count(), 3)
+        self.assertEqual(buffer.get_text(*buffer.get_bounds(), False), details)
+        dlog.destroy()
+
+    @mock.patch("bauble.ui.dialogs.GdkPixbuf.Pixbuf.new_from_file")
+    def test_create_message_details_dialog_glib_error(self, mock_pixbuf):
+        mock_pixbuf.side_effect = GLib.Error("BOOM")
+        details = "these are the lines that I want to test\n2nd line\n3rd Line"
+        msg = "test message"
+
+        dlog = create_message_details_dialog(msg, details)
+
+        self.assertTrue(isinstance(dlog, Gtk.MessageDialog))
+
+        msg_label = dlog.get_message_area().get_children()[0]
+
+        self.assertEqual(msg_label.get_text(), msg)
+
+        contents = dlog.get_content_area().get_children()
+        expander = contents[1]
+        buffer = expander.get_children()[0].get_children()[0].get_buffer()
+
+        # should have content area
+        self.assertEqual(len(contents), 3)
         self.assertEqual(buffer.get_line_count(), 3)
         self.assertEqual(buffer.get_text(*buffer.get_bounds(), False), details)
         dlog.destroy()
@@ -199,3 +224,17 @@ class DialogTest(TestCase):
                 ".csv",
             )
             self.assertIn("unhandled Exception exception: BOOM", log.output[0])
+
+    @mock.patch("bauble.connmgr.Gtk.Entry.get_text")
+    @mock.patch("bauble.connmgr.Gtk.Dialog.run")
+    def test_run_entry_dialog(self, mock_run, mock_get_text):
+        mock_run.return_value = Gtk.ResponseType.ACCEPT
+        mock_get_text.return_value = "spam"
+        result = entry_dialog("Enter your name", visible=False)
+
+        self.assertEqual(result, "spam")
+
+        mock_run.return_value = Gtk.ResponseType.CANCEL
+        result = entry_dialog("Enter your name", visible=False)
+
+        self.assertIsNone(result)

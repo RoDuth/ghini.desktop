@@ -35,7 +35,6 @@ from dataclasses import field
 from importlib import import_module
 from pathlib import Path
 from threading import Thread
-from types import ModuleType
 from typing import Literal
 from typing import NotRequired
 from typing import Self
@@ -59,12 +58,7 @@ from bauble.ui import GenericPresenter
 from bauble.ui import Validator
 from bauble.ui import dialogs
 from bauble.utils.web import get_net_sess
-
-pyodbc: ModuleType | None
-try:
-    import pyodbc
-except ImportError:  # pragma: no cover
-    pyodbc = None
+from bauble.version import comparable_version
 
 
 def is_package_name(name: str) -> bool:
@@ -105,23 +99,6 @@ def retrieve_latest_release_data() -> list | dict | None:
     finally:
         net_sess.close()
     return None
-
-
-@dataclass(order=True)
-class ComparableVersion:
-    major: int
-    minor: int
-    patch: int
-    build: str = "z"
-
-
-def comparable_version(version: str) -> ComparableVersion:
-    as_list: list = version.replace("-", ".").split(".")
-
-    for i in range(3):
-        as_list[i] = int(as_list[i])
-
-    return ComparableVersion(*as_list)
 
 
 def check_new_release(github_release_data: dict) -> Literal[False] | dict:
@@ -592,7 +569,9 @@ class ConnectionBox(
             # not new bail
             return
 
-        if pyodbc is None:
+        if "MSSQL" in DBTYPES:
+            import pyodbc
+        else:
             logger.debug("no pyodbc bailing.")
             return
 
@@ -915,50 +894,6 @@ class ConnectionManagerDialog(Gtk.Dialog):
         """Close the notification revealer."""
         self.notify_revealer.set_reveal_child(False)
 
-    # TODO put this in utils - can we provide a simple problems validator?
-    # i.e. here it would just need to check that the value was not in the
-    # current connection names...  (This would also disallow OK)
-    def run_entry_dialog(self, title: str, visible: bool = True) -> str | None:
-        """Run a minimal dialog with a single entry for user input.
-
-        :param title: The title of the dialog.
-        :param visible: If True, the entry will show the text as it is typed,
-            otherwise it will be hidden (useful for passwords).
-        """
-        dialog = Gtk.Dialog(
-            title=title,
-            transient_for=self,
-            modal=True,
-            destroy_with_parent=True,
-        )
-        dialog.add_buttons(
-            _("OK"),
-            Gtk.ResponseType.ACCEPT,
-            _("Cancel"),
-            Gtk.ResponseType.CANCEL,
-        )
-        dialog.set_default_response(Gtk.ResponseType.ACCEPT)
-        dialog.set_default_size(250, -1)
-        dialog.set_position(Gtk.WindowPosition.CENTER)
-        dialog.set_destroy_with_parent(True)
-        entry = Gtk.Entry()
-
-        if not visible:
-            entry.set_visibility(False)
-
-        entry.connect(
-            "activate", lambda entry: dialog.response(Gtk.ResponseType.ACCEPT)
-        )
-        dialog.get_content_area().pack_start(entry, True, True, 0)
-        dialog.show_all()
-
-        user_reply: str | None = None
-        if dialog.run() == Gtk.ResponseType.ACCEPT:
-            user_reply = entry.get_text()
-
-        dialog.destroy()
-        return user_reply
-
     def remove_connection(self) -> None:
         """Remove current selected connection from combobox and from prefs."""
         self.model.remove()
@@ -1004,7 +939,7 @@ class ConnectionManagerDialog(Gtk.Dialog):
             if dialogs.yes_no_dialog(msg):
                 self.model.save()
 
-        name = self.run_entry_dialog(_("Enter a connection name"))
+        name = dialogs.entry_dialog(_("Enter a connection name"))
         logger.debug("new name = %s", repr(name))
 
         if not name:
@@ -1017,12 +952,8 @@ class ConnectionManagerDialog(Gtk.Dialog):
             self.expander.set_expanded(True)
             self.name_combo.set_active(0)
 
-    def get_passwd(self) -> str | None:
-        """Show a dialog with and entry and return the value entered."""
-        passwd = self.run_entry_dialog(_("Enter your password"), visible=False)
-        return passwd
-
-    def parameters_to_uri(self, params: ConnectionDict) -> URL:
+    @staticmethod
+    def parameters_to_uri(params: ConnectionDict) -> URL:
         """return connections paramaters as a SQLAlchemy URL object."""
         database = params.get(
             "db",
@@ -1031,7 +962,10 @@ class ConnectionManagerDialog(Gtk.Dialog):
 
         passwd = None
         if params.get("passwd"):
-            passwd = self.get_passwd()
+            passwd = dialogs.entry_dialog(
+                _("Enter your password"),
+                visible=False,
+            )
             if passwd is None:
                 raise ValueError("Password is required for this connection")
 

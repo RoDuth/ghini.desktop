@@ -48,9 +48,9 @@ from bauble import db
 from bauble import pb_set_fraction
 from bauble import pluginmgr
 from bauble import utils
-from bauble.connmgr import comparable_version
 from bauble.i18n import _
 from bauble.ui import dialogs
+from bauble.version import comparable_version
 
 # TODO: i've also had a problem with bad insert statements, e.g. importing a
 # geography table after creating a new database and it doesn't use the

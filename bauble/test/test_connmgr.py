@@ -1,3 +1,4 @@
+# pylint: disable=no-self-use,too-many-public-methods,too-many-lines
 # Copyright (c) 2015 Mario Frasca <mario@anche.no>
 # Copyright (c) 2022-2025 Ross Demuth <rossdemuth123@gmail.com>
 #
@@ -15,6 +16,9 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with ghini.desktop. If not, see <http://www.gnu.org/licenses/>.
+"""
+Connection manager tests
+"""
 
 import copy
 import os
@@ -443,7 +447,9 @@ class ConnectionManagerTests(BaubleTestCase):
         )
         presenter.destroy()
 
-    def test_parameters_to_uri_postgres(self):
+    @mock.patch("bauble.connmgr.dialogs.entry_dialog")
+    def test_parameters_to_uri_postgres(self, mock_dialog):
+        mock_dialog.return_value = "secret"
         presenter = ConnectionManagerDialog()
         params = {
             "type": "PostgreSQL",
@@ -457,6 +463,7 @@ class ConnectionManagerTests(BaubleTestCase):
             presenter.parameters_to_uri(params),
             make_url("postgresql://pg@localhost/quisquis"),
         )
+        mock_dialog.assert_not_called()
         params = {
             "type": "PostgreSQL",
             "passwd": True,
@@ -465,12 +472,12 @@ class ConnectionManagerTests(BaubleTestCase):
             "host": "localhost",
             "user": "pg",
         }
-        with mock.patch.object(presenter, "get_passwd") as mock_get_passwd:
-            mock_get_passwd.return_value = "secret"
-            self.assertEqual(
-                presenter.parameters_to_uri(params),
-                make_url("postgresql://pg:secret@localhost/quisquis"),
-            )
+        self.assertEqual(
+            presenter.parameters_to_uri(params),
+            make_url("postgresql://pg:secret@localhost/quisquis"),
+        )
+        mock_dialog.assert_called_once()
+        mock_dialog.reset_mock()
         params = {
             "type": "PostgreSQL",
             "passwd": False,
@@ -484,6 +491,7 @@ class ConnectionManagerTests(BaubleTestCase):
             presenter.parameters_to_uri(params),
             make_url("postgresql://pg@localhost:9876/quisquis"),
         )
+        mock_dialog.assert_not_called()
         params = {
             "type": "PostgreSQL",
             "passwd": True,
@@ -493,17 +501,18 @@ class ConnectionManagerTests(BaubleTestCase):
             "host": "localhost",
             "user": "pg",
         }
-        with mock.patch.object(presenter, "get_passwd") as mock_get_passwd:
-            mock_get_passwd.return_value = "secret"
-            self.assertEqual(
-                presenter.parameters_to_uri(params),
-                make_url("postgresql://pg:secret@localhost:9876/quisquis"),
-            )
-            mock_get_passwd.return_value = None
-            self.assertRaises(ValueError, presenter.parameters_to_uri, params)
+        self.assertEqual(
+            presenter.parameters_to_uri(params),
+            make_url("postgresql://pg:secret@localhost:9876/quisquis"),
+        )
+        mock_dialog.reset_mock()
+        mock_dialog.return_value = None
+        self.assertRaises(ValueError, presenter.parameters_to_uri, params)
+        mock_dialog.assert_called_once()
         presenter.destroy()
 
-    def test_parameters_to_uri_mssql(self):
+    @mock.patch("bauble.connmgr.dialogs.entry_dialog")
+    def test_parameters_to_uri_mssql(self, mock_dialog):
         presenter = ConnectionManagerDialog()
         params = {
             "passwd": True,
@@ -518,21 +527,21 @@ class ConnectionManagerTests(BaubleTestCase):
                 "MARS_Connection": "Yes",
             },
         }
-        with mock.patch.object(presenter, "get_passwd") as mock_get_passwd:
-            mock_get_passwd.return_value = "secret"
-            self.assertEqual(
-                presenter.parameters_to_uri(params),
-                make_url(
-                    "mssql://foo:secret@localhost:9876/quisquis"
-                    "?driver=ODBC+Driver+17+for+SQL+Server"
-                    "&MARS_Connection=Yes"
-                ),
-            )
-            mock_get_passwd.return_value = None
-            self.assertRaises(ValueError, presenter.parameters_to_uri, params)
+        mock_dialog.return_value = "secret"
+        self.assertEqual(
+            presenter.parameters_to_uri(params),
+            make_url(
+                "mssql://foo:secret@localhost:9876/quisquis"
+                "?driver=ODBC+Driver+17+for+SQL+Server"
+                "&MARS_Connection=Yes"
+            ),
+        )
+        mock_dialog.return_value = None
+        self.assertRaises(ValueError, presenter.parameters_to_uri, params)
         presenter.destroy()
 
-    def test_connection_uri_property(self):
+    @mock.patch("bauble.connmgr.dialogs.entry_dialog")
+    def test_connection_uri_property(self, mock_dialog):
         prefs.prefs[bauble.CONN_DEFAULT_PREF] = "quisquis"
         prefs.prefs[bauble.CONN_LIST_PREF] = {
             "quisquis": {
@@ -567,14 +576,15 @@ class ConnectionManagerTests(BaubleTestCase):
         self.assertEqual(params["host"], "new_host")
         self.assertEqual(params["port"], "1234")
         self.assertTrue(params["passwd"])
-        with mock.patch.object(presenter, "get_passwd") as mock_get_passwd:
-            mock_get_passwd.return_value = "new_secret"
-            self.assertEqual(
-                presenter.connection_uri,
-                make_url(
-                    "postgresql://new_user:new_secret@new_host:1234/new_db"
-                ),
-            )
+        mock_dialog.return_value = "new_secret"
+        self.assertEqual(
+            presenter.connection_uri,
+            make_url("postgresql://new_user:new_secret@new_host:1234/new_db"),
+        )
+        mock_dialog.assert_called_once_with(
+            "Enter your password",
+            visible=False,
+        )
         presenter.destroy()
 
     def test_are_prefs_already_saved(self):
@@ -666,25 +676,6 @@ class ConnectionManagerTests(BaubleTestCase):
             mock_save.assert_called()
             mock_yn.assert_called_once()
 
-        presenter.destroy()
-
-    def test_get_passwd(self):
-        presenter = ConnectionManagerDialog()
-        with mock.patch.object(presenter, "run_entry_dialog") as mock_dlog:
-            mock_dlog.return_value = "secret"
-            passwd = presenter.get_passwd()
-        self.assertEqual(passwd, "secret")
-        mock_dlog.assert_called_once_with("Enter your password", visible=False)
-        presenter.destroy()
-
-    @mock.patch("bauble.connmgr.Gtk.Entry.get_text")
-    @mock.patch("bauble.connmgr.Gtk.Dialog.run")
-    def test_run_entry_dialog(self, mock_run, mock_get_text):
-        mock_run.return_value = Gtk.ResponseType.ACCEPT
-        mock_get_text.return_value = "spam"
-        presenter = ConnectionManagerDialog()
-        result = presenter.run_entry_dialog("Enter your name", visible=False)
-        self.assertEqual(result, "spam")
         presenter.destroy()
 
     def test_problems_prevents_connecting(self):
@@ -795,11 +786,11 @@ class OptionsTests(BaubleTestCase):
 
         connection_box.destroy()
 
-    def test_new_mssql_adds_sensible_defaults(self):
+    @mock.patch("bauble.connmgr.dialogs.entry_dialog")
+    def test_new_mssql_adds_sensible_defaults(self, mock_dialog):
         presenter = ConnectionManagerDialog()
-        with mock.patch.object(presenter, "run_entry_dialog") as mock_dlog:
-            mock_dlog.return_value = "spam"
-            presenter.on_add_button_clicked(presenter.name_combo)
+        mock_dialog.return_value = "spam"
+        presenter.on_add_button_clicked(presenter.name_combo)
 
         self.assertEqual(presenter.connection_name, "spam")
 
@@ -818,22 +809,23 @@ class OptionsTests(BaubleTestCase):
 
         presenter.destroy()
 
-    @mock.patch("bauble.connmgr.pyodbc", new=None)
-    def test_new_mssql_no_pyodbc_bails(self):
+    @mock.patch("bauble.connmgr.dialogs.entry_dialog")
+    def test_new_mssql_no_pyodbc_bails(self, mock_dialog):
+        DBTYPES.remove("MSSQL")
         presenter = ConnectionManagerDialog()
-        with mock.patch.object(presenter, "run_entry_dialog") as mock_dlog:
-            mock_dlog.return_value = "spam"
-            presenter.on_add_button_clicked(presenter.name_combo)
+        mock_dialog.return_value = "spam"
+        presenter.on_add_button_clicked(presenter.name_combo)
 
         self.assertEqual(presenter.connection_name, "spam")
 
         connection_box = presenter.get_connection_box()
         with self.assertLogs(level="DEBUG") as logs:
-            connection_box.type_combo.set_active(DBTYPES.index("MSSQL"))
+            connection_box.add_mssql_default_options()
 
         self.assertTrue(any("no pyodbc bailing" in i for i in logs.output))
         self.assertEqual(len(connection_box.options_liststore), 1)
 
+        DBTYPES.append("MSSQL")
         presenter.destroy()
 
     def test_existing_mssql_dont_add_sensible_defaults(self):
@@ -878,14 +870,14 @@ class OptionsTests(BaubleTestCase):
 
 class AddConnectionTests(BaubleTestCase):
 
-    def test_on_add_button_clicked_no_name_bails(self):
+    @mock.patch("bauble.connmgr.dialogs.entry_dialog")
+    def test_on_add_button_clicked_no_name_bails(self, mock_dialog):
         presenter = ConnectionManagerDialog()
         self.assertFalse(presenter.expander.get_visible())
-        with mock.patch.object(presenter, "run_entry_dialog") as mock_dlog:
-            mock_dlog.return_value = ""
-            self.assertTrue(presenter.noconnectionlabel.get_visible())
-            presenter.on_add_button_clicked(presenter.name_combo)
-            self.assertTrue(presenter.noconnectionlabel.get_visible())
+        mock_dialog.return_value = ""
+        self.assertTrue(presenter.noconnectionlabel.get_visible())
+        presenter.on_add_button_clicked(presenter.name_combo)
+        self.assertTrue(presenter.noconnectionlabel.get_visible())
         # nothing changes
         self.assertFalse(presenter.expander.get_visible())
         self.assertFalse(presenter.connect_button.get_sensitive())
@@ -894,7 +886,10 @@ class AddConnectionTests(BaubleTestCase):
         presenter.destroy()
 
     @mock.patch("bauble.connmgr.dialogs.yes_no_dialog")
-    def test_on_add_button_clicked_w_changes_asks_to_save(self, mock_yn):
+    @mock.patch("bauble.connmgr.dialogs.entry_dialog")
+    def test_on_add_button_clicked_w_changes_asks_to_save(
+        self, mock_dialog, mock_yn
+    ):
         mock_yn.return_value = True
         prefs.prefs[bauble.CONN_LIST_PREF] = {
             "nugkui": {
@@ -907,9 +902,8 @@ class AddConnectionTests(BaubleTestCase):
         presenter = ConnectionManagerDialog()
         presenter.model.rootdir = "./eggs"
         # change something
-        with mock.patch.object(presenter, "run_entry_dialog") as mock_dlog:
-            mock_dlog.return_value = "spam"
-            presenter.on_add_button_clicked(presenter.name_combo)
+        mock_dialog.return_value = "spam"
+        presenter.on_add_button_clicked(presenter.name_combo)
 
         mock_yn.assert_called_once()
         conn_list = prefs.prefs[bauble.CONN_LIST_PREF]
@@ -923,29 +917,30 @@ class AddConnectionTests(BaubleTestCase):
 
         presenter.destroy()
 
-    def test_no_connection_on_add_confirm_negative(self):
+    @mock.patch("bauble.connmgr.dialogs.entry_dialog")
+    def test_no_connection_on_add_confirm_negative(self, mock_dialog):
         presenter = ConnectionManagerDialog()
-        with mock.patch.object(presenter, "run_entry_dialog") as mock_dlog:
-            mock_dlog.return_value = ""
-            presenter.on_add_button_clicked(presenter.name_combo)
+        mock_dialog.return_value = ""
+        presenter.on_add_button_clicked(presenter.name_combo)
         # nothing changes
         self.assertFalse(presenter.expander.get_visible())
         self.assertFalse(presenter.connect_button.get_sensitive())
         self.assertTrue(presenter.noconnectionlabel.get_visible())
         presenter.destroy()
 
-    def test_no_connection_on_add_confirm_positive(self):
+    @mock.patch("bauble.connmgr.dialogs.entry_dialog")
+    def test_no_connection_on_add_confirm_positive(self, mock_dialog):
         presenter = ConnectionManagerDialog()
-        with mock.patch.object(presenter, "run_entry_dialog") as mock_dlog:
-            mock_dlog.return_value = "spam"
-            presenter.on_add_button_clicked(presenter.name_combo)
+        mock_dialog.return_value = "spam"
+        presenter.on_add_button_clicked(presenter.name_combo)
         # visibility swapped
         self.assertTrue(presenter.expander.get_visible())
         self.assertTrue(presenter.connect_button.get_sensitive())
         self.assertFalse(presenter.noconnectionlabel.get_visible())
         presenter.destroy()
 
-    def test_one_connection_on_add_confirm_positive(self):
+    @mock.patch("bauble.connmgr.dialogs.entry_dialog")
+    def test_one_connection_on_add_confirm_positive(self, mock_dialog):
         prefs.prefs[bauble.CONN_LIST_PREF] = {
             "nugkui": {
                 "default": True,
@@ -957,9 +952,8 @@ class AddConnectionTests(BaubleTestCase):
         prefs.prefs[bauble.CONN_DEFAULT_PREF] = "nugkui"
 
         presenter = ConnectionManagerDialog()
-        with mock.patch.object(presenter, "run_entry_dialog") as mock_dlog:
-            mock_dlog.return_value = "spam"
-            presenter.on_add_button_clicked(presenter.name_combo)
+        mock_dialog.return_value = "spam"
+        presenter.on_add_button_clicked(presenter.name_combo)
         self.assertTrue(presenter.expander.get_visible())
         self.assertTrue(presenter.connect_button.get_sensitive())
         self.assertFalse(presenter.noconnectionlabel.get_visible())
@@ -1696,14 +1690,14 @@ class StartConnectionManagerTests(BaubleTestCase):
         mock_run.assert_called_once()
 
     @mock.patch("bauble.connmgr.ConnectionManagerDialog.run")
-    @mock.patch("bauble.connmgr.ConnectionManagerDialog.get_passwd")
+    @mock.patch("bauble.connmgr.dialogs.entry_dialog")
     def test_start_connection_manager_no_passwd_asks_again(
         self,
-        mock_passwd,
+        mock_dialog,
         mock_run,
     ):
         mock_run.return_value = RESPONSE_OK
-        mock_passwd.side_effect = [ValueError("No password provided"), "test"]
+        mock_dialog.side_effect = [None, "test"]
         prefs.prefs[bauble.CONN_DEFAULT_PREF] = "nugkui"
         prefs.prefs[bauble.CONN_LIST_PREF] = {
             "nugkui": {

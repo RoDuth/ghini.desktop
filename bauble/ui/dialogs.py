@@ -32,6 +32,7 @@ from gi.repository import Gtk
 from gi.repository import Pango
 
 import bauble
+from bauble.i18n import _
 
 
 def file_chooser_dialog(
@@ -313,3 +314,49 @@ def message_details_dialog(
     response = dialog.run()
     dialog.destroy()
     return response
+
+
+def entry_dialog(
+    title: str,
+    visible: bool = True,
+    parent: Gtk.Window | None = None,
+) -> str | None:
+    """Run a minimal dialog with a single entry for user input.
+
+    :param title: The title of the dialog.
+    :param visible: If True, the entry will show the text as it is typed,
+        otherwise it will be hidden (useful for passwords).
+    :param parent: The parent window for the dialog.
+    """
+    dialog = Gtk.Dialog(
+        title=title,
+        transient_for=parent,
+        modal=True,
+        destroy_with_parent=True,
+    )
+    dialog.add_buttons(
+        _("OK"),
+        Gtk.ResponseType.ACCEPT,
+        _("Cancel"),
+        Gtk.ResponseType.CANCEL,
+    )
+    dialog.set_default_response(Gtk.ResponseType.ACCEPT)
+    dialog.set_default_size(250, -1)
+    dialog.set_position(Gtk.WindowPosition.CENTER)
+    dialog.set_destroy_with_parent(True)
+    entry = Gtk.Entry()
+
+    entry.set_visibility(visible)
+
+    entry.connect(
+        "activate", lambda entry: dialog.response(Gtk.ResponseType.ACCEPT)
+    )
+    dialog.get_content_area().pack_start(entry, True, True, 0)
+    dialog.show_all()
+
+    user_reply: str | None = None
+    if dialog.run() == Gtk.ResponseType.ACCEPT:
+        user_reply = entry.get_text()
+
+    dialog.destroy()
+    return user_reply
