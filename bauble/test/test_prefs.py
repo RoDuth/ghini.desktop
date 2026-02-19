@@ -271,8 +271,14 @@ class PreferencesTests(BaubleTestCase):
         p = prefs._prefs(pname)
         p.init()
         files = list(Path(pname).parent.glob(glob))
+        # exclude lock file, behaviour of filelock has changed in recent
+        # versions (
+        # v3.20.3 mac left lock file in place after release win did not
+        # v3.23.0 neither left lock file in place
+        # v3.24.2 win leaves lock file in place mac does not
+        # ) so ignore as its not relavant to the test
         self.assertEqual(
-            len(files),
+            len([i for i in files if i.suffix != ".lock"]),
             3,
             f"Expected 3 files, found {len(files)}: {[f.name for f in files]}",
         )
@@ -287,9 +293,15 @@ class PreferencesTests(BaubleTestCase):
             f.writelines(junk_lines)
         p = prefs._prefs(pname)
         p.init()
+        # exclude lock file, behaviour of filelock has changed in recent
+        # versions (
+        # v3.20.3 mac left lock file in place after release win did not
+        # v3.23.0 neither left lock file in place
+        # v3.24.2 win leaves lock file in place mac does not
+        # ) so ignore as its not relavant to the test
         files = list(Path(pname).parent.glob(name + "*"))
         self.assertEqual(
-            len(files),
+            len([i for i in files if i.suffix != ".lock"]),
             3,
             f"Expected 3 files, found {len(files)}: {[f.name for f in files]}",
         )
