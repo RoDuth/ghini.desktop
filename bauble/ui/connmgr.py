@@ -56,6 +56,8 @@ from bauble.ui import dialogs
 from bauble.utils.web import get_net_sess
 from bauble.version import comparable_version
 
+parent = Path(__file__).resolve().parent
+
 
 def is_package_name(name: str) -> bool:
     """True if name identifies a package and it can be imported"""
@@ -402,7 +404,7 @@ def validate_readable_file(value: str, _field, _model) -> bool:
     return False
 
 
-@Gtk.Template(filename=str(Path(paths.lib_dir(), "connection_box.ui")))
+@Gtk.Template(filename=str(parent / "connection_box.ui"))
 class ConnectionBox(
     GenericPresenter[ConnectionModel],
     Gtk.Box,
@@ -667,7 +669,7 @@ class ConnectionBox(
         self.options_edited(path, 1, text)
 
 
-@Gtk.Template(filename=str(Path(paths.lib_dir(), "connection_manager.ui")))
+@Gtk.Template(filename=str(parent / "connection_manager.ui"))
 class ConnectionManagerDialog(Gtk.Dialog):
     """The connection manager GUI."""
 

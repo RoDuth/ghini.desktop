@@ -42,9 +42,9 @@ from bauble import pb_set_fraction
 from bauble import pluginmgr
 from bauble import task
 from bauble import utils
-from bauble.connmgr import start_connection_manager
 from bauble.i18n import _
 from bauble.ui import dialogs
+from bauble.ui.connmgr import start_connection_manager
 
 TOOLS_MENU_CATEGORY = _("Sync or Clone")
 

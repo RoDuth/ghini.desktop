@@ -53,13 +53,13 @@ from bauble import paths
 from bauble import pluginmgr
 from bauble import prefs
 from bauble import utils
-from bauble.connmgr import start_connection_manager
 from bauble.i18n import _
 from bauble.prefs import datetime_format_pref
 from bauble.search.query_builder import QueryBuilder
 from bauble.search.sql_search import SQLSearchDialog
 from bauble.search.stored_queries import StoredQueriesDialog
 from bauble.ui import dialogs
+from bauble.ui.connmgr import start_connection_manager
 from bauble.ui.utils import clear_model
 from bauble.ui.views import SearchView
 from bauble.ui.views import get_search_view

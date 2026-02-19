@@ -1,6 +1,6 @@
 # pylint: disable=no-self-use,too-many-public-methods,too-many-lines
 # Copyright (c) 2015 Mario Frasca <mario@anche.no>
-# Copyright (c) 2022-2025 Ross Demuth <rossdemuth123@gmail.com>
+# Copyright (c) 2022-2026 Ross Demuth <rossdemuth123@gmail.com>
 #
 # This file is part of ghini.desktop.
 #
@@ -36,19 +36,19 @@ from gi.repository import Gtk  # noqa
 import bauble
 from bauble import paths
 from bauble import prefs
-from bauble.connmgr import DBTYPES
-from bauble.connmgr import ConnectionBox
-from bauble.connmgr import ConnectionManagerDialog
-from bauble.connmgr import ConnectionModel
-from bauble.connmgr import check_create_paths
-from bauble.connmgr import check_new_release
-from bauble.connmgr import is_package_name
-from bauble.connmgr import notify_new_release
-from bauble.connmgr import retrieve_latest_release_data
-from bauble.connmgr import start_connection_manager
 from bauble.test import BaubleTestCase
 from bauble.test import check_dupids
 from bauble.test import update_gui
+from bauble.ui.connmgr import DBTYPES
+from bauble.ui.connmgr import ConnectionBox
+from bauble.ui.connmgr import ConnectionManagerDialog
+from bauble.ui.connmgr import ConnectionModel
+from bauble.ui.connmgr import check_create_paths
+from bauble.ui.connmgr import check_new_release
+from bauble.ui.connmgr import is_package_name
+from bauble.ui.connmgr import notify_new_release
+from bauble.ui.connmgr import retrieve_latest_release_data
+from bauble.ui.connmgr import start_connection_manager
 
 RESPONSE_OK = Gtk.ResponseType.OK
 RESPONSE_CANCEL = Gtk.ResponseType.CANCEL
@@ -58,7 +58,7 @@ TEMP_ROOT = mkdtemp()
 
 def test_duplicate_ids():
     """Test for duplicate ids for all .ui file."""
-    import bauble.connmgr as mod
+    import bauble.ui.connmgr as mod
 
     head, _tail = os.path.split(mod.__file__)
     assert not check_dupids(os.path.join(head, "connection_manager.ui"))
@@ -100,7 +100,7 @@ class ConnectionManagerTests(BaubleTestCase):
         self.assertTrue(presenter.noconnectionlabel.get_visible())
         presenter.destroy()
 
-    @mock.patch("bauble.connmgr.dialogs.yes_no_dialog")
+    @mock.patch("bauble.ui.connmgr.dialogs.yes_no_dialog")
     def test_on_remove_no_connection_name_bails(self, mock_dialog):
         prefs.prefs[bauble.CONN_LIST_PREF] = {
             "nugkui": {
@@ -117,7 +117,7 @@ class ConnectionManagerTests(BaubleTestCase):
         mock_dialog.assert_not_called()
         presenter.destroy()
 
-    @mock.patch("bauble.connmgr.dialogs.yes_no_dialog")
+    @mock.patch("bauble.ui.connmgr.dialogs.yes_no_dialog")
     def test_one_connection_on_remove_confirm_negative(self, mock_dialog):
         mock_dialog.return_value = False
         prefs.prefs[bauble.CONN_LIST_PREF] = {
@@ -135,7 +135,7 @@ class ConnectionManagerTests(BaubleTestCase):
         self.assertFalse(presenter.noconnectionlabel.get_visible())
         presenter.destroy()
 
-    @mock.patch("bauble.connmgr.dialogs.yes_no_dialog")
+    @mock.patch("bauble.ui.connmgr.dialogs.yes_no_dialog")
     def test_one_connection_on_remove_confirm_positive(self, mock_dialog):
         mock_dialog.return_value = True
         prefs.prefs[bauble.CONN_LIST_PREF] = {
@@ -239,7 +239,7 @@ class ConnectionManagerTests(BaubleTestCase):
 
         presenter.destroy()
 
-    @mock.patch("bauble.connmgr.dialogs.yes_no_dialog")
+    @mock.patch("bauble.ui.connmgr.dialogs.yes_no_dialog")
     def test_two_connection_on_remove_confirm_positive(self, mock_dialog):
         mock_dialog.return_value = True
         prefs.prefs[bauble.CONN_LIST_PREF] = {
@@ -447,7 +447,7 @@ class ConnectionManagerTests(BaubleTestCase):
         )
         presenter.destroy()
 
-    @mock.patch("bauble.connmgr.dialogs.entry_dialog")
+    @mock.patch("bauble.ui.connmgr.dialogs.entry_dialog")
     def test_parameters_to_uri_postgres(self, mock_dialog):
         mock_dialog.return_value = "secret"
         presenter = ConnectionManagerDialog()
@@ -511,7 +511,7 @@ class ConnectionManagerTests(BaubleTestCase):
         mock_dialog.assert_called_once()
         presenter.destroy()
 
-    @mock.patch("bauble.connmgr.dialogs.entry_dialog")
+    @mock.patch("bauble.ui.connmgr.dialogs.entry_dialog")
     def test_parameters_to_uri_mssql(self, mock_dialog):
         presenter = ConnectionManagerDialog()
         params = {
@@ -540,7 +540,7 @@ class ConnectionManagerTests(BaubleTestCase):
         self.assertRaises(ValueError, presenter.parameters_to_uri, params)
         presenter.destroy()
 
-    @mock.patch("bauble.connmgr.dialogs.entry_dialog")
+    @mock.patch("bauble.ui.connmgr.dialogs.entry_dialog")
     def test_connection_uri_property(self, mock_dialog):
         prefs.prefs[bauble.CONN_DEFAULT_PREF] = "quisquis"
         prefs.prefs[bauble.CONN_LIST_PREF] = {
@@ -636,7 +636,7 @@ class ConnectionManagerTests(BaubleTestCase):
 
         presenter.destroy()
 
-    @mock.patch("bauble.connmgr.dialogs.yes_no_dialog")
+    @mock.patch("bauble.ui.connmgr.dialogs.yes_no_dialog")
     def test_on_name_combo_changed_asks_saves_unsaved(self, mock_yn):
         prefs.prefs[bauble.CONN_LIST_PREF] = {
             "spam": {
@@ -786,7 +786,7 @@ class OptionsTests(BaubleTestCase):
 
         connection_box.destroy()
 
-    @mock.patch("bauble.connmgr.dialogs.entry_dialog")
+    @mock.patch("bauble.ui.connmgr.dialogs.entry_dialog")
     def test_new_mssql_adds_sensible_defaults(self, mock_dialog):
         presenter = ConnectionManagerDialog()
         mock_dialog.return_value = "spam"
@@ -809,7 +809,7 @@ class OptionsTests(BaubleTestCase):
 
         presenter.destroy()
 
-    @mock.patch("bauble.connmgr.dialogs.entry_dialog")
+    @mock.patch("bauble.ui.connmgr.dialogs.entry_dialog")
     def test_new_mssql_no_pyodbc_bails(self, mock_dialog):
         DBTYPES.remove("MSSQL")
         presenter = ConnectionManagerDialog()
@@ -870,7 +870,7 @@ class OptionsTests(BaubleTestCase):
 
 class AddConnectionTests(BaubleTestCase):
 
-    @mock.patch("bauble.connmgr.dialogs.entry_dialog")
+    @mock.patch("bauble.ui.connmgr.dialogs.entry_dialog")
     def test_on_add_button_clicked_no_name_bails(self, mock_dialog):
         presenter = ConnectionManagerDialog()
         self.assertFalse(presenter.expander.get_visible())
@@ -885,8 +885,8 @@ class AddConnectionTests(BaubleTestCase):
         self.assertIsNone(presenter.get_connection_box())
         presenter.destroy()
 
-    @mock.patch("bauble.connmgr.dialogs.yes_no_dialog")
-    @mock.patch("bauble.connmgr.dialogs.entry_dialog")
+    @mock.patch("bauble.ui.connmgr.dialogs.yes_no_dialog")
+    @mock.patch("bauble.ui.connmgr.dialogs.entry_dialog")
     def test_on_add_button_clicked_w_changes_asks_to_save(
         self, mock_dialog, mock_yn
     ):
@@ -917,7 +917,7 @@ class AddConnectionTests(BaubleTestCase):
 
         presenter.destroy()
 
-    @mock.patch("bauble.connmgr.dialogs.entry_dialog")
+    @mock.patch("bauble.ui.connmgr.dialogs.entry_dialog")
     def test_no_connection_on_add_confirm_negative(self, mock_dialog):
         presenter = ConnectionManagerDialog()
         mock_dialog.return_value = ""
@@ -928,7 +928,7 @@ class AddConnectionTests(BaubleTestCase):
         self.assertTrue(presenter.noconnectionlabel.get_visible())
         presenter.destroy()
 
-    @mock.patch("bauble.connmgr.dialogs.entry_dialog")
+    @mock.patch("bauble.ui.connmgr.dialogs.entry_dialog")
     def test_no_connection_on_add_confirm_positive(self, mock_dialog):
         presenter = ConnectionManagerDialog()
         mock_dialog.return_value = "spam"
@@ -939,7 +939,7 @@ class AddConnectionTests(BaubleTestCase):
         self.assertFalse(presenter.noconnectionlabel.get_visible())
         presenter.destroy()
 
-    @mock.patch("bauble.connmgr.dialogs.entry_dialog")
+    @mock.patch("bauble.ui.connmgr.dialogs.entry_dialog")
     def test_one_connection_on_add_confirm_positive(self, mock_dialog):
         prefs.prefs[bauble.CONN_LIST_PREF] = {
             "nugkui": {
@@ -1168,9 +1168,11 @@ class ConnectionBoxTests(BaubleTestCase):
 class GlobalFunctionsTests(BaubleTestCase):
     def test_make_absolute(self):
         path = str(Path(paths.appdata_dir(), "test/this"))
-        self.assertEqual(bauble.connmgr.make_absolute("./test/this"), path)
+        self.assertEqual(bauble.ui.connmgr.make_absolute("./test/this"), path)
         path = str(Path(paths.appdata_dir(), "test\\this"))
-        self.assertEqual(bauble.connmgr.make_absolute(".\\test\\this"), path)
+        self.assertEqual(
+            bauble.ui.connmgr.make_absolute(".\\test\\this"), path
+        )
 
     def test_is_package_name(self):
         self.assertTrue(is_package_name("sqlite3"))
@@ -1211,7 +1213,7 @@ class GlobalFunctionsTests(BaubleTestCase):
             bauble.release_date, dateutil.parser.isoparse(created_date)
         )
 
-    @mock.patch("bauble.connmgr.get_net_sess")
+    @mock.patch("bauble.ui.connmgr.get_net_sess")
     def test_retrieve_latest_release_data_returns_none_wo_bad_response(
         self, mock_get_net_sess
     ):
@@ -1224,7 +1226,7 @@ class GlobalFunctionsTests(BaubleTestCase):
         mock_response.get.asset_called()
         mock_response.json.asset_not_called()
 
-    @mock.patch("bauble.connmgr.get_net_sess")
+    @mock.patch("bauble.ui.connmgr.get_net_sess")
     def test_retrieve_latest_release_data_returns_none_w_error(
         self, mock_get_net_sess
     ):
@@ -1238,7 +1240,7 @@ class GlobalFunctionsTests(BaubleTestCase):
             logs.records[0].getMessage(),
         )
 
-    @mock.patch("bauble.connmgr.get_net_sess")
+    @mock.patch("bauble.ui.connmgr.get_net_sess")
     def test_retrieve_latest_release_data_returns_response(
         self, mock_get_net_sess
     ):
@@ -1340,7 +1342,7 @@ class GlobalFunctionsTests(BaubleTestCase):
         )
         self.assertFalse(os.path.isdir(os.path.join(temp_dir, "documents")))
 
-    @mock.patch("bauble.connmgr.Path.mkdir")
+    @mock.patch("bauble.ui.connmgr.Path.mkdir")
     def test_check_create_paths_no_permission(self, mock_mkdir):
         mock_mkdir.side_effect = OSError("BOOM")
         temp_dir = mkdtemp()
@@ -1421,7 +1423,7 @@ class ButtonBrowseButtons(BaubleTestCase):
 
 
 class OnDialogResponseTests(BaubleTestCase):
-    @mock.patch("bauble.connmgr.dialogs.message_dialog")
+    @mock.patch("bauble.ui.connmgr.dialogs.message_dialog")
     def test_on_dialog_response_ok_invalid_params(self, mock_dialog):
         presenter = ConnectionManagerDialog()
         # emit here to avoid warning "no emission of signal "response" to stop"
@@ -1468,7 +1470,7 @@ class OnDialogResponseTests(BaubleTestCase):
         )
         presenter.destroy()
 
-    @mock.patch("bauble.connmgr.dialogs.yes_no_dialog")
+    @mock.patch("bauble.ui.connmgr.dialogs.yes_no_dialog")
     def test_on_dialog_response_cancel_params_changed_dont_save(
         self, mock_dialog
     ):
@@ -1493,7 +1495,7 @@ class OnDialogResponseTests(BaubleTestCase):
         self.assertEqual(prefs.prefs[bauble.CONN_LIST_PREF], con_pref)
         presenter.destroy()
 
-    @mock.patch("bauble.connmgr.dialogs.yes_no_dialog")
+    @mock.patch("bauble.ui.connmgr.dialogs.yes_no_dialog")
     def test_on_dialog_response_cancel_params_changed_do_save(
         self, mock_dialog
     ):
@@ -1609,7 +1611,7 @@ class OnDialogResponseTests(BaubleTestCase):
 
 
 class StartConnectionManagerTests(BaubleTestCase):
-    @mock.patch("bauble.connmgr.ConnectionManagerDialog.run")
+    @mock.patch("bauble.ui.connmgr.ConnectionManagerDialog.run")
     def test_start_connection_manager_runs_dialog(self, mock_run):
         mock_run.return_value = RESPONSE_OK
         prefs.prefs[bauble.CONN_DEFAULT_PREF] = "nugkui"
@@ -1642,12 +1644,12 @@ class StartConnectionManagerTests(BaubleTestCase):
         }
 
         with mock.patch(
-            "bauble.connmgr.ConnectionManagerDialog"
+            "bauble.ui.connmgr.ConnectionManagerDialog"
         ) as mock_con_mgr:
             start_connection_manager("choose a connection")
             mock_con_mgr().image_box.remove.assert_called_once()
 
-    @mock.patch("bauble.connmgr.ConnectionManagerDialog.run")
+    @mock.patch("bauble.ui.connmgr.ConnectionManagerDialog.run")
     def test_start_connection_manager_dont_ask_wont_run_dialog(self, mock_run):
         prefs.prefs[bauble.CONN_DONT_ASK_PREF] = True
         ConnectionManagerDialog.first_run = True
@@ -1668,7 +1670,7 @@ class StartConnectionManagerTests(BaubleTestCase):
         )
         mock_run.assert_not_called()
 
-    @mock.patch("bauble.connmgr.ConnectionManagerDialog.run")
+    @mock.patch("bauble.ui.connmgr.ConnectionManagerDialog.run")
     def test_start_connection_manager_response_cancel_returns_none(
         self, mock_run
     ):
@@ -1689,8 +1691,8 @@ class StartConnectionManagerTests(BaubleTestCase):
         self.assertIsNone(uri)
         mock_run.assert_called_once()
 
-    @mock.patch("bauble.connmgr.ConnectionManagerDialog.run")
-    @mock.patch("bauble.connmgr.dialogs.entry_dialog")
+    @mock.patch("bauble.ui.connmgr.ConnectionManagerDialog.run")
+    @mock.patch("bauble.ui.connmgr.dialogs.entry_dialog")
     def test_start_connection_manager_no_passwd_asks_again(
         self,
         mock_dialog,

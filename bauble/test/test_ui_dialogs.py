@@ -225,8 +225,8 @@ class DialogTest(TestCase):
             )
             self.assertIn("unhandled Exception exception: BOOM", log.output[0])
 
-    @mock.patch("bauble.connmgr.Gtk.Entry.get_text")
-    @mock.patch("bauble.connmgr.Gtk.Dialog.run")
+    @mock.patch("bauble.ui.connmgr.Gtk.Entry.get_text")
+    @mock.patch("bauble.ui.connmgr.Gtk.Dialog.run")
     def test_run_entry_dialog(self, mock_run, mock_get_text):
         mock_run.return_value = Gtk.ResponseType.ACCEPT
         mock_get_text.return_value = "spam"

@@ -663,8 +663,8 @@ def set_global_root(*_args):
         picture_path_pref.split(".")[1],
         document_path_pref.split(".")[1],
     ]
-    from bauble.connmgr import check_create_paths
-    from bauble.connmgr import make_absolute
+    from bauble.ui.connmgr import check_create_paths
+    from bauble.ui.connmgr import make_absolute
 
     defaults = [
         make_absolute(prefs.get(root_directory_pref)),

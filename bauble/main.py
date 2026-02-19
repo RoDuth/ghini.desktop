@@ -39,10 +39,10 @@ from bauble import paths
 from bauble import pluginmgr
 from bauble import prefs
 from bauble import utils
-from bauble.connmgr import ConnectionManagerDialog
-from bauble.connmgr import start_connection_manager
 from bauble.i18n import _
 from bauble.ui import dialogs
+from bauble.ui.connmgr import ConnectionManagerDialog
+from bauble.ui.connmgr import start_connection_manager
 
 
 class Application(Gtk.Application):
