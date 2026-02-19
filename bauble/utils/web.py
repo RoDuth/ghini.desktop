@@ -25,10 +25,15 @@ import json
 import logging
 import re
 import socket
+import struct
 import sys
 import urllib.parse
 import urllib.request
+from calendar import monthrange
 from collections.abc import Callable
+from datetime import UTC
+from datetime import date
+from datetime import datetime
 from fnmatch import fnmatch
 from http.client import HTTPResponse
 from ipaddress import ip_address
@@ -133,7 +138,8 @@ class BaubleLinkButton(Gtk.LinkButton):
                     row,
                 )
             )
-        except Exception:
+        except Exception as e:  # pylint: disable=broad-except
+            logger.error("%s(%s)", type(e).__name__, e)
             # rather than crash let the user know
             self.set_sensitive(False)
             self.set_label(f"ERROR!!! <{self.title}>")
@@ -143,6 +149,24 @@ def link_button_factory(link: LinkDict) -> BaubleLinkButton:
     return type(
         link.get("name", "LinkButton"), (BaubleLinkButton,), dict(link)
     )()
+
+
+months = {
+    "JAN": 1,
+    "FEB": 2,
+    "MAR": 3,
+    "APR": 4,
+    "MAY": 5,
+    "JUN": 6,
+    "JUL": 7,
+    "AUG": 8,
+    "SEP": 9,
+    "OCT": 10,
+    "NOV": 11,
+    "DEC": 12,
+}
+
+weekdays = ["MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"]
 
 
 class PACFile:
@@ -159,6 +183,14 @@ class PACFile:
         self.add_function("myIpAddress", self.my_ip_address)
         self.add_function("shExpMatch", self.sh_exp_match)
         self.add_function("isPlainHostName", self.is_plain_host_name)
+        self.add_function("dnsResolve", self.dns_resolve)
+        self.add_function("isResolvable", self.is_resolvable)
+        self.add_function("localHostOrDomainIs", self.local_host_or_domain_is)
+        self.add_function("weekdayRange", self.weekday_range)
+        self.add_function("dateRange", self.date_range)
+        self.add_function("timeRange", self.time_range)
+        self.add_function("convert_addr", self.convert_addr)
+        self.add_function("alert", self.alert)
         logger.debug("PACFILE content:\n%s", pac)
         self.js_interp.evaljs(pac)
 
@@ -223,6 +255,166 @@ class PACFile:
     @staticmethod
     def is_plain_host_name(host: str) -> bool:
         return "." not in host
+
+    @staticmethod
+    def dns_resolve(host: str) -> str:
+        try:
+            return socket.gethostbyname(host)
+        except socket.gaierror:
+            return ""
+
+    @staticmethod
+    def is_resolvable(host: str) -> bool:
+        try:
+            socket.gethostbyname(host)
+            return True
+        except socket.gaierror:
+            return False
+
+    @staticmethod
+    def local_host_or_domain_is(host: str, hostdom: str) -> bool:
+        return (
+            host.lower() == hostdom.lower()
+            or host.lower() == hostdom.lower().split(".")[0]
+        )
+
+    @staticmethod
+    def weekday_range(*args: str) -> bool:
+        gmt = args[-1] == "GMT"
+        if gmt:
+            args = args[:-1]
+            now = datetime.now(UTC)
+        else:
+            now = datetime.now()
+
+        try:
+            days = [weekdays.index(v) for v in args]
+        except ValueError as e:
+            logger.debug("%s(%s)", type(e).__name__, e)
+            return False
+
+        if len(days) == 1:
+            result = now.weekday() == days[0]
+        elif len(days) == 2:
+            result = days[0] <= now.weekday() <= days[1]
+        else:
+            result = False
+        return result
+
+    @staticmethod
+    def date_range(  # pylint: disable=too-many-branches
+        *args: int | str,
+    ) -> bool:
+        def typ(val):
+            if not isinstance(val, int):
+                if val in months:
+                    return "month"
+                raise ValueError("unknown type")
+            if 0 < val <= 31:
+                return "day"
+            return "year"
+
+        gmt = args[-1] == "GMT"
+        if gmt:
+            args = args[:-1]
+            now = datetime.now(UTC)
+        else:
+            now = datetime.now()
+
+        try:
+            types = [typ(v) for v in args]
+            int_args = tuple(int(months.get(str(i), i)) for i in args)
+        except ValueError as e:
+            logger.debug("%s(%s)", type(e).__name__, e)
+            return False
+
+        match types:
+            case ["day"]:
+                result = now.day == int_args[0]
+            case ["month"]:
+                result = now.month == int_args[0]
+            case ["year"]:
+                result = now.year == int_args[0]
+            case ["day", "day"]:
+                result = int_args[0] <= now.day <= int_args[1]
+            case ["day", "month"]:
+                result = date(now.year, int_args[1], int_args[0]) == now.date()
+            case ["month", "month"]:
+                result = int_args[0] <= now.month <= int_args[1]
+            case ["month", "year"]:
+                result = date(int_args[1], int_args[0], now.day) == now.date()
+            case ["year", "year"]:
+                result = int_args[0] <= now.year <= int_args[1]
+            case ["day", "month", "day", "month"]:
+                result = (
+                    date(now.year, *int_args[1::-1])
+                    <= now.date()
+                    <= date(now.year, *int_args[:1:-1])
+                )
+            case ["month", "year", "month", "year"]:
+                result = (
+                    date(int_args[1], int_args[0], 1)
+                    <= now.date()
+                    <= date(
+                        int_args[3],
+                        int_args[2],
+                        monthrange(*int_args[:1:-1])[1],
+                    )
+                )
+            case ["day", "month", "year", "day", "month", "year"]:
+                result = (
+                    date(*int_args[2::-1])
+                    <= now.date()
+                    <= date(*int_args[:2:-1])
+                )
+            case _:
+                result = False
+        return result
+
+    @staticmethod
+    def time_range(*args: int | str) -> bool:
+        gmt = args[-1] == "GMT"
+        if gmt:
+            args = args[:-1]
+            now = datetime.now(UTC)
+        else:
+            now = datetime.now()
+
+        try:
+            times = tuple(int(v) for v in args)
+        except ValueError as e:
+            logger.debug("%s(%s)", type(e).__name__, e)
+            return False
+
+        match times:
+            case (hour,):
+                result = now.hour == hour
+            case (hour1, hour2):
+                result = hour1 <= now.hour <= hour2
+            case (_, _, _, _):
+                result = times[:2] <= (now.hour, now.minute) <= times[2:]
+            case (_, _, _, _, _, _):
+                result = (
+                    times[:3]
+                    <= (now.hour, now.minute, now.second)
+                    <= times[3:]
+                )
+            case _:
+                result = False
+        return result
+
+    @staticmethod
+    def convert_addr(ip: str) -> int:
+        # not too sure about this one
+        try:
+            return struct.unpack("!I", socket.inet_aton(ip))[0]
+        except Exception as e:  # pylint: disable=broad-except
+            logger.debug("%s(%s)", type(e).__name__, e)
+            return 0
+
+    @staticmethod
+    def alert(msg: str) -> None:
+        logger.info("PACFile alert: %s", msg)
 
 
 class NetResponse:

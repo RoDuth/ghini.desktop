@@ -22,6 +22,7 @@ import os
 import socket
 import sys
 import threading
+from datetime import date
 from tempfile import mkstemp
 from unittest import TestCase
 from unittest import mock
@@ -223,6 +224,123 @@ class PACFileTests(TestCase):
     def test_is_plain_host_name(self):
         self.assertTrue(PACFile.is_plain_host_name("www"))
         self.assertFalse(PACFile.is_plain_host_name("www.mozzila.com"))
+
+    def test_dns_resolve(self):
+        self.assertEqual(PACFile.dns_resolve("localhost"), "127.0.0.1")
+        with mock.patch("bauble.utils.web.socket.gethostbyname") as mock_name:
+            mock_name.side_effect = socket.gaierror
+            self.assertFalse(PACFile.dns_resolve("www.google.com"))
+
+    def test_is_resolvable(self):
+        self.assertTrue(PACFile.is_resolvable("www.google.com"))
+        with mock.patch("bauble.utils.web.socket.gethostbyname") as mock_name:
+            mock_name.side_effect = socket.gaierror
+            self.assertFalse(PACFile.is_resolvable("www.google.com"))
+
+    def test_local_host_or_domain_is(self):
+        self.assertTrue(
+            PACFile.local_host_or_domain_is(
+                "www.mozilla.org", "www.mozilla.org"
+            )
+        )
+        self.assertTrue(
+            PACFile.local_host_or_domain_is("www", "www.mozilla.org")
+        )
+        self.assertFalse(
+            PACFile.local_host_or_domain_is(
+                "www.google.com", "www.mozilla.org"
+            )
+        )
+        self.assertFalse(
+            PACFile.local_host_or_domain_is(
+                "home.mozilla.org", "www.mozilla.org"
+            )
+        )
+
+    @mock.patch("bauble.utils.web.datetime")
+    def test_weekday_range(self, mock_datetime):
+        mock_datetime.now().weekday.return_value = 2  # Wednesday
+
+        self.assertTrue(PACFile.weekday_range("MON", "FRI"))
+        self.assertTrue(PACFile.weekday_range("MON", "WED"))
+        self.assertTrue(PACFile.weekday_range("WED"))
+        self.assertTrue(PACFile.weekday_range("WED", "GMT"))
+        self.assertTrue(PACFile.weekday_range("WED", "FRI"))
+        self.assertFalse(PACFile.weekday_range("THU"))
+        self.assertFalse(PACFile.weekday_range("THU", "FRI"))
+        self.assertFalse(PACFile.weekday_range("MON", "TUE"))
+        self.assertFalse(PACFile.weekday_range("BADVAL", "TUE"))
+        self.assertFalse(PACFile.weekday_range("MON", "TUE", "WED"))
+
+    @mock.patch("bauble.utils.web.datetime")
+    def test_date_range(self, mock_datetime):
+        # 15/JUN/2024
+        mock_datetime.now.return_value = mock.Mock(year=2024, month=6, day=15)
+        mock_datetime.now().date.return_value = date(2024, 6, 15)
+
+        self.assertTrue(PACFile.date_range(15))
+        self.assertTrue(PACFile.date_range(1, 15))
+        self.assertTrue(PACFile.date_range(15, 25))
+        self.assertTrue(PACFile.date_range(15, "GMT"))
+        self.assertTrue(PACFile.date_range("JUN"))
+        self.assertTrue(PACFile.date_range("MAY", "AUG"))
+        self.assertTrue(PACFile.date_range(15, "JUN"))
+        self.assertTrue(PACFile.date_range(1, "JUN", 1, "JUL"))
+        self.assertTrue(PACFile.date_range(1, "JUN", 2024, 1, "JUL", 2024))
+        self.assertTrue(PACFile.date_range("JUN", 2024, "JUL", 2024))
+        self.assertTrue(PACFile.date_range("JUN", 2024))
+        self.assertTrue(PACFile.date_range(2024))
+        self.assertTrue(PACFile.date_range(2023, 2025))
+
+        self.assertFalse(PACFile.date_range(1))
+        self.assertFalse(PACFile.date_range(1, 14))
+        self.assertFalse(PACFile.date_range(16, 25))
+        self.assertFalse(PACFile.date_range(16, "GMT"))
+        self.assertFalse(PACFile.date_range("JUL"))
+        self.assertFalse(PACFile.date_range("JUL", "DEC"))
+        self.assertFalse(PACFile.date_range("JAN", "MAY"))
+        self.assertFalse(PACFile.date_range(15, "JUL"))
+        self.assertFalse(PACFile.date_range(16, "JUN"))
+        self.assertFalse(PACFile.date_range(16, "JUN", 1, "JUL"))
+        self.assertFalse(PACFile.date_range(1, "JUN", 2021, 1, "JUL", 2022))
+        self.assertFalse(PACFile.date_range(16, "JUN", 2024, 1, "JUL", 2024))
+        self.assertFalse(PACFile.date_range("JUL", 2024, "AUG", 2024))
+        self.assertFalse(PACFile.date_range(2025))
+        self.assertFalse(PACFile.date_range(2021, 2023))
+        self.assertFalse(PACFile.date_range("BADVAL", 2024))
+        self.assertFalse(PACFile.date_range("JUL", "DEC", "APR"))
+
+    @mock.patch("bauble.utils.web.datetime")
+    def test_time_range(self, mock_datetime):
+        # 15/JUN/2024 14:30:00
+        mock_datetime.now.return_value = mock.Mock(
+            year=2024, month=6, day=15, hour=14, minute=30, second=1
+        )
+
+        self.assertTrue(PACFile.time_range(14))
+        self.assertTrue(PACFile.time_range(14, "GMT"))
+        self.assertTrue(PACFile.time_range(12, 15))
+        self.assertTrue(PACFile.time_range(14, 20, 14, 40))
+        self.assertTrue(PACFile.time_range(14, 29, 55, 14, 30, 5))
+
+        self.assertFalse(PACFile.time_range(15))
+        self.assertFalse(PACFile.time_range(11, 13))
+        self.assertFalse(PACFile.time_range(14, 2, 14, 29))
+        self.assertFalse(PACFile.time_range(13, 20, 14, 29))
+        self.assertFalse(PACFile.time_range(14, 29, 55, 14, 30, 0))
+        self.assertFalse(PACFile.time_range(14, 20, 14, "BADVAL"))
+        self.assertFalse(PACFile.time_range(14, 20, 14, 14, 30, 0, 0))
+
+    def test_convert_addr(self):
+        self.assertEqual(PACFile.convert_addr("192.0.2.172"), 3221226156)
+        # NOTE: 3221226156 (unsigned 32 bit) == -1073741140 (signed 32 bit) ==
+        # 1745889538 (literal decimal from the MDN standard)
+        self.assertEqual(PACFile.convert_addr("BADVAL"), 0)
+
+    def test_alert(self):
+        with self.assertLogs(level="DEBUG") as logs:
+            PACFile.alert("TEST")
+        self.assertIn("TEST", logs.output[0])
 
     def test_find_proxy_for_url(self):
         pac = """
