@@ -222,7 +222,7 @@ def init(force: bool = False) -> None:
         try:
             if any(name in failed for name in plugin.depends):
                 raise BaubleError(
-                    "dependencies for {plugin.name} plugin are missing"
+                    f"dependencies for {plugin.name} plugin are missing"
                 )
 
             plugin.init()
