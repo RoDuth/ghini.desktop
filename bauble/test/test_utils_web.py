@@ -1,5 +1,5 @@
 # pylint: disable=no-self-use,protected-access,too-many-public-methods
-# Copyright (c) 2024-2025 Ross Demuth <rossdemuth123@gmail.com>
+# Copyright (c) 2024-2026 Ross Demuth <rossdemuth123@gmail.com>
 #
 # This file is part of ghini.desktop.
 #
