@@ -1,275 +1,45 @@
-#!/usr/bin/env python
-
-"""Simple desktop integration for Python. This module provides desktop
-environment detection and resource opening support for a selection of common
-and standardised desktop environments.
-
-Copyright (C) 2005, 2006, 2007 Paul Boddie <paul@boddie.org.uk>
-
-This library is free software; you can redistribute it and/or
-modify it under the terms of the GNU Lesser General Public
-License as published by the Free Software Foundation; either
-version 2.1 of the License, or (at your option) any later version.
-
-This library is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-Lesser General Public License for more details.
-
-You should have received a copy of the GNU Lesser General Public
-License along with this library; if not, write to the Free Software
-Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
-
---------
-
-Desktop Detection
------------------
-
-To detect a specific desktop environment, use the get_desktop function.
-To detect whether the desktop environment is standardised (according to the
-proposed DESKTOP_LAUNCH standard), use the is_standard function.
-
-Opening URLs
-------------
-
-To open a URL in the current desktop environment, relying on the automatic
-detection of that environment, use the desktop.open function as follows:
-
-desktop.open("http://www.python.org")
-
-To override the detected desktop, specify the desktop parameter to the open
-function as follows:
-
-desktop.open("http://www.python.org", "KDE") # Insists on KDE
-desktop.open("http://www.python.org", "GNOME") # Insists on GNOME
-
-Without overriding using the desktop parameter, the open function will attempt
-to use the "standard" desktop opening mechanism which is controlled by the
-DESKTOP_LAUNCH environment variable as described below.
-
-The DESKTOP_LAUNCH Environment Variable
----------------------------------------
-
-The DESKTOP_LAUNCH environment variable must be shell-quoted where appropriate,
-as shown in some of the following examples:
-
-DESKTOP_LAUNCH="kdialog --msgbox"       Should present any opened URLs in
-                                        their entirety in a KDE message box.
-                                        (Command "kdialog" plus parameter.)
-DESKTOP_LAUNCH="myopener"               Should run the "myopener" program to
-                                        open URLs.
-                                        (Command "my opener", no parameters.)
-DESKTOP_LAUNCH="myopener --url"         Should run the "myopener" program to
-                                        open URLs.
-                                        (Command "my opener" plus parameter.)
-
-Details of the DESKTOP_LAUNCH environment variable convention can be found
-here: http://lists.freedesktop.org/archives/xdg/2004-August/004489.html
-
+# Copyright 2026 Ross Demuth <rossdemuth123@gmail.com>
+#
+# This file is part of ghini.desktop.
+#
+# ghini.desktop is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# ghini.desktop is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with ghini.desktop. If not, see <http://www.gnu.org/licenses/>.
 """
-
-__version__ = "0.2.4"
-
+Utils for the desktop environment.
+"""
 import os
 import subprocess
 import sys
 
-from bauble import utils
-
-# Provide suitable process creation functions.
+from bauble.ui import dialogs
 
 
-def _run(cmd, shell, wait):
-    opener = subprocess.Popen(cmd, shell=shell)
-    if wait:
-        opener.wait()
-    return opener.pid
-
-
-def _readfrom(cmd, shell):
-    opener = subprocess.Popen(
-        cmd, shell=shell, stdin=subprocess.PIPE, stdout=subprocess.PIPE
-    )
-    opener.stdin.close()
-    return opener.stdout.read()
-
-
-def _status(cmd, shell):
-    opener = subprocess.Popen(cmd, shell=shell)
-    opener.wait()
-    return opener.returncode == 0
-
-
-#
-# Private functions.
-#
-
-
-def _is_xfce():
-    "Return whether XFCE is in use."
-
-    # XFCE detection involves testing the output of a program.
-
+def open(target: str, dialog_on_error: bool = False) -> None:
+    # pylint: disable=redefined-builtin
+    """Opens a file, url, etc. using the default application on Windows, macOS,
+    or Linux.
+    """
     try:
-        if not os.environ.get("DISPLAY", "").strip():
-            vars = "DISPLAY=:0.0 "
+        if sys.platform == "darwin":
+            subprocess.call(["open", target])
+        elif sys.platform == "win32":
+            os.startfile(target)
+        elif sys.platform == "linux":
+            subprocess.call(["xdg-open", target])
         else:
-            vars = ""
-        return (
-            _readfrom(vars + "xprop -root _DT_SAVE_MODE", shell=1)
-            .strip()
-            .endswith(' = "xfce4"')
-        )
-
-    except OSError:
-        return 0
-
-
-#
-# Introspection functions.
-#
-
-
-def get_desktop():
-    """
-    Detect the current desktop environment, returning the name of the
-    environment. If no environment could be detected, None is returned.
-    """
-
-    if "KDE_FULL_SESSION" in os.environ or "KDE_MULTIHEAD" in os.environ:
-        return "KDE"
-    elif (
-        "GNOME_DESKTOP_SESSION_ID" in os.environ
-        or "GNOME_KEYRING_SOCKET" in os.environ
-    ):
-        return "GNOME"
-    elif sys.platform == "darwin":
-        return "Mac OS X"
-    elif hasattr(os, "startfile"):
-        return "Windows"
-    elif _is_xfce():
-        return "XFCE"
-
-    # XFCE runs on X11, so we have to test for X11 last.
-
-    if "DISPLAY" in os.environ:
-        return "X11"
-    else:
-        return None
-
-
-def use_desktop(desktop):
-    """Decide which desktop should be used, based on the detected desktop and a
-    supplied 'desktop' argument (which may be None). Return an identifier
-    indicating the desktop type as being either "standard" or one of the
-    results from the 'get_desktop' function.
-    """
-
-    # Attempt to detect a desktop environment.
-
-    detected = get_desktop()
-
-    # Start with desktops whose existence can be easily tested.
-
-    if (desktop is None or desktop == "standard") and is_standard():
-        return "standard"
-    elif (desktop is None or desktop == "Windows") and detected == "Windows":
-        return "Windows"
-
-    # Test for desktops where the overriding is not verified.
-
-    elif (desktop or detected) == "KDE":
-        return "KDE"
-    elif (desktop or detected) == "GNOME":
-        return "GNOME"
-    elif (desktop or detected) == "XFCE":
-        return "XFCE"
-    elif (desktop or detected) == "LXDE":
-        return "LXDE"
-    elif (desktop or detected) == "Mac OS X":
-        return "Mac OS X"
-    elif (desktop or detected) == "X11":
-        return "X11"
-    else:
-        return None
-
-
-def is_standard():
-    """
-    Return whether the current desktop supports standardised application
-    launching.
-    """
-
-    return "DESKTOP_LAUNCH" in os.environ
-
-
-# Activity functions.
-
-
-def open(url, desktop=None, wait=0.5, dialog_on_error=False):
-    """
-    Open the 'url' in the current desktop's preferred file browser. If the
-    optional 'desktop' parameter is specified then attempt to use that
-    particular desktop environment's mechanisms to open the 'url' instead of
-    guessing or detecting which environment is being used.
-
-    Suggested values for 'desktop' are "standard", "KDE", "GNOME", "XFCE",
-    "Mac OS X", "Windows" where "standard" employs a DESKTOP_LAUNCH environment
-    variable to open the specified 'url'. DESKTOP_LAUNCH should be a command,
-    possibly followed by arguments, and must have any special characters
-    shell-escaped.
-
-    The process identifier of the "opener" (ie. viewer, editor, browser or
-    program) associated with the 'url' is returned by this function. If the
-    process identifier cannot be determined, None is returned.
-
-    An optional 'wait' parameter is also available for advanced usage and, if
-    'wait' is set to a true value, this function will wait for the launching
-    mechanism to complete before returning (as opposed to immediately returning
-    as is the default behaviour).
-    """
-
-    # Decide on the desktop environment in use.
-
-    desktop_in_use = use_desktop(desktop)
-    cmd = None
-    if desktop_in_use == "standard":
-        arg = "".join([os.environ["DESKTOP_LAUNCH"], subprocess.mkarg(url)])
-        return _run(arg, 1, wait)
-
-    elif desktop_in_use == "Windows":
-        # NOTE: This returns None in current implementations.
-        return os.startfile(url)
-
-    elif desktop_in_use in ["KDE", "GNOME", "LXDE", "XFCE"]:
-        cmd = ["xdg-open", url]
-
-    elif desktop_in_use == "Mac OS X":
-        cmd = ["open", url]
-
-    elif desktop_in_use == "X11" and "BROWSER" in os.environ:
-        cmd = [os.environ["BROWSER"], url]
-
-    if not cmd:
-        # can't detect the desktop environment. maybe xdg-open is available.
-        exe = utils.which("xdg-open")
-        if exe:
-            cmd = [exe, url]
-
-    # Finish with an error where no suitable desktop was
-    # identified.
-    try:
-        if not cmd:
-            raise OSError(
-                f"Could not open {url}s\n\n"
-                f"Unknown desktop environment: {desktop}s\n\n"
-            )
-    except Exception as e:
+            raise OSError(f"Unsupported operating system: {sys.platform}")
+    except Exception as e:  # pylint: disable=broad-except
         if dialog_on_error:
             dialogs.message_dialog(str(e))
         else:
             raise
-
-    # ResouceWarning here can be ignored I believe.
-    # See: https://bugs.python.org/issue38890
-    return _run(cmd, 0, wait)
