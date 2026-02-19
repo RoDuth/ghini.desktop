@@ -1434,6 +1434,20 @@ map_presenter: SearchViewMapPresenter | None = None
 
 
 def get_map_tile_proxy() -> str | None:
+    """Try find an appropriate proxy for map tiles downloads.
+
+    If anything goes wrong log the error and return None.
+    """
+    try:
+        return _get_map_tile_proxy()
+    except Exception as e:  # pylint: disable=broad-except
+        logger.error(
+            "Error getting map tile proxy: %s(%s)", type(e).__name__, e
+        )
+        return None
+
+
+def _get_map_tile_proxy() -> str | None:
     """Try find an appropriate proxy for map tiles downloads."""
     proxy = prefs.prefs.get(MAP_TILES_PROXY_PREF_KEY)
 

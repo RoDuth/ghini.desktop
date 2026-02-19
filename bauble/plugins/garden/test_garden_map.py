@@ -46,11 +46,11 @@ from bauble.test import BaubleTestCase
 from bauble.test import get_setUp_data_funcs
 from bauble.test import update_gui
 from bauble.test import wait_on_threads
-from bauble.utils.web import PACFile
-from bauble.utils.web import get_net_sess
 from bauble.ui.views import HomeView
 from bauble.ui.views import SearchView
 from bauble.ui.views import get_search_view
+from bauble.utils.web import PACFile
+from bauble.utils.web import get_net_sess
 
 from ..plants.species import SpeciesEditor
 from . import GardenPlugin
@@ -390,9 +390,7 @@ class LocationSearchMapTests(BaubleTestCase):
         GardenPlugin.init()
         self.assertIsInstance(HomeView.main_widget, LocationSearchMap)
         # select then re init should clear
-        HomeView.main_widget.loc_items = {
-            1: MapPoly(1, poly, colours["grey"])
-        }
+        HomeView.main_widget.loc_items = {1: MapPoly(1, poly, colours["grey"])}
         GardenPlugin.init()
         self.assertIsInstance(HomeView.main_widget, LocationSearchMap)
         self.assertFalse(HomeView.main_widget.loc_items)
@@ -1929,6 +1927,17 @@ class GlobalFunctionsTest(BaubleTestCase):
         """
         net_sess.pac_file = PACFile(pac_js)
         self.assertIsNone(get_map_tile_proxy())
+        net_sess.pac_file = None
+
+    def test_get_map_tile_proxy_from_pacfile_excepetion(self):
+        net_sess = get_net_sess()
+        net_sess.pac_file = mock.Mock()
+        net_sess.pac_file.find_proxy_for_url.side_effect = Exception("BOOM")
+        with self.assertLogs(level="ERROR") as logs:
+            self.assertEqual(get_map_tile_proxy(), None)
+        self.assertTrue(
+            any("Error getting map tile proxy" in i for i in logs.output)
+        )
         net_sess.pac_file = None
 
     def test_expunge_garden_map(self):
