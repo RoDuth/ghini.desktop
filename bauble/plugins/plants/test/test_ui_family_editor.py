@@ -177,7 +177,6 @@ class FamilyEditorDialogTests(BaubleTestCase):
 
         for response in Response:
             widget = editor.get_widget_for_response(response.value)
-            print(response.name)
             if response == Response.CANCEL:
                 self.assertTrue(widget.get_sensitive())
             else:
@@ -187,7 +186,6 @@ class FamilyEditorDialogTests(BaubleTestCase):
 
         for response in Response:
             widget = editor.get_widget_for_response(response.value)
-            print(response.name)
             self.assertTrue(widget.get_sensitive())
 
         editor.destroy()
