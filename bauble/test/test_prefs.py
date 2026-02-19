@@ -270,7 +270,12 @@ class PreferencesTests(BaubleTestCase):
         self.assertEqual(len(list(Path(pname).parent.glob(glob))), 1)
         p = prefs._prefs(pname)
         p.init()
-        self.assertEqual(len(list(Path(pname).parent.glob(glob))), 3)
+        files = list(Path(pname).parent.glob(glob))
+        self.assertEqual(
+            len(files),
+            3,
+            f"Expected 3 files, found {len(files)}: {[f.name for f in files]}",
+        )
 
     def test_init_corrupt_file_overwrites(self):
         handle, pname = mkstemp()
@@ -282,7 +287,12 @@ class PreferencesTests(BaubleTestCase):
             f.writelines(junk_lines)
         p = prefs._prefs(pname)
         p.init()
-        self.assertEqual(len(list(Path(pname).parent.glob(name + "*"))), 3)
+        files = list(Path(pname).parent.glob(name + "*"))
+        self.assertEqual(
+            len(files),
+            3,
+            f"Expected 3 files, found {len(files)}: {[f.name for f in files]}",
+        )
         corrupt = list(Path(pname).parent.glob(name + "CRPT*"))[0]
         with corrupt.open("r", encoding="utf-8") as f:
             lines = f.readlines()
