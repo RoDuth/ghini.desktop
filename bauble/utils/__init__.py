@@ -54,7 +54,7 @@ from pyparsing import ParseResults
 from pyparsing import Suppress
 from pyparsing import Word
 from pyparsing import alphanums
-from pyparsing import delimited_list
+from pyparsing import DelimitedList
 
 import bauble
 from bauble.error import check
@@ -706,7 +706,7 @@ def range_builder(text: str) -> list:
     out_type: Callable[[int], str | int]
 
     range_ = Group(Word(alphanums) + Suppress("-") + Word(alphanums))
-    range_list = delimited_list(range_ | Word(alphanums))
+    range_list = DelimitedList(range_ | Word(alphanums))
 
     try:
         tokens = range_list.parse_string(text)

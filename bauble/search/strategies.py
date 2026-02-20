@@ -50,7 +50,7 @@ from pyparsing import Group
 from pyparsing import Literal
 from pyparsing import OneOrMore
 from pyparsing import ParseException
-from pyparsing import delimited_list
+from pyparsing import DelimitedList
 from pyparsing import one_of
 from pyparsing import string_end
 from sqlalchemy import select
@@ -317,7 +317,7 @@ class DomainSearch(SearchStrategy):
     value_list_token = (
         Group(
             OneOrMore(value_token)
-            ^ delimited_list(value_token).set_name("delimited list")
+            ^ DelimitedList(value_token).set_name("delimited list")
         )
         .set_parse_action(ValueListToken)
         .set_name("value list")
@@ -387,7 +387,7 @@ class ValueListSearch(SearchStrategy):
     statement = (
         Group(
             OneOrMore(value_token)
-            ^ delimited_list(value_token).set_name("delimited list")
+            ^ DelimitedList(value_token).set_name("delimited list")
         )
         .set_parse_action(ValueListStatement)
         .set_name("statement")("query")

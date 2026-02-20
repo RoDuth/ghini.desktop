@@ -465,7 +465,7 @@ class PluginRegistry(db.Base):
     @staticmethod
     def names() -> list[str]:
         table = PluginRegistry.__table__
-        stmt = select([table.c.name])
+        stmt = select(table.c.name)
         with db.engine.begin() as connection:
             return connection.execute(stmt).scalars().all()
 

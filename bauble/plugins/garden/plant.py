@@ -42,7 +42,7 @@ from pyparsing import Literal
 from pyparsing import OneOrMore
 from pyparsing import ParseException
 from pyparsing import Word
-from pyparsing import delimited_list
+from pyparsing import DelimitedList
 from pyparsing import one_of
 from pyparsing import printables
 from pyparsing import quoted_string
@@ -377,7 +377,7 @@ class PlantSearch(SearchStrategy):
     operator = one_of("= == != <> like contains has")
     printable = printables.replace(",", "")
     value = quoted_string.set_parse_action(remove_quotes) | Word(printable)
-    value_list = delimited_list(value) ^ OneOrMore(value)
+    value_list = DelimitedList(value) ^ OneOrMore(value)
     equals = Literal("=")
     star_value = Literal("*")
     in_op = CaselessKeyword("in")

@@ -91,33 +91,33 @@ class SearchParserTests(BaubleClassTestCase):
         # allow dom=val1, val2, val3
         s = "plant=test"
         expected = "[plant = 'test']"
-        results = dom_parser.statement.parse_string(s, parseAll=True)
+        results = dom_parser.statement.parse_string(s, parse_all=True)
         self.assertEqual(results.getName(), "query")
         self.assertEqual(str(results), expected)
 
         s = "plant==test"
         expected = "[plant == 'test']"
-        results = dom_parser.statement.parse_string(s, parseAll=True)
+        results = dom_parser.statement.parse_string(s, parse_all=True)
         self.assertEqual(str(results), expected)
 
         s = "plant=*"
         expected = "[plant = *]"
-        results = dom_parser.statement.parse_string(s, parseAll=True)
+        results = dom_parser.statement.parse_string(s, parse_all=True)
         self.assertEqual(str(results), expected)
 
         s = "plant in test1 test2 test3"
         expected = "[plant IN ['test1', 'test2', 'test3']]"
-        results = dom_parser.statement.parse_string(s, parseAll=True)
+        results = dom_parser.statement.parse_string(s, parse_all=True)
         self.assertEqual(str(results), expected)
 
         s = 'plant in test1 "test2 test3" test4'
         expected = "[plant IN ['test1', 'test2 test3', 'test4']]"
-        results = dom_parser.statement.parse_string(s, parseAll=True)
+        results = dom_parser.statement.parse_string(s, parse_all=True)
         self.assertEqual(str(results), expected)
 
         s = 'plant in "test test"'
         expected = "[plant IN ['test test']]"
-        results = dom_parser.statement.parse_string(s, parseAll=True)
+        results = dom_parser.statement.parse_string(s, parse_all=True)
         self.assertEqual(str(results), expected)
 
     def test_integer_token(self):
@@ -135,7 +135,7 @@ class SearchParserTests(BaubleClassTestCase):
         strings = ["test", '"test"', "'test'"]
         expected = "test"
         for s in strings:
-            results = parser.value_token.parse_string(s, parseAll=True)
+            results = parser.value_token.parse_string(s, parse_all=True)
             self.assertEqual(results.getName(), "value")
             self.assertEqual(results.value.express(None), expected)
 
@@ -149,14 +149,14 @@ class SearchParserTests(BaubleClassTestCase):
         strings = ['"test1 test2"', "'test1 test2'"]
         expected = "test1 test2"  # this is one string! :)
         for s in strings:
-            results = parser.value_token.parse_string(s, parseAll=True)
+            results = parser.value_token.parse_string(s, parse_all=True)
             self.assertEqual(results.getName(), "value")
             self.assertEqual(results.value.express(None), expected)
 
         strings = ["%.-_*", '"%.-_*"']
         expected = "%.-_*"
         for s in strings:
-            results = parser.value_token.parse_string(s, parseAll=True)
+            results = parser.value_token.parse_string(s, parse_all=True)
             self.assertEqual(results.getName(), "value")
             self.assertEqual(results.value.express(None), expected)
 
@@ -172,7 +172,7 @@ class SearchParserTests(BaubleClassTestCase):
                 ParseException,
                 parser.value_token.parse_string,
                 s,
-                parseAll=True,
+                parse_all=True,
             )
 
     def test_value_list_token(self):
@@ -181,27 +181,27 @@ class SearchParserTests(BaubleClassTestCase):
         strings = ["test1, test2", '"test1", test2', "test1, 'test2'"]
         expected = [["test1", "test2"]]
         for s in strings:
-            results = parser.value_list_token.parse_string(s, parseAll=True)
+            results = parser.value_list_token.parse_string(s, parse_all=True)
             self.assertEqual(results.getName(), "value_list")
             self.assertEqual(str(results), str(expected))
 
         strings = ["test", '"test"', "'test'"]
         expected = [["test"]]
         for s in strings:
-            results = parser.value_list_token.parse_string(s, parseAll=True)
+            results = parser.value_list_token.parse_string(s, parse_all=True)
             self.assertEqual(results.getName(), "value_list")
             self.assertEqual(str(results), str(expected))
 
         strings = ["test1 test2 test3", "\"test1\" test2 'test3'"]
         expected = [["test1", "test2", "test3"]]
         for s in strings:
-            results = parser.value_list_token.parse_string(s, parseAll=True)
+            results = parser.value_list_token.parse_string(s, parse_all=True)
             self.assertEqual(str(results), str(expected))
 
         strings = ['"test1 test2", test3']
         expected = [["test1 test2", "test3"]]
         for s in strings:
-            results = parser.value_list_token.parse_string(s, parseAll=True)
+            results = parser.value_list_token.parse_string(s, parse_all=True)
             self.assertEqual(str(results), str(expected))
 
         # these should be invalid
@@ -211,7 +211,7 @@ class SearchParserTests(BaubleClassTestCase):
                 ParseException,
                 parser.value_list_token.parse_string,
                 s,
-                parseAll=True,
+                parse_all=True,
             )
 
 

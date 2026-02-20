@@ -730,20 +730,19 @@ def create(import_defaults=True):
 
         # fill in the bauble meta table and install all the plugins
         meta_table = meta.BaubleMeta.__table__
-        (
-            meta_table.insert(bind=connection)
-            .execute(name=meta.VERSION_KEY, value=str(bauble.version))
-            .close()
+        connection.execute(
+            meta_table.insert().values(
+                name=meta.VERSION_KEY,
+                value=str(bauble.version),
+            )
         )
         from dateutil.tz import tzlocal
 
-        (
-            meta_table.insert(bind=connection)
-            .execute(
+        connection.execute(
+            meta_table.insert().values(
                 name=meta.CREATED_KEY,
                 value=str(datetime.datetime.now(tz=tzlocal())),
             )
-            .close()
         )
     except (GeneratorExit, Exception) as e:
         # this is here in case the main windows is closed in the middle

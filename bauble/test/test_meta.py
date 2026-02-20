@@ -19,16 +19,44 @@
 """
 test for bauble.meta
 """
+from datetime import datetime
 from unittest import mock
 
 from gi.repository import Gtk
 
+import bauble
 from bauble import db
 from bauble import meta
 from bauble.test import BaubleTestCase
 
 
 class MetaTests(BaubleTestCase):
+    def test_meta_start_values(self):
+        # test the meta table is created and with default values in db.create
+        meta_count = self.session.query(meta.BaubleMeta).count()
+
+        self.assertEqual(meta_count, 2)
+
+        version = (
+            self.session.query(meta.BaubleMeta)
+            .filter_by(name=meta.VERSION_KEY)
+            .one()
+        )
+
+        self.assertEqual(version.value, bauble.version)
+
+        created = (
+            self.session.query(meta.BaubleMeta)
+            .filter_by(name=meta.CREATED_KEY)
+            .one()
+        )
+
+        self.assertAlmostEqual(
+            datetime.fromisoformat(created.value).timestamp(),
+            datetime.now().timestamp(),
+            delta=1,
+        )
+
     def test_get_default(self):
         """
         Test bauble.meta.get_default()

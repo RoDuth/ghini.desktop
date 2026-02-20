@@ -39,6 +39,7 @@ logger = logging.getLogger(__name__)
 from gi.repository import Gtk  # noqa
 from sqlalchemy import ColumnDefault
 from sqlalchemy import func
+from sqlalchemy import insert
 from sqlalchemy import inspect
 from sqlalchemy import select
 
@@ -900,7 +901,7 @@ class CSVRestore:
                 created_tables.append(table.name)
 
         steps_so_far = 0
-        insert = None
+        stmt = None
         depends = set()  # the type will be changed to a [] later
         try:
             logger.debug("entering try block in csv importer")
@@ -1044,7 +1045,9 @@ class CSVRestore:
                 defaults = {}
                 for column in table.c:
                     if isinstance(column.default, ColumnDefault):
-                        defaults[column.name] = column.default.execute()
+                        defaults[column.name] = connection.execute(
+                            column.default
+                        )
 
                 logger.debug("column defaults: %s", defaults)
                 # check if there are any foreign keys on the table that refer
@@ -1056,7 +1059,7 @@ class CSVRestore:
                     f for f in table.foreign_keys if f.column.table == table
                 ]
                 if self_keys:
-                    logger.debug("%s requires toposort")
+                    logger.debug("requires toposort")
                     key_pairs = [
                         (x.parent.name, x.column.name) for x in self_keys
                     ]
@@ -1066,15 +1069,13 @@ class CSVRestore:
                 # columns in the CSV file and the columns with
                 # defaults
                 column_keys = list(csv_columns.union(list(defaults.keys())))
-                insert = table.insert(bind=connection).compile(
-                    column_keys=column_keys
-                )
+                stmt = insert(table).compile(column_keys=column_keys)
 
                 def do_insert(values):
                     logger.debug("do_insert")
                     if values:
                         logger.debug("executing inserting")
-                        connection.execute(insert, *values)
+                        connection.execute(stmt, values)
 
                 with open(filename, "r", encoding="utf-8", newline="") as f:
                     values = []
@@ -1154,14 +1155,10 @@ class CSVRestore:
                 # or Postgres will complain if two tables that are
                 # being imported have a foreign key relationship
                 transaction.commit()
-                logger.debug(
-                    "%s: %s",
-                    table.name,
-                    select([func.count()])
-                    .select_from(table)
-                    .execute()
-                    .fetchone()[0],
-                )
+                count = connection.execute(
+                    select(func.count()).select_from(table)
+                ).scalar_one()
+                logger.debug("%s: %s", table.name, count)
                 transaction = connection.begin()
             logger.debug("creating: %s", deps_names)
             # TODO: need to get those tables from depends that need to
