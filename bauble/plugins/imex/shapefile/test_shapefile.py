@@ -1169,6 +1169,48 @@ class ExportSettingsBoxTests(ShapefileTestCase):
         self.assertEqual(self.plant_fields[-1][1], typ)
         self.assertEqual(self.plant_fields[-1][2], length)
 
+    @mock.patch("bauble.plugins.imex.shapefile.export_tool.SchemaMenu")
+    def test_menu_activated_default(self, mock_schema_menu):
+        settings_box = ExpSetBox(
+            Plant,
+            fields=self.plant_fields,
+            resize_func=lambda: False,
+            grid=MockGrid(),
+        )
+        start = len(self.plant_fields)
+        row = start + 1
+        # add blank record first
+        settings_box.on_add_button_clicked(None)
+        settings_box._add_prop_button("Default", row)
+
+        self.assertEqual(start + 1, len(self.plant_fields))
+        self.assertEqual(len(self.plant_fields[-1]), 4)
+        self.assertIsNone(self.plant_fields[-1][0])
+        self.assertEqual(self.plant_fields[-1][1], "C")
+        self.assertEqual(self.plant_fields[-1][2], 255)
+
+        # get inner function and call it (without set_default=False)
+        activated = mock_schema_menu.call_args.args[1]
+        with mock.patch("bauble.ui.dialogs.entry_dialog") as mock_dialog:
+            mock_dialog.return_value = "spam"
+            activated(None, "Default", None)
+
+            mock_dialog.assert_called_once_with("Default value", start_val="")
+            self.assertEqual(len(self.plant_fields[-1]), 5)
+            self.assertEqual(self.plant_fields[-1][-1], "spam")
+
+            # call_again, test dialog gets previous value
+            mock_dialog.reset_mock()
+            mock_dialog.return_value = "eggs"
+            activated(None, "Default", None)
+
+            mock_dialog.assert_called_once_with(
+                "Default value",
+                start_val="spam",
+            )
+            self.assertEqual(len(self.plant_fields[-1]), 5)
+            self.assertEqual(self.plant_fields[-1][-1], "eggs")
+
     def test_on_remove_button_drag_and_drop(self):
         settings_box = ExpSetBox(
             Plant,
@@ -1628,6 +1670,7 @@ class ShapefileExportTests(ShapefileTestCase):
         fields = [
             [k, *get_field_properties(Plant, v), v] for k, v in fields.items()
         ]
+        fields.append(["default", "N", 10, "Default", 2])
         exporter = self.exporter
         exporter.proj_db.add(prj=prj_str_4326, crs="epsg:4326")
         exporter.search_or_all = "rb_all_records"
@@ -1677,6 +1720,7 @@ class ShapefileExportTests(ShapefileTestCase):
             )
             self.assertEqual(shpf.record(0)["source"], "")
             self.assertEqual(shpf.record(0)["plc_holder"], "")
+            self.assertEqual(shpf.record(0)["default"], 2)
             self.assertIsNone(shpf.record(0)["coll_accy"], "")
             self.assertIsInstance(shpf.record(0)["received"], date)
             self.assertEqual(shpf.record(0)["received"], date(2021, 1, 1))
@@ -2277,6 +2321,21 @@ class ShapefileExportTests(ShapefileTestCase):
         self.session.commit()
         with self.assertRaises(MetaTableError):
             exporter.create_prj_file(shapefile_name)
+
+    def test_get_defaults(self):
+        fields = [
+            ["one", "C", 255, "Default", "spam"],
+            ["two", "N", 10, "Default", "2"],
+            ["three", "F", 10, "Default", "1.2345"],
+            ["four", "L", 10, "Default", "False"],
+            ["five", "D", 10, "Default", "1/1/2001"],
+        ]
+        result = self.exporter._get_defaults(fields)
+        self.assertEqual(result["one"], "spam")
+        self.assertEqual(result["two"], 2)
+        self.assertEqual(result["three"], 1.2345)
+        self.assertIs(result["four"], False)
+        self.assertEqual(result["five"], date(2001, 1, 1))
 
 
 class ImportSettingsBoxTests(ShapefileTestCase):

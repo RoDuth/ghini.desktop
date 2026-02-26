@@ -19,11 +19,12 @@ Export data to shapefiles (zip file with all component files).
 """
 
 import logging
+
+logger = logging.getLogger(__name__)
+
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from zipfile import ZipFile
-
-logger = logging.getLogger(__name__)
 
 from gi.repository import Gdk
 from gi.repository import GLib
@@ -37,6 +38,7 @@ from bauble import db
 from bauble import pb_set_fraction
 from bauble import prefs
 from bauble import task
+from bauble.btypes import parse_str_date
 from bauble.editor import GenericEditorPresenter
 from bauble.editor import GenericEditorView
 from bauble.editor import Problem
@@ -56,6 +58,7 @@ from bauble.search.query_builder import SchemaMenu
 from bauble.ui import dialogs
 from bauble.utils.geo import ProjDB
 
+from .. import ExtraTypes
 from .. import GenericExporter
 from . import LOCATION_SHAPEFILE_PREFS
 from . import PLANT_SHAPEFILE_PREFS
@@ -64,6 +67,7 @@ NAME = 0
 TYPE = 1
 SIZE = 2
 PATH = 3
+DEFAULT = 4
 
 TYPE_MAP = {
     "Enum": "C",
@@ -83,7 +87,7 @@ def get_field_properties(model, path):
     """Get the appropriate shapefile type and size proporties for a database
     field.
     """
-    if path in ["Note", "Empty"]:
+    if path in ExtraTypes:
         return "C", MAX_LENGTH
 
     if "." in path:
@@ -172,7 +176,7 @@ class ShapefileExportSettingsBox(Gtk.ScrolledWindow):
         logger.debug("export settings box shapefile fields: %s", self.fields)
         # make attach_row available outside for loop scope.
         attach_row = 0
-        for row, (name, typ, size, path) in enumerate(self.fields):
+        for row, (name, typ, size, path, *__) in enumerate(self.fields):
             attach_row = row + 1
             name_entry = Gtk.Entry(max_length=10)
             name_entry.set_text(name or "")
@@ -460,12 +464,28 @@ class ShapefileExportSettingsBox(Gtk.ScrolledWindow):
     def _add_prop_button(self, db_field, row):
         prop_button = Gtk.Button(hexpand=True, use_underline=False)
 
-        def menu_activated(_widget, path, _prop):
+        def menu_activated(_widget, path, _prop, set_default=True):
             """Closure of sorts, used to set the field_map and button label."""
+
             attached_row = self.grid.child_get_property(
                 prop_button, "top_attach"
             )
             row = attached_row - 1
+
+            if path == ExtraTypes.DEFAULT.value and set_default:
+
+                start_val = ""
+                if len(self.fields[row]) > DEFAULT:
+                    start_val = self.fields[row][DEFAULT]
+                    self.fields[row].pop()
+
+                default_val = dialogs.entry_dialog(
+                    "Default value",
+                    start_val=start_val,
+                )
+                if default_val is not None:
+                    self.fields[row].append(default_val)
+
             prop_button.get_style_context().remove_class("err-btn")
             if path:
                 prop_button.set_label(path)
@@ -476,15 +496,14 @@ class ShapefileExportSettingsBox(Gtk.ScrolledWindow):
 
             if self.fields[row][PATH] != path:
                 self.fields[row][PATH] = path
-                typ, size = get_field_properties(self.model, path)
-                self.fields[row][TYPE] = typ
-                self.fields[row][SIZE] = size
-                self.grid.get_child_at(TYPE, attached_row).set_active(
-                    self.type_vals.get(typ)
-                )
-                self.grid.get_child_at(SIZE, attached_row).set_text(
-                    str(size or "")
-                )
+                if self.fields[row][TYPE] is None:
+                    typ, size = get_field_properties(self.model, path)
+                    self.grid.get_child_at(TYPE, attached_row).set_active(
+                        self.type_vals.get(typ)
+                    )
+                    self.grid.get_child_at(SIZE, attached_row).set_value(
+                        int(size or 0)
+                    )
 
         schema_menu = SchemaMenu(
             class_mapper(self.model),
@@ -495,9 +514,9 @@ class ShapefileExportSettingsBox(Gtk.ScrolledWindow):
         )
 
         schema_menu.append(Gtk.SeparatorMenuItem())
-        for item in ["Note", "Empty"]:
-            xtra = Gtk.MenuItem(label=item, use_underline=False)
-            xtra.connect("activate", menu_activated, item, None)
+        for item in ExtraTypes:
+            xtra = Gtk.MenuItem(label=item.value, use_underline=False)
+            xtra.connect("activate", menu_activated, item.value, None)
             schema_menu.append(xtra)
 
         schema_menu.show_all()
@@ -505,7 +524,9 @@ class ShapefileExportSettingsBox(Gtk.ScrolledWindow):
         tooltip = (
             'use "Note" for a note of the item.  The current "name" will be '
             "used as the category for the note.  If you wish to include an "
-            'empty field use "Empty"'
+            'empty field use "Empty".  Similarly if you wish to have a field '
+            'with a default value for all rows use "Default" (you will be '
+            "prompted for a value)"
         )
         prop_button.set_tooltip_text(tooltip)
 
@@ -514,7 +535,7 @@ class ShapefileExportSettingsBox(Gtk.ScrolledWindow):
         )
         self.grid.attach(prop_button, 3, row, 1, 1)
         # this wont work if the prop_button hasn't been attached yet
-        menu_activated(None, db_field, None)
+        menu_activated(None, db_field, None, set_default=False)
         # return prop_button, schema_menu
 
     def cleanup(self):
@@ -750,11 +771,6 @@ class ShapefileExporter(GenericExporter):
         """The export task.
 
         Yields occasionally to allow the UI to update.
-
-        :param fields: a list of list of field name, type and size to add
-            to the shapefile
-        :param allowable_shapetypes: list of shapefile shapetypes to produce
-            shapefiles for.
         """
         session = db.Session()
 
@@ -763,6 +779,9 @@ class ShapefileExporter(GenericExporter):
         if self.domain is Plant:
             allowable_shapetypes = {"poly", "line", "point"}
             fields = self.plant_fields
+
+        logger.debug("allowable_shapetypes: %s", allowable_shapetypes)
+        logger.debug("fields: %s", fields)
 
         shapetypes, export_items = self.get_shapes_and_items(
             session, self.domain, allowable_shapetypes
@@ -930,8 +949,28 @@ class ShapefileExporter(GenericExporter):
 
     def add_fields(self, shape, shapefiles, fields):
         """Adds the field definitions to the shapefile."""
-        for name, typ, size, __ in fields:
+        for name, typ, size, *__ in fields:
             self.add_field(shapefiles.get(shape), name, typ, size)
+
+    @staticmethod
+    def _get_defaults(fields):
+        defaults = {}
+        for i in fields:
+            if len(i) > DEFAULT:
+                if i[TYPE] == "C":
+                    defaults[i[NAME]] = i[DEFAULT]
+                elif i[TYPE] == "N":
+                    defaults[i[NAME]] = int(i[DEFAULT])
+                elif i[TYPE] == "F":
+                    defaults[i[NAME]] = float(i[DEFAULT])
+                elif i[TYPE] == "L":
+                    falsy = ["false", "0", "f", "no", "n"]
+                    defaults[i[NAME]] = i[DEFAULT].lower() not in falsy
+                elif i[TYPE] == "D":
+                    dtime = parse_str_date(i[DEFAULT])
+                    if dtime:
+                        defaults[i[NAME]] = dtime.date()
+        return defaults
 
     def add_shapefile_record(self, item, fields, shapefiles):
         try:
@@ -956,12 +995,15 @@ class ShapefileExporter(GenericExporter):
                 self.generated_items.append(item)
             return
         shape = self.SHAPE_MAP.get(shape_type)
-        record = {}
 
+        defaults = self._get_defaults(fields)
+
+        record = {}
         record = self.get_item_record(
             item,
-            {k: v for k, __, __, v in fields},
+            {k: v for k, __, __, v in (i[:4] for i in fields)},
             date_types=[i[0] for i in fields if i[1] == "D"],
+            defaults=defaults,
         )
 
         shapefiles.get(shape).record(**record)

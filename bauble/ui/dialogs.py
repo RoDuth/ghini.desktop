@@ -320,6 +320,7 @@ def entry_dialog(
     title: str,
     visible: bool = True,
     parent: Gtk.Window | None = None,
+    start_val: str | None = None,
 ) -> str | None:
     """Run a minimal dialog with a single entry for user input.
 
@@ -345,6 +346,8 @@ def entry_dialog(
     dialog.set_position(Gtk.WindowPosition.CENTER)
     dialog.set_destroy_with_parent(True)
     entry = Gtk.Entry()
+    if start_val:
+        entry.set_text(start_val)
 
     entry.set_visibility(visible)
 

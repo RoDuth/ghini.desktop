@@ -22,16 +22,17 @@ imex plugin
 
 Description: plugin to provide importing and exporting
 """
+import logging
+
+logger = logging.getLogger(__name__)
 
 import csv
-import logging
 from abc import ABC
 from abc import abstractmethod
+from enum import Enum
 from operator import attrgetter
 
 from sqlalchemy.ext.hybrid import hybrid_property
-
-logger = logging.getLogger(__name__)
 
 from bauble import btypes
 from bauble import db
@@ -53,6 +54,12 @@ from bauble.ui import dialogs
 # NOTE: always beware when writing an imex plugin not to use the
 # table.insert().execute(*list) statement or it will fill in values for
 # missing columns so that all columns will have some value
+
+
+class ExtraTypes(Enum):
+    NOTE = _("Note")
+    EMPTY = _("Empty")
+    DEFAULT = _("Default")
 
 
 def is_importable_attr(domain: type[db.Domain], path: str) -> bool:
@@ -223,7 +230,7 @@ class GenericImporter(ABC):  # pylint: disable=too-many-instance-attributes
         for col, value in record.items():
             if self.fields.get(col) is None:
                 continue
-            if self.fields.get(col).startswith("Note"):
+            if self.fields.get(col).startswith(ExtraTypes.NOTE.value):
                 note_field = self.fields.get(col)
                 # If the note has supplied a category use it.
                 if note_field.endswith("]") and "[category=" in note_field:
@@ -632,7 +639,11 @@ class GenericExporter(ABC):
                     table = item.__table__
                 column_type = getattr(table.c, path.split(".")[-1]).type
             except AttributeError as e:
-                logger.debug("%s(%s)", type(e).__name__, e)
+                logger.debug(
+                    "Error getting type, may be a hybrid property - %s(%s)",
+                    type(e).__name__,
+                    e,
+                )
                 # path is to a table and not a column
                 column_type = None
 
@@ -667,7 +678,7 @@ class GenericExporter(ABC):
         return attr_notes
 
     @classmethod
-    def get_item_record(cls, item, fields, date_types=None):
+    def get_item_record(cls, item, fields, date_types=None, defaults=None):
         """Given a database entry and a dict of names to the paths to
         attributes return a dict of names to their values.
 
@@ -685,7 +696,7 @@ class GenericExporter(ABC):
         for name, path in fields.items():
             if name == "domain":
                 record[name] = path
-            elif path == "Note":
+            elif path == ExtraTypes.NOTE.value:
                 value = ""
                 # handle generated attribute notes
                 if hasattr(item, name) and name in attr_notes:
@@ -694,8 +705,10 @@ class GenericExporter(ABC):
                     value = [n.note for n in item.notes if n.category == name]
                     value = str(value[-1]) if value else ""
                 record[name] = str(value)
-            elif path == "Empty":
+            elif path == ExtraTypes.EMPTY.value:
                 record[name] = ""
+            elif path == ExtraTypes.DEFAULT.value:
+                record[name] = defaults.get(name, "") if defaults else ""
             elif path == item.__table__.key:
                 record[name] = str(item)
             else:
