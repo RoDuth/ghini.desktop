@@ -422,3 +422,7 @@ class SynonymsPresenterTests(BaubleTestCase):
             "rgb(0,0,255)",
         )
         self.assertEqual(cell.get_property("text"), "Leptospermaceae")
+        # doesn't fail for detached
+        self.session.expunge(synonym)
+
+        _syn_data_func(column, cell, model, treeiter, None)

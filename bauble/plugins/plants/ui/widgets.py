@@ -29,6 +29,7 @@ from typing import cast
 from gi.repository import GLib
 from gi.repository import GObject
 from gi.repository import Gtk
+from sqlalchemy import inspect
 from sqlalchemy.orm import Query
 from sqlalchemy.orm import Session
 from sqlalchemy.orm import object_session
@@ -101,6 +102,10 @@ class SynonymsExpander[T: Taxon](InfoExpander[T], Gtk.Expander):
 def _syn_data_func(_column, cell, model, treeiter, _data):
     # avoid using self.session - must be static or wont garbage collect
     val = model[treeiter][0]
+    if not inspect(val).persistent:
+        # may become detached on destroy
+        return
+
     cell.set_property("text", str(val))
     # background color to indicate it's new
     session = object_session(val)

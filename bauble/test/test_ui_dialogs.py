@@ -225,16 +225,18 @@ class DialogTest(TestCase):
             )
             self.assertIn("unhandled Exception exception: BOOM", log.output[0])
 
-    @mock.patch("bauble.ui.connmgr.Gtk.Entry.get_text")
     @mock.patch("bauble.ui.connmgr.Gtk.Dialog.run")
-    def test_run_entry_dialog(self, mock_run, mock_get_text):
+    def test_run_entry_dialog(self, mock_run):
         mock_run.return_value = Gtk.ResponseType.ACCEPT
-        mock_get_text.return_value = "spam"
-        result = entry_dialog("Enter your name", visible=False)
+        result = entry_dialog(
+            "What ya got then?",
+            visible=False,
+            start_val="spam, spam, spam, egg and spam",
+        )
 
-        self.assertEqual(result, "spam")
+        self.assertEqual(result, "spam, spam, spam, egg and spam")
 
         mock_run.return_value = Gtk.ResponseType.CANCEL
-        result = entry_dialog("Enter your name", visible=False)
+        result = entry_dialog("Have you got anything without spam in it?")
 
         self.assertIsNone(result)
