@@ -48,13 +48,14 @@ from xml.sax import saxutils
 
 from gi.repository import Gtk
 from PIL import Image
+from PIL import ImageOps
+from pyparsing import DelimitedList
 from pyparsing import Group
 from pyparsing import ParseException
 from pyparsing import ParseResults
 from pyparsing import Suppress
 from pyparsing import Word
 from pyparsing import alphanums
-from pyparsing import DelimitedList
 
 import bauble
 from bauble.error import check
@@ -133,10 +134,11 @@ def copy_picture_with_thumbnail(
         prefs.prefs[prefs.picture_root_pref], "thumbs", rename or basename
     )
     try:
-        img = Image.open(filename)
-        img.thumbnail((400, 400))
-        logger.debug("copying %s to %s", filename, full_dest_path)
-        img.save(full_dest_path)
+        with Image.open(filename) as img_file:
+            img = ImageOps.exif_transpose(img_file)
+            img.thumbnail((400, 400))
+            logger.debug("copying %s to %s", filename, full_dest_path)
+            img.save(full_dest_path)
     except Exception as e:  # pylint: disable=broad-except
         logger.warning(
             "unexpected exception making thumbnail: %s(%s)",
