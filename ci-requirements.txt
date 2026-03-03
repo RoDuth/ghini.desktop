@@ -1,5 +1,6 @@
 # extra DB-API connectors, build/test tools, etc.
-psycopg2
+psycopg2; sys_platform != 'darwin'
+psycopg2-binary; sys_platform == 'darwin'
 pyodbc
 Babel
 coverage
