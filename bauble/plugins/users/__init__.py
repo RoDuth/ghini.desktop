@@ -22,9 +22,10 @@ Users, permissions, roles etc... postgresql only.
 """
 
 import logging
-from pathlib import Path
 
 logger = logging.getLogger(__name__)
+
+from pathlib import Path
 
 from gi.repository import Gtk
 from sqlalchemy import Integer
@@ -44,6 +45,7 @@ from bauble import pluginmgr
 from bauble import utils
 from bauble.error import check
 from bauble.i18n import _
+from bauble.ui import dialogs
 from bauble.ui.utils import clear_model
 
 # WARNING: "roles" are specific to PostgreSQL databases and won't work on other

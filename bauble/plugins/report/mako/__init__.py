@@ -22,20 +22,21 @@ The Mako report generator module.
 """
 
 import logging
+
+logger = logging.getLogger(__name__)
+
 import os
 import tempfile
 from ast import literal_eval
 from pathlib import Path
 
-logger = logging.getLogger(__name__)
-
-from gi.repository import Gtk  # noqa
+from gi.repository import Gtk
 from mako.template import Template  # type: ignore [import-untyped]
 
 from bauble import paths
 from bauble import utils
 from bauble.i18n import _
-from bauble.ui.dialogs import file_chooser_dialog
+from bauble.ui import dialogs
 from bauble.ui.utils import set_widget_value
 
 from .. import FormatterPlugin
@@ -80,7 +81,7 @@ class MakoFormatterSettingsBox(SettingsBox):
             last_folder = str(Path(previously).parent)
         else:
             last_folder = paths.templates_dir()
-        file_chooser_dialog(
+        dialogs.file_chooser_dialog(
             _("Select a stylesheet"),
             None,
             Gtk.FileChooserAction.OPEN,
@@ -214,7 +215,7 @@ class MakoFormatterSettingsBox(SettingsBox):
             last_folder = str(Path(previously).parent)
         else:
             last_folder = str(Path.home())
-        file_chooser_dialog(
+        dialogs.file_chooser_dialog(
             _("Select a file"),
             None,
             Gtk.FileChooserAction.OPEN,

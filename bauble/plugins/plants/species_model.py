@@ -22,12 +22,13 @@ The species database model
 """
 
 import logging
+
+logger = logging.getLogger(__name__)
+
 import re
 from datetime import datetime
 from itertools import chain
 from typing import TYPE_CHECKING
-
-logger = logging.getLogger(__name__)
 
 from sqlalchemy import CheckConstraint
 from sqlalchemy import Column
@@ -61,6 +62,7 @@ from bauble import db
 from bauble import prefs
 from bauble import utils
 from bauble.i18n import _
+from bauble.ui import dialogs
 
 from .geography import DistributionMap
 from .geography import Geography
