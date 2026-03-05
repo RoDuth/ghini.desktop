@@ -98,6 +98,8 @@ EXPAND_ON_ACTIVATE_PREF = "bauble.search.expand_on_activate"
 
 BOTTOM_NOTEBOOK_PAGE_PREF = "bauble.search.bottom_page"
 
+parent = Path(__file__).resolve().parent
+
 
 class ActionCallback[T: db.Domain](Protocol):
     # pylint: disable=too-few-public-methods,undefined-variable
@@ -240,7 +242,7 @@ class ViewMeta(UserDict):
         return super().__getitem__(item)
 
 
-@Gtk.Template(filename=str(Path(paths.lib_dir(), "search_view.ui")))
+@Gtk.Template(filename=str(parent / "search_view.ui"))
 class SearchView(View, Gtk.Box):
     # pylint: disable=too-many-public-methods,too-many-instance-attributes
     """The SearchView is the main view for Ghini.

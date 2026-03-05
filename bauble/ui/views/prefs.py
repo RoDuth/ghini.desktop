@@ -36,14 +36,14 @@ from gi.repository import Gtk
 
 import bauble
 from bauble import db
-from bauble import paths
 from bauble import pluginmgr
 from bauble import prefs
-from bauble import utils
 from bauble.i18n import _
 from bauble.ui import dialogs
 
 from .base import View
+
+parent = Path(__file__).resolve().parent
 
 
 def _remove_empty_config_sections(config: ConfigParser) -> None:
@@ -61,9 +61,7 @@ def _remove_empty_config_sections(config: ConfigParser) -> None:
         config.remove_section(section)
 
 
-@Gtk.Template(
-    filename=str(Path(__file__).resolve().parent / "prefs_reset_dialog.ui")
-)
+@Gtk.Template(filename=str(parent / "prefs_reset_dialog.ui"))
 class PrefsResetDialog(Gtk.Dialog):
     __gtype_name__ = "PrefsResetDialog"
 
@@ -163,7 +161,7 @@ class PrefsResetDialog(Gtk.Dialog):
         self.liststore[path][1] = not cell.get_active()
 
 
-@Gtk.Template(filename=str(Path(paths.lib_dir(), "prefs_view.ui")))
+@Gtk.Template(filename=str(parent / "prefs_view.ui"))
 class PrefsView(View, Gtk.Box):
     """The PrefsView displays the values in the plugin registry and displays
     and allows limited editing of preferences, only after warning users of

@@ -202,7 +202,7 @@ class PicturesScroller(Gtk.ScrolledWindow):
                 ):
                     pic_root = prefs.prefs.get(prefs.picture_root_pref)
                     full_path = Path(pic_root, link)
-                utils.desktop.open(full_path or link)
+                utils.desktop.open(str(full_path) or link)
             elif event.type == Gdk.EventType.BUTTON_PRESS:
                 self.single_button_press_timer = threading.Timer(
                     0.3, self._on_single_button_press, (picture,)

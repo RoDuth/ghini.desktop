@@ -66,10 +66,10 @@ from bauble.ui import dialogs
 
 from .base import View
 
+parent = Path(__file__).resolve().parent
 
-@Gtk.Template(
-    filename=str(Path(__file__).resolve().parent / "history_view.ui")
-)
+
+@Gtk.Template(filename=str(parent / "history_view.ui"))
 class HistoryView(View, Gtk.Box):
     """Show the tables row in the order they were last updated."""
 
