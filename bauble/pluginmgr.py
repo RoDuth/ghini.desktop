@@ -217,12 +217,13 @@ def init(force: bool = False) -> None:
     # call init() for each of the plugins
     failed: list[str] = []
     for plugin in registered.copy():
+        plugin_name = type(plugin).__name__
         logger.debug("about to invoke init on: %s", plugin)
 
         try:
             if any(name in failed for name in plugin.depends):
                 raise BaubleError(
-                    f"dependencies for {plugin.name} plugin are missing"
+                    f"dependencies for {plugin_name} plugin are missing"
                 )
 
             plugin.init()
@@ -230,10 +231,10 @@ def init(force: bool = False) -> None:
         except Exception as e:  # pylint: disable=broad-except
             logger.error("%s(%s)", type(e).__name__, e)
             registered.remove(plugin)
-            failed.append(type(plugin).__name__)
+            failed.append(plugin_name)
             logger.info(traceback.format_exc())
             values = {
-                "entry_name": type(plugin).__name__,
+                "entry_name": plugin_name,
                 "exception": utils.xml_safe(e),
             }
             dialogs.message_details_dialog(

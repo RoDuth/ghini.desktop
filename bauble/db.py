@@ -317,7 +317,7 @@ class Domain(Base):
         return sqlacast(literal(True), types.Boolean)
 
     def search_view_markup_pair(self) -> tuple[str, str]:
-        return utils.xml_safe(str(self)), type(self).__name__
+        return str(self), type(self).__name__
 
     def has_children(self) -> bool:
         raise NotImplementedError
