@@ -3553,7 +3553,7 @@ class TestPicturesScroller(BaubleTestCase):
         picture_scroller.on_button_press(
             None, mock_event, mock.Mock(picture="test.jpg")
         )
-        mock_open.assert_called_with(Path("pictures/test.jpg"))
+        mock_open.assert_called_with("pictures/test.jpg")
         mock_open.reset_mock()
         with mock.patch("bauble.gui") as mock_gui:
             mock_event = mock.Mock(button=1, type=Gdk.EventType.BUTTON_PRESS)
@@ -3568,7 +3568,7 @@ class TestPicturesScroller(BaubleTestCase):
             )
             wait_on_threads()
             update_gui()
-            mock_open.assert_called_with(Path("pictures/test.jpg"))
+            mock_open.assert_called_with("pictures/test.jpg")
             mock_gui.assert_not_called()
 
     def test_on_button_press_single_click_emits_picture_selected(self):
