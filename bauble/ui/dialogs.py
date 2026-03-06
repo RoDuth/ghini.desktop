@@ -172,7 +172,7 @@ def create_yes_no_dialog(
 def yes_no_dialog(
     msg: str,
     parent: Gtk.Window | None = None,
-    yes_delay: int = -1,
+    yes_delay: float = -1,
 ) -> bool:
     """Create a yes/no dialog, run it and destroy it.
 
@@ -194,7 +194,7 @@ def yes_no_dialog(
                 dialog.set_response_sensitive(Gtk.ResponseType.YES, True)
             return False
 
-        GLib.timeout_add(yes_delay * 1000, on_timeout)
+        GLib.timeout_add(int(yes_delay * 1000), on_timeout)
     response = dialog.run()
     dialog.destroy()
     return response == Gtk.ResponseType.YES
