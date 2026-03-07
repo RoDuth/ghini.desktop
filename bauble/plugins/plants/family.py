@@ -210,6 +210,9 @@ class Family(Taxon, db.WithNotes):
 
         return " ".join([str(s) for s in parts if s not in (None, "")])
 
+    def search_view_markup_pair(self) -> tuple[str, str]:
+        return self.string(author=True), "Family"
+
     @hybrid_property
     def active(self) -> bool:
         """False when all accessions have been deaccessioned or no genera or
@@ -395,9 +398,12 @@ class FamilySynonym(Synonym):  # pylint: disable=too-few-public-methods
     synonym: Mapped["Family"]
     family: Mapped["Family"]
 
-    # TODO all these should include authors etc.
-    def __str__(self):
-        return Family.string(self.synonym)
+    def __str__(self) -> str:
+        return self.synonym.string(author=True)
+
+    def markup(self) -> str:
+        # no markup for family
+        return self.synonym.string(author=True)
 
 
 # avoid circular imports

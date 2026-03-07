@@ -38,6 +38,9 @@ class Taxon(db.Domain):
     def __str__(self) -> str:
         raise NotImplementedError
 
+    def search_view_markup_pair(self) -> tuple[str, str]:
+        raise NotImplementedError
+
 
 class Synonym(db.Base):  # pylint: disable=too-few-public-methods
 
@@ -49,4 +52,7 @@ class Synonym(db.Base):  # pylint: disable=too-few-public-methods
     is_one_to_one = True
 
     def __str__(self) -> str:
+        raise NotImplementedError
+
+    def markup(self) -> str:
         raise NotImplementedError

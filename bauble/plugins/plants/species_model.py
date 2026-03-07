@@ -544,18 +544,20 @@ class Species(Taxon, db.WithNotes):
         except MultipleResultsFound:
             return None
 
-    def search_view_markup_pair(self):
+    def search_view_markup_pair(self) -> tuple[str, str]:
         """provide the two lines describing object for SearchView row."""
         try:
             if len(self.vernacular_names) > 0:
-                vernacular_names = []
+                vernacular_names: list[str] = []
                 for vernacular_name in sorted(self.vernacular_names, key=str):
                     if vernacular_name is not self.default_vernacular_name:
-                        vernacular_name = (
+                        vernacular_str = (
                             '<span foreground="#555555" weight="light">'
                             f"{vernacular_name}</span>"
                         )
-                    vernacular_names.append(str(vernacular_name))
+                    else:
+                        vernacular_str = str(vernacular_name)
+                    vernacular_names.append(vernacular_str)
 
                 vnames = ", ".join([str(v) for v in vernacular_names])
                 substring = f"{self.genus.family} -- {vnames}"
@@ -894,7 +896,7 @@ class Species(Taxon, db.WithNotes):
             qualified rank, second is the qualification.
         :param for_search_view: in search view authorship is in light text
         """
-        authors = kwargs.get("authors", False)
+        authors = kwargs.get("authors", kwargs.get("author", False))
         markup = kwargs.get("markup", False)
         remove_zws = kwargs.get("revove_zws", True)
         genus = kwargs.get("genus", True)
@@ -1380,8 +1382,11 @@ class SpeciesSynonym(Synonym):
     species: Mapped["Species"]
     synonym: Mapped["Species"]
 
-    def __str__(self):
-        return str(self.synonym)
+    def __str__(self) -> str:
+        return self.synonym.string(author=True)
+
+    def markup(self) -> str:
+        return self.synonym.markup(authors=True)
 
 
 class VernacularName(db.Domain):

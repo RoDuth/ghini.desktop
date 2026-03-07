@@ -36,6 +36,7 @@ from unittest import mock
 
 from gi.repository import Gdk
 from gi.repository import Gtk
+from sqlalchemy import select
 from sqlalchemy import update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.exc import SQLAlchemyError
@@ -882,11 +883,23 @@ class FamilyTests(PlantTestCase):
         f.author = "arthur"
         self.assertTrue(f.string(author=True) == "fam s. lat. arthur")
 
+    def test_search_view_markup_pair(self):
+        fam = Family(epithet="Myrtaceae", author="Juss.")
+        self.assertEqual(
+            fam.search_view_markup_pair(), ("Myrtaceae Juss.", "Family")
+        )
+
     def test_synonym_str(self):
         fam = Family(family="Fam", qualifier="s. lat.", author="Arthur")
         new = Family(family="Newname")
         syn = FamilySynonym(family=new, synonym=fam)
-        self.assertEqual(str(syn), str(fam))
+        self.assertEqual(str(syn), fam.string(author=True))
+
+    def test_synonym_markup(self):
+        fam = Family(family="Fam", qualifier="s. lat.", author="Arthur")
+        new = Family(family="Newname")
+        syn = FamilySynonym(family=new, synonym=fam)
+        self.assertEqual(str(syn), fam.string(author=True))
 
     def test_no_synonyms_means_itself_accepted(self):
         def create_tmp_fam(id):
@@ -2363,6 +2376,14 @@ class SpeciesTests(PlantTestCase):
         self.assertEqual(sp2.accepted, sp4)
         self.assertEqual(sp3.accepted, sp1)
         self.assertEqual(sp4.accepted, None)
+
+    def test_synonym_str(self):
+        syn = self.session.execute(select(SpeciesSynonym)).scalar()
+        self.assertEqual(str(syn), syn.synonym.string(author=True))
+
+    def test_synonym_markup(self):
+        syn = self.session.execute(select(SpeciesSynonym)).scalar()
+        self.assertEqual(syn.markup(), syn.synonym.markup(authors=True))
 
     def test_remove_callback_no_accessions_no_confirm(self):
         caricaceae = Family(family="Caricaceae")

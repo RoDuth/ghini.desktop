@@ -535,7 +535,10 @@ class GenusSynonym(Synonym):
     genus: Mapped["Genus"]
 
     def __str__(self) -> str:
-        return f"{str(self.synonym)} ({self.synonym.family})"
+        return f"{self.synonym.string(author=True)} ({self.synonym.family})"
+
+    def markup(self) -> str:
+        return f"{self.synonym.markup(authors=True)} ({self.synonym.family})"
 
 
 def generic_gen_get_completions(session: Session, text: str) -> Query:
