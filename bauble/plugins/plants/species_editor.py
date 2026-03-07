@@ -59,9 +59,6 @@ from bauble.ui.utils import set_widget_value
 from .family import Family
 from .genus import Genus
 from .genus import GenusSynonym
-from .genus import generic_gen_get_completions
-from .genus import genus_cell_data_func
-from .genus import genus_match_func
 from .geography import Geography
 from .geography import GeographyMenu
 from .geography import consolidate_geographies
@@ -73,6 +70,99 @@ from .species_model import VernacularName
 from .species_model import compare_rank
 from .species_model import infrasp_rank_values
 from .species_model import red_list_values
+
+
+def generic_gen_get_completions(session: Session, text: str) -> Query:
+    """A generic genus get_completion.
+
+    intended use is by supplying the local session via `functools.partial`
+
+    e.g.:
+    `completions = partial(generic_sp_get_completions, self.session)`
+
+    :param session: a local session to use for the query.
+    :param text: a string to search for
+    """
+    query = session.query(Genus)
+    hybrid = ""
+    genus = text.removeprefix("×").removeprefix("+").strip()
+    try:
+        if text[0] in ["×", "+"]:
+            hybrid = text[0]
+    except (AttributeError, IndexError):
+        pass
+    query = query.filter(utils.ilike(Genus.genus, f"{genus}%"))
+    if hybrid:
+        query = query.filter(Genus.hybrid == hybrid)
+    return query.order_by(Genus.genus)
+
+
+def genus_to_string_matcher(
+    genus: Genus,
+    key: str,
+    gen_path: str = "",
+) -> bool:
+    """Helper function to match string or partial string.
+
+    :param genus: a Genus table entry
+    :param key: the string to search with
+    :param gen_path: optional path for model obects to get to the genus
+
+    :return: bool, True if the genus matches the key
+    """
+    if gen_path:
+        from operator import attrgetter
+
+        genus = attrgetter(gen_path)(genus)
+    key = key.removeprefix("× ").removeprefix("+ ").lower()
+    return genus.genus.lower().startswith(key)
+
+
+def genus_match_func(
+    completion: Gtk.EntryCompletion,
+    key: str,
+    treeiter: int,
+    gen_path: str = "",
+) -> bool:
+    """match_func that allows partial matches.
+
+    :param completion: the completion to match
+    :param key: lowercase string of the entry text
+    :param treeiter: the row number for the item to match
+    :param gen_path: optional path for model obects to get to the genus
+
+    :return: bool, True if the item at the treeiter matches the key
+    """
+    tree_model = completion.get_model()
+    if not tree_model:
+        raise AttributeError(f"can't get TreeModel from {completion}")
+    genus = tree_model[treeiter][0]
+    if not sa_inspect(genus).persistent:
+        return False
+    return genus_to_string_matcher(genus, key, gen_path)
+
+
+def genus_cell_data_func(
+    _column,
+    renderer: Gtk.CellRendererText,
+    model: Gtk.ListStore,
+    treeiter: Gtk.TreeIter,
+) -> None:
+    value = model[treeiter][0]
+    author = ""
+    if value.author:
+        author = utils.xml_safe(str(value.author))
+    hybrid = ""
+    if value.hybrid:
+        hybrid = f"{value.hybrid} "
+    # occassionally the session gets lost and can result in
+    # DetachedInstanceErrors. So check first
+    if sa_inspect(value).persistent:
+        renderer.set_property(
+            "markup",
+            f"{hybrid}<i>{value.epithet}</i> {author} "
+            f"(<small>{Family.string(value.family)}</small>)",
+        )
 
 
 def generic_sp_get_completions(session: Session, text: str) -> Query:

@@ -176,6 +176,18 @@ class HandlerMethodDescriptor[T: GObject.Object](ABC):
 
             instance.remove_problem(problem, problem_widget)
 
+        self.set_model_value(instance, problem_widget, field_name, value)
+
+        if hasattr(instance, "update"):
+            instance.update()
+
+    def set_model_value(
+        self,
+        instance: GenericPresenter,
+        problem_widget: Gtk.Widget,
+        field_name: str,
+        value: Any,
+    ) -> None:
         # setting
         setting_problem = self.problem_name_template.format("setting_error")
         instance.remove_problem(setting_problem, problem_widget)
@@ -208,9 +220,6 @@ class HandlerMethodDescriptor[T: GObject.Object](ABC):
                 type_=Gtk.MessageType.ERROR,
             )
 
-        if hasattr(instance, "update"):
-            instance.update()
-
 
 class EntryHandler(HandlerMethodDescriptor[Gtk.Entry]):
     """HandlerMethodDescriptor for Gtk.Entry widgets.
@@ -228,9 +237,11 @@ class EntryWCompletionHandler(EntryHandler):
 
     The entry must have a ``Gtk.EntryCompletion`` with model attached.
 
-    If the completion's model handles non-string values set ``must_match=True``
-    and setup a "match-selected" handler that can handle setting the value on
-    the model (the default handler only works for string values).
+    If the completion model handles non-string values set ``must_match=True``,
+
+    To work for both string or object values the default "match-selected"
+    behaviour is overriden to update the entry widget with the string of the
+    object and set the model's value to the object.
 
     If validation or conversion is needed provide a list of ``Validator``s and
     a ``Converter`` callback as required.
@@ -250,6 +261,7 @@ class EntryWCompletionHandler(EntryHandler):
     ) -> None:
 
         self.must_match = must_match
+        self.connected: list[int] = []
 
         super().__init__(validators, converter)
 
@@ -260,6 +272,7 @@ class EntryWCompletionHandler(EntryHandler):
         **kwargs: Any,
     ) -> None:
         get_values: Callable[[str], Any] = kwargs.pop("get_values")
+        problem_widget = kwargs.get("problem_widget", widget)
 
         text = widget.get_text()
 
@@ -268,9 +281,40 @@ class EntryWCompletionHandler(EntryHandler):
         completion_model = cast(Gtk.ListStore, completion.get_model())
         completion_model.clear()
 
+        completion_id = id(completion)
+
+        def on_match_selected(
+            _completion: Gtk.EntryCompletion,
+            liststore: Gtk.ListStore,
+            tree_iter: Gtk.TreeIter,
+        ) -> bool:
+            """Overrides default behaviour as can not set_text to an object."""
+            field_name = instance.widgets_to_model_map[widget]
+            obj = liststore[tree_iter][0]
+            widget.set_text(str(obj))
+            self.set_model_value(instance, problem_widget, field_name, obj)
+
+            match_problem = self.problem_name_template.format("not_matched")
+            instance.remove_problem(match_problem, widget)
+
+            if hasattr(instance, "update"):
+                instance.update()
+
+            return True
+
+        if completion_id not in self.connected:
+            # connect once, on first run
+            # (several widgets can use the same handler)
+            self.connected.append(completion_id)
+            completion.connect(
+                "match-selected",
+                on_match_selected,
+            )
+
         if not self.must_match:
             super().handler(instance, widget, **kwargs)
         else:
+            # bypass usual handler, just sets problem and logs
             self.match_handler(instance, widget, completion_model)
 
         if len(text) < min_key_length:
@@ -289,25 +333,6 @@ class EntryWCompletionHandler(EntryHandler):
             )
             # force the popup to close
             completion_model.clear()
-
-            if self.must_match:
-                self.on_match(instance, widget, **kwargs)
-
-    def on_match(
-        self,
-        instance: GenericPresenter,
-        widget: Gtk.Entry,
-        **kwargs: Any,
-    ) -> None:
-        completion = widget.get_completion()
-        completion_model = cast(Gtk.ListStore, completion.get_model())
-
-        match_problem = self.problem_name_template.format("not_matched")
-
-        instance.remove_problem(match_problem, widget)
-        # if not a string requires match-selected handler to set value
-        if completion_model.get_column_type(0) == GObject.TYPE_STRING:
-            super().handler(instance, widget, **kwargs)
 
     def match_handler(
         self,
@@ -404,16 +429,21 @@ def populate_enum_combo(
 
 
 def default_completion_cell_data_func(
-    _column: Gtk.TreeViewColumn,
+    column: Gtk.TreeViewColumn,
     renderer: Gtk.CellRenderer,
     model: Gtk.ListStore,
     treeiter: Gtk.TreeIter,
 ) -> None:
+    # pylint: disable=unused-argument
     """The default completion cell data function for Gtk.EntryCompletion."""
     value = model[treeiter][0]
 
     try:
-        string = utils.xml_safe(value)
+        try:
+            # Taxons
+            string = utils.xml_safe(value.string(author=True))
+        except AttributeError:
+            string = utils.xml_safe(value)
     except DetachedInstanceError as e:
         # object may be detached from the session when editor is destroyed
         logger.debug("%s(%s)", type(e).__name__, str(e))

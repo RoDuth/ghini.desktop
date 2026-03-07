@@ -58,6 +58,8 @@ from .widgets import SynonymsPresenter
 
 FAMILY_WEB_BUTTON_DEFS_PREFS = "web_button_defs.family"
 
+parent = Path(__file__).resolve().parent
+
 
 def validate_unique_family(
     epithet: str,
@@ -84,9 +86,7 @@ def validate_unique_family(
     return True
 
 
-@Gtk.Template(
-    filename=str(Path(__file__).resolve().parent / "family_editor.ui")
-)
+@Gtk.Template(filename=str(parent / "family_editor.ui"))
 class FamilyEditorDialog(
     GenericPresenter[Family],
     Gtk.Dialog,
@@ -147,9 +147,9 @@ class FamilyEditorDialog(
             self.model,
             FamilySynonym,
             self.session,
-            lambda session, text: (
-                session.query(Family)
-                .filter(utils.ilike(Family.epithet, f"{text}%%"))
+            lambda text: (
+                select(Family)
+                .where(utils.ilike(Family.epithet, f"{text}%%"))
                 .order_by(Family.epithet)
             ),
         )
@@ -158,6 +158,12 @@ class FamilyEditorDialog(
 
         if any(getattr(self.model, i) for i in ("order", "suborder")):
             self.suprafam_expander.set_expanded(True)
+
+        self.check_synonym()
+
+        if self.model.epithet:
+            current = self.get_title()
+            self.set_title(f"{current} - {self.model.string(author=True)}")
 
     def allow_ok_only(self) -> None:
         for response in Response:
@@ -206,7 +212,7 @@ class FamilyEditorDialog(
             .first()
         )
         if existing and existing is not self.model:
-            logger.debug("found existing genus with epithet %s", epithet)
+            logger.debug("found existing family with epithet %s", epithet)
             self.notify_existing_family(existing)
 
         self.on_family_author_entry_changed(entry)
@@ -222,7 +228,7 @@ class FamilyEditorDialog(
 
         msg = _(
             "<b>%(family)s</b> already exists.\n\n"
-            "Would you like to edit the existing genus instead?"
+            "Would you like to edit the existing family instead?"
         ) % {
             "family": utils.xml_safe(
                 existing.string(
@@ -309,6 +315,35 @@ class FamilyEditorDialog(
         with db.engine.connect() as connection:
 
             return connection.scalars(stmt).all()
+
+    def check_synonym(self) -> None:
+        if self.model.accepted:
+            self.notify_is_synonym(self.model.accepted)
+
+    def notify_is_synonym(self, accepted: Genus) -> None:
+        def on_yes_clicked(_button: Gtk.Button) -> None:
+            self.revealer.set_reveal_child(False)
+            self.emit("response", Response.CANCEL)
+
+            edit_callback([accepted])
+
+        def on_no_clicked(_button: Gtk.Button) -> None:
+            self.revealer.set_reveal_child(False)
+
+        msg = _(
+            "<b>%(family)s</b> is a synonym of \n\n\t<b>%(accepted)s</b>.\n\n"
+            "Would you like to edit the accepted family instead?"
+        ) % {
+            "family": self.model.string(author=True),
+            "accepted": accepted.string(author=True),
+        }
+
+        message_box = YesNoMessageBox(msg, on_yes_clicked, on_no_clicked)
+
+        self.revealer.foreach(self.revealer.remove)
+        message_box.show_all()
+        self.revealer.add(message_box)
+        self.revealer.set_reveal_child(True)
 
     def do_commit(self) -> bool:
         try:

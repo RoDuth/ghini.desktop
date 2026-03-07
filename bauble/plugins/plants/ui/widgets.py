@@ -24,15 +24,18 @@ logger = logging.getLogger(__name__)
 
 from collections.abc import Callable
 from pathlib import Path
+from typing import Any
+from typing import Protocol
 from typing import cast
 
 from gi.repository import GLib
 from gi.repository import GObject
 from gi.repository import Gtk
-from sqlalchemy import inspect
-from sqlalchemy.orm import Query
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 from sqlalchemy.orm import object_session
+from sqlalchemy.orm.exc import DetachedInstanceError
+from sqlalchemy.sql import Select
 
 from bauble import utils
 from bauble.i18n import _
@@ -45,6 +48,8 @@ from bauble.ui.views import on_clicked_select
 
 from ..model import Synonym
 from ..model import Taxon
+
+parent = Path(__file__).resolve().parent
 
 
 class SynonymsExpander[T: Taxon](InfoExpander[T], Gtk.Expander):
@@ -99,25 +104,53 @@ class SynonymsExpander[T: Taxon](InfoExpander[T], Gtk.Expander):
         self.show_all()
 
 
-def _syn_data_func(_column, cell, model, treeiter, _data):
+def _syn_data_func(
+    column: Gtk.TreeViewColumn,
+    renderer: Gtk.CellRendererText,
+    model: Gtk.TreeModel,
+    treeiter: Gtk.TreeIter,
+    data: Any,
+) -> Any:
+    # pylint: disable=unused-argument
     # avoid using self.session - must be static or wont garbage collect
     val = model[treeiter][0]
-    if not inspect(val).persistent:
-        # may become detached on destroy
-        return
 
-    cell.set_property("text", str(val))
+    try:
+        # may become detached on destroy
+        renderer.set_property("markup", val.markup())
+    except DetachedInstanceError:
+        return
     # background color to indicate it's new
     session = object_session(val)
-    if session.is_modified(val):
-        cell.set_property("foreground", "blue")
+    if session and session.is_modified(val):
+        renderer.set_property("foreground", "blue")
     else:
-        cell.set_property("foreground", "black")
+        renderer.set_property("foreground", "black")
 
 
-@Gtk.Template(
-    filename=str(Path(__file__).resolve().parent / "synonyms_presenter.ui")
-)
+class CellDataFunc(Protocol):  # pylint: disable=too-few-public-methods
+
+    def __call__(
+        self,
+        column: Gtk.TreeViewColumn,
+        renderer: Gtk.CellRendererText,
+        model: Gtk.ListStore,
+        treeiter: Gtk.TreeIter,
+    ) -> None: ...
+
+
+class MatchFunc(Protocol):  # pylint: disable=too-few-public-methods
+
+    def __call__(
+        self,
+        completion: Gtk.EntryCompletion,
+        key: str,
+        treeiter: Gtk.TreeIter,
+        path: str = "",
+    ) -> bool: ...
+
+
+@Gtk.Template(filename=str(parent / "synonyms_presenter.ui"))
 class SynonymsPresenter(Gtk.Frame):
     """Provides a generic presenter for adding and removing synonyms that can
     be used with any Taxon editor.
@@ -147,7 +180,7 @@ class SynonymsPresenter(Gtk.Frame):
         self.model: Taxon
         self.synonym_table: type[Synonym]
         self.session: Session
-        self.completions_seed: Callable[[Session, str], Query]
+        self.completions_seed: Callable[[str], Select]
         self._selected: Taxon | None = None
         self.additional: list[Synonym] = []
 
@@ -156,18 +189,23 @@ class SynonymsPresenter(Gtk.Frame):
         model: Taxon,
         synonym_table: type[Synonym],
         session: Session,
-        completions_seed: Callable[[Session, str], Query],
+        completions_seed: Callable[[str], Select],
+        match_func: MatchFunc | None = None,
+        cell_data_func: CellDataFunc | None = None,
     ) -> None:
+        # pylint: disable=too-many-positional-arguments,too-many-arguments
         """Setup the widget.
 
         :param model: an instance of the Taxon.
         :param synonym_table: the sqlalchemy ORM table class for synonyms.
         :param session: an sqlalchemy session, should be the same as the editor
             this widget is used in.
-        :param completion_seed: a callable that returns an ORM query for use in
-            entry completions given the current text.  This will be further
-            filtered to exclude the current model and any of its current
-            synonyms.  Results will be limited to 20.
+        :param completion_seed: a callable that returns an select statement for
+            use in entry completions given the current text.  This will be
+            further filtered to exclude the current model and any of its
+            current synonyms.  Results will be limited to 20.
+        :param match_func: Optional completion match func.
+        :param cell_data_func: Optional cell data func.
         """
         self.model = model
         self.synonym_table = synonym_table
@@ -175,9 +213,11 @@ class SynonymsPresenter(Gtk.Frame):
         self.completions_seed = completions_seed
         self.completion.set_cell_data_func(
             self.cell,
-            default_completion_cell_data_func,
+            cell_data_func or default_completion_cell_data_func,
         )
-        self.completion.set_match_func(default_completion_match_func)
+        self.completion.set_match_func(
+            match_func or default_completion_match_func
+        )
 
         self.completion.connect("match-selected", self.on_match_selected)
         # self.completion.set_property("text-column", -1)
@@ -220,8 +260,13 @@ class SynonymsPresenter(Gtk.Frame):
         if not self.model:
             return []
 
-        result = self.completions_seed(self.session, text)
-        ids = [i[0] for i in self.session.query(self.synonym_table.synonym_id)]
+        seed = self.completions_seed(text)
+
+        ids = (
+            self.session.execute(select(self.synonym_table.synonym_id))
+            .scalars()
+            .all()
+        )
 
         for syn in self.model._synonyms:
             if syn.synonym and syn.synonym.id not in ids:
@@ -230,7 +275,9 @@ class SynonymsPresenter(Gtk.Frame):
         if self.model.id:
             ids.append(self.model.id)
 
-        return result.filter(type(self.model).id.notin_(ids)).limit(20).all()
+        seed = seed.where(type(self.model).id.notin_(ids))
+
+        return self.session.execute(seed.limit(20)).scalars().all()
 
     def on_match_selected(
         self,
@@ -239,7 +286,8 @@ class SynonymsPresenter(Gtk.Frame):
         tree_iter: Gtk.TreeIter,
     ) -> bool:
         value = liststore[tree_iter][0]
-        self.entry.set_text(str(value))
+        if value:
+            self.entry.set_text(value.string(author=True))
 
         sensitive = True
         if value is None:
@@ -289,7 +337,7 @@ class SynonymsPresenter(Gtk.Frame):
 
         tree_model = cast(Gtk.ListStore, self.treeview.get_model())
 
-        for syn in synonyms:
+        for syn in sorted(synonyms, key=str, reverse=True):
             setattr(syn, self.model.__tablename__, self.model)
             tree_model.prepend([syn])
 
@@ -302,14 +350,15 @@ class SynonymsPresenter(Gtk.Frame):
         self.emit("changed")
 
     @Gtk.Template.Callback()
-    def on_remove_button_clicked(self, _button):
+    def on_remove_button_clicked(self, _button: Gtk.Button) -> None:
         """Removes the currently selected synonym from the list of synonyms."""
         path, _col = self.treeview.get_cursor()
 
         if path is None:
             return
 
-        tree_model = self.treeview.get_model()
+        tree_model = cast(Gtk.ListStore, self.treeview.get_model())
+
         value = tree_model[tree_model.get_iter(path)][0]
         syn_str = str(value.synonym)
 
@@ -319,9 +368,12 @@ class SynonymsPresenter(Gtk.Frame):
         ) % (syn_str, syn_str)
         # for sake of tests
         toplevel = self.get_toplevel()
-        parent = None if toplevel is self else toplevel
+        if toplevel is self:
+            parent_window = None
+        else:
+            parent_window = cast(Gtk.Window, toplevel)
 
-        if not dialogs.yes_no_dialog(msg, parent=parent):
+        if not dialogs.yes_no_dialog(msg, parent=parent_window):
             return
 
         tree_model.remove(tree_model.get_iter(path))

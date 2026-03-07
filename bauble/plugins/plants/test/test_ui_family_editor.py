@@ -87,6 +87,33 @@ class FamilyEditorDialogTests(BaubleTestCase):
 
         editor.destroy()
 
+    @mock.patch("bauble.plugins.plants.ui.family_editor.edit_callback")
+    def test_init_is_synonym(self, mock_callback):
+        family = Family(epithet="Leptospermaceae")
+        family.accepted = Family(epithet="Myrtaceae")
+        self.session.add(family)
+        self.session.commit()
+        editor = FamilyEditorDialog(family, self.session)
+
+        child = editor.revealer.get_child()
+
+        self.assertIsInstance(child, YesNoMessageBox)
+
+        # no
+        mock_callback.reset_mock()
+        child.get_children()[1].get_children()[1].emit("clicked")
+
+        mock_callback.assert_not_called()
+
+        # yes
+        child.get_children()[1].get_children()[0].emit("clicked")
+
+        mock_callback.assert_called_once()
+        result = self.session.merge(mock_callback.call_args[0][0][0])
+        self.assertEqual(str(result), "Myrtaceae")
+
+        editor.destroy()
+
     def test_editor_doesnt_leak(self):
         editor = FamilyEditorDialog(
             model=Family(family="Fooaceae"),

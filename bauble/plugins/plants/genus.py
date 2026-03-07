@@ -25,13 +25,10 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-import os
-import traceback
 from datetime import datetime
 from typing import Self
 from typing import cast as t_cast
 
-from gi.repository import Gtk  # noqa
 from sqlalchemy import CheckConstraint
 from sqlalchemy import Column
 from sqlalchemy import ForeignKey
@@ -45,14 +42,12 @@ from sqlalchemy import cast
 from sqlalchemy import event
 from sqlalchemy import exists
 from sqlalchemy import func
-from sqlalchemy import inspect as sa_inspect
 from sqlalchemy import literal
 from sqlalchemy import or_
 from sqlalchemy import select
 from sqlalchemy import union
 from sqlalchemy import update
 from sqlalchemy.engine import Connection
-from sqlalchemy.exc import DBAPIError
 from sqlalchemy.ext.associationproxy import association_proxy
 from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.orm import Mapped
@@ -62,25 +57,16 @@ from sqlalchemy.orm import object_mapper
 from sqlalchemy.orm import relationship
 from sqlalchemy.orm import synonym as sa_synonym
 from sqlalchemy.orm.exc import MultipleResultsFound
-from sqlalchemy.orm.query import Query
 from sqlalchemy.orm.session import object_session
 
-import bauble
 from bauble import btypes as types
 from bauble import db
-from bauble import editor
 from bauble import error
-from bauble import paths
 from bauble import prefs
 from bauble import utils
-from bauble.i18n import _
-from bauble.ui.presenter import Response
 
 from .model import Synonym
 from .model import Taxon
-
-# TODO: warn the user that a duplicate genus name is being entered
-# even if only the author or qualifier is different
 
 
 class Genus(Taxon, db.WithNotes):
@@ -539,99 +525,6 @@ class GenusSynonym(Synonym):
 
     def markup(self) -> str:
         return f"{self.synonym.markup(authors=True)} ({self.synonym.family})"
-
-
-def generic_gen_get_completions(session: Session, text: str) -> Query:
-    """A generic genus get_completion.
-
-    intended use is by supplying the local session via `functools.partial`
-
-    e.g.:
-    `completions = partial(generic_sp_get_completions, self.session)`
-
-    :param session: a local session to use for the query.
-    :param text: a string to search for
-    """
-    query = session.query(Genus)
-    hybrid = ""
-    genus = text.removeprefix("×").removeprefix("+").strip()
-    try:
-        if text[0] in ["×", "+"]:
-            hybrid = text[0]
-    except (AttributeError, IndexError):
-        pass
-    query = query.filter(utils.ilike(Genus.genus, f"{genus}%"))
-    if hybrid:
-        query = query.filter(Genus.hybrid == hybrid)
-    return query.order_by(Genus.genus)
-
-
-def genus_to_string_matcher(
-    genus: Genus,
-    key: str,
-    gen_path: str = "",
-) -> bool:
-    """Helper function to match string or partial string.
-
-    :param genus: a Genus table entry
-    :param key: the string to search with
-    :param gen_path: optional path for model obects to get to the genus
-
-    :return: bool, True if the genus matches the key
-    """
-    if gen_path:
-        from operator import attrgetter
-
-        genus = attrgetter(gen_path)(genus)
-    key = key.removeprefix("× ").removeprefix("+ ").lower()
-    return genus.genus.lower().startswith(key)
-
-
-def genus_match_func(
-    completion: Gtk.EntryCompletion,
-    key: str,
-    treeiter: int,
-    gen_path: str = "",
-) -> bool:
-    """match_func that allows partial matches.
-
-    :param completion: the completion to match
-    :param key: lowercase string of the entry text
-    :param treeiter: the row number for the item to match
-    :param gen_path: optional path for model obects to get to the genus
-
-    :return: bool, True if the item at the treeiter matches the key
-    """
-    tree_model = completion.get_model()
-    if not tree_model:
-        raise AttributeError(f"can't get TreeModel from {completion}")
-    genus = tree_model[treeiter][0]
-    if not sa_inspect(genus).persistent:
-        return False
-    return genus_to_string_matcher(genus, key, gen_path)
-
-
-def genus_cell_data_func(
-    _column,
-    renderer: Gtk.CellRendererText,
-    model: Gtk.ListStore,
-    treeiter: Gtk.TreeIter,
-) -> None:
-    value = model[treeiter][0]
-    author = ""
-    if value.author:
-        author = utils.xml_safe(str(value.author))
-    hybrid = ""
-    if value.hybrid:
-        hybrid = f"{value.hybrid} "
-    # occassionally the session gets lost and can result in
-    # DetachedInstanceErrors. So check first
-    if sa_inspect(value).persistent:
-        renderer.set_property(
-            "markup",
-            f"{hybrid}<i>{value.epithet}</i> {author} "
-            f"(<small>{Family.string(value.family)}</small>)",
-        )
 
 
 # late bindings

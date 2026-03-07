@@ -277,7 +277,7 @@ class FunctionTests(TestCase):
 
     def test_default_completion_cell_data_func_objects(self):
         mock_obj = mock.MagicMock()
-        mock_obj.__str__.return_value = "<Test>"
+        mock_obj.string.return_value = "<Test>"
         list_store = Gtk.ListStore(object)
         list_store.append([mock_obj])
         mock_renderer = mock.MagicMock()
@@ -289,7 +289,7 @@ class FunctionTests(TestCase):
 
     def test_default_completion_cell_data_func_detached_instance(self):
         mock_obj = mock.MagicMock()
-        mock_obj.__str__.side_effect = DetachedInstanceError
+        mock_obj.string.side_effect = DetachedInstanceError
         list_store = Gtk.ListStore(object)
         list_store.append([mock_obj])
         mock_renderer = mock.MagicMock()

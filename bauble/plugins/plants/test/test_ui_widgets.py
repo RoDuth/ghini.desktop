@@ -21,6 +21,8 @@ Generic widgets tests
 from unittest import mock
 
 from gi.repository import Gtk
+from sqlalchemy import select
+from sqlalchemy.orm.exc import DetachedInstanceError
 
 from bauble import utils
 from bauble.plugins.plants.family import Family
@@ -40,10 +42,10 @@ class SynonymsPresenterTests(BaubleTestCase):
             family,
             FamilySynonym,
             self.session,
-            lambda session, text: (
-                session.query(Family)
-                .filter(utils.ilike(Family.family, f"{text}%%"))
-                .order_by(Family.family)
+            lambda text: (
+                select(Family)
+                .where(utils.ilike(Family.epithet, f"{text}%%"))
+                .order_by(Family.epithet)
             ),
         )
 
@@ -60,10 +62,10 @@ class SynonymsPresenterTests(BaubleTestCase):
             family1,
             FamilySynonym,
             self.session,
-            lambda session, text: (
-                session.query(Family)
-                .filter(utils.ilike(Family.family, f"{text}%%"))
-                .order_by(Family.family)
+            lambda text: (
+                select(Family)
+                .where(utils.ilike(Family.epithet, f"{text}%%"))
+                .order_by(Family.epithet)
             ),
         )
 
@@ -80,10 +82,10 @@ class SynonymsPresenterTests(BaubleTestCase):
             family,
             FamilySynonym,
             self.session,
-            lambda session, text: (
-                session.query(Family)
-                .filter(utils.ilike(Family.family, f"{text}%%"))
-                .order_by(Family.family)
+            lambda text: (
+                select(Family)
+                .where(utils.ilike(Family.epithet, f"{text}%%"))
+                .order_by(Family.epithet)
             ),
         )
 
@@ -100,10 +102,10 @@ class SynonymsPresenterTests(BaubleTestCase):
             myrtaceae,
             FamilySynonym,
             self.session,
-            lambda session, text: (
-                session.query(Family)
-                .filter(utils.ilike(Family.family, f"{text}%%"))
-                .order_by(Family.family)
+            lambda text: (
+                select(Family)
+                .where(utils.ilike(Family.epithet, f"{text}%%"))
+                .order_by(Family.epithet)
             ),
         )
 
@@ -128,10 +130,10 @@ class SynonymsPresenterTests(BaubleTestCase):
             family,
             FamilySynonym,
             self.session,
-            lambda session, text: (
-                session.query(Family)
-                .filter(utils.ilike(Family.family, f"{text}%%"))
-                .order_by(Family.family)
+            lambda text: (
+                select(Family)
+                .where(utils.ilike(Family.epithet, f"{text}%%"))
+                .order_by(Family.epithet)
             ),
         )
         model = syns_presenter.completion.get_model()
@@ -147,9 +149,8 @@ class SynonymsPresenterTests(BaubleTestCase):
         # exact match will select
         syns_presenter.entry.set_text("Myrtaceae")
 
-        self.assertEqual(len(model), 1)
         self.assertEqual(syns_presenter._selected.epithet, "Myrtaceae")
-        self.assertEqual("Myrtaceae", syns_presenter.entry.get_text())
+        self.assertEqual("Myrtaceae Juss.", syns_presenter.entry.get_text())
         self.assertTrue(syns_presenter.add_button.get_sensitive())
         self.assertEqual(syns_presenter.additional, [])
 
@@ -185,10 +186,10 @@ class SynonymsPresenterTests(BaubleTestCase):
             family1,
             FamilySynonym,
             self.session,
-            lambda session, text: (
-                session.query(Family)
-                .filter(utils.ilike(Family.family, f"{text}%%"))
-                .order_by(Family.family)
+            lambda text: (
+                select(Family)
+                .where(utils.ilike(Family.epithet, f"{text}%%"))
+                .order_by(Family.epithet)
             ),
         )
         # None case
@@ -239,10 +240,10 @@ class SynonymsPresenterTests(BaubleTestCase):
             Family(),
             FamilySynonym,
             self.session,
-            lambda session, text: (
-                session.query(Family)
-                .filter(utils.ilike(Family.family, f"{text}%%"))
-                .order_by(Family.family)
+            lambda text: (
+                select(Family)
+                .where(utils.ilike(Family.epithet, f"{text}%%"))
+                .order_by(Family.epithet)
             ),
         )
         liststore = Gtk.ListStore(object)
@@ -277,10 +278,10 @@ class SynonymsPresenterTests(BaubleTestCase):
             family,
             FamilySynonym,
             self.session,
-            lambda session, text: (
-                session.query(Family)
-                .filter(utils.ilike(Family.family, f"{text}%%"))
-                .order_by(Family.family)
+            lambda text: (
+                select(Family)
+                .where(utils.ilike(Family.epithet, f"{text}%%"))
+                .order_by(Family.epithet)
             ),
         )
         # no selected returns
@@ -313,22 +314,27 @@ class SynonymsPresenterTests(BaubleTestCase):
             myrtaceae,
             FamilySynonym,
             self.session,
-            lambda session, text: (
-                session.query(Family)
-                .filter(utils.ilike(Family.family, f"{text}%%"))
-                .order_by(Family.family)
+            lambda text: (
+                select(Family)
+                .where(utils.ilike(Family.epithet, f"{text}%%"))
+                .order_by(Family.epithet)
             ),
         )
         self.assertEqual(len(myrtaceae.synonyms), 1)
 
         # no selected returns
         syns_presenter.remove_button.clicked()
-
         self.assertEqual(len(syns_presenter.treeview.get_model()), 1)
 
         # select first
         syns_presenter.treeview.set_cursor(Gtk.TreePath(0))
-        syns_presenter.remove_button.clicked()
+        # include get_toplevel returns Window
+        with mock.patch.object(syns_presenter, "get_toplevel") as mock_tlevel:
+            win = Gtk.Window()
+            mock_tlevel.return_value = win
+            syns_presenter.remove_button.clicked()
+
+            self.assertEqual(mock_dlog.call_args[1]["parent"], win)
 
         self.assertEqual(len(myrtaceae.synonyms), 0)
 
@@ -350,10 +356,10 @@ class SynonymsPresenterTests(BaubleTestCase):
             family,
             FamilySynonym,
             self.session,
-            lambda session, text: (
-                session.query(Family)
-                .filter(utils.ilike(Family.family, f"{text}%%"))
-                .order_by(Family.family)
+            lambda text: (
+                select(Family)
+                .where(utils.ilike(Family.epithet, f"{text}%%"))
+                .order_by(Family.epithet)
             ),
         )
         # exact match will select and move existing synonyms also
@@ -423,6 +429,6 @@ class SynonymsPresenterTests(BaubleTestCase):
         )
         self.assertEqual(cell.get_property("text"), "Leptospermaceae")
         # doesn't fail for detached
-        self.session.expunge(synonym)
-
-        _syn_data_func(column, cell, model, treeiter, None)
+        with mock.patch.object(synonym, "markup") as mock_markup:
+            mock_markup.side_effect = DetachedInstanceError
+            _syn_data_func(column, cell, model, treeiter, None)

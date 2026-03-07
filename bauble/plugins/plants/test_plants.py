@@ -70,10 +70,10 @@ from .family import FamilySynonym
 from .genus import Genus
 from .genus import GenusNote
 from .genus import GenusSynonym
-from .genus import generic_gen_get_completions
-from .genus import genus_cell_data_func
-from .genus import genus_match_func
-from .genus import genus_to_string_matcher
+from .species_editor import generic_gen_get_completions
+from .species_editor import genus_cell_data_func
+from .species_editor import genus_match_func
+from .species_editor import genus_to_string_matcher
 from .geography import GEO_PACIFIC_CENTRIC
 from .geography import DistributionMap
 from .geography import DistributionMapEventBox

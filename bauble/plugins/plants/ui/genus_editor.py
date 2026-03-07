@@ -30,9 +30,12 @@ from typing import cast
 
 from gi.repository import GLib
 from gi.repository import Gtk
+from sqlalchemy import inspect
 from sqlalchemy import select
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
+from sqlalchemy.sql import Select
+from sqlalchemy.sql import func
 
 import bauble
 from bauble import db
@@ -60,6 +63,9 @@ from ..species_model import Species
 from .widgets import SynonymsPresenter
 
 GENUS_WEB_BUTTON_DEFS_PREFS = "web_button_defs.genus"
+
+
+parent = Path(__file__).resolve().parent
 
 
 def validate_unique_genus(
@@ -91,9 +97,87 @@ def validate_unique_genus(
     return True
 
 
-@Gtk.Template(
-    filename=str(Path(__file__).resolve().parent / "genus_editor.ui")
-)
+def genus_completions(text: str) -> Select:
+    """Given text to search for return an appropriate statement to retrieve
+    matching genera.
+    """
+    query = select(Genus)
+    hybrid = ""
+    genus = text.removeprefix("×").removeprefix("+").strip()
+    try:
+        if text[0] in ["×", "+"]:
+            hybrid = text[0]
+    except (AttributeError, IndexError):
+        pass
+    query = query.where(utils.ilike(Genus.genus, f"{genus}%"))
+    if hybrid:
+        query = query.where(Genus.hybrid == hybrid)
+    return query.order_by(Genus.epithet)
+
+
+def genus_to_string_matcher(
+    genus: Genus,
+    key: str,
+    gen_path: str = "",
+) -> bool:
+    """Helper function to match string or partial string.
+
+    :param genus: a Genus table entry
+    :param key: the string to search with
+    :param gen_path: optional path for model obects to get to the genus
+
+    :return: bool, True if the genus matches the key
+    """
+    if gen_path:
+        from operator import attrgetter
+
+        genus = attrgetter(gen_path)(genus)
+    key = key.removeprefix("× ").removeprefix("+ ").lower()
+    return genus.genus.lower().startswith(key)
+
+
+def genus_match_func(
+    completion: Gtk.EntryCompletion,
+    key: str,
+    treeiter: Gtk.TreeIter,
+    path: str = "",
+) -> bool:
+    """match_func that allows partial matches.
+
+    :param completion: the completion to match
+    :param key: lowercase string of the entry text
+    :param treeiter: the row number for the item to match
+    :param gen_path: optional path for model obects to get to the genus
+
+    :return: bool, True if the item at the treeiter matches the key
+    """
+    tree_model = completion.get_model()
+    if not tree_model:
+        raise AttributeError(f"can't get TreeModel from {completion}")
+    genus = tree_model[treeiter][0]
+    if not inspect(genus).persistent:
+        return False
+    return genus_to_string_matcher(genus, key, path)
+
+
+def genus_cell_data_func(
+    column: Gtk.TreeViewColumn,
+    renderer: Gtk.CellRendererText,
+    model: Gtk.ListStore,
+    treeiter: Gtk.TreeIter,
+) -> None:
+    # pylint: disable=unused-argument
+    value = model[treeiter][0]
+    # occassionally the session gets lost and can result in
+    # DetachedInstanceErrors. So check first
+    if inspect(value).persistent:
+        renderer.set_property(
+            "markup",
+            f"{value.markup(authors=True)}  (<small>{value.family}</small>)",
+        )
+
+
+@Gtk.Template(filename=str(parent / "genus_editor.ui"))
 class GenusEditorDialog(
     GenericPresenter[Genus],
     Gtk.Dialog,
@@ -105,7 +189,6 @@ class GenusEditorDialog(
     family_entry = cast(Gtk.Entry, Gtk.Template.Child())
     family_completion = cast(Gtk.EntryCompletion, Gtk.Template.Child())
     family_cell = cast(Gtk.CellRendererText, Gtk.Template.Child())
-    family_add_button = cast(Gtk.Button, Gtk.Template.Child())
     supragen_expander = cast(Gtk.Expander, Gtk.Template.Child())
     subfamily_entry = cast(Gtk.Entry, Gtk.Template.Child())
     tribe_entry = cast(Gtk.Entry, Gtk.Template.Child())
@@ -158,10 +241,12 @@ class GenusEditorDialog(
             self.subfamily_entry: "subfamily",
             self.tribe_entry: "tribe",
             self.subtribe_entry: "subtribe",
+            self.hybrid_combo: "hybrid",
             self.qualifier_combo: "qualifier",
             self.cites_combo: "_cites",
         }
 
+        populate_enum_combo(self.hybrid_combo, model, "hybrid")
         populate_enum_combo(self.qualifier_combo, model, "qualifier")
         populate_enum_combo(self.cites_combo, model, "_cites")
 
@@ -177,11 +262,9 @@ class GenusEditorDialog(
             self.model,
             GenusSynonym,
             self.session,
-            lambda session, text: (
-                session.query(Genus)
-                .filter(utils.ilike(Genus.epithet, f"{text}%%"))
-                .order_by(Genus.epithet)
-            ),
+            genus_completions,
+            genus_match_func,
+            genus_cell_data_func,
         )
         self.links_menu_btn.init(self.model, GENUS_WEB_BUTTON_DEFS_PREFS)
         self.notes_presenter.init(self.model)
@@ -190,6 +273,12 @@ class GenusEditorDialog(
             getattr(self.model, i) for i in ("subfamily", "tribe", "subtribe")
         ):
             self.supragen_expander.set_expanded(True)
+
+        self.check_synonym()
+
+        if self.model.epithet:
+            current = self.get_title()
+            self.set_title(f"{current} - {self.model.string(author=True)}")
 
     def allow_ok_only(self) -> None:
         for response in Response:
@@ -236,20 +325,14 @@ class GenusEditorDialog(
         _completion: Gtk.EntryCompletion,
         liststore: Gtk.ListStore,
         tree_iter: Gtk.TreeIter,
-    ) -> bool:
+    ) -> None:
         value = liststore[tree_iter][0]
-        logger.debug("match selected: %s", value)
-        self.family_entry.set_text(str(value))
-        self.model.family = value
 
         if value.accepted:
-            self.notify_is_synonym(value)
+            self.notify_fam_is_synonym(value)
             logger.debug("%s is a synonym of %s", value, value.accepted)
 
-        self.refresh_cites_label()
-        return True
-
-    def notify_is_synonym(self, family: Family) -> None:
+    def notify_fam_is_synonym(self, family: Family) -> None:
         def on_yes_clicked(_button: Gtk.Button) -> None:
             self.revealer.set_reveal_child(False)
             completion_model = cast(
@@ -407,9 +490,10 @@ class GenusEditorDialog(
         self.update()
 
     def update(self) -> None:
+        self.refresh_cites_label()
         default_dialog_update(self, self.can_commit)
 
-    def refresh_cites_label(self, _widget=None):
+    def refresh_cites_label(self) -> None:
         fam_cites = "N/A"
         if self.model.family:
             if val := self.model.family.cites:
@@ -426,17 +510,32 @@ class GenusEditorDialog(
 
     @Gtk.Template.Callback()
     def on_genus_entry_changed(self, entry: Gtk.Entry) -> None:
+
+        self.on_genus_author_entry_changed(entry)
+
         epithet = entry.get_text()
-        existing = (
-            self.session.execute(select(Genus).where(Genus.epithet == epithet))
-            .scalars()
-            .first()
+        stmt = (
+            select(Genus)
+            .outerjoin(Species)
+            .where(Genus.epithet == epithet)
+            .group_by(Genus)
+            .order_by(func.count(Species.genus_id))
         )
+        all_existing = self.session.execute(stmt).scalars().all()
+
+        if not all_existing:
+            return
+
+        existing = all_existing[-1]
+
+        if len(all_existing) > 1:
+            accepted_existing = [i for i in all_existing if i.accepted is None]
+            if accepted_existing:
+                existing = accepted_existing[-1]
+
         if existing and existing is not self.model:
             logger.debug("found existing genus with epithet %s", epithet)
             self.notify_existing_genus(existing)
-
-        self.on_genus_author_entry_changed(entry)
 
     def notify_existing_genus(self, existing: Genus) -> None:
         def on_yes_clicked(_button: Gtk.Button) -> None:
@@ -503,6 +602,35 @@ class GenusEditorDialog(
                 self.add_problem(self.PROBLEM_NOT_UNIQUE, self.family_entry)
 
         self.on_text_entry_changed(entry)
+
+    def check_synonym(self) -> None:
+        if self.model.accepted:
+            self.notify_is_synonym(self.model.accepted)
+
+    def notify_is_synonym(self, accepted: Genus) -> None:
+        def on_yes_clicked(_button: Gtk.Button) -> None:
+            self.revealer.set_reveal_child(False)
+            self.emit("response", Response.CANCEL)
+
+            edit_callback([accepted])
+
+        def on_no_clicked(_button: Gtk.Button) -> None:
+            self.revealer.set_reveal_child(False)
+
+        msg = _(
+            "<b>%(genus)s</b> is a synonym of \n\n\t<b>%(accepted)s</b>.\n\n"
+            "Would you like to edit the accepted genus instead?"
+        ) % {
+            "genus": self.model.markup(authors=True, sensu=True),
+            "accepted": accepted.markup(authors=True, sensu=True),
+        }
+
+        message_box = YesNoMessageBox(msg, on_yes_clicked, on_no_clicked)
+
+        self.revealer.foreach(self.revealer.remove)
+        message_box.show_all()
+        self.revealer.add(message_box)
+        self.revealer.set_reveal_child(True)
 
     def do_commit(self) -> bool:
         try:
