@@ -211,7 +211,9 @@ class Family(Taxon, db.WithNotes):
         return " ".join([str(s) for s in parts if s not in (None, "")])
 
     def search_view_markup_pair(self) -> tuple[str, str]:
-        return self.string(author=True), "Family"
+        author = utils.xml_safe(self.author)
+        author = f' <span weight="light">{author}</span>'
+        return f"{self}{author}", "Family"
 
     @hybrid_property
     def active(self) -> bool:

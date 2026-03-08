@@ -70,10 +70,6 @@ from .family import FamilySynonym
 from .genus import Genus
 from .genus import GenusNote
 from .genus import GenusSynonym
-from .species_editor import generic_gen_get_completions
-from .species_editor import genus_cell_data_func
-from .species_editor import genus_match_func
-from .species_editor import genus_to_string_matcher
 from .geography import GEO_PACIFIC_CENTRIC
 from .geography import DistributionMap
 from .geography import DistributionMapEventBox
@@ -116,7 +112,11 @@ from .species_editor import SpeciesEditorView
 from .species_editor import SpeciesEntry
 from .species_editor import Taxon
 from .species_editor import VernacularNamePresenter
+from .species_editor import generic_gen_get_completions
 from .species_editor import generic_sp_get_completions
+from .species_editor import genus_cell_data_func
+from .species_editor import genus_match_func
+from .species_editor import genus_to_string_matcher
 from .species_editor import species_cell_data_func
 from .species_editor import species_match_func
 from .species_editor import species_to_string_matcher
@@ -886,7 +886,8 @@ class FamilyTests(PlantTestCase):
     def test_search_view_markup_pair(self):
         fam = Family(epithet="Myrtaceae", author="Juss.")
         self.assertEqual(
-            fam.search_view_markup_pair(), ("Myrtaceae Juss.", "Family")
+            fam.search_view_markup_pair(),
+            ('Myrtaceae <span weight="light">Juss.</span>', "Family"),
         )
 
     def test_synonym_str(self):
