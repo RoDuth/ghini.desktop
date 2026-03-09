@@ -246,7 +246,10 @@ class ImageLoaderTests(BaubleTestCase):
 
     def test_image_loader_local_url(self):
         path = os.path.join(paths.lib_dir(), "images", "bauble_logo.png")
+        img = Gtk.Image()
+        self.assertIsNone(img.get_pixbuf())
         pic_box = Gtk.Box()
+        pic_box.add(img)
         # needs a window for size-allocate signal
         win = Gtk.Window(title="test_window")
         win.add(pic_box)
@@ -262,14 +265,23 @@ class ImageLoaderTests(BaubleTestCase):
         wait_on_threads()
         update_gui()
         image = pic_box.get_children()[0]
+
         self.assertIsInstance(image, Gtk.Image)
+        self.assertIsNotNone(image.get_pixbuf())
+        # does reuse existing
+        self.assertIs(image, img)
+
         while not mock_size_alloc.called:
             # WARNING this could deadlock if the signal hanlder doesn't call
             # but is required for the nested idle_add
             update_gui()
         # kind of redundant
         mock_size_alloc.assert_called()
+
         self.assertIsInstance(mock_size_alloc.call_args.args[0], Gtk.Image)
+        # does reuse existing
+        self.assertIs(mock_size_alloc.call_args.args[0], img)
+
         win.destroy()
 
     @mock.patch("bauble.ui.utils.get_net_sess")
@@ -337,6 +349,34 @@ class ImageLoaderTests(BaubleTestCase):
         # kind of redundant
         mock_size_alloc.assert_called()
         self.assertIsInstance(mock_size_alloc.call_args.args[0], Gtk.Label)
+        win.destroy()
+
+    def test_image_loader_base64_url(self):
+        path = "|data:image/jpeg;base64,R0lGODlhAQABAIAAAP///wAAACH5BAEAAAAALAAAAAABAAEAAAICRAEAOw=="
+        pic_box = Gtk.Box()
+        # needs a window for size-allocate signal
+        win = Gtk.Window(title="test_window")
+        win.add(pic_box)
+        win.show_all()
+        mock_size_alloc = mock.Mock()
+        mock_size_alloc.return_value = False
+        utils.ImageLoader(
+            pic_box,
+            path,
+            on_size_allocated=mock_size_alloc,
+        ).start()
+        mock_size_alloc.assert_not_called()
+        wait_on_threads()
+        update_gui()
+        image = pic_box.get_children()[0]
+        self.assertIsInstance(image, Gtk.Image)
+        while not mock_size_alloc.called:
+            # WARNING this could deadlock if the signal hanlder doesn't call
+            # but is required for the nested idle_add
+            update_gui()
+        # kind of redundant
+        mock_size_alloc.assert_called()
+        self.assertIsInstance(mock_size_alloc.call_args.args[0], Gtk.Image)
         win.destroy()
 
     def test_image_loader_glib_error(self):

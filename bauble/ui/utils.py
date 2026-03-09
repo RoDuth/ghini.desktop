@@ -416,9 +416,9 @@ class ImageLoader(threading.Thread):
         if not pixbuf:
             # type guard
             return
-        pixbuf = pixbuf.apply_embedded_orientation()
-        if not pixbuf:
-            return
+        oriented = pixbuf.apply_embedded_orientation()
+        if oriented:
+            pixbuf = oriented
         scale_x = pixbuf.get_width() / 400
         scale_y = pixbuf.get_height() / 400
         scale = max(scale_x, scale_y, 1)
