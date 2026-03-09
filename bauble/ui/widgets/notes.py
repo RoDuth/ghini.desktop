@@ -17,28 +17,45 @@
 """
 Notes box for editor dialogs
 """
-from pathlib import Path
-from typing import cast
+import logging
 
+logger = logging.getLogger(__name__)
+
+from datetime import datetime
+from pathlib import Path
+from typing import Any
+from typing import Self
+from typing import cast
+from typing import overload
+
+from gi.repository import GdkPixbuf
+from gi.repository import GLib
 from gi.repository import GObject
 from gi.repository import Gspell
 from gi.repository import Gtk
+from sqlalchemy import func
 from sqlalchemy import select
 from sqlalchemy.orm import object_mapper
 
 from bauble import db
+from bauble import prefs
 from bauble import utils
 from bauble.btypes import parse_str_date
 from bauble.error import BaubleError
 from bauble.i18n import _
+from bauble.ui import dialogs
 from bauble.ui.handlers import EntryHandler
 from bauble.ui.presenter import GenericPresenter
+from bauble.ui.utils import ImageLoader
+from bauble.ui.utils import set_widget_value
 from bauble.ui.validators import Validator
 from bauble.ui.validators import validate_date
 from bauble.ui.widgets import DatePickerBox
 
+parent = Path(__file__).resolve().parent
 
-@Gtk.Template(filename=str(Path(__file__).resolve().parent / "note_box.ui"))
+
+@Gtk.Template(filename=str(parent / "note_box.ui"))
 class NoteBox(GenericPresenter[db.Note], Gtk.Box):
     """Generic notes presenter for individual notes.
 
@@ -157,10 +174,336 @@ class NoteBox(GenericPresenter[db.Note], Gtk.Box):
         self.expander.set_label(" ".join(label))
 
 
-@Gtk.Template(
-    filename=str(Path(__file__).resolve().parent / "notes_presenter.ui")
-)
-class NotesPresenter(Gtk.Box):
+@Gtk.Template(filename=str(parent / "picture_box.ui"))
+class PictureBox(GenericPresenter[db.Note], Gtk.Box):
+    """Generic pictures presenter for individual pictures.
+
+    Essentially a drop in replacement for a NoteBox that provides the extra
+    widgets required for pictures.  Must be added to a NotesPresenter.
+
+    On changes emits ``changed`` signal.
+    """
+
+    # pylint: disable=not-callable
+
+    # TODO `PictureBox` is already in use, change this ASAP
+    __gtype_name__ = "PictureBox2"
+
+    __gsignals__: dict = {"changed": (GObject.SignalFlags.RUN_FIRST, None, ())}
+
+    expander = cast(Gtk.Expander, Gtk.Template.Child())
+    category_combo = cast(Gtk.ComboBox, Gtk.Template.Child())
+    category_liststore = cast(Gtk.ListStore, Gtk.Template.Child())
+    date_picker = cast(DatePickerBox, Gtk.Template.Child())
+    user_entry = cast(Gtk.Entry, Gtk.Template.Child())
+    remove_button = cast(Gtk.Button, Gtk.Template.Child())
+    file_set_box = cast(Gtk.Entry, Gtk.Template.Child())
+    file_btnbrowse = cast(Gtk.Button, Gtk.Template.Child())
+    file_entry = cast(Gtk.Entry, Gtk.Template.Child())
+    picture_box = cast(Gtk.Box, Gtk.Template.Child())
+    file_menu_btn = cast(Gtk.MenuButton, Gtk.Template.Child())
+
+    on_date_changed = EntryHandler(
+        [Validator(validate_date, "invalid_date")],
+        lambda value, *_args: parse_str_date(value, as_date=True),
+    )
+
+    last_folder = str(Path.home())
+
+    def __init__(self, model: db.Note) -> None:
+
+        super().__init__(model, self)
+
+        self.date_picker.init()
+        self.date_entry = self.date_picker.entry
+
+        self.widgets_to_model_map = {
+            self.date_entry: "date",
+            self.user_entry: "user",
+            self.category_combo: "category",
+            self.file_entry: "picture",
+        }
+        self.refresh_all_widgets_from_model()
+        self.populate_categories()
+
+        if not getattr(model, "picture"):
+            self.set_content("")
+
+    def get_presenter(self) -> "NotesPresenter[PictureBox]":
+
+        widget: Gtk.Widget = self
+        while not isinstance(widget, NotesPresenter):
+            widget = cast(Gtk.Widget, widget.get_parent())
+
+        return widget
+
+    def get_dialog_window(self) -> Gtk.Window | None:
+        # for testing
+        toplevel = self.get_toplevel()
+
+        logger.debug("toplevel=%s", toplevel)
+
+        if not isinstance(toplevel, Gtk.Window):
+            logger.debug("get_dialog_window: not a Gtk.Window returning None")
+            return None
+
+        return toplevel
+
+    def populate_categories(self) -> None:
+        stmt = select(self.model.__table__.c.category).distinct()
+
+        with db.engine.connect() as connection:
+            for category in connection.scalars(stmt):
+                self.category_liststore.append([category])
+
+    def set_expanded(self, expanded: bool) -> None:
+        self.expander.set_expanded(expanded)
+
+    def set_content(self, text: str) -> None:
+
+        for widget in list(self.picture_box.get_children()):
+            widget.destroy()
+
+        img: Gtk.Box | Gtk.Label | Gtk.Image
+        if text.startswith("http://") or text.startswith("https://"):
+            img = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+            ImageLoader(img, text).start()
+            self.file_btnbrowse.set_sensitive(False)
+        elif text:
+            img = Gtk.Image()
+            pic_root = prefs.prefs[prefs.picture_root_pref]
+            thumbname = Path(pic_root, "thumbs", text)
+            filename = Path(pic_root, text)
+            try:
+                if thumbname.is_file():
+                    pixbuf = GdkPixbuf.Pixbuf.new_from_file(str(thumbname))
+                    img.set_from_pixbuf(pixbuf)
+                    self.file_set_box.set_sensitive(False)
+                elif filename.is_file():
+                    pixbuf = GdkPixbuf.Pixbuf.new_from_file(str(filename))
+                    if pixbuf:
+                        pixbuf = pixbuf.apply_embedded_orientation()
+                    if pixbuf:
+                        scale_x = pixbuf.get_width() / 400.0
+                        scale_y = pixbuf.get_height() / 400.0
+                        scale = max(scale_x, scale_y, 1)
+                        x = int(pixbuf.get_width() / scale)
+                        y = int(pixbuf.get_height() / scale)
+                        pixbuf = pixbuf.scale_simple(
+                            x, y, GdkPixbuf.InterpType.BILINEAR
+                        )
+                    img.set_from_pixbuf(pixbuf)
+                    self.file_set_box.set_sensitive(False)
+                else:
+                    label = _("picture file %s not found.") % text
+                    img = Gtk.Label()
+                    img.set_text(label)
+            except GLib.GError as e:  # type: ignore
+                logger.debug("picture %s caused GLib.GError %s", text, e)
+                label = _("Error loading %s.") % text
+                img = Gtk.Label()
+                img.set_text(label)
+            except Exception as e:  # pylint: disable=broad-except
+                logger.warning("(%s)%s", type(e), e)
+                img = Gtk.Label()
+                img.set_text(f"{type(e).__name__}: {e}")
+        else:
+            # make button hold some text
+            img = Gtk.Label()
+            img.set_text(_("Choose a file or enter a URL…"))
+
+        img.show()
+
+        self.picture_box.add(img)
+        self.picture_box.show()
+
+    @Gtk.Template.Callback()
+    def on_date_entry_changed(self, date_picker: DatePickerBox) -> None:
+        self.on_date_changed(date_picker.entry)
+
+    @Gtk.Template.Callback()
+    def on_category_combo_changed(self, combo: Gtk.ComboBox) -> None:
+        super().on_combobox_changed(combo)
+
+    @Gtk.Template.Callback()
+    def on_text_entry_changed(self, entry: Gtk.Entry) -> None:
+        super().on_text_entry_changed(entry)
+
+    @Gtk.Template.Callback()
+    def on_file_entry_changed(self, entry: Gtk.Entry) -> None:
+        super().on_text_entry_changed(entry)
+        self.set_content(entry.get_text())
+
+    @Gtk.Template.Callback()
+    def on_remove_button_clicked(self, _button: Gtk.Button) -> None:
+        # pylint: disable=protected-access
+        text = self.file_entry.get_text()
+        pic_root = prefs.prefs[prefs.picture_root_pref]
+        thumbname = Path(pic_root, "thumbs", text)
+        filename = Path(pic_root, text)
+        if thumbname.is_file() or filename.is_file():
+            logger.debug("is_file")
+
+            parent_window = self.get_dialog_window()
+            # for testing
+            msg = _("File %s exist, would you like to delete?") % text
+
+            # check if file exists in other pictures first...
+            tables = [
+                table
+                for name, table in db.metadata.tables.items()
+                if name.endswith("_picture")
+            ]
+
+            for table in tables:
+                stmt = select(func.count()).where(table.c.picture == text)
+
+                if self.model.__tablename__ == table.name:
+                    stmt = stmt.where(table.c.id != self.model.id)
+
+                with db.engine.connect() as connection:
+                    others = connection.execute(stmt).scalar()
+
+                if others:
+                    msg += _(
+                        " %s other picture(s) of type %s exist using "
+                        "the same file."
+                    ) % (others, table.name)
+
+            if dialogs.yes_no_dialog(msg, parent=parent_window, yes_delay=0.5):
+                try:
+                    if thumbname.is_file():
+                        thumbname.unlink()
+                    if filename.is_file():
+                        filename.unlink()
+                # pylint: disable=broad-exception-caught
+                except Exception as e:
+                    logger.debug("%s(%s)", type(e).__name__, e)
+                    dialogs.message_details_dialog(
+                        _("Error removing file...  File in use?"),
+                        details=str(e),
+                        parent=parent_window,
+                    )
+                    return
+            self.model.owner._pictures.remove(self.model)
+            self.destroy()
+        else:
+            # if the files don't exist, can remove the db entry
+            self.model.owner._pictures.remove(self.model)
+            self.destroy()
+
+        self.emit("changed")
+
+    @Gtk.Template.Callback()
+    def on_file_btnbrowse_clicked(self, _button: Gtk.Button) -> None:
+        file_chooser_dialog = Gtk.FileChooserNative.new(
+            _("Select picture(s) to add…"),
+            None,
+            Gtk.FileChooserAction.OPEN,
+        )
+        file_chooser_dialog.set_select_multiple(True)
+        file_chooser_dialog.set_current_folder(self.last_folder)
+        file_chooser_dialog.run()
+        filenames = file_chooser_dialog.get_filenames()
+
+        try:
+            self.add_from_files(filenames)
+        except Exception as e:  # pylint: disable=broad-except
+            logger.warning("unhandled exception: (%s)%s", type(e).__name__, e)
+            dialogs.message_details_dialog(
+                _("%s trying to add the selected files.") % type(e).__name__,
+                str(e),
+                Gtk.MessageType.WARNING,
+                parent=self.get_dialog_window(),
+            )
+
+        file_chooser_dialog.destroy()
+
+    def add_from_files(self, filenames: list[str]) -> None:
+
+        presenter = self.get_presenter()
+
+        boxes = [self]
+        boxes += [presenter.add_note() for __ in range(len(filenames) - 1)]
+
+        for box, filename in zip(boxes, filenames):
+            # remember chosen location for next time
+            path = Path(filename)
+            self.__class__.last_folder = str(path.parent)
+            logger.debug("new current folder is: %s", self.last_folder)
+            # copy file to picture_root_dir (if not yet there),
+            # check if the file already exists.
+            destination = Path(
+                prefs.prefs[prefs.picture_root_pref],
+                path.name,
+            )
+            if destination.is_file():
+                msg = _(
+                    'A file with that name already exists, select "Yes" '
+                    "and the name will be appended with a unique "
+                    "identifier, if you wish to change the name "
+                    'yourself select "No" to stop here so you can rename '
+                    "it before returning."
+                )
+
+                if dialogs.yes_no_dialog(msg, parent=self.get_dialog_window()):
+                    tstamp = datetime.now().strftime("%Y%m%d%M%S")
+                    rename = f"{path.stem}_{tstamp}{path.suffix}"
+                    self._copy_picture(box, path.name, rename)
+                else:
+                    pics = getattr(presenter.model, "_pictures")
+                    if box.model in pics:
+                        pics.remove(box.model)
+                    box.destroy()
+            else:
+                self._copy_picture(box, path.name)
+
+    def _copy_picture(
+        self, box: Self, name: str, rename: str | None = None
+    ) -> None:
+        utils.copy_picture_with_thumbnail(self.last_folder, name, rename)
+        set_widget_value(box.category_combo, self.model.category or "")
+        box.file_entry.set_text(rename or name)
+        box.set_expanded(True)
+
+    def update(self) -> None:
+        self.update_label()
+        self.emit("changed")
+
+    def update_label(self) -> None:
+        label = []
+        date_str = self.date_entry.get_text()
+        user_str = self.user_entry.get_text()
+        if date_str and user_str:
+            label.append(
+                _("%(user)s on %(date)s")
+                % {"user": utils.xml_safe(self.model.user), "date": date_str}
+            )
+        elif date_str:
+            label.append(date_str)
+        elif user_str:
+            label.append(user_str)
+
+        category = cast(Gtk.Entry, self.category_combo.get_child()).get_text()
+        if category:
+            label.append(f"({category})")
+
+        pic = self.file_entry.get_text()
+
+        if pic:
+            note_str = " : "
+            note_str += utils.xml_safe(pic)
+            max_length = 25
+            if len(pic) > max_length:
+                label.append(f"{note_str[0:max_length - 1]} …")
+            else:
+                label.append(note_str)
+
+        self.expander.set_label(" ".join(label))
+
+
+@Gtk.Template(filename=str(parent / "notes_presenter.ui"))
+class NotesPresenter[T: (NoteBox, PictureBox)](Gtk.Box):
     """Provides a generic widget for handling notes on an item in the database.
 
     To use, include in your ``.ui`` file definition or instantiate otherwise
@@ -179,21 +522,47 @@ class NotesPresenter(Gtk.Box):
         super().__init__()
         self.note_cls: type[db.Note]
         self.model: db.Base
+        self.prop: str
+        self.box_cls: type[T]
 
-    def init(self, model: db.Base) -> None:
+    @overload
+    def init(
+        self: "NotesPresenter[NoteBox]",
+        model: db.Domain,
+        prop: str = "notes",
+        box_cls: type[NoteBox] = NoteBox,
+    ) -> None: ...
+
+    @overload
+    def init(
+        self: "NotesPresenter[PictureBox]",
+        model: db.Domain,
+        prop: str,
+        box_cls: type[PictureBox],
+    ) -> None: ...
+
+    def init(
+        self,
+        model: db.Domain,
+        prop: str = "notes",
+        box_cls: Any = NoteBox,
+    ) -> None:
         """Setup the widget.
 
         :param model: a database model that has a ``notes`` attribute that
             contains db.Note objects.
+        :param prop: the name of the model property containing notes.
+        :param box_cls: the box class to use (PictureBox, NoteBox).
         """
-        if not hasattr(model, "notes"):
-            raise BaubleError("model must have notes attribute")
+        if not hasattr(model, prop):
+            raise BaubleError(f"model must have {prop} attribute")
 
         self.model = model
-        self.note_cls = (
-            object_mapper(model).get_property("notes").mapper.class_
-        )
-        for note in model.notes:
+        self.prop = prop
+        self.box_cls = box_cls
+        self.note_cls = object_mapper(model).get_property(prop).mapper.class_
+
+        for note in getattr(model, prop):
             self.add_note(note)
 
     @Gtk.Template.Callback()
@@ -201,17 +570,16 @@ class NotesPresenter(Gtk.Box):
         box = self.add_note()
         box.set_expanded(True)
 
-    def add_note(self, note: db.Note | None = None) -> NoteBox:
+    def add_note(self, note: db.Note | None = None) -> T:
         """Add a new note to the model."""
         if not note:
             note = self.note_cls()
             note.user = utils.get_user_display_name()
             note.date = utils.today_str()
 
-            if hasattr(self.model, "notes"):
-                self.model.notes.append(note)
+            getattr(self.model, self.prop).append(note)
 
-        box = NoteBox(note)
+        box = self.box_cls(note)
 
         box.connect("changed", self.on_changed)
         self.expander_box.add(box)

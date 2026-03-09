@@ -47,6 +47,7 @@ from bauble.ui.presenter import Problem
 from bauble.ui.presenter import Response
 from bauble.ui.presenter import default_dialog_update
 from bauble.ui.widgets import LinksMenuButton
+from bauble.ui.widgets import NoteBox
 from bauble.ui.widgets import NotesPresenter
 from bauble.ui.widgets import YesNoMessageBox
 
@@ -104,7 +105,7 @@ class FamilyEditorDialog(
     cites_combo = cast(Gtk.ComboBox, Gtk.Template.Child())
 
     synonyms_presenter = cast(SynonymsPresenter, Gtk.Template.Child())
-    notes_presenter = cast(NotesPresenter, Gtk.Template.Child())
+    notes_presenter = cast(NotesPresenter[NoteBox], Gtk.Template.Child())
     links_menu_btn = cast(LinksMenuButton, Gtk.Template.Child())
 
     on_entry_w_completion_changed = EntryWCompletionHandler()
