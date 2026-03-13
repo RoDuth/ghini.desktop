@@ -102,7 +102,13 @@ class NoteBox(GenericPresenter[db.Note], Gtk.Box):
         spell_view.basic_setup()
 
     def populate_categories(self) -> None:
-        stmt = select(self.model.__table__.c.category).distinct()
+        category = self.model.__table__.c.category
+        stmt = (
+            select(category)
+            .where(category.is_not(None))
+            .order_by(category)
+            .distinct()
+        )
 
         with db.engine.connect() as connection:
             for category in connection.scalars(stmt):
@@ -250,7 +256,13 @@ class PictureBox(GenericPresenter[db.Note], Gtk.Box):
         return toplevel
 
     def populate_categories(self) -> None:
-        stmt = select(self.model.__table__.c.category).distinct()
+        category = self.model.__table__.c.category
+        stmt = (
+            select(category)
+            .where(category.is_not(None))
+            .order_by(category)
+            .distinct()
+        )
 
         with db.engine.connect() as connection:
             for category in connection.scalars(stmt):
