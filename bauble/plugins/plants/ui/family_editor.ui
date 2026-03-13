@@ -310,7 +310,6 @@
                             <property name="can-focus">True</property>
                             <property name="has-focus">True</property>
                             <property name="hexpand">True</property>
-                            <property name="invisible-char">●</property>
                             <property name="width-chars">32</property>
                             <property name="tooltip-text" translatable="yes">The family name, the combination of family name and author must be unique</property>
                             <signal name="changed" handler="on_family_entry_changed" swapped="no"/>

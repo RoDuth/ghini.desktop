@@ -1153,38 +1153,6 @@ class FamilyTests(PlantTestCase):
         # no plant exclude inactive false
         self.assertEqual(fam.has_children(), True)
 
-    def test_edit_callback(self):
-        family = Family(family="Welwitschiaceae")
-        self.session.add(family)
-        self.session.flush()
-
-        from .ui.family_editor import edit_callback
-
-        with mock.patch.object(edit_callback, "dialog_class") as mock_editor:
-
-            self.assertFalse(edit_callback([family]))
-            mock_editor.assert_called_once()
-            self.assertEqual(mock_editor.call_args.kwargs["model"], family)
-            mock_editor().show_all.assert_called_once()
-
-    def test_add_genera_callback(self):
-        family = Family(family="Welwitschiaceae")
-        self.session.add(family)
-        self.session.commit()
-
-        from .ui.family_editor import add_genera_callback
-
-        with mock.patch.object(
-            add_genera_callback, "dialog_class"
-        ) as mock_editor:
-
-            self.assertFalse(add_genera_callback([family]))
-            mock_editor.assert_called_once()
-            gen = mock_editor.call_args.kwargs["model"]
-            gen = self.session.merge(gen)
-            self.assertIsInstance(gen, Genus)
-            self.assertEqual(gen.family, family)
-
 
 class FamilyUpdatedTests(BaubleTestCase):
 

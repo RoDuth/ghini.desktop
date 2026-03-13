@@ -24,6 +24,7 @@ from gi.repository import Gtk
 from bauble import db
 from bauble import utils
 from bauble.plugins.plants.family import Family
+from bauble.plugins.plants.genus import Genus
 from bauble.test import BaubleTestCase
 from bauble.test import update_gui
 from bauble.ui.presenter import Response
@@ -31,6 +32,8 @@ from bauble.ui.utils import set_widget_value
 from bauble.ui.widgets.message import YesNoMessageBox
 
 from ..ui.family_editor import FamilyEditorDialog
+from ..ui.family_editor import add_genera_callback
+from ..ui.family_editor import edit_callback
 from ..ui.family_editor import validate_unique_family
 
 
@@ -468,3 +471,31 @@ class FunctionTests(BaubleTestCase):
         self.assertTrue(
             validate_unique_family("Myrtaceae", "Me", "s. lat.", family)
         )
+
+    def test_edit_callback(self):
+        family = Family(family="Welwitschiaceae")
+        self.session.add(family)
+        self.session.flush()
+
+        with mock.patch.object(edit_callback, "dialog_class") as mock_editor:
+
+            self.assertFalse(edit_callback([family]))
+            mock_editor.assert_called_once()
+            self.assertEqual(mock_editor.call_args.kwargs["model"], family)
+            mock_editor().show_all.assert_called_once()
+
+    def test_add_genera_callback(self):
+        family = Family(family="Welwitschiaceae")
+        self.session.add(family)
+        self.session.commit()
+
+        with mock.patch.object(
+            add_genera_callback, "dialog_class"
+        ) as mock_editor:
+
+            self.assertFalse(add_genera_callback([family]))
+            mock_editor.assert_called_once()
+            gen = mock_editor.call_args.kwargs["model"]
+            gen = self.session.merge(gen)
+            self.assertIsInstance(gen, Genus)
+            self.assertEqual(gen.family, family)
