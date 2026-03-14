@@ -36,15 +36,20 @@ from gi.repository import GdkPixbuf
 from gi.repository import GLib
 from gi.repository import GObject
 from gi.repository import Gtk
+from sqlalchemy.orm import object_mapper
+from sqlalchemy.orm.exc import DetachedInstanceError
 
+from bauble import db
 from bauble.i18n import _
 from bauble.utils import LRUCache
 from bauble.utils import date_string
 from bauble.utils import nstr
 from bauble.utils.web import get_net_sess
 
+type TreeModelCompareFunc = Callable[[Gtk.TreeModelRow, Any], bool]
 
-def tree_model_has(tree, value):
+
+def tree_model_has(tree: Gtk.TreeModel | Gtk.TreeModelRow, value: Any) -> bool:
     """Return True or False if value is in the tree."""
     return len(search_tree_model(tree, value)) > 0
 
@@ -52,8 +57,8 @@ def tree_model_has(tree, value):
 def search_tree_model(
     parent: Gtk.TreeModel | Gtk.TreeModelRow,
     data: Any,
-    cmp=lambda row, data: row[0] == data,
-):
+    cmp: TreeModelCompareFunc = lambda row, data: row[0] == data,
+) -> tuple[Gtk.TreeIter, ...]:
     """Return an iterable of Gtk.TreeIter instances to all occurences
     of data in model
 
@@ -64,13 +69,17 @@ def search_tree_model(
     """
     if isinstance(parent, Gtk.TreeModel):
         if not parent.get_iter_first():  # model empty
-            return []
+            return tuple()
         treeitr = cast(Gtk.TreeIter, parent.get_iter_first())
         return search_tree_model(parent[treeitr], data, cmp)
 
     results = set()
 
-    def func(model, _path, itr):
+    def func(
+        model: Gtk.TreeModel,
+        _path: Gtk.TreePath,
+        itr: Gtk.TreeIter,
+    ) -> bool:
         if cmp(model[itr], data):
             results.add(itr)
         return False
@@ -82,7 +91,7 @@ def search_tree_model(
 def combo_get_value_iter(
     combo: Gtk.ComboBox,
     value: Any,
-    cmp=lambda row, value: row[0] == value,
+    cmp: TreeModelCompareFunc = lambda row, value: row[0] == value,
 ) -> Gtk.TreeIter | None:
     """Returns a Gtk.TreeIter that points to first matching value in the
     combo's model.
@@ -123,7 +132,11 @@ def clear_model(obj_with_model: WithModel) -> None:
     obj_with_model.set_model(None)
 
 
-def set_combo_from_value(combo, value, cmp=lambda row, value: row[0] == value):
+def set_combo_from_value(
+    combo: Gtk.ComboBox,
+    value: Any,
+    cmp: TreeModelCompareFunc = lambda row, data: row[0] == data,
+):
     """Find value in combo model and set it as active, else raise ValueError
     cmp(row, value) is the a function to use for comparison
 
@@ -150,7 +163,7 @@ def get_widget_value(widget: GObject.Object) -> str | None | bool:
     """
 
     raise TypeError(
-        "utils.get_widget_value(): Don't know how to handle the widget "
+        "ui.utils.get_widget_value(): Don't know how to handle the widget "
         f"{widget}"
     )
 
@@ -219,7 +232,7 @@ def set_widget_value(
     """
 
     raise TypeError(
-        "utils.set_widget_value(): Don't know how to handle "
+        "ui.utils.set_widget_value(): Don't know how to handle "
         f"widget {widget}"
     )
 
@@ -301,7 +314,7 @@ def _set_combo_value(
     treeiter = None
     if not widget.get_model():
         logger.warning(
-            "utils.set_widget_value(): combo doesn't have a model: %s",
+            "ui.utils.set_widget_value(): combo doesn't have a model: %s",
             Gtk.Buildable.get_name(widget),
         )
     else:

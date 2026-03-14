@@ -354,7 +354,7 @@ class FormatterSettingsBoxTests(TestCase):
             set_box.update(settings)
         self.assertTrue(
             any(
-                "TypeError(utils.set_widget_value(): Don't know how to handle"
+                "TypeError(ui.utils.set_widget_value(): Don't know how to hand"
                 in i
                 for i in logs.output
             )
