@@ -482,7 +482,7 @@ class FunctionTests(BaubleTestCase):
             self.assertFalse(edit_callback([family]))
             mock_editor.assert_called_once()
             self.assertEqual(mock_editor.call_args.kwargs["model"], family)
-            mock_editor().show_all.assert_called_once()
+            mock_editor().show.assert_called_once()
 
     def test_add_genera_callback(self):
         family = Family(family="Welwitschiaceae")

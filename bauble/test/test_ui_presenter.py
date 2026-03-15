@@ -628,4 +628,4 @@ class FunctionTests(BaubleTestCase):
         self.assertIsInstance(
             mock_dialog.call_args_list[0].kwargs["session"], Session
         )
-        mock_dialog().show_all.assert_called_once()
+        mock_dialog().show.assert_called_once()

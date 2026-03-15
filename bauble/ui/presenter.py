@@ -341,6 +341,7 @@ class EditorDialog(Protocol):
     ) -> None: ...
 
     def show_all(self) -> None: ...
+    def show(self) -> None: ...
     def connect_after(self, signal: str, handler: Callable) -> int: ...
 
 
@@ -384,7 +385,7 @@ class EditCreateCallback:
     """Functor to create generic edit/create_callback functions.
 
     NOTE: these callbacks will not block the UI as they don't use
-    ``dialog.run()``, instead using ``dialog.show_all()``.  This requires the
+    ``dialog.run()``, instead using ``dialog.show()``.  This requires the
     EditorDialog's themselves to handle responses, including calling
     ``self.destroy()`` when complete.
     """
@@ -423,7 +424,7 @@ class EditCreateCallback:
             session=db.Session(),
         )
 
-        dialog.show_all()
+        dialog.show()
         dialog.connect_after("response", self.update_search_view)
 
         return False

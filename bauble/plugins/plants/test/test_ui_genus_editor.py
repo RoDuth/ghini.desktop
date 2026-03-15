@@ -691,7 +691,7 @@ class FunctionTests(BaubleTestCase):
             self.assertFalse(edit_callback([gen]))
             mock_editor.assert_called_once()
             self.assertEqual(mock_editor.call_args.kwargs["model"], gen)
-            mock_editor().show_all.assert_called_once()
+            mock_editor().show.assert_called_once()
 
     def test_add_species_callback(self):
         caricaceae = Family(family="Caricaceae")
