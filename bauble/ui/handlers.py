@@ -39,6 +39,7 @@ from gi.repository import GObject
 from gi.repository import Gtk
 
 from . import dialogs
+from .utils import combo_get_value_iter
 from .validators import Validator
 from .validators import ValidatorError
 
@@ -83,6 +84,8 @@ class HandlerMethodDescriptor[T: GObject.Object](ABC):
         self.validators = validators
         self.converter = converter
         self.problem_name_template: str
+        # generic problem used internally by classes that implement must_match
+        self.match_problem: str
         self.name = ""
         self.class_name = ""
 
@@ -118,6 +121,8 @@ class HandlerMethodDescriptor[T: GObject.Object](ABC):
         self.problem_name_template = (
             f"{{}}::{self.name}::{self.class_name}::{id(instance)}"
         )
+
+        self.match_problem = self.problem_name_template.format("not_matched")
 
         def bound_method(widget: T, **kwargs) -> None:
             """Handler method called when the widget signal is emitted.
@@ -155,6 +160,51 @@ class HandlerMethodDescriptor[T: GObject.Object](ABC):
 
         problem_widget = kwargs.get("problem_widget", widget)
 
+        if not self.validate(instance, problem_widget, field_name, value):
+            return
+
+        self.set_model_value(instance, problem_widget, field_name, value)
+
+        if hasattr(instance, "update"):
+            instance.update()
+
+    def match_handler(
+        self,
+        instance: GenericPresenter,
+        widget: T,
+        **kwargs: Any,
+    ) -> None:
+        """Only adds ``match_problem`` to the widget and logs.
+
+        Subclasses that implement ``must_match=True`` can override ``handler``
+        to run this instead where required (i.e. where setting the problem and
+        logging is all thats needed).  These subclasses should remove
+        ``match_problem`` later where appropriate.
+        """
+        # logger here as self.handler() is not called
+        field_name = instance.widgets_to_model_map[widget]
+        current = getattr(instance.model, field_name)
+        logger.debug(
+            "%s.%s(%s) called for field %s - values: %s -> %s",
+            self.class_name,
+            self.name,
+            widget,
+            field_name,
+            current,
+            self.get_value(widget),
+        )
+
+        problem_widget = kwargs.get("problem_widget", widget)
+        instance.add_problem(self.match_problem, problem_widget)
+
+    def validate(
+        self,
+        instance: GenericPresenter,
+        problem_widget: Gtk.Widget,
+        field_name: str,
+        value: Any,
+    ) -> bool:
+
         for validator in self.validators:
             problem = self.problem_name_template.format(validator.problem_name)
 
@@ -167,14 +217,11 @@ class HandlerMethodDescriptor[T: GObject.Object](ABC):
                 if hasattr(instance, "update"):
                     instance.update()
 
-                return
+                return False
 
             instance.remove_problem(problem, problem_widget)
 
-        self.set_model_value(instance, problem_widget, field_name, value)
-
-        if hasattr(instance, "update"):
-            instance.update()
+        return True
 
     def set_model_value(
         self,
@@ -232,7 +279,7 @@ class EntryWCompletionHandler(EntryHandler):
 
     The entry must have a ``Gtk.EntryCompletion`` with model attached.
 
-    If the completion model handles non-string values set ``must_match=True``,
+    If the completion model handles non-string values set ``must_match=True``.
 
     To work for both string or object values the default "match-selected"
     behaviour is overriden to update the entry widget with the string of the
@@ -283,14 +330,19 @@ class EntryWCompletionHandler(EntryHandler):
             liststore: Gtk.ListStore,
             tree_iter: Gtk.TreeIter,
         ) -> bool:
-            """Overrides default behaviour as can not set_text to an object."""
+            """Overrides default behaviour as can not set_text to an object.
+
+            This handler runs last.
+            """
             field_name = instance.widgets_to_model_map[widget]
             obj = liststore[tree_iter][0]
             widget.set_text(str(obj))
-            self.set_model_value(instance, problem_widget, field_name, obj)
+            instance.remove_problem(self.match_problem, widget)
 
-            match_problem = self.problem_name_template.format("not_matched")
-            instance.remove_problem(match_problem, widget)
+            if not self.validate(instance, problem_widget, field_name, obj):
+                return True
+
+            self.set_model_value(instance, problem_widget, field_name, obj)
 
             if hasattr(instance, "update"):
                 instance.update()
@@ -306,21 +358,21 @@ class EntryWCompletionHandler(EntryHandler):
                 on_match_selected,
             )
 
-        if not self.must_match:
-            super().handler(instance, widget, **kwargs)
+        if self.must_match:
+            # just log and mark the problem
+            super().match_handler(instance, widget, **kwargs)
         else:
-            # bypass usual handler, just sets problem and logs
-            self.match_handler(instance, widget, completion_model)
+            super().handler(instance, widget, **kwargs)
 
         if len(text) < min_key_length:
             return
 
         values = get_values(text)
         for value in values:
-            completion_model.append([value])
+            completion_model.append(value)
 
         # if an exact match select it
-        if len(values) == 1 and str(values[0]).lower() == text.lower():
+        if len(values) == 1 and str(values[0][0]).lower() == text.lower():
             completion.emit(
                 "match-selected",
                 completion_model,
@@ -328,31 +380,6 @@ class EntryWCompletionHandler(EntryHandler):
             )
             # force the popup to close
             completion_model.clear()
-
-    def match_handler(
-        self,
-        instance: GenericPresenter,
-        widget: Gtk.Entry,
-        completion_model: Gtk.ListStore,
-    ) -> None:
-
-        if completion_model.get_column_type(0) != GObject.TYPE_STRING:
-            # logger here as super().handler() is never called
-            field_name = instance.widgets_to_model_map[widget]
-            current = getattr(instance.model, field_name)
-            logger.debug(
-                "%s.%s(%s) called for field %s - values: %s -> %s",
-                self.class_name,
-                self.name,
-                widget,
-                "family",
-                current,
-                widget.get_text(),
-            )
-
-        match_problem = self.problem_name_template.format("not_matched")
-
-        instance.add_problem(match_problem, widget)
 
 
 class TextBufferHandler(HandlerMethodDescriptor[Gtk.TextBuffer]):
@@ -370,14 +397,22 @@ class TextBufferHandler(HandlerMethodDescriptor[Gtk.TextBuffer]):
         return widget.get_text(*widget.get_bounds(), False)
 
 
+NOTFOUND = object()
+
+
 class ComboBoxHandler(HandlerMethodDescriptor[Gtk.ComboBox]):
     """HandlerMethodDescriptor for Gtk.ComboBox widgets.
+
+    If the model handles non-string values set ``must_match=True``.
 
     If validation or conversion is needed provide a list of ``Validator``s and
     a ``Converter`` callback as required.
 
     To specify which column holds the value instatiate with ``column=<int>``
     else column 0 is used.
+
+    If the combo has an entry that must match one of the model values
+    instanciate with ``must_match=True``
     """
 
     def __init__(
@@ -385,17 +420,23 @@ class ComboBoxHandler(HandlerMethodDescriptor[Gtk.ComboBox]):
         validators: Sequence[Validator] | None = None,
         converter: Converter = lambda value, *args: value,
         column: int = 0,
+        must_match: bool = False,
     ) -> None:
         self.column = column
+        self.must_match = must_match
 
         super().__init__(validators, converter)
 
     def get_value(self, widget: Gtk.ComboBox) -> Any:
-        if widget.get_has_entry():
-            return cast(Gtk.Entry, widget.get_child()).get_text()
-
         model = widget.get_model()
         iter_ = widget.get_active_iter()
+
+        if not iter_ and widget.get_has_entry():
+            text = cast(Gtk.Entry, widget.get_child()).get_text()
+            iter_ = combo_get_value_iter(widget, text)
+
+            if not iter_:
+                return NOTFOUND if self.must_match else text
 
         if model is None or iter_ is None:
             return None
@@ -403,3 +444,16 @@ class ComboBoxHandler(HandlerMethodDescriptor[Gtk.ComboBox]):
         value = model[iter_][self.column]
 
         return value
+
+    def handler(
+        self,
+        instance: GenericPresenter,
+        widget: Gtk.ComboBox,
+        **kwargs: Any,
+    ) -> None:
+        if self.must_match and self.get_value(widget) is NOTFOUND:
+            # just log and mark the problem
+            super().match_handler(instance, widget, **kwargs)
+        else:
+            instance.remove_problem(self.match_problem, widget)
+            super().handler(instance, widget, **kwargs)

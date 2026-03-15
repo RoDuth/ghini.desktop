@@ -439,6 +439,8 @@ class ConnectionBox(
     on_readable_file_entry_changed = EntryHandler(
         [Validator(validate_readable_file, "unreadable_file")]
     )
+    # don't want None for the empty string
+    on_entry_changed = EntryHandler()
 
     def __init__(self, model: ConnectionModel) -> None:
         super().__init__(model, self)
@@ -614,11 +616,11 @@ class ConnectionBox(
         if value == "0":
             entry.set_text("")
 
-        super().on_text_entry_changed(entry)
+        self.on_entry_changed(entry)
 
     @Gtk.Template.Callback()
     def on_text_entry_changed(self, entry: Gtk.Entry) -> None:
-        super().on_text_entry_changed(entry)
+        self.on_entry_changed(entry)
 
     @Gtk.Template.Callback()
     def on_passwd_chkbx_toggled(self, check_button: Gtk.CheckButton) -> None:

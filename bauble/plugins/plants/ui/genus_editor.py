@@ -32,6 +32,7 @@ from gi.repository import GLib
 from gi.repository import Gtk
 from sqlalchemy import inspect
 from sqlalchemy import select
+from sqlalchemy.engine import Row
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 from sqlalchemy.sql import Select
@@ -311,7 +312,7 @@ class GenusEditorDialog(
             get_values=self.family_get_completions,
         )
 
-    def family_get_completions(self, text: str) -> list[Family]:
+    def family_get_completions(self, text: str) -> list[Row]:
         stmt = (
             select(Family)
             .where(utils.ilike(Family.epithet, f"{text}%%"))
@@ -319,7 +320,7 @@ class GenusEditorDialog(
             .order_by(Family.epithet)
             .limit(20)
         )
-        return self.session.execute(stmt).scalars().all()
+        return self.session.execute(stmt).all()
 
     @Gtk.Template.Callback()
     def on_family_match_selected(

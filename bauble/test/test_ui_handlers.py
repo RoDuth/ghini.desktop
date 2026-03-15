@@ -29,6 +29,7 @@ from bauble.ui.handlers import EntryHandler
 from bauble.ui.handlers import EntryWCompletionHandler
 from bauble.ui.handlers import TextBufferHandler
 from bauble.ui.presenter import GenericPresenter
+from bauble.ui.utils import format_combo_entry_text
 from bauble.ui.validators import Validator
 from bauble.ui.validators import validate_non_empty
 
@@ -49,6 +50,7 @@ class Presenter(GenericPresenter, Gtk.Box):
     )
     entry_w_completion_handler = EntryWCompletionHandler()
     combobox_handler = ComboBoxHandler()
+    combobox_handler_match = ComboBoxHandler(must_match=True)
     text_buffer_handler = TextBufferHandler(
         [Validator(validate_non_empty, "empty")],
         lambda value, *_args: value.strip(),
@@ -59,6 +61,11 @@ class Presenter(GenericPresenter, Gtk.Box):
         super().__init__(self.model, self)
         self.entry = Gtk.Entry()
         self.combo = Gtk.ComboBox()
+        self.combo_w_entry = Gtk.ComboBox().new_with_entry()
+        self.combo_w_entry.connect(
+            "format-entry-text",
+            format_combo_entry_text,
+        )
         self.text_view = Gtk.TextView()
         self.buffer = Gtk.TextBuffer()
         self.text_view.set_buffer(self.buffer)
@@ -66,6 +73,7 @@ class Presenter(GenericPresenter, Gtk.Box):
         self.widgets_to_model_map = {
             self.entry: "value",
             self.combo: "value",
+            self.combo_w_entry: "value",
             self.buffer: "value",
         }
         self.update = mock.Mock()
@@ -149,7 +157,7 @@ class HandlerTests(TestCase):
         values = ["Foo bar", "Foo baz", "Baz foo bar"]
 
         def values_getter(text):
-            return [i for i in values if i.startswith(text)]
+            return [(i,) for i in values if i.startswith(text)]
 
         presenter.entry_w_completion_handler(
             presenter.entry,
@@ -157,7 +165,10 @@ class HandlerTests(TestCase):
         )
 
         self.assertEqual(len(list_store), 2)
-        self.assertCountEqual([i[0] for i in list_store], values_getter("Foo"))
+        self.assertCountEqual(
+            [i[0] for i in list_store],
+            [i[0] for i in values_getter("Foo")],
+        )
         self.assertEqual(len(presenter.problems), 0)
         self.assertEqual(presenter.model.value, "Foo")
 
@@ -170,7 +181,10 @@ class HandlerTests(TestCase):
         )
 
         self.assertEqual(len(list_store), 2)
-        self.assertCountEqual([i[0] for i in list_store], values_getter("Foo"))
+        self.assertCountEqual(
+            [i[0] for i in list_store],
+            [i[0] for i in values_getter("Foo")],
+        )
         self.assertEqual(len(presenter.problems), 1)
         self.assertTrue(
             list(presenter.problems)[0][0].startswith("not_matched")
@@ -188,6 +202,21 @@ class HandlerTests(TestCase):
         self.assertEqual(len(list_store), 0)
         self.assertEqual(len(presenter.problems), 0)
         self.assertEqual(presenter.entry.get_text(), "Foo bar")
+        self.assertEqual(presenter.model.value, "Foo bar")
+        presenter.update.assert_called()
+
+        # exact match doesn't validate
+        presenter.entry.set_text("Foo baz")
+        with mock.patch(
+            "bauble.ui.handlers.EntryWCompletionHandler.validate",
+            return_value=False,
+        ):
+            presenter.entry_w_completion_handler(
+                presenter.entry,
+                get_values=values_getter,
+            )
+        self.assertEqual(presenter.entry.get_text(), "Foo baz")
+        # doesn't set
         self.assertEqual(presenter.model.value, "Foo bar")
         presenter.update.assert_called()
 
@@ -212,6 +241,41 @@ class HandlerTests(TestCase):
         self.assertEqual(len(presenter.problems), 0)
         self.assertEqual(presenter.model.value, "Bar")
         presenter.update.assert_called()
+
+        presenter.destroy()
+
+    def test_combobox_handler_matching(self):
+        presenter = Presenter()
+        model = Gtk.ListStore(str)
+        model.append(["Foo"])
+        model.append(["Bar"])
+        model.append(["Baz"])
+        presenter.combo_w_entry.set_model(model)
+        presenter.combo_w_entry.set_active(0)
+        presenter.combobox_handler_match(presenter.combo_w_entry)
+
+        self.assertEqual(len(presenter.problems), 0)
+        self.assertEqual(presenter.model.value, "Foo")
+
+        presenter.combo_w_entry.set_active(1)
+        presenter.combobox_handler_match(presenter.combo_w_entry)
+
+        self.assertEqual(len(presenter.problems), 0)
+        self.assertEqual(presenter.model.value, "Bar")
+        presenter.update.assert_called()
+
+        presenter.combo_w_entry.get_child().set_text("ham")
+        presenter.combobox_handler_match(presenter.combo_w_entry)
+        self.assertEqual(len(presenter.problems), 1)
+        self.assertTrue(
+            list(presenter.problems)[0][0].startswith("not_matched")
+        )
+        self.assertEqual(presenter.model.value, "Bar")
+
+        presenter.combo_w_entry.get_child().set_text("Foo")
+        presenter.combobox_handler_match(presenter.combo_w_entry)
+        self.assertEqual(len(presenter.problems), 0)
+        self.assertEqual(presenter.model.value, "Foo")
 
         presenter.destroy()
 

@@ -178,7 +178,9 @@ class GenericPresenter[T]:
     # more can be defined as needed
     #
 
-    on_text_entry_changed = EntryHandler()
+    on_text_entry_changed = EntryHandler(
+        converter=lambda value, *_args: value.strip() or None
+    )
 
     on_non_empty_text_entry_changed = EntryHandler(
         [Validator(validate_non_empty, "empty")],
@@ -190,10 +192,12 @@ class GenericPresenter[T]:
             Validator(validate_non_empty, "empty"),
             Validator(validate_unique, "not_unique"),
         ],
-        lambda value, *_args: value.strip(),
+        lambda value, *_args: value.strip() or None,
     )
 
-    on_text_buffer_changed = TextBufferHandler()
+    on_text_buffer_changed = TextBufferHandler(
+        converter=lambda value, *_args: value.strip() or None,
+    )
 
     on_non_empty_text_buffer_changed = TextBufferHandler(
         [Validator(validate_non_empty, "empty")],
