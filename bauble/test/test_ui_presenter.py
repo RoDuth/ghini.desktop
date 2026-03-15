@@ -24,7 +24,6 @@ from unittest import mock
 from gi.repository import Gtk
 from sqlalchemy.orm import Session
 
-from bauble import utils
 from bauble.meta import BaubleMeta
 from bauble.test import BaubleTestCase
 from bauble.ui.handlers import EntryHandler
@@ -32,6 +31,7 @@ from bauble.ui.presenter import EditCreateCallback
 from bauble.ui.presenter import GenericPresenter
 from bauble.ui.presenter import Problem
 from bauble.ui.presenter import Response
+from bauble.ui.utils import format_combo_entry_text
 from bauble.ui.validators import Validator
 from bauble.ui.validators import validate_unique
 
@@ -495,7 +495,7 @@ class GenericPresenterTests(TestCase):
         cell = Gtk.CellRendererText()
         combo.pack_start(cell, True)
         combo.add_attribute(cell, "text", 1)
-        combo.connect("format-entry-text", utils.format_combo_entry_text)
+        combo.connect("format-entry-text", format_combo_entry_text)
         combo.set_model(model)
         presenter.widgets_to_model_map = {combo: "foo"}
 

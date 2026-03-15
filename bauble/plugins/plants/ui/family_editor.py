@@ -39,13 +39,13 @@ from bauble import utils
 from bauble.i18n import _
 from bauble.ui import dialogs
 from bauble.ui.handlers import EntryWCompletionHandler
-from bauble.ui.handlers import populate_enum_combo
 from bauble.ui.presenter import AddCallback
 from bauble.ui.presenter import EditCreateCallback
 from bauble.ui.presenter import GenericPresenter
 from bauble.ui.presenter import Problem
 from bauble.ui.presenter import Response
 from bauble.ui.presenter import default_dialog_update
+from bauble.ui.utils import populate_enum_combo
 from bauble.ui.widgets import LinksMenuButton
 from bauble.ui.widgets import NoteBox
 from bauble.ui.widgets import NotesPresenter

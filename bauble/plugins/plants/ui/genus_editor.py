@@ -43,14 +43,13 @@ from bauble import utils
 from bauble.i18n import _
 from bauble.ui import dialogs
 from bauble.ui.handlers import EntryWCompletionHandler
-from bauble.ui.handlers import default_completion_cell_data_func
-from bauble.ui.handlers import default_completion_match_func
-from bauble.ui.handlers import populate_enum_combo
 from bauble.ui.presenter import EditCreateCallback
 from bauble.ui.presenter import GenericPresenter
 from bauble.ui.presenter import Problem
 from bauble.ui.presenter import Response
 from bauble.ui.presenter import default_dialog_update
+from bauble.ui.utils import default_completion_match_func
+from bauble.ui.utils import populate_enum_combo
 from bauble.ui.widgets import LinksMenuButton
 from bauble.ui.widgets import NoteBox
 from bauble.ui.widgets import NotesPresenter
@@ -62,6 +61,7 @@ from ..genus import GenusSynonym
 from ..species import edit_species
 from ..species_model import Species
 from .widgets import SynonymsPresenter
+from .widgets import taxon_completion_cell_data_func
 
 GENUS_WEB_BUTTON_DEFS_PREFS = "web_button_defs.genus"
 
@@ -231,7 +231,7 @@ class GenusEditorDialog(
 
         self.family_completion.set_cell_data_func(
             self.family_cell,
-            default_completion_cell_data_func,
+            taxon_completion_cell_data_func,
         )
         self.family_completion.set_match_func(default_completion_match_func)
 
@@ -254,6 +254,7 @@ class GenusEditorDialog(
         self.refresh_all_widgets_from_model()
         self.genus_entry.emit("changed")
         self.family_entry.emit("changed")
+
         if not self.model.family:
             self.family_entry.grab_focus()
 

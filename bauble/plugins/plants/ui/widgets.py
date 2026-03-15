@@ -40,9 +40,8 @@ from sqlalchemy.sql import Select
 from bauble import utils
 from bauble.i18n import _
 from bauble.ui import dialogs
-from bauble.ui.handlers import default_completion_cell_data_func
-from bauble.ui.handlers import default_completion_match_func
 from bauble.ui.utils import clear_model
+from bauble.ui.utils import default_completion_match_func
 from bauble.ui.views import InfoExpander
 from bauble.ui.views import on_clicked_select
 
@@ -50,6 +49,30 @@ from ..model import Synonym
 from ..model import Taxon
 
 parent = Path(__file__).resolve().parent
+
+
+def taxon_completion_cell_data_func(
+    column: Gtk.TreeViewColumn,
+    renderer: Gtk.CellRenderer,
+    model: Gtk.ListStore,
+    treeiter: Gtk.TreeIter,
+) -> None:
+    # pylint: disable=unused-argument
+    """The default Gtk.EntryCompletion cell data function for Taxons.
+
+    Essentially the same as ``ui.utils.default_completion_cell_data_func``
+    except authorship is included.
+    """
+    value = model[treeiter][0]
+
+    try:
+        string = utils.xml_safe(value.string(author=True))
+    except DetachedInstanceError as e:
+        # object may be detached from the session when editor is destroyed
+        logger.debug("%s(%s)", type(e).__name__, str(e))
+        string = ""
+
+    renderer.set_property("markup", string)
 
 
 class SynonymsExpander[T: Taxon](InfoExpander[T], Gtk.Expander):
@@ -213,7 +236,7 @@ class SynonymsPresenter(Gtk.Frame):
         self.completions_seed = completions_seed
         self.completion.set_cell_data_func(
             self.cell,
-            cell_data_func or default_completion_cell_data_func,
+            cell_data_func or taxon_completion_cell_data_func,
         )
         self.completion.set_match_func(
             match_func or default_completion_match_func

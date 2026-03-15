@@ -1,4 +1,4 @@
-# pylint: disable=protected-access
+# pylint: disable=protected-access,no-self-use
 # Copyright (c) 2026 Ross Demuth <rossdemuth123@gmail.com>
 #
 # This file is part of ghini.desktop.
@@ -32,6 +32,7 @@ from bauble.test import get_setUp_data_funcs
 
 from ..ui.widgets import SynonymsPresenter
 from ..ui.widgets import _syn_data_func
+from ..ui.widgets import taxon_completion_cell_data_func
 
 
 class SynonymsPresenterTests(BaubleTestCase):
@@ -432,3 +433,34 @@ class SynonymsPresenterTests(BaubleTestCase):
         with mock.patch.object(synonym, "markup") as mock_markup:
             mock_markup.side_effect = DetachedInstanceError
             _syn_data_func(column, cell, model, treeiter, None)
+
+    def test_taxon_completion_cell_data_func(self):
+        mock_obj = mock.MagicMock()
+        mock_obj.string.return_value = "<Test>"
+        list_store = Gtk.ListStore(object)
+        list_store.append([mock_obj])
+        mock_renderer = mock.MagicMock()
+
+        taxon_completion_cell_data_func(None, mock_renderer, list_store, 0)
+        mock_renderer.set_property.assert_called_once_with(
+            "markup", "&lt;Test&gt;"
+        )
+
+    def test_taxon_completion_cell_data_func_detached_instance(self):
+        mock_obj = mock.MagicMock()
+        mock_obj.string.side_effect = DetachedInstanceError
+        list_store = Gtk.ListStore(object)
+        list_store.append([mock_obj])
+        mock_renderer = mock.MagicMock()
+
+        with self.assertLogs(
+            "bauble.plugins.plants.ui.widgets", level="DEBUG"
+        ) as logs:
+            taxon_completion_cell_data_func(
+                None,
+                mock_renderer,
+                list_store,
+                0,
+            )
+        self.assertIn("DetachedInstanceError", logs.output[0])
+        mock_renderer.set_property.assert_called_once_with("markup", "")

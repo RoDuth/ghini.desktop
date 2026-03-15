@@ -37,11 +37,6 @@ from typing import overload
 
 from gi.repository import GObject
 from gi.repository import Gtk
-from sqlalchemy.orm import object_mapper
-from sqlalchemy.orm.exc import DetachedInstanceError
-
-from bauble import db
-from bauble import utils
 
 from . import dialogs
 from .validators import Validator
@@ -408,59 +403,3 @@ class ComboBoxHandler(HandlerMethodDescriptor[Gtk.ComboBox]):
         value = model[iter_][self.column]
 
         return value
-
-
-def populate_enum_combo(
-    combo: Gtk.ComboBox,
-    model: db.Base,
-    field: str,
-) -> None:
-    """Populate a ComboBox from a Enum Column's values.
-
-    :param combo: a ``Gtk.ComboBox``
-    :param model: an instance of ``db.Base``.
-    :param field: the column name of the enum to use to populate the ComboBox.
-    """
-    mapper = object_mapper(model)
-    values = sorted(mapper.c[field].type.values, key=lambda v: str(v or ""))
-    combo_model = cast(Gtk.ListStore, combo.get_model())
-    for value in values:
-        combo_model.append([value])
-
-
-def default_completion_cell_data_func(
-    column: Gtk.TreeViewColumn,
-    renderer: Gtk.CellRenderer,
-    model: Gtk.ListStore,
-    treeiter: Gtk.TreeIter,
-) -> None:
-    # pylint: disable=unused-argument
-    """The default completion cell data function for Gtk.EntryCompletion."""
-    value = model[treeiter][0]
-
-    try:
-        try:
-            # Taxons
-            string = utils.xml_safe(value.string(author=True))
-        except AttributeError:
-            string = utils.xml_safe(value)
-    except DetachedInstanceError as e:
-        # object may be detached from the session when editor is destroyed
-        logger.debug("%s(%s)", type(e).__name__, str(e))
-        string = ""
-
-    renderer.set_property("markup", string)
-
-
-def default_completion_match_func(
-    completion: Gtk.EntryCompletion,
-    key_string: str,
-    treeiter: Gtk.TreeIter,
-):
-    """The default completion match function for Gtk.EntryCompletion.
-
-    A case-insensitive string comparison of the the completions object in
-    column 0.
-    """
-    value = cast(Gtk.ListStore, completion.get_model())[treeiter][0]
-    return str(value).lower().startswith(key_string.lower())

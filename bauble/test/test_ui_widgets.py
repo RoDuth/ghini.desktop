@@ -298,6 +298,8 @@ class PicturesPresenterTests(BaubleClassTestCase):
         loc = Location(code="Loc2")
         pic = LocationPicture(category="Test", picture="Test1.jpg")
         loc._pictures.append(pic)
+        self.session.add(pic)
+        self.session.commit()
         presenter = NotesPresenter()
 
         presenter.init(loc, "_pictures", PictureBox)
@@ -311,6 +313,8 @@ class PicturesPresenterTests(BaubleClassTestCase):
         presenter = NotesPresenter()
         self.assertRaises(BaubleError, presenter.init, Geography())
 
+        self.session.delete(loc)
+        self.session.commit()
         presenter.destroy()
 
     def test_add_button_clicked(self):

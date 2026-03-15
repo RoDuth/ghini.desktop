@@ -1,4 +1,3 @@
-# pylint: disable=no-self-use
 # Copyright (c) 2026 Ross Demuth <rossdemuth123@gmail.com>
 #
 # This file is part of ghini.desktop.
@@ -24,18 +23,11 @@ from unittest import TestCase
 from unittest import mock
 
 from gi.repository import Gtk
-from sqlalchemy import Column
-from sqlalchemy.orm.exc import DetachedInstanceError
 
-from bauble import btypes
-from bauble import db
 from bauble.ui.handlers import ComboBoxHandler
 from bauble.ui.handlers import EntryHandler
 from bauble.ui.handlers import EntryWCompletionHandler
 from bauble.ui.handlers import TextBufferHandler
-from bauble.ui.handlers import default_completion_cell_data_func
-from bauble.ui.handlers import default_completion_match_func
-from bauble.ui.handlers import populate_enum_combo
 from bauble.ui.presenter import GenericPresenter
 from bauble.ui.validators import Validator
 from bauble.ui.validators import validate_non_empty
@@ -243,73 +235,3 @@ class HandlerTests(TestCase):
         presenter.update.assert_called()
 
         presenter.destroy()
-
-
-class FunctionTests(TestCase):
-    def test_populate_enum_combo(self):
-        class Model(db.Base):
-            __tablename__ = "test"
-            value = Column(
-                btypes.Enum(
-                    values=["eggs", "ham", "spam", None],
-                    empty_to_none=True,
-                ),
-                default=None,
-            )
-
-        combo = Gtk.ComboBox()
-        list_store = Gtk.ListStore(str)
-        combo.set_model(list_store)
-        populate_enum_combo(combo, Model(), "value")
-        values = [i[0] for i in list_store]
-
-        self.assertCountEqual(values, ["eggs", "ham", "spam", None])
-
-    def test_default_completion_cell_data_func_strings(self):
-        list_store = Gtk.ListStore(str)
-        list_store.append(["<Test>"])
-        mock_renderer = mock.MagicMock()
-
-        default_completion_cell_data_func(None, mock_renderer, list_store, 0)
-        mock_renderer.set_property.assert_called_once_with(
-            "markup", "&lt;Test&gt;"
-        )
-
-    def test_default_completion_cell_data_func_objects(self):
-        mock_obj = mock.MagicMock()
-        mock_obj.string.return_value = "<Test>"
-        list_store = Gtk.ListStore(object)
-        list_store.append([mock_obj])
-        mock_renderer = mock.MagicMock()
-
-        default_completion_cell_data_func(None, mock_renderer, list_store, 0)
-        mock_renderer.set_property.assert_called_once_with(
-            "markup", "&lt;Test&gt;"
-        )
-
-    def test_default_completion_cell_data_func_detached_instance(self):
-        mock_obj = mock.MagicMock()
-        mock_obj.string.side_effect = DetachedInstanceError
-        list_store = Gtk.ListStore(object)
-        list_store.append([mock_obj])
-        mock_renderer = mock.MagicMock()
-
-        with self.assertLogs("bauble.ui.handlers", level="DEBUG") as logs:
-            default_completion_cell_data_func(
-                None,
-                mock_renderer,
-                list_store,
-                0,
-            )
-        self.assertIn("DetachedInstanceError", logs.output[0])
-        mock_renderer.set_property.assert_called_once_with("markup", "")
-
-    def test_default_completion_match_func(self):
-        mock_obj = mock.MagicMock()
-        mock_obj.__str__.return_value = "Testing"
-        list_store = Gtk.ListStore(object)
-        list_store.append([mock_obj])
-        completion = Gtk.EntryCompletion(model=list_store)
-
-        self.assertTrue(default_completion_match_func(completion, "Tes", 0))
-        self.assertFalse(default_completion_match_func(completion, "Foo", 0))

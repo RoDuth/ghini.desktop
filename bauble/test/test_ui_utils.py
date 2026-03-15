@@ -1,4 +1,4 @@
-# pylint: disable=too-many-public-methods
+# pylint: disable=too-many-public-methods,no-self-use
 # Copyright (c) 2005,2006,2007,2008,2009 Brett Adams <brett@belizebotanic.org>
 # Copyright (c) 2012-2016 Mario Frasca <mario@anche.no>
 # Copyright (c) 2018-2026 Ross Demuth <rossdemuth123@gmail.com>
@@ -25,7 +25,11 @@ from functools import partial
 from unittest import mock
 
 from gi.repository import Gtk
+from sqlalchemy import Column
+from sqlalchemy.orm.exc import DetachedInstanceError
 
+from bauble import btypes
+from bauble import db
 from bauble import paths
 from bauble.test import BaubleTestCase
 from bauble.test import update_gui
@@ -238,6 +242,89 @@ class UIUtilsTests(BaubleTestCase):
     def test_set_widget_value_unknown_raises(self):
         self.assertRaises(TypeError, utils.set_widget_value, mock.Mock())
 
+    def test_populate_enum_combo(self):
+        class Model(db.Base):
+            # pylint: disable=too-few-public-methods
+            __tablename__ = "test"
+            value = Column(
+                btypes.Enum(
+                    values=["eggs", "ham", "spam", None],
+                    empty_to_none=True,
+                ),
+                default=None,
+            )
+
+        combo = Gtk.ComboBox()
+        list_store = Gtk.ListStore(str)
+        combo.set_model(list_store)
+        utils.populate_enum_combo(combo, Model(), "value")
+        values = [i[0] for i in list_store]
+
+        self.assertCountEqual(values, ["eggs", "ham", "spam", None])
+
+    def test_default_completion_cell_data_func_strings(self):
+        list_store = Gtk.ListStore(str)
+        list_store.append(["<Test>"])
+        mock_renderer = mock.MagicMock()
+
+        utils.default_completion_cell_data_func(
+            None, mock_renderer, list_store, 0
+        )
+        mock_renderer.set_property.assert_called_once_with("text", "<Test>")
+
+    def test_default_completion_cell_data_func_objects(self):
+        mock_obj = mock.MagicMock()
+        mock_obj.__str__.return_value = "<Test>"
+        list_store = Gtk.ListStore(object)
+        list_store.append([mock_obj])
+        mock_renderer = mock.MagicMock()
+
+        utils.default_completion_cell_data_func(
+            None, mock_renderer, list_store, 0
+        )
+        mock_renderer.set_property.assert_called_once_with("text", "<Test>")
+
+    def test_default_completion_cell_data_func_detached_instance(self):
+        mock_obj = mock.MagicMock()
+        mock_obj.__str__.side_effect = DetachedInstanceError
+        list_store = Gtk.ListStore(object)
+        list_store.append([mock_obj])
+        mock_renderer = mock.MagicMock()
+
+        with self.assertLogs("bauble.ui.utils", level="DEBUG") as logs:
+            utils.default_completion_cell_data_func(
+                None,
+                mock_renderer,
+                list_store,
+                0,
+            )
+        self.assertIn("DetachedInstanceError", logs.output[0])
+        mock_renderer.set_property.assert_called_once_with("text", "")
+
+    def test_default_completion_match_func(self):
+        mock_obj = mock.MagicMock()
+        mock_obj.__str__.return_value = "Testing"
+        list_store = Gtk.ListStore(object)
+        list_store.append([mock_obj])
+        completion = Gtk.EntryCompletion(model=list_store)
+
+        self.assertTrue(
+            utils.default_completion_match_func(completion, "Tes", 0)
+        )
+        self.assertFalse(
+            utils.default_completion_match_func(completion, "Foo", 0)
+        )
+
+    def test_format_combo_entry_text(self):
+        mock_obj = mock.MagicMock()
+        mock_obj.__str__.return_value = "Test"
+        liststore = Gtk.ListStore(object)
+        liststore.append([None])
+        liststore.append([mock_obj])
+        combo = Gtk.ComboBox.new_with_model(liststore)
+        self.assertEqual(utils.format_combo_entry_text(combo, 0), "")
+        self.assertEqual(utils.format_combo_entry_text(combo, 1), "Test")
+
 
 class ImageLoaderTests(BaubleTestCase):
     def setUp(self):
@@ -352,7 +439,10 @@ class ImageLoaderTests(BaubleTestCase):
         win.destroy()
 
     def test_image_loader_base64_url(self):
-        path = "|data:image/jpeg;base64,R0lGODlhAQABAIAAAP///wAAACH5BAEAAAAALAAAAAABAAEAAAICRAEAOw=="
+        path = (
+            "|data:image/jpeg;base64,R0lGODlhAQABAIAAAP///"
+            "wAAACH5BAEAAAAALAAAAAABAAEAAAICRAEAOw=="
+        )
         pic_box = Gtk.Box()
         # needs a window for size-allocate signal
         win = Gtk.Window(title="test_window")

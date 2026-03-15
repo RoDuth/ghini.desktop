@@ -536,3 +536,69 @@ class ImageLoader(threading.Thread):
         with open(self.url, "rb") as f:
             img = f.read()
         return img
+
+
+def populate_enum_combo(
+    combo: Gtk.ComboBox,
+    model: db.Base,
+    field: str,
+) -> None:
+    """Populate a ComboBox from a Enum Column's values.
+
+    :param combo: a ``Gtk.ComboBox``
+    :param model: an instance of ``db.Base``.
+    :param field: the column name of the enum to use to populate the ComboBox.
+    """
+    mapper = object_mapper(model)
+    values = sorted(mapper.c[field].type.values, key=lambda v: str(v or ""))
+    combo_model = cast(Gtk.ListStore, combo.get_model())
+    for value in values:
+        combo_model.append([value])
+
+
+def default_completion_cell_data_func(
+    column: Gtk.TreeViewColumn,
+    renderer: Gtk.CellRenderer,
+    model: Gtk.ListStore,
+    treeiter: Gtk.TreeIter,
+) -> None:
+    # pylint: disable=unused-argument
+    """The default completion cell data function for Gtk.EntryCompletion."""
+    value = model[treeiter][0]
+
+    try:
+        string = str(value)
+    except DetachedInstanceError as e:
+        # object may be detached from the session when editor is destroyed
+        logger.debug("%s(%s)", type(e).__name__, str(e))
+        string = ""
+
+    renderer.set_property("text", string)
+
+
+def default_completion_match_func(
+    completion: Gtk.EntryCompletion,
+    key_string: str,
+    treeiter: Gtk.TreeIter,
+):
+    """The default completion match function for Gtk.EntryCompletion.
+
+    A case-insensitive string comparison of the the completions object in
+    column 0.
+    """
+    value = cast(Gtk.ListStore, completion.get_model())[treeiter][0]
+    return str(value).lower().startswith(key_string.lower())
+
+
+def format_combo_entry_text(combo: Gtk.ComboBox, path: Gtk.TreePath) -> str:
+    """Return text for a Gtk.Entry of a Gtk.ComboBox with model and entry where
+    the model contains a list of objects that should be displayed as strings.
+
+    Connect this to the "format-entry-text" signal of the combobox.
+
+    Avoids: Gtk-CRITICAL: gtk_entry_set_text: assertion 'text != NULL'
+    """
+    detail = combo.get_model()[path][0]
+    if not detail:
+        return ""
+    return str(detail)
