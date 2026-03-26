@@ -22,7 +22,6 @@ plants plugin
 
 import logging
 import os
-import weakref
 from ast import literal_eval
 from functools import partial
 from pathlib import Path
@@ -34,12 +33,10 @@ from gi.repository import Gio
 from gi.repository import GLib
 from gi.repository import Gtk
 from sqlalchemy import Column
-from sqlalchemy.exc import InvalidRequestError
 from sqlalchemy.exc import OperationalError
 
 import bauble
 from bauble import db
-from bauble import editor
 from bauble import pluginmgr
 from bauble import prefs
 from bauble import search
@@ -49,7 +46,6 @@ from bauble.paths import lib_dir
 from bauble.search.query_builder import ExpressionRow
 from bauble.search.stored_queries import StoredQueriesButtonBox
 from bauble.ui import dialogs
-from bauble.ui.utils import clear_model
 from bauble.ui.views import HistoryView
 from bauble.ui.views import HomeView
 from bauble.ui.views import SearchView
@@ -67,16 +63,11 @@ from .geography import update_all_approx_areas_handler
 from .species import BinomialSearch
 from .species import Species
 from .species import SpeciesDistribution
-from .species import SpeciesEditor
 from .species import SpeciesInfoBox
 from .species import SynonymSearch
 from .species import VernacularName
 from .species import VernacularNameInfoBox
-from .species import add_accession_action
-from .species import edit_callback as species_edit_callback
 from .species import get_binomial_completions
-from .species import species_context_menu
-from .species import vernname_context_menu
 from .species_model import update_all_full_names_handler
 from .ui.family_editor import create_family
 from .ui.family_editor import edit_callback as family_edit_callback
@@ -86,180 +77,13 @@ from .ui.genus_editor import create_genus
 from .ui.genus_editor import edit_callback as genus_edit_callback
 from .ui.genus_view import GenusInfoBox
 from .ui.genus_view import genus_context_menu
+from .ui.species_editor import create_species
+from .ui.species_editor import edit_callback as species_edit_callback
+from .ui.species_view import species_context_menu
+from .ui.species_view import vernname_context_menu
 
 # imported by clients of the module
 __all__ = ["Familia", "SpeciesDistribution"]
-
-
-class SynonymsPresenter(editor.GenericEditorPresenter):
-    """The SynonymsPresenter provides a generic presenter for adding and
-    removing synonyms that can be used with a taxon editor.
-
-    This presenter requires that the parent editors view provides the the
-    following widgets: syn_entry, syn_frame, syn_add_button, syn_remove_button,
-    syn_treeview, syn_column, syn_cell
-
-    Must also call cleanup when finished to ensure it is correctly garbage
-    collected.  Deleting the view here is also required to prevent circular
-    references (i.e. within the parents __del__ method).
-
-    :param parent: the parent presenter of this presenter
-    :param synonym_model: the class used for synonyms
-    :param comparer: comparer callable (or None to use the default) as used by
-        `assign_completions_handler`
-    :param completions_seed: callable that when supplied with a session and the
-        search text provides the starting query for the get_completions method
-        required by `assign_completions_handler`
-    """
-
-    PROBLEM_INVALID_SYNONYM = editor.Problem("invalid_synonym")
-
-    def __init__(self, parent, synonym_model, comparer, completions_seed):
-        self.synonym_model = synonym_model
-        self.completions_seed = completions_seed
-
-        super().__init__(
-            parent.model,
-            parent.view,
-            session=parent.session,
-            connect_signals=False,
-        )
-
-        self.parent_table_name = parent.model.__tablename__
-        self.parent_ref = weakref.ref(parent)
-        self.view.widget_set_value("syn_entry", "")
-        self.init_treeview()
-
-        # prevent adding synonyms to synonyms
-        if self.model.accepted:
-            self.view.widgets.syn_entry.set_placeholder_text(
-                _("Already a synonym of %s") % self.model.accepted
-            )
-            self.view.widgets.syn_frame.set_sensitive(False)
-
-        self.assign_completions_handler(
-            "syn_entry",
-            self.syn_get_completions,
-            on_select=self.on_select,
-            comparer=comparer,
-        )
-        self.on_select(None)  # set to default state
-
-        self._selected = None
-        self.view.connect(
-            "syn_add_button", "clicked", self.on_add_button_clicked
-        )
-        self.view.connect(
-            "syn_remove_button", "clicked", self.on_remove_button_clicked
-        )
-        self.additional = []
-        self._dirty = False
-
-    def syn_get_completions(self, text):
-        # Skip current synonyms, self and already added synonyms
-        result = self.completions_seed(self.session, text)
-        ids = [i[0] for i in self.session.query(self.synonym_model.synonym_id)]
-        for syn in self.model._synonyms:
-            if syn.synonym and (id_ := syn.synonym.id) not in ids:
-                ids.append(id_)
-        if id_ := self.model.id:
-            ids.append(id_)
-        return result.filter(type(self.model).id.notin_(ids)).limit(100)
-
-    def on_select(self, value):
-        sensitive = True
-        if value is None:
-            sensitive = False
-        self.view.widgets.syn_add_button.set_sensitive(sensitive)
-        self._selected = value
-
-    def is_dirty(self):
-        return self._dirty
-
-    def init_treeview(self):
-        """initialize the Gtk.TreeView"""
-        self.treeview = self.view.widgets.syn_treeview
-
-        def _syn_data_func(_column, cell, model, treeiter, _data):
-            val = model[treeiter][0]
-            cell.set_property("text", str(val))
-            # background color to indicate it's new
-            if self.session.is_modified(val):
-                cell.set_property("foreground", "blue")
-            else:
-                cell.set_property("foreground", None)
-
-        col = self.view.widgets.syn_column
-        col.set_cell_data_func(self.view.widgets.syn_cell, _syn_data_func)
-
-        clear_model(self.treeview)
-        tree_model = Gtk.ListStore(object)
-        for syn in sorted(self.model._synonyms, key=str):
-            tree_model.append([syn])
-        self.treeview.set_model(tree_model)
-        self.view.connect(
-            self.treeview, "cursor-changed", self.on_tree_cursor_changed
-        )
-
-    def on_tree_cursor_changed(self, tree):
-        self.view.widgets.syn_remove_button.set_sensitive(
-            len(tree.get_model()) > 0
-        )
-
-    def refresh_view(self):
-        """doesn't do anything"""
-        return
-
-    def on_add_button_clicked(self, _button):
-        """Adds the synonym from the synonym entry to the list of synonyms?
-
-        If the synonym is already considered a synonym, move them all across.
-        """
-        synonyms = []
-        syn = self.synonym_model(synonym=self._selected)
-        synonyms.append(syn)
-        for syn in self._selected._synonyms:
-            synonyms.append(syn)
-            self.additional.append(syn)
-        tree_model = self.treeview.get_model()
-        for syn in synonyms:
-            setattr(syn, self.parent_table_name, self.model)
-            tree_model.append([syn])
-        self._selected = None
-        entry = self.view.widgets.syn_entry
-        entry.set_text("")
-        entry.set_position(-1)
-        self.view.widgets.syn_add_button.set_sensitive(False)
-        self._dirty = True
-        self.parent_ref().refresh_sensitivity()
-
-    def on_remove_button_clicked(self, _button):
-        """Removes the currently selected synonym from the list of synonyms."""
-        tree = self.view.widgets.syn_treeview
-        path, _col = tree.get_cursor()
-        tree_model = tree.get_model()
-        value = tree_model[tree_model.get_iter(path)][0]
-        syn = str(value.synonym)
-        msg = _(
-            "Are you sure you want to remove %s as a synonym? \n\n"
-            "<i>Note: This will not remove %s from the database.</i>"
-        ) % (syn, syn)
-        if not dialogs.yes_no_dialog(msg, parent=self.view.get_window()):
-            return
-
-        tree_model.remove(tree_model.get_iter(path))
-        self.model.synonyms.remove(value.synonym)
-        self.session.refresh(value.synonym)
-        if value in self.additional:
-            try:
-                self.session.expunge(value)
-            except InvalidRequestError as e:
-                logger.debug("syn %s > %s (%s)", value, type(e).__name__, e)
-            self.additional.remove(value)
-        elif value in self.session:
-            self.session.delete(value)
-        self._dirty = True
-        self.parent_ref().refresh_sensitivity()
 
 
 class LabelUpdater(Thread):
@@ -615,12 +439,6 @@ class PlantsPlugin(pluginmgr.Plugin):
                 )
                 bauble.gui.options_menu.append_item(custom_consv_item)
 
-        if "GardenPlugin" in pluginmgr.plugins:
-            if add_accession_action not in species_context_menu:
-                species_context_menu.insert(1, add_accession_action)
-            if add_accession_action not in vernname_context_menu:
-                vernname_context_menu.insert(1, add_accession_action)
-
         mapper_search = search.strategies.get_strategy("MapperSearch")
 
         # set infoboxes once.
@@ -712,7 +530,7 @@ class PlantsPlugin(pluginmgr.Plugin):
         if bauble.gui is not None:
             bauble.gui.add_to_insert_menu(create_family, _("Family"))
             bauble.gui.add_to_insert_menu(create_genus, _("Genus"))
-            bauble.gui.add_to_insert_menu(SpeciesEditor, _("Species"))
+            bauble.gui.add_to_insert_menu(create_species, _("Species"))
             bauble.gui.main_entry_completion_callbacks.add(
                 get_binomial_completions
             )

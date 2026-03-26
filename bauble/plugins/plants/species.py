@@ -27,9 +27,7 @@ import logging
 logger = logging.getLogger(__name__)
 
 import re
-import traceback
 from ast import literal_eval
-from collections.abc import Sequence
 from pathlib import Path
 from typing import cast
 
@@ -44,7 +42,6 @@ from sqlalchemy import distinct
 from sqlalchemy import func
 from sqlalchemy import or_
 from sqlalchemy import select
-from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Query
 from sqlalchemy.orm import Session
 from sqlalchemy.orm.session import object_session
@@ -58,8 +55,6 @@ from bauble.search.search import result_cache
 from bauble.search.statements import StatementAction
 from bauble.search.strategies import SearchStrategy
 from bauble.search.strategies import UseStrategy
-from bauble.ui import dialogs
-from bauble.ui.views import Action
 from bauble.ui.views import InfoBox
 from bauble.ui.views import InfoExpander
 from bauble.ui.views import LinksExpander
@@ -73,139 +68,22 @@ from .family import FamilySynonym
 from .genus import Genus
 from .genus import GenusSynonym
 from .geography import DistributionMapEventBox
-from .geography import map_kml_callback
-from .species_editor import SPECIES_WEB_BUTTON_DEFS_PREFS
-from .species_editor import SpeciesDistribution
-from .species_editor import SpeciesEditor
-from .species_editor import SpeciesEditorPresenter
-from .species_editor import SpeciesEditorView
-from .species_editor import edit_species
 from .species_model import DefaultVernacularName
 from .species_model import Species
+from .species_model import SpeciesDistribution
 from .species_model import SpeciesNote
 from .species_model import SpeciesSynonym
 from .species_model import VernacularName
 from .species_model import red_list_values
+from .ui.species_editor import SPECIES_WEB_BUTTON_DEFS_PREFS
 from .ui.widgets import SynonymsExpander
 
 # imported by clients of this modules
 __all__ = [
     "SpeciesDistribution",
-    "SpeciesEditorPresenter",
-    "SpeciesEditorView",
-    "SpeciesEditor",
-    "edit_species",
     "DefaultVernacularName",
     "SpeciesNote",
 ]
-
-
-def edit_callback(
-    objs: Sequence[Species | VernacularName],
-    **_kwargs,
-) -> bool:
-    sp = objs[0]
-    if isinstance(sp, VernacularName):
-        sp = sp.species
-    return edit_species(model=sp) is not None
-
-
-def remove_callback(
-    objs: Sequence[Species | VernacularName],
-    **_kwargs,
-) -> bool:
-
-    species = objs[0]
-    sp_lst: list[str] = []
-    session = object_session(species)
-    if not isinstance(session, Session):
-        return False
-
-    for species in objs:
-        if isinstance(species, VernacularName):
-            species = species.species
-
-        num_acc = len(species.accessions)
-        safe_str = utils.xml_safe(str(species))
-        sp_lst.append(safe_str)
-        if num_acc > 0:
-
-            msg = _(
-                "The species <i>%(sp)s</i> has %(num_acc)s accessions.\n\n"
-                "You cannot remove a species with accessions."
-            ) % {"sp": safe_str, "num_acc": num_acc}
-
-            dialogs.message_dialog(msg, typ=Gtk.MessageType.WARNING)
-
-            return False
-
-    msg = _(
-        "Are you sure you want to remove the following species <i>%s</i>?"
-    ) % ", ".join(sp_lst)
-    if not dialogs.yes_no_dialog(msg):
-        return False
-
-    for species in objs:
-        session.delete(species)
-    try:
-        session.commit()
-    except SQLAlchemyError as e:
-        msg = _("Could not delete.\n\n%s") % utils.xml_safe(e)
-        dialogs.message_details_dialog(
-            msg, traceback.format_exc(), Gtk.MessageType.ERROR
-        )
-        session.rollback()
-        return False
-
-    return True
-
-
-def add_accession_callback(
-    objs: Sequence[Species | VernacularName],
-    **_kwargs,
-) -> bool:
-    from ..garden.accession import Accession
-    from ..garden.accession import AccessionEditor
-
-    species = objs[0]
-    if isinstance(species, VernacularName):
-        species = species.species
-
-    editor = AccessionEditor(model=Accession(species=species))
-
-    return editor.start() is not None
-
-
-edit_action = Action(
-    "species_edit", _("_Edit"), callback=edit_callback, accelerator="<ctrl>e"
-)
-
-add_accession_action = Action(
-    "species_acc_add",
-    _("_Add accession"),
-    callback=add_accession_callback,
-    accelerator="<ctrl>k",
-)
-
-remove_action = Action(
-    "species_remove",
-    _("_Delete"),
-    callback=remove_callback,
-    accelerator="<ctrl>Delete",
-    multiselect=True,
-)
-
-distribution_map_action = Action(
-    "acc_dist_map",
-    _("Show distribution in _map"),
-    callback=map_kml_callback,
-    accelerator="<ctrl>m",
-    multiselect=True,
-)
-
-species_context_menu = [edit_action, remove_action, distribution_map_action]
-
-vernname_context_menu = [edit_action]
 
 
 def on_taxa_clicked(
@@ -507,7 +385,7 @@ class VernacularExpander(InfoExpander[Species], Gtk.Expander):
     def __init__(self) -> None:
         super().__init__(label=_("Vernacular names"))
         self.connect("notify::expanded", self.on_expanded)
-        self.box = Gtk.Box()
+        self.box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
         self.box.set_border_width(5)
         self.add(self.box)
 

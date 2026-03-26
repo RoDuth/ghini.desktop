@@ -65,6 +65,34 @@ class UIUtilsTests(BaubleTestCase):
             sorted([model.get_path(r) for r in results]), sorted(to_find)
         )
 
+    def test_set_combo_from_value(self):
+        combo = Gtk.ComboBox()
+        model = Gtk.ListStore(object)
+        mock1 = mock.Mock(val="1")
+        mock2 = mock.Mock(val="2")
+        mock3 = mock.Mock(val="3")
+        model.append((mock1,))
+        model.append((mock2,))
+        model.append((mock3,))
+        combo.set_model(model)
+        utils.set_combo_from_value(combo, mock2)
+        itr = combo.get_active_iter()
+
+        self.assertIs(model[itr][0], mock2)
+
+        utils.set_combo_from_value(combo, "3", lambda r, d: r[0].val == d)
+        itr = combo.get_active_iter()
+
+        self.assertIs(model[itr][0], mock3)
+
+        self.assertRaises(
+            ValueError,
+            utils.set_combo_from_value,
+            combo,
+            "5",
+            lambda r, d: r[0].val == d,
+        )
+
     def test_get_widget_value_label(self):
         label = Gtk.Label(label="Foo")
         self.assertEqual(utils.get_widget_value(label), "Foo")
@@ -213,6 +241,15 @@ class UIUtilsTests(BaubleTestCase):
         combo.set_model(model)
         utils.set_widget_value(combo, "bar")
         self.assertEqual(combo.get_active(), 1)
+
+    def test_set_widget_value_combobox_wo_model_logs(self):
+        combo = Gtk.ComboBox()
+        with self.assertLogs("bauble.ui.utils", "WARNING") as logs:
+            utils.set_widget_value(combo, "bar")
+        self.assertIn(
+            "ui.utils.set_widget_value(): combo doesn't have a model",
+            logs.output[0],
+        )
 
     def test_set_widget_value_togglebutton(self):
         button = Gtk.ToggleButton().new_with_label(label="FOO")

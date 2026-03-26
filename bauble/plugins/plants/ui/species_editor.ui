@@ -2,11 +2,63 @@
 <!-- Generated with glade 3.40.0 -->
 <interface>
   <requires lib="gtk+" version="3.24"/>
-  <object class="GtkDialog" id="species_dialog">
+  <object class="GtkListStore" id="cites_liststore">
+    <columns>
+      <!-- column-name gchararray -->
+      <column type="gchararray"/>
+    </columns>
+  </object>
+  <object class="GtkListStore" id="genus_liststore">
+    <columns>
+      <!-- column-name pyobject -->
+      <column type="PyObject"/>
+    </columns>
+  </object>
+  <object class="GtkEntryCompletion" id="genus_completion">
+    <property name="model">genus_liststore</property>
+    <signal name="match-selected" handler="on_genus_match_selected" swapped="no"/>
+    <child>
+      <object class="GtkCellRendererText" id="genus_cell"/>
+    </child>
+  </object>
+  <object class="GtkListStore" id="habit_liststore">
+    <columns>
+      <!-- column-name gchararray -->
+      <column type="gchararray"/>
+      <!-- column-name pyobject -->
+      <column type="PyObject"/>
+    </columns>
+  </object>
+  <object class="GtkEntryCompletion" id="habit_completion">
+    <property name="model">habit_liststore</property>
+    <property name="text-column">0</property>
+    <property name="inline-completion">True</property>
+    <property name="popup-single-match">False</property>
+    <property name="inline-selection">True</property>
+    <child>
+      <object class="GtkCellRendererText" id="habit_cell"/>
+      <attributes>
+        <attribute name="text">0</attribute>
+      </attributes>
+    </child>
+  </object>
+  <object class="GtkListStore" id="hybrid_liststore">
+    <columns>
+      <!-- column-name gchararray -->
+      <column type="gchararray"/>
+    </columns>
+  </object>
+  <object class="GtkListStore" id="qualifier_liststore">
+    <columns>
+      <!-- column-name gchararray -->
+      <column type="gchararray"/>
+    </columns>
+  </object>
+  <template class="SpeciesEditorDialog" parent="GtkDialog">
     <property name="can-focus">False</property>
     <property name="title" translatable="yes">Species Editor</property>
-    <property name="modal">True</property>
     <property name="type-hint">dialog</property>
+    <signal name="response" handler="on_response" swapped="no"/>
     <child internal-child="vbox">
       <object class="GtkBox">
         <property name="visible">True</property>
@@ -18,7 +70,7 @@
             <property name="can-focus">False</property>
             <property name="layout-style">end</property>
             <child>
-              <object class="GtkButton" id="sp_cancel_button">
+              <object class="GtkButton" id="cancel_button">
                 <property name="label" translatable="yes">Cancel</property>
                 <property name="visible">True</property>
                 <property name="can-focus">True</property>
@@ -32,7 +84,7 @@
               </packing>
             </child>
             <child>
-              <object class="GtkButton" id="sp_ok_button">
+              <object class="GtkButton" id="ok_button">
                 <property name="label" translatable="yes">OK</property>
                 <property name="visible">True</property>
                 <property name="sensitive">False</property>
@@ -48,7 +100,7 @@
               </packing>
             </child>
             <child>
-              <object class="GtkButton" id="sp_ok_and_add_button">
+              <object class="GtkButton" id="ok_and_add_button">
                 <property name="label" translatable="yes">Add Accessions</property>
                 <property name="visible">True</property>
                 <property name="sensitive">False</property>
@@ -65,7 +117,7 @@
               </packing>
             </child>
             <child>
-              <object class="GtkButton" id="sp_next_button">
+              <object class="GtkButton" id="next_button">
                 <property name="visible">True</property>
                 <property name="sensitive">False</property>
                 <property name="can-focus">True</property>
@@ -120,25 +172,9 @@
           </packing>
         </child>
         <child>
-          <object class="GtkBox">
+          <object class="GtkOverlay">
             <property name="visible">True</property>
             <property name="can-focus">False</property>
-            <property name="orientation">vertical</property>
-            <child>
-              <object class="GtkBox" id="message_box_parent">
-                <property name="visible">True</property>
-                <property name="can-focus">False</property>
-                <property name="orientation">vertical</property>
-                <child>
-                  <placeholder/>
-                </child>
-              </object>
-              <packing>
-                <property name="expand">False</property>
-                <property name="fill">True</property>
-                <property name="position">0</property>
-              </packing>
-            </child>
             <child>
               <object class="GtkNotebook" id="notebook">
                 <property name="visible">True</property>
@@ -149,13 +185,13 @@
                     <property name="can-focus">False</property>
                     <property name="border-width">5</property>
                     <property name="orientation">vertical</property>
-                    <property name="spacing">15</property>
+                    <property name="spacing">8</property>
                     <child>
-                      <object class="GtkLabel" id="sp_fullname_label">
+                      <object class="GtkLabel" id="parents_label">
                         <property name="visible">True</property>
                         <property name="can-focus">False</property>
                         <property name="xpad">3</property>
-                        <property name="ypad">15</property>
+                        <property name="ypad">3</property>
                         <property name="label">--</property>
                         <property name="wrap">True</property>
                         <property name="selectable">True</property>
@@ -168,13 +204,34 @@
                       </packing>
                     </child>
                     <child>
+                      <object class="GtkLabel" id="fullname_label">
+                        <property name="visible">True</property>
+                        <property name="can-focus">False</property>
+                        <property name="xpad">3</property>
+                        <property name="ypad">10</property>
+                        <property name="label">--</property>
+                        <property name="wrap">True</property>
+                        <property name="selectable">True</property>
+                        <property name="xalign">0</property>
+                        <property name="yalign">0</property>
+                      </object>
+                      <packing>
+                        <property name="expand">True</property>
+                        <property name="fill">True</property>
+                        <property name="position">1</property>
+                      </packing>
+                    </child>
+                    <child>
                       <object class="GtkBox" id="prev_sp_box">
                         <property name="can-focus">False</property>
                         <child>
-                          <object class="GtkLabel" id="sp_prev_name_label">
+                          <object class="GtkLabel" id="prevname_label">
                             <property name="visible">True</property>
                             <property name="can-focus">False</property>
+                            <property name="xpad">3</property>
                             <property name="label" translatable="yes">--</property>
+                            <property name="wrap">True</property>
+                            <property name="selectable">True</property>
                           </object>
                           <packing>
                             <property name="expand">False</property>
@@ -201,7 +258,7 @@
                       <packing>
                         <property name="expand">False</property>
                         <property name="fill">True</property>
-                        <property name="position">1</property>
+                        <property name="position">2</property>
                       </packing>
                     </child>
                     <child>
@@ -221,14 +278,14 @@
                                 <property name="visible">True</property>
                                 <property name="can-focus">False</property>
                                 <child>
-                                  <object class="GtkEntry" id="sp_genus_entry">
+                                  <object class="GtkEntry" id="genus_entry">
                                     <property name="visible">True</property>
                                     <property name="can-focus">True</property>
+                                    <property name="tooltip-text" translatable="yes">Genus eptihet, if a full name (binomial or trinomial) is pasted here it will be split into its parts and used to fill other fields, when possible.</property>
                                     <property name="hexpand">True</property>
-                                    <property name="invisible-char">●</property>
-                                    <property name="primary-icon-activatable">False</property>
-                                    <property name="secondary-icon-activatable">False</property>
-                                    <signal name="changed" handler="on_entry_changed_clear_boxes" swapped="no"/>
+                                    <property name="completion">genus_completion</property>
+                                    <signal name="changed" handler="on_genus_entry_changed" swapped="no"/>
+                                    <signal name="paste-clipboard" handler="on_genus_entry_paste" swapped="no"/>
                                   </object>
                                   <packing>
                                     <property name="expand">False</property>
@@ -237,7 +294,7 @@
                                   </packing>
                                 </child>
                                 <child>
-                                  <object class="GtkButton" id="sp_genus_add_button">
+                                  <object class="GtkButton" id="genus_add_button">
                                     <property name="visible">True</property>
                                     <property name="can-focus">True</property>
                                     <property name="receives-default">True</property>
@@ -338,45 +395,15 @@
                               </packing>
                             </child>
                             <child>
-                              <object class="GtkBox">
+                              <object class="SpeciesEntry" id="species_entry">
                                 <property name="visible">True</property>
-                                <property name="can-focus">False</property>
-                                <child>
-                                  <object class="SpeciesEntry" id="sp_species_entry">
-                                    <property name="visible">True</property>
-                                    <property name="can-focus">True</property>
-                                    <property name="hexpand">True</property>
-                                    <property name="invisible-char">●</property>
-                                    <property name="primary-icon-activatable">False</property>
-                                    <property name="secondary-icon-activatable">False</property>
-                                    <signal name="changed" handler="on_sp_species_entry_changed" swapped="no"/>
-                                  </object>
-                                  <packing>
-                                    <property name="expand">False</property>
-                                    <property name="fill">True</property>
-                                    <property name="position">0</property>
-                                  </packing>
-                                </child>
-                                <child>
-                                  <object class="GtkButton" id="sp_species_button">
-                                    <property name="visible">True</property>
-                                    <property name="can-focus">True</property>
-                                    <property name="receives-default">True</property>
-                                    <child>
-                                      <object class="GtkImage" id="sp_species_image">
-                                        <property name="visible">True</property>
-                                        <property name="can-focus">False</property>
-                                        <property name="icon-name">edit-find-symbolic</property>
-                                        <property name="icon_size">1</property>
-                                      </object>
-                                    </child>
-                                  </object>
-                                  <packing>
-                                    <property name="expand">False</property>
-                                    <property name="fill">True</property>
-                                    <property name="position">1</property>
-                                  </packing>
-                                </child>
+                                <property name="can-focus">True</property>
+                                <property name="tooltip-text" translatable="yes">Species epithet should not be capitilised (to include a hybrid formula typing a "*" (asterisk) will insert a cross symbol and allow spaces in the entry.  Similarly typing "sp." or "(" will allow for adding provisional or descriptor names etc..)</property>
+                                <property name="hexpand">True</property>
+                                <property name="invisible-char">●</property>
+                                <property name="primary-icon-activatable">False</property>
+                                <property name="secondary-icon-activatable">False</property>
+                                <signal name="changed" handler="on_taxon_entry_changed" swapped="no"/>
                               </object>
                               <packing>
                                 <property name="left-attach">1</property>
@@ -397,10 +424,19 @@
                               </packing>
                             </child>
                             <child>
-                              <object class="GtkComboBox" id="sp_hybrid_combo">
+                              <object class="GtkComboBox" id="hybrid_combo">
                                 <property name="visible">True</property>
                                 <property name="can-focus">True</property>
+                                <property name="tooltip-text" translatable="yes">Species hybrid flag, a named hybrid ("x") or a graft chimaera ("+")</property>
                                 <property name="halign">start</property>
+                                <property name="model">hybrid_liststore</property>
+                                <signal name="changed" handler="on_combobox_changed" swapped="no"/>
+                                <child>
+                                  <object class="GtkCellRendererText"/>
+                                  <attributes>
+                                    <attribute name="text">0</attribute>
+                                  </attributes>
+                                </child>
                               </object>
                               <packing>
                                 <property name="left-attach">1</property>
@@ -581,14 +617,15 @@
                               </packing>
                             </child>
                             <child>
-                              <object class="GtkEntry" id="sp_author_entry">
+                              <object class="GtkEntry" id="author_entry">
                                 <property name="visible">True</property>
                                 <property name="can-focus">True</property>
+                                <property name="tooltip-text" translatable="yes">Species authorship for binomial or autonyms.</property>
                                 <property name="hexpand">True</property>
                                 <property name="invisible-char">●</property>
                                 <property name="primary-icon-activatable">False</property>
                                 <property name="secondary-icon-activatable">False</property>
-                                <signal name="changed" handler="on_text_entry_changed" swapped="no"/>
+                                <signal name="changed" handler="on_taxon_entry_changed" swapped="no"/>
                               </object>
                               <packing>
                                 <property name="left-attach">1</property>
@@ -609,10 +646,19 @@
                               </packing>
                             </child>
                             <child>
-                              <object class="GtkComboBox" id="sp_spqual_combo">
+                              <object class="GtkComboBox" id="qualifier_combo">
                                 <property name="visible">True</property>
-                                <property name="can-focus">False</property>
+                                <property name="can-focus">True</property>
+                                <property name="tooltip-text" translatable="yes">The species qualifier, the full scientific name, including the qualifier, must be unique</property>
                                 <property name="hexpand">True</property>
+                                <property name="model">qualifier_liststore</property>
+                                <signal name="changed" handler="on_combobox_changed" swapped="no"/>
+                                <child>
+                                  <object class="GtkCellRendererText"/>
+                                  <attributes>
+                                    <attribute name="text">0</attribute>
+                                  </attributes>
+                                </child>
                               </object>
                               <packing>
                                 <property name="left-attach">1</property>
@@ -630,107 +676,17 @@
                       <packing>
                         <property name="expand">False</property>
                         <property name="fill">False</property>
-                        <property name="position">2</property>
+                        <property name="position">3</property>
                       </packing>
                     </child>
                     <child>
-                      <object class="GtkFrame">
-                        <property name="visible">True</property>
-                        <property name="can-focus">False</property>
-                        <property name="label-xalign">0</property>
-                        <property name="shadow-type">none</property>
-                        <child>
-                          <object class="GtkBox">
-                            <property name="visible">True</property>
-                            <property name="can-focus">False</property>
-                            <property name="orientation">vertical</property>
-                            <child>
-                              <!-- n-columns=3 n-rows=1 -->
-                              <object class="GtkGrid" id="infrasp_grid">
-                                <property name="visible">True</property>
-                                <property name="can-focus">False</property>
-                                <property name="column-spacing">3</property>
-                                <child>
-                                  <object class="GtkLabel">
-                                    <property name="visible">True</property>
-                                    <property name="can-focus">False</property>
-                                    <property name="hexpand">True</property>
-                                    <property name="label" translatable="yes">Rank</property>
-                                  </object>
-                                  <packing>
-                                    <property name="left-attach">0</property>
-                                    <property name="top-attach">0</property>
-                                  </packing>
-                                </child>
-                                <child>
-                                  <object class="GtkLabel">
-                                    <property name="visible">True</property>
-                                    <property name="can-focus">False</property>
-                                    <property name="hexpand">True</property>
-                                    <property name="label" translatable="yes">Epithet</property>
-                                  </object>
-                                  <packing>
-                                    <property name="left-attach">1</property>
-                                    <property name="top-attach">0</property>
-                                  </packing>
-                                </child>
-                                <child>
-                                  <object class="GtkLabel">
-                                    <property name="visible">True</property>
-                                    <property name="can-focus">False</property>
-                                    <property name="hexpand">True</property>
-                                    <property name="label" translatable="yes">Author</property>
-                                  </object>
-                                  <packing>
-                                    <property name="left-attach">2</property>
-                                    <property name="top-attach">0</property>
-                                  </packing>
-                                </child>
-                              </object>
-                              <packing>
-                                <property name="expand">True</property>
-                                <property name="fill">True</property>
-                                <property name="padding">5</property>
-                                <property name="position">0</property>
-                              </packing>
-                            </child>
-                            <child>
-                              <object class="GtkButton" id="add_infrasp_button">
-                                <property name="visible">True</property>
-                                <property name="can-focus">True</property>
-                                <property name="receives-default">True</property>
-                                <property name="halign">start</property>
-                                <child>
-                                  <object class="GtkImage">
-                                    <property name="visible">True</property>
-                                    <property name="can-focus">False</property>
-                                    <property name="icon-name">list-add-symbolic</property>
-                                  </object>
-                                </child>
-                              </object>
-                              <packing>
-                                <property name="expand">False</property>
-                                <property name="fill">False</property>
-                                <property name="position">1</property>
-                              </packing>
-                            </child>
-                          </object>
-                        </child>
-                        <child type="label">
-                          <object class="GtkLabel">
-                            <property name="visible">True</property>
-                            <property name="can-focus">False</property>
-                            <property name="label" translatable="yes">Infraspecific Parts</property>
-                            <attributes>
-                              <attribute name="weight" value="bold"/>
-                            </attributes>
-                          </object>
-                        </child>
+                      <object class="InfraspecificPresenter" id="infrasp_presenter">
+                        <signal name="changed" handler="on_changed" swapped="no"/>
                       </object>
                       <packing>
                         <property name="expand">False</property>
                         <property name="fill">True</property>
-                        <property name="position">3</property>
+                        <property name="position">4</property>
                       </packing>
                     </child>
                     <child>
@@ -782,14 +738,12 @@
                                   </packing>
                                 </child>
                                 <child>
-                                  <object class="GtkEntry" id="sp_cvgroup_entry">
+                                  <object class="GtkEntry" id="cv_group_entry">
                                     <property name="visible">True</property>
                                     <property name="can-focus">True</property>
+                                    <property name="tooltip-text" translatable="yes">Cultivar group</property>
                                     <property name="hexpand">True</property>
-                                    <property name="invisible-char">●</property>
-                                    <property name="primary-icon-activatable">False</property>
-                                    <property name="secondary-icon-activatable">False</property>
-                                    <signal name="changed" handler="on_text_entry_changed" swapped="no"/>
+                                    <signal name="changed" handler="on_taxon_entry_changed" swapped="no"/>
                                   </object>
                                   <packing>
                                     <property name="left-attach">1</property>
@@ -801,9 +755,11 @@
                                     <property name="visible">True</property>
                                     <property name="can-focus">False</property>
                                     <child>
-                                      <object class="GtkEntry" id="sp_tradename_entry">
+                                      <object class="GtkEntry" id="tradename_entry">
                                         <property name="visible">True</property>
                                         <property name="can-focus">True</property>
+                                        <property name="tooltip-text" translatable="yes">Trade name</property>
+                                        <signal name="changed" handler="on_taxon_entry_changed" swapped="no"/>
                                       </object>
                                       <packing>
                                         <property name="expand">True</property>
@@ -812,10 +768,11 @@
                                       </packing>
                                     </child>
                                     <child>
-                                      <object class="GtkComboBoxText" id="sp_trademark_combo">
+                                      <object class="GtkComboBoxText" id="trademark_combo">
                                         <property name="visible">True</property>
                                         <property name="can-focus">False</property>
                                         <property name="has-entry">True</property>
+                                        <signal name="changed" handler="on_combobox_changed" swapped="no"/>
                                         <child internal-child="entry">
                                           <object class="GtkEntry">
                                             <property name="can-focus">False</property>
@@ -838,9 +795,11 @@
                                   </packing>
                                 </child>
                                 <child>
-                                  <object class="GtkEntry" id="sp_grex_entry">
+                                  <object class="GtkEntry" id="grex_entry">
                                     <property name="visible">True</property>
                                     <property name="can-focus">True</property>
+                                    <property name="tooltip-text" translatable="yes">Intended for Orchidaceae cultivars only.</property>
+                                    <signal name="changed" handler="on_taxon_entry_changed" swapped="no"/>
                                   </object>
                                   <packing>
                                     <property name="left-attach">0</property>
@@ -872,14 +831,12 @@
                                   </packing>
                                 </child>
                                 <child>
-                                  <object class="GtkEntry" id="sp_cvepithet_entry">
+                                  <object class="GtkEntry" id="cv_epithet_entry">
                                     <property name="visible">True</property>
                                     <property name="can-focus">True</property>
+                                    <property name="tooltip-text" translatable="yes">Cultivar name without quotes. Use "cv." to specify an unknown cultivar</property>
                                     <property name="hexpand">True</property>
-                                    <property name="invisible-char">●</property>
-                                    <property name="primary-icon-activatable">False</property>
-                                    <property name="secondary-icon-activatable">False</property>
-                                    <signal name="changed" handler="on_text_entry_changed" swapped="no"/>
+                                    <signal name="changed" handler="on_taxon_entry_changed" swapped="no"/>
                                   </object>
                                   <packing>
                                     <property name="left-attach">0</property>
@@ -888,7 +845,7 @@
                                   </packing>
                                 </child>
                                 <child>
-                                  <object class="GtkCheckButton" id="sp_pbr_checkbtn">
+                                  <object class="GtkCheckButton" id="pbr_checkbtn">
                                     <property name="label" translatable="yes">PBR Protected</property>
                                     <property name="visible">True</property>
                                     <property name="can-focus">True</property>
@@ -908,10 +865,12 @@
                                     <property name="visible">True</property>
                                     <property name="can-focus">True</property>
                                     <property name="receives-default">True</property>
+                                    <property name="tooltip-text" translatable="yes">Show/hide extra cultivar parts.</property>
                                     <property name="halign">end</property>
                                     <property name="valign">center</property>
                                     <property name="hexpand">False</property>
                                     <property name="vexpand">True</property>
+                                    <signal name="clicked" handler="on_expand_cv_button_clicked" swapped="no"/>
                                     <child>
                                       <object class="GtkImage" id="expand_btn_icon">
                                         <property name="visible">True</property>
@@ -948,13 +907,14 @@
                       <packing>
                         <property name="expand">False</property>
                         <property name="fill">True</property>
-                        <property name="position">4</property>
+                        <property name="position">5</property>
                       </packing>
                     </child>
                     <child>
                       <object class="GtkExpander" id="label_markup_expander">
                         <property name="visible">True</property>
                         <property name="can-focus">True</property>
+                        <property name="tooltip-text" translatable="yes">Alternative species name markup. Intended for use on labels and other reports where the default markup may need to be abbreviated or otherwise altered. NOTE: setting this equivalent to the default will not save (displaying as blue text). Also, changing any part of the species name will reset it.</property>
                         <property name="hexpand">True</property>
                         <property name="vexpand">True</property>
                         <property name="resize-toplevel">True</property>
@@ -984,9 +944,11 @@
                                 <property name="visible">True</property>
                                 <property name="can-focus">False</property>
                                 <child>
-                                  <object class="GtkEntry" id="sp_label_markup_entry">
+                                  <object class="GtkEntry" id="label_markup_entry">
                                     <property name="visible">True</property>
                                     <property name="can-focus">True</property>
+                                    <property name="tooltip-text" translatable="yes">Label markup (will not save unless differs from the default).</property>
+                                    <signal name="changed" handler="on_markup_entry_changed" swapped="no"/>
                                   </object>
                                   <packing>
                                     <property name="expand">True</property>
@@ -1000,6 +962,8 @@
                                     <property name="visible">True</property>
                                     <property name="can-focus">True</property>
                                     <property name="receives-default">True</property>
+                                    <property name="tooltip-text" translatable="yes">Load the current markup into the field entry.</property>
+                                    <signal name="clicked" handler="on_markup_button_clicked" swapped="no"/>
                                   </object>
                                   <packing>
                                     <property name="expand">False</property>
@@ -1030,7 +994,7 @@
                       <packing>
                         <property name="expand">False</property>
                         <property name="fill">True</property>
-                        <property name="position">5</property>
+                        <property name="position">6</property>
                       </packing>
                     </child>
                   </object>
@@ -1090,11 +1054,12 @@
                                 <property name="valign">start</property>
                                 <property name="spacing">5</property>
                                 <child>
-                                  <object class="GtkButton" id="sp_dist_add_button">
+                                  <object class="GtkButton" id="dist_add_button">
                                     <property name="visible">True</property>
                                     <property name="sensitive">False</property>
                                     <property name="can-focus">True</property>
                                     <property name="receives-default">True</property>
+                                    <property name="tooltip-text" translatable="yes">Add a WGSRPD distribution unit</property>
                                     <child>
                                       <object class="GtkImage">
                                         <property name="visible">True</property>
@@ -1110,10 +1075,11 @@
                                   </packing>
                                 </child>
                                 <child>
-                                  <object class="GtkButton" id="sp_dist_remove_button">
+                                  <object class="GtkButton" id="dist_remove_button">
                                     <property name="visible">True</property>
                                     <property name="can-focus">True</property>
                                     <property name="receives-default">True</property>
+                                    <property name="tooltip-text" translatable="yes">Remove a WGSRPD distribution unit</property>
                                     <child>
                                       <object class="GtkImage">
                                         <property name="visible">True</property>
@@ -1129,11 +1095,12 @@
                                   </packing>
                                 </child>
                                 <child>
-                                  <object class="GtkMenuButton" id="sp_dist_menu_btn">
+                                  <object class="GtkMenuButton" id="dist_menu_btn">
                                     <property name="visible">True</property>
                                     <property name="can-focus">True</property>
                                     <property name="focus-on-click">False</property>
                                     <property name="receives-default">True</property>
+                                    <property name="tooltip-text" translatable="yes">Extra distribution actions menu.  (Consolidate attempts to replace children levels with a parent level if all its children exist.)</property>
                                     <child>
                                       <object class="GtkImage">
                                         <property name="visible">True</property>
@@ -1193,13 +1160,11 @@
                           </packing>
                         </child>
                         <child>
-                          <object class="GtkEntry" id="sp_label_dist_entry">
+                          <object class="GtkEntry" id="label_dist_entry">
                             <property name="visible">True</property>
                             <property name="can-focus">True</property>
+                            <property name="tooltip-text" translatable="yes">The distribution as plain text.  Intended for use on labels and other reports.</property>
                             <property name="hexpand">True</property>
-                            <property name="invisible-char">●</property>
-                            <property name="primary-icon-activatable">False</property>
-                            <property name="secondary-icon-activatable">False</property>
                           </object>
                           <packing>
                             <property name="left-attach">1</property>
@@ -1219,14 +1184,20 @@
                           </packing>
                         </child>
                         <child>
-                          <object class="GtkComboBox" id="sp_habit_comboentry">
+                          <object class="GtkComboBox" id="habit_comboentry">
                             <property name="visible">True</property>
                             <property name="can-focus">True</property>
+                            <property name="tooltip-text" translatable="yes">The habit of this species</property>
+                            <property name="model">habit_liststore</property>
                             <property name="has-entry">True</property>
+                            <property name="entry-text-column">0</property>
+                            <signal name="changed" handler="on_habit_comboentry_changed" swapped="no"/>
+                            <signal name="format-entry-text" handler="on_comboentry_format" swapped="no"/>
                             <child internal-child="entry">
-                              <object class="GtkEntry">
+                              <object class="GtkEntry" id="habit_entry">
                                 <property name="can-focus">True</property>
                                 <property name="hexpand">True</property>
+                                <property name="completion">habit_completion</property>
                               </object>
                             </child>
                           </object>
@@ -1252,9 +1223,6 @@
                             <property name="visible">True</property>
                             <property name="can-focus">True</property>
                             <property name="hexpand">True</property>
-                            <property name="invisible-char">●</property>
-                            <property name="primary-icon-activatable">False</property>
-                            <property name="secondary-icon-activatable">False</property>
                           </object>
                           <packing>
                             <property name="left-attach">1</property>
@@ -1278,6 +1246,14 @@
                                   <object class="GtkComboBox" id="cites_combo">
                                     <property name="visible">True</property>
                                     <property name="can-focus">False</property>
+                                    <property name="model">cites_liststore</property>
+                                    <signal name="changed" handler="on_combobox_changed" swapped="no"/>
+                                    <child>
+                                      <object class="GtkCellRendererText"/>
+                                      <attributes>
+                                        <attribute name="text">0</attribute>
+                                      </attributes>
+                                    </child>
                                   </object>
                                   <packing>
                                     <property name="expand">False</property>
@@ -1400,132 +1376,8 @@
                         <property name="can-focus">False</property>
                         <property name="spacing">10</property>
                         <child>
-                          <object class="GtkFrame" id="sp_vern_frame">
-                            <property name="width-request">300</property>
-                            <property name="visible">True</property>
-                            <property name="can-focus">False</property>
-                            <property name="label-xalign">0</property>
-                            <property name="shadow-type">none</property>
-                            <child>
-                              <object class="GtkScrolledWindow">
-                                <property name="visible">True</property>
-                                <property name="can-focus">True</property>
-                                <property name="hscrollbar-policy">never</property>
-                                <child>
-                                  <object class="GtkTreeView" id="vern_treeview">
-                                    <property name="height-request">100</property>
-                                    <property name="visible">True</property>
-                                    <property name="can-focus">True</property>
-                                    <property name="headers-clickable">False</property>
-                                    <property name="enable-grid-lines">both</property>
-                                    <child internal-child="selection">
-                                      <object class="GtkTreeSelection"/>
-                                    </child>
-                                    <child>
-                                      <object class="GtkTreeViewColumn" id="vn_name_column">
-                                        <property name="resizable">True</property>
-                                        <property name="min-width">100</property>
-                                        <property name="title">Name</property>
-                                        <property name="expand">True</property>
-                                        <child>
-                                          <object class="GtkCellRendererText" id="vn_name_cell">
-                                            <property name="editable">True</property>
-                                          </object>
-                                        </child>
-                                      </object>
-                                    </child>
-                                    <child>
-                                      <object class="GtkTreeViewColumn" id="vn_lang_column">
-                                        <property name="resizable">True</property>
-                                        <property name="min-width">40</property>
-                                        <property name="title">Language</property>
-                                        <child>
-                                          <object class="GtkCellRendererText" id="vn_lang_cell">
-                                            <property name="editable">True</property>
-                                          </object>
-                                        </child>
-                                      </object>
-                                    </child>
-                                    <child>
-                                      <object class="GtkTreeViewColumn" id="vn_default_column">
-                                        <property name="sizing">fixed</property>
-                                        <property name="fixed-width">50</property>
-                                        <property name="min-width">50</property>
-                                        <property name="max-width">50</property>
-                                        <property name="title">Default</property>
-                                        <child>
-                                          <object class="GtkCellRendererToggle" id="vn_default_cell">
-                                            <property name="radio">True</property>
-                                          </object>
-                                        </child>
-                                      </object>
-                                    </child>
-                                  </object>
-                                </child>
-                              </object>
-                            </child>
-                            <child type="label">
-                              <object class="GtkBox">
-                                <property name="visible">True</property>
-                                <property name="can-focus">False</property>
-                                <property name="spacing">5</property>
-                                <child>
-                                  <object class="GtkLabel">
-                                    <property name="visible">True</property>
-                                    <property name="can-focus">False</property>
-                                    <property name="label" translatable="yes">Vernacular Names</property>
-                                    <property name="xalign">0</property>
-                                    <attributes>
-                                      <attribute name="weight" value="bold"/>
-                                    </attributes>
-                                  </object>
-                                  <packing>
-                                    <property name="expand">True</property>
-                                    <property name="fill">True</property>
-                                    <property name="position">0</property>
-                                  </packing>
-                                </child>
-                                <child>
-                                  <object class="GtkButton" id="sp_vern_add_button">
-                                    <property name="visible">True</property>
-                                    <property name="can-focus">True</property>
-                                    <property name="receives-default">True</property>
-                                    <child>
-                                      <object class="GtkImage">
-                                        <property name="visible">True</property>
-                                        <property name="can-focus">False</property>
-                                        <property name="icon-name">list-add-symbolic</property>
-                                      </object>
-                                    </child>
-                                  </object>
-                                  <packing>
-                                    <property name="expand">False</property>
-                                    <property name="fill">False</property>
-                                    <property name="position">1</property>
-                                  </packing>
-                                </child>
-                                <child>
-                                  <object class="GtkButton" id="sp_vern_remove_button">
-                                    <property name="visible">True</property>
-                                    <property name="sensitive">False</property>
-                                    <property name="can-focus">True</property>
-                                    <property name="receives-default">True</property>
-                                    <child>
-                                      <object class="GtkImage">
-                                        <property name="visible">True</property>
-                                        <property name="can-focus">False</property>
-                                        <property name="icon-name">list-remove-symbolic</property>
-                                      </object>
-                                    </child>
-                                  </object>
-                                  <packing>
-                                    <property name="expand">False</property>
-                                    <property name="fill">False</property>
-                                    <property name="position">2</property>
-                                  </packing>
-                                </child>
-                              </object>
-                            </child>
+                          <object class="VernacularNamePresenter" id="vernacular_presenter">
+                            <signal name="changed" handler="on_changed" swapped="no"/>
                           </object>
                           <packing>
                             <property name="expand">True</property>
@@ -1546,126 +1398,8 @@
                           </packing>
                         </child>
                         <child>
-                          <object class="GtkFrame" id="syn_frame">
-                            <property name="width-request">300</property>
-                            <property name="visible">True</property>
-                            <property name="can-focus">False</property>
-                            <property name="label-xalign">0</property>
-                            <property name="shadow-type">none</property>
-                            <child>
-                              <object class="GtkBox" id="syn_box">
-                                <property name="visible">True</property>
-                                <property name="can-focus">False</property>
-                                <property name="orientation">vertical</property>
-                                <property name="spacing">2</property>
-                                <child>
-                                  <object class="GtkEntry" id="syn_entry">
-                                    <property name="visible">True</property>
-                                    <property name="can-focus">True</property>
-                                    <property name="invisible-char">●</property>
-                                    <property name="width-chars">32</property>
-                                    <property name="primary-icon-activatable">False</property>
-                                    <property name="secondary-icon-activatable">False</property>
-                                  </object>
-                                  <packing>
-                                    <property name="expand">False</property>
-                                    <property name="fill">False</property>
-                                    <property name="position">0</property>
-                                  </packing>
-                                </child>
-                                <child>
-                                  <object class="GtkBox">
-                                    <property name="visible">True</property>
-                                    <property name="can-focus">False</property>
-                                    <child>
-                                      <object class="GtkScrolledWindow">
-                                        <property name="visible">True</property>
-                                        <property name="can-focus">True</property>
-                                        <property name="hscrollbar-policy">never</property>
-                                        <child>
-                                          <object class="GtkTreeView" id="syn_treeview">
-                                            <property name="height-request">100</property>
-                                            <property name="visible">True</property>
-                                            <property name="can-focus">True</property>
-                                            <property name="headers-visible">False</property>
-                                            <child internal-child="selection">
-                                              <object class="GtkTreeSelection"/>
-                                            </child>
-                                            <child>
-                                              <object class="GtkTreeViewColumn" id="syn_column">
-                                                <property name="title">column</property>
-                                                <child>
-                                                  <object class="GtkCellRendererText" id="syn_cell"/>
-                                                </child>
-                                              </object>
-                                            </child>
-                                          </object>
-                                        </child>
-                                      </object>
-                                      <packing>
-                                        <property name="expand">True</property>
-                                        <property name="fill">True</property>
-                                        <property name="position">0</property>
-                                      </packing>
-                                    </child>
-                                    <child>
-                                      <object class="GtkBox">
-                                        <property name="visible">True</property>
-                                        <property name="can-focus">False</property>
-                                        <property name="orientation">vertical</property>
-                                        <child>
-                                          <object class="GtkButton" id="syn_add_button">
-                                            <property name="label" translatable="yes">Add</property>
-                                            <property name="visible">True</property>
-                                            <property name="can-focus">True</property>
-                                            <property name="receives-default">True</property>
-                                          </object>
-                                          <packing>
-                                            <property name="expand">False</property>
-                                            <property name="fill">False</property>
-                                            <property name="position">0</property>
-                                          </packing>
-                                        </child>
-                                        <child>
-                                          <object class="GtkButton" id="syn_remove_button">
-                                            <property name="label" translatable="yes">Remove</property>
-                                            <property name="visible">True</property>
-                                            <property name="sensitive">False</property>
-                                            <property name="can-focus">True</property>
-                                            <property name="receives-default">True</property>
-                                          </object>
-                                          <packing>
-                                            <property name="expand">False</property>
-                                            <property name="fill">False</property>
-                                            <property name="position">1</property>
-                                          </packing>
-                                        </child>
-                                      </object>
-                                      <packing>
-                                        <property name="expand">False</property>
-                                        <property name="fill">False</property>
-                                        <property name="position">1</property>
-                                      </packing>
-                                    </child>
-                                  </object>
-                                  <packing>
-                                    <property name="expand">True</property>
-                                    <property name="fill">True</property>
-                                    <property name="position">1</property>
-                                  </packing>
-                                </child>
-                              </object>
-                            </child>
-                            <child type="label">
-                              <object class="GtkLabel">
-                                <property name="visible">True</property>
-                                <property name="can-focus">False</property>
-                                <property name="label" translatable="yes">Synonyms</property>
-                                <attributes>
-                                  <attribute name="weight" value="bold"/>
-                                </attributes>
-                              </object>
-                            </child>
+                          <object class="SynonymsPresenter" id="synonyms_presenter">
+                            <signal name="changed" handler="on_changed" swapped="no"/>
                           </object>
                           <packing>
                             <property name="expand">True</property>
@@ -1697,13 +1431,11 @@
                   </packing>
                 </child>
                 <child>
-                  <object class="GtkBox" id="notes_parent_box">
+                  <object class="NotesPresenter" id="notes_presenter">
                     <property name="visible">True</property>
                     <property name="can-focus">False</property>
                     <property name="orientation">vertical</property>
-                    <child>
-                      <placeholder/>
-                    </child>
+                    <signal name="changed" handler="on_changed" swapped="no"/>
                   </object>
                   <packing>
                     <property name="position">2</property>
@@ -1721,13 +1453,11 @@
                   </packing>
                 </child>
                 <child>
-                  <object class="GtkBox" id="pictures_parent_box">
+                  <object class="NotesPresenter" id="pictures_presenter">
                     <property name="visible">True</property>
                     <property name="can-focus">False</property>
                     <property name="orientation">vertical</property>
-                    <child>
-                      <placeholder/>
-                    </child>
+                    <signal name="changed" handler="on_changed" swapped="no"/>
                   </object>
                   <packing>
                     <property name="position">3</property>
@@ -1745,28 +1475,33 @@
                   </packing>
                 </child>
                 <child type="action-end">
-                  <object class="GtkMenuButton" id="link_menu_btn">
+                  <object class="LinksMenuButton" id="links_menu_btn">
                     <property name="visible">True</property>
                     <property name="sensitive">False</property>
                     <property name="can-focus">True</property>
                     <property name="focus-on-click">False</property>
                     <property name="receives-default">True</property>
                     <property name="valign">center</property>
-                    <child>
-                      <object class="GtkImage">
-                        <property name="visible">True</property>
-                        <property name="can-focus">False</property>
-                        <property name="icon-name">open-menu-symbolic</property>
-                      </object>
-                    </child>
                   </object>
+                  <packing>
+                    <property name="tab-fill">False</property>
+                  </packing>
                 </child>
               </object>
               <packing>
-                <property name="expand">True</property>
-                <property name="fill">True</property>
-                <property name="position">1</property>
+                <property name="index">-1</property>
               </packing>
+            </child>
+            <child type="overlay">
+              <object class="GtkRevealer" id="revealer">
+                <property name="visible">True</property>
+                <property name="can-focus">False</property>
+                <property name="halign">center</property>
+                <property name="valign">start</property>
+                <child>
+                  <placeholder/>
+                </child>
+              </object>
             </child>
           </object>
           <packing>
@@ -1778,10 +1513,10 @@
       </object>
     </child>
     <action-widgets>
-      <action-widget response="-6">sp_cancel_button</action-widget>
-      <action-widget response="-5">sp_ok_button</action-widget>
-      <action-widget response="11">sp_ok_and_add_button</action-widget>
-      <action-widget response="22">sp_next_button</action-widget>
+      <action-widget response="-6">cancel_button</action-widget>
+      <action-widget response="-5">ok_button</action-widget>
+      <action-widget response="11">ok_and_add_button</action-widget>
+      <action-widget response="22">next_button</action-widget>
     </action-widgets>
-  </object>
+  </template>
 </interface>

@@ -37,12 +37,12 @@ logger = logging.getLogger(__name__)
 
 from gi.repository import Gtk
 from pyparsing import CaselessKeyword
+from pyparsing import DelimitedList
 from pyparsing import Keyword
 from pyparsing import Literal
 from pyparsing import OneOrMore
 from pyparsing import ParseException
 from pyparsing import Word
-from pyparsing import DelimitedList
 from pyparsing import one_of
 from pyparsing import printables
 from pyparsing import quoted_string
@@ -1410,7 +1410,7 @@ def acc_to_string_matcher(accession: Accession, key: str) -> bool:
         acc_match = True
 
     # or the species
-    from ..plants.species_editor import species_to_string_matcher
+    from ..plants.ui.widgets.species import species_to_string_matcher
 
     if acc_match:
         sp_match = species_to_string_matcher(species, sp_str)
@@ -2682,7 +2682,7 @@ def plant_to_string_matcher(plant: Plant, text: str) -> bool:
         plt_match = True
 
     # or the species
-    from ..plants.species_editor import species_to_string_matcher
+    from ..plants.ui.widgets.species import species_to_string_matcher
 
     if plt_match:
         sp_match = species_to_string_matcher(species, sp_str)

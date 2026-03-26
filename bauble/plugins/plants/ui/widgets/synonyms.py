@@ -15,7 +15,7 @@
 # You should have received a copy of the GNU General Public License
 # along with ghini.desktop. If not, see <http://www.gnu.org/licenses/>.
 """
-Generic widgets.
+Generic synonyms widgets.
 """
 
 import logging
@@ -45,8 +45,8 @@ from bauble.ui.utils import default_completion_match_func
 from bauble.ui.views import InfoExpander
 from bauble.ui.views import on_clicked_select
 
-from ..model import Synonym
-from ..model import Taxon
+from ...model import Synonym
+from ...model import Taxon
 
 parent = Path(__file__).resolve().parent
 

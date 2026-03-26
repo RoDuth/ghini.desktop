@@ -231,7 +231,7 @@ class VNList(list):
 infrasp_rank_values = {
     "subsp.": "subsp.",
     "var.": "var.",
-    "subvar.": "subvar",
+    "subvar.": "subvar.",
     "f.": "f.",
     "subf.": "subf.",
     None: "",

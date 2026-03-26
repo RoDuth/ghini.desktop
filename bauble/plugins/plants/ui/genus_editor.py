@@ -23,7 +23,6 @@ import logging
 logger = logging.getLogger(__name__)
 
 import traceback
-from collections.abc import Sequence
 from pathlib import Path
 from typing import Self
 from typing import cast
@@ -44,6 +43,7 @@ from bauble import utils
 from bauble.i18n import _
 from bauble.ui import dialogs
 from bauble.ui.handlers import EntryWCompletionHandler
+from bauble.ui.presenter import AddCallback
 from bauble.ui.presenter import EditCreateCallback
 from bauble.ui.presenter import GenericPresenter
 from bauble.ui.presenter import Problem
@@ -59,8 +59,8 @@ from bauble.ui.widgets import YesNoMessageBox
 from ..family import Family
 from ..genus import Genus
 from ..genus import GenusSynonym
-from ..species import edit_species
 from ..species_model import Species
+from .species_editor import SpeciesEditorDialog
 from .widgets import SynonymsPresenter
 from .widgets import taxon_completion_cell_data_func
 
@@ -679,7 +679,4 @@ edit_callback = EditCreateCallback(
 create_genus = edit_callback
 
 
-def add_species_callback(objs: Sequence["Genus"], **_kwargs) -> bool:
-    genus = objs[0]
-
-    return edit_species(model=Species(genus=genus)) is not None
+add_species_callback = AddCallback(SpeciesEditorDialog, Species, "genus")

@@ -52,7 +52,6 @@ from bauble.ui.views import get_search_view
 from bauble.utils.web import PACFile
 from bauble.utils.web import get_net_sess
 
-from ..plants.species import SpeciesEditor
 from . import GardenPlugin
 from . import Institution
 from . import Location
@@ -1751,51 +1750,6 @@ class TestSearchViewMapPresenter(BaubleTestCase):
         self.session.delete(plt1)
         self.session.commit()
         self.assertNotIn(plt1.id, presenter.plt_items)
-        expunge_garden_map()
-
-    def test_does_not_cause_pointless_history_entries(self):
-        # May be little point to this test as did not find the specific
-        # conditions causing "geojson: [null]" (single item list change)
-        # history entries for plants when the species was edited (likely due to
-        # the deferred geojson being loaded) so this test never actually
-        # failed.
-        # garden map has been changed to no longer use the geojson directly and
-        # the pointless history entries seemed to have stopped anyway.  Leaving
-        # here as a reminder.
-        get_locations_polys.clear_cache()
-        for func in get_setUp_data_funcs():
-            func()
-
-        results = self.session.query(Plant).all()
-        for plt in results:
-            plt.geojson
-            plt.geojson = point
-        self.session.commit()
-        setup_garden_map()
-        presenter = garden_map.map_presenter
-        presenter.is_visible = lambda: True
-        presenter.populate_map(results)
-        presenter.populate_thread.join()
-        update_gui()
-
-        sp = results[0].accession.species
-        sp.default_vernacular_name = sp.vernacular_names[0]
-        editor = SpeciesEditor(model=sp)
-        update_gui()
-        editor.commit_changes()
-        editor.presenter.cleanup()
-        editor.session.close()
-        del editor
-        update_gui()
-
-        hist = (
-            self.session.query(db.History.values)
-            .filter(db.History.table_name == "plant")
-            .filter(db.History.table_id == results[0].id)
-            .all()
-        )
-        # one history from adding the geojson
-        self.assertEqual(len(hist), 1, hist)
         expunge_garden_map()
 
     @mock.patch("bauble.gui")

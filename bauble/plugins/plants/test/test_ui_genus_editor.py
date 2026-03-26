@@ -698,14 +698,14 @@ class FunctionTests(BaubleTestCase):
         self.session.add(gen)
         self.session.commit()
 
-        with mock.patch(
-            "bauble.plugins.plants.ui.genus_editor.edit_species"
+        with mock.patch.object(
+            add_species_callback, "dialog_class"
         ) as mock_editor:
-            mock_editor.return_value = None
 
             self.assertFalse(add_species_callback([gen]))
             mock_editor.assert_called_once()
             sp = mock_editor.call_args.kwargs["model"]
+            sp = self.session.merge(sp)
             self.assertIsInstance(sp, Species)
             self.assertEqual(sp.genus, gen)
 

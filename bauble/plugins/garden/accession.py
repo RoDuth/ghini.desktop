@@ -87,10 +87,9 @@ from bauble.utils import date_string
 from bauble.utils import safe_int
 from bauble.utils.geo import KMLMapCallbackFunctor
 
-from ..plants.species_editor import generic_sp_get_completions
-from ..plants.species_editor import species_cell_data_func
-from ..plants.species_editor import species_match_func
-from ..plants.species_editor import species_to_string_matcher
+from ..plants.ui.species_editor import species_cell_data_func
+from ..plants.ui.species_editor import species_match_func
+from ..plants.ui.widgets.species import species_to_string_matcher
 from .location import Location
 from .propagation import Propagation
 from .propagation import SourcePropagationPresenter
@@ -112,6 +111,47 @@ BAUBLE_ACC_CODE_FORMAT = "%Y%PD####"
 """The system default value for accession.code_format  Used as a fall back when
 no other code format is described in the `bauble` table.
 """
+
+
+# TODO TEMP
+def generic_sp_get_completions(session: Session, text: str):
+    """A generic species get_completion.
+
+    intended used is by supplying the local session via `functools.partial`
+
+    e.g.:
+    `sp_completions = partial(generic_sp_get_completions, self.session)`
+
+    :param session: a local session to use for the query.
+    :param text: a string to search for
+    """
+    from bauble.plugins.plants.genus import Genus
+
+    query = session.query(Species).join(Genus)
+    hybrid = ""
+    epithet = ""
+    genus = text.removeprefix("×").removeprefix("+").strip()
+
+    try:
+        if text[0] in ["×", "+"]:
+            hybrid = text[0]
+    except (AttributeError, IndexError):
+        pass
+
+    try:
+        genus, epithet = genus.split(" ", 1)
+        epithet = epithet.strip(" +×")
+    except (AttributeError, ValueError):
+        pass
+
+    query = query.filter(utils.ilike(Genus.genus, f"{genus}%%"))
+    if hybrid:
+        query = query.filter(Genus.hybrid == hybrid)
+    if epithet:
+        query = query.filter(
+            utils.ilike(Species.full_name, f"%{genus}%{epithet}%")
+        )
+    return query.order_by(Genus.genus)
 
 
 def longitude_to_dms(decimal):
