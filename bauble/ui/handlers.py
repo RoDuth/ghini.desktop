@@ -116,20 +116,23 @@ class HandlerMethodDescriptor[T: GObject.Object](ABC):
             # allow access to the descriptor itself via the class
             return self
 
-        self.class_name = class_.__name__
-
-        self.problem_name_template = (
-            f"{{}}::{self.name}::{self.class_name}::{id(instance)}"
-        )
-
-        self.match_problem = self.problem_name_template.format("not_matched")
-
         def bound_method(widget: T, **kwargs) -> None:
             """Handler method called when the widget signal is emitted.
 
             :param problem_widget: if supplied the problem is attached to this
                 widget instead of the one that emitted the signal.
             """
+
+            self.class_name = class_.__name__
+
+            self.problem_name_template = (
+                f"{{}}::{self.name}::{self.class_name}::{id(instance)}"
+            )
+
+            self.match_problem = self.problem_name_template.format(
+                "not_matched"
+            )
+
             return self.handler(instance, widget, **kwargs)
 
         return bound_method
@@ -196,6 +199,9 @@ class HandlerMethodDescriptor[T: GObject.Object](ABC):
 
         problem_widget = kwargs.get("problem_widget", widget)
         instance.add_problem(self.match_problem, problem_widget)
+
+        if hasattr(instance, "update"):
+            instance.update()
 
     def validate(
         self,
@@ -457,3 +463,14 @@ class ComboBoxHandler(HandlerMethodDescriptor[Gtk.ComboBox]):
         else:
             instance.remove_problem(self.match_problem, widget)
             super().handler(instance, widget, **kwargs)
+
+
+class ToggleButtonHandler(HandlerMethodDescriptor[Gtk.ToggleButton]):
+    """HandlerMethodDescriptor for Gtk.ToggleButton and related widgets.
+
+    If validation/conversion is needed provide a ValidatorConverter instance
+    and a problem string as parameters.
+    """
+
+    def get_value(self, widget: Gtk.ToggleButton) -> bool:
+        return widget.get_active()
