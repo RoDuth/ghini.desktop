@@ -120,7 +120,6 @@ def genus_completions(text: str) -> Select:
 def genus_to_string_matcher(
     genus: Genus,
     key: str,
-    gen_path: str = "",
 ) -> bool:
     """Helper function to match string or partial string.
 
@@ -130,10 +129,6 @@ def genus_to_string_matcher(
 
     :return: bool, True if the genus matches the key
     """
-    if gen_path:
-        from operator import attrgetter
-
-        genus = attrgetter(gen_path)(genus)
     key = key.removeprefix("× ").removeprefix("+ ").lower()
     return genus.genus.lower().startswith(key)
 
@@ -142,7 +137,6 @@ def genus_match_func(
     completion: Gtk.EntryCompletion,
     key: str,
     treeiter: Gtk.TreeIter,
-    path: str = "",
 ) -> bool:
     """match_func that allows partial matches.
 
@@ -159,7 +153,7 @@ def genus_match_func(
     genus = tree_model[treeiter][0]
     if not inspect(genus).persistent:
         return False
-    return genus_to_string_matcher(genus, key, path)
+    return genus_to_string_matcher(genus, key)
 
 
 def genus_cell_data_func(
@@ -312,7 +306,11 @@ class GenusEditorDialog(
             get_values=self.family_get_completions,
         )
 
-    def family_get_completions(self, text: str) -> list[Row]:
+    def family_get_completions(self, text: str) -> list[Row] | list[tuple]:
+        # if already populated match.
+        if self.model.family and self.model.family.epithet == text:
+            return [(self.model.family,)]
+
         stmt = (
             select(Family)
             .where(utils.ilike(Family.epithet, f"{text}%%"))
@@ -332,7 +330,7 @@ class GenusEditorDialog(
         value = liststore[tree_iter][0]
 
         if value.accepted:
-            self.notify_fam_is_synonym(value)
+            GLib.idle_add(self.notify_fam_is_synonym, value)
             logger.debug("%s is a synonym of %s", value, value.accepted)
 
     def notify_fam_is_synonym(self, family: Family) -> None:
@@ -398,15 +396,8 @@ class GenusEditorDialog(
             family = self.session.merge(dialog.model)
             dialog.destroy()
 
-        completion = self.family_entry.get_completion()
-        completion_model = cast(Gtk.ListStore, completion.get_model())
-        completion_model.clear()
-        completion_model.append([family])
-        completion.emit(
-            "match-selected",
-            completion_model,
-            completion_model.get_iter_first(),
-        )
+        self.model.family = family
+        self.family_entry.set_text(str(family))
 
         self.refresh_cites_label()
 
@@ -538,7 +529,7 @@ class GenusEditorDialog(
 
         if existing and existing is not self.model:
             logger.debug("found existing genus with epithet %s", epithet)
-            self.notify_existing_genus(existing)
+            GLib.idle_add(self.notify_existing_genus, existing)
 
     def notify_existing_genus(self, existing: Genus) -> None:
         def on_yes_clicked(_button: Gtk.Button) -> None:
@@ -608,7 +599,7 @@ class GenusEditorDialog(
 
     def check_synonym(self) -> None:
         if self.model.accepted:
-            self.notify_is_synonym(self.model.accepted)
+            GLib.idle_add(self.notify_is_synonym, self.model.accepted)
 
     def notify_is_synonym(self, accepted: Genus) -> None:
         def on_yes_clicked(_button: Gtk.Button) -> None:

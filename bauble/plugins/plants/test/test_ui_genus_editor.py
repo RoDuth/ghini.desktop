@@ -119,6 +119,7 @@ class GenusEditorDialogTests(BaubleTestCase):
         self.session.add(family)
         self.session.commit()
         editor = GenusEditorDialog(genus, self.session)
+        update_gui()
 
         child = editor.revealer.get_child()
 
@@ -147,11 +148,9 @@ class GenusEditorDialogTests(BaubleTestCase):
             model=Genus(epithet="Acmena", family=family),
             session=db.Session(),
         )
-        with mock.patch.object(editor, "run") as mock_run:
-            mock_run.return_value = Gtk.ResponseType.OK
-            editor.run()
+        editor.show()
+        editor.emit("response", -6)
 
-        editor.destroy()
         del editor
         update_gui()
 
@@ -229,6 +228,7 @@ class GenusEditorDialogTests(BaubleTestCase):
         editor = GenusEditorDialog(Genus(), self.session)
 
         editor.family_entry.set_text("Sterculiaceae")
+        update_gui()
 
         child = editor.revealer.get_child()
 
@@ -313,6 +313,7 @@ class GenusEditorDialogTests(BaubleTestCase):
         self.assertEqual(editor.model.epithet, "Sterculia")
         self.assertEqual(len(editor.problems), 2)
 
+        update_gui()
         child = editor.revealer.get_child()
 
         self.assertIsInstance(child, YesNoMessageBox)
@@ -434,9 +435,7 @@ class GenusEditorDialogTests(BaubleTestCase):
 
         editor.destroy()
 
-    @mock.patch(
-        "bauble.plugins.plants.ui.genus_editor.dialogs.message_details_dialog"
-    )
+    @mock.patch("bauble.ui.dialogs.message_details_dialog")
     def test_on_response_ok(self, mock_dlog):
         family = Family(epithet="Myrtaceae")
         self.session.add(family)
@@ -697,7 +696,7 @@ class FunctionTests(BaubleTestCase):
         caricaceae = Family(family="Caricaceae")
         gen = Genus(epithet="Carica", family=caricaceae)
         self.session.add(gen)
-        self.session.flush()
+        self.session.commit()
 
         with mock.patch(
             "bauble.plugins.plants.ui.genus_editor.edit_species"
@@ -714,12 +713,10 @@ class FunctionTests(BaubleTestCase):
 class GenusCompletionTests(PlantTestCase):
     def test_genus_to_string_matcher(self):
         gen1 = self.session.query(Genus).get(9)
-        sp = self.session.query(Species).get(26)
         self.assertTrue(genus_to_string_matcher(gen1, "Buty"))
         self.assertTrue(genus_to_string_matcher(gen1, "× Buty"))
         self.assertFalse(genus_to_string_matcher(gen1, "Auty"))
         self.assertFalse(genus_to_string_matcher(gen1, "× Auty"))
-        self.assertFalse(genus_to_string_matcher(sp, "× Auty", "genus"))
 
     def test_genus_cell_data_func(self):
         gen = self.session.query(Genus).get(9)

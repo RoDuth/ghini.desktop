@@ -97,6 +97,7 @@ class FamilyEditorDialogTests(BaubleTestCase):
         self.session.add(family)
         self.session.commit()
         editor = FamilyEditorDialog(family, self.session)
+        update_gui()
 
         child = editor.revealer.get_child()
 
@@ -122,10 +123,9 @@ class FamilyEditorDialogTests(BaubleTestCase):
             model=Family(family="Fooaceae"),
             session=db.Session(),
         )
-        with mock.patch.object(editor, "run") as mock_run:
-            mock_run.return_value = Gtk.ResponseType.OK
-            editor.run()
-        editor.destroy()
+        editor.show()
+        editor.emit("response", -6)
+
         del editor
         update_gui()
 
@@ -230,6 +230,7 @@ class FamilyEditorDialogTests(BaubleTestCase):
 
         self.assertEqual(editor.model.epithet, "Myrtaceae")
         self.assertEqual(len(editor.problems), 1)
+        update_gui()
 
         child = editor.revealer.get_child()
 

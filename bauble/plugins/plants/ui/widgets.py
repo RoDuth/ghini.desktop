@@ -169,7 +169,6 @@ class MatchFunc(Protocol):  # pylint: disable=too-few-public-methods
         completion: Gtk.EntryCompletion,
         key: str,
         treeiter: Gtk.TreeIter,
-        path: str = "",
     ) -> bool: ...
 
 

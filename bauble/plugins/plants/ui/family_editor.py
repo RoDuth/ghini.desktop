@@ -214,7 +214,7 @@ class FamilyEditorDialog(
         )
         if existing and existing is not self.model:
             logger.debug("found existing family with epithet %s", epithet)
-            self.notify_existing_family(existing)
+            GLib.idle_add(self.notify_existing_family, existing)
 
         self.on_family_author_entry_changed(entry)
 
@@ -319,7 +319,7 @@ class FamilyEditorDialog(
 
     def check_synonym(self) -> None:
         if self.model.accepted:
-            self.notify_is_synonym(self.model.accepted)
+            GLib.idle_add(self.notify_is_synonym, self.model.accepted)
 
     def notify_is_synonym(self, accepted: Genus) -> None:
         def on_yes_clicked(_button: Gtk.Button) -> None:
