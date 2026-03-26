@@ -124,6 +124,28 @@ class GenericPresenterTests(TestCase):
         view.bar_entry.set_text("TEST")
         self.assertEqual(view.bar_entry.get_text(), val2)
 
+    def test_can_use_as_stand_alone(self):
+
+        class FooPresenter(GenericPresenter):
+
+            def __init__(self, model):
+                super().__init__(model, self)
+                self.bar_entry = Gtk.Entry()
+                self.widgets_to_model_map = {self.bar_entry: "bar"}
+                self.refresh_all_widgets_from_model()
+
+                self.bar_entry.connect("changed", self.on_text_entry_changed)
+
+        val1 = "BLAH"
+        mock_model = mock.Mock(bar=val1)
+        presenter = FooPresenter(mock_model)
+
+        self.assertEqual(presenter.bar_entry.get_text(), val1)
+
+        val2 = "TEST"
+        presenter.bar_entry.set_text("TEST")
+        self.assertEqual(presenter.bar_entry.get_text(), val2)
+
     def test_refresh_all_widgets_from_model(self):
         mock_model = mock.Mock(foo="blah", bar="test", baz="2")
 
@@ -299,7 +321,8 @@ class GenericPresenterTests(TestCase):
         call_list = [j for i in calls for j in i.args]
         self.assertIn("problem-bg", call_list)
         self.assertIn("problem", call_list)
-        self.assertEqual(len(call_list), 4)
+        # only removes when no problems remain
+        self.assertEqual(len(call_list), 2)
         self.assertEqual(len(set(call_list)), 2)
 
     def test_handler_method_descriptor_get(self):

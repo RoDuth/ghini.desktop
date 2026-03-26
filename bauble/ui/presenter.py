@@ -221,7 +221,12 @@ class GenericPresenter[T]:
         self.model = model
         self.view = view
         # check this class has implimented gsignals
-        signal_list = GObject.signal_list_names(type(view))
+        signal_list = []
+        try:
+            signal_list = GObject.signal_list_names(type(view))
+        except AttributeError as e:
+            logger.debug("%s(%s)", type(e).__name__, e)
+
         self.emits_problems_changed = "problems-changed" in signal_list
         # Incase of use as a Gtk.Template mixin call the widgets init
         super().__init__(*args, **kwargs)
@@ -285,10 +290,10 @@ class GenericPresenter[T]:
                 or (widget is None and prob == problem_id)
                 or (widg == widget and problem_id is None)
             ):
-                if isinstance(widg, Gtk.Widget):
+                self.problems.remove((prob, widg))
+                if isinstance(widg, Gtk.Widget) and not self.has_problem(widg):
                     widg.get_style_context().remove_class("problem")
                     widg.get_style_context().remove_class("problem-bg")
-                self.problems.remove((prob, widg))
 
         logger.debug("problems now: %s", self.problems)
 
@@ -297,6 +302,12 @@ class GenericPresenter[T]:
 
         if hasattr(self.view, "emit") and start != bool(self.problems):
             self.view.emit("problems-changed", False)
+
+    def has_problem(self, widget: Gtk.Widget) -> bool:
+        for _, w in self.problems:
+            if w is widget:
+                return True
+        return False
 
 
 def idle_garbage_collect(*_args, **_kwargs) -> None:
@@ -340,7 +351,6 @@ class EditorDialog(Protocol):
         session: Session,
     ) -> None: ...
 
-    def show_all(self) -> None: ...
     def show(self) -> None: ...
     def connect_after(self, signal: str, handler: Callable) -> int: ...
 
@@ -372,7 +382,7 @@ class AddCallback:
             model=model,
             session=db.Session(),
         )
-        dialog.show_all()
+        dialog.show()
 
         if hasattr(dialog, f"lock_{self.parent_attr}"):
             getattr(dialog, f"lock_{self.parent_attr}")()
@@ -424,8 +434,8 @@ class EditCreateCallback:
             session=db.Session(),
         )
 
-        dialog.show()
         dialog.connect_after("response", self.update_search_view)
+        dialog.show()
 
         return False
 
