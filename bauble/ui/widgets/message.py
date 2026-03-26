@@ -19,6 +19,7 @@ Message boxes for editor dialogs
 """
 
 from collections.abc import Callable
+from typing import cast
 
 from gi.repository import Gtk
 
@@ -61,3 +62,38 @@ class YesNoMessageBox(Gtk.Box):
         self.get_style_context().add_class("app-notification")
 
         self.pack_start(button_box, False, False, 0)
+
+
+class MessageBox(Gtk.Box):
+    """Gtk.Box widget containing a message.
+
+    Intended to be added to Gtk.Revealer.
+
+    :param message: The message to display above the buttons. Must be a string
+        with Pango markup for styling.  Make xml_safe where needed.
+    """
+
+    def __init__(
+        self,
+        message: str,
+    ) -> None:
+        super().__init__(orientation=Gtk.Orientation.VERTICAL)
+
+        box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
+        close_button = Gtk.Button.new_from_icon_name(
+            "window-close-symbolic",
+            Gtk.IconSize.BUTTON,
+        )
+        close_button.set_relief(Gtk.ReliefStyle.NONE)
+        close_button.connect("clicked", self.on_close_clicked)
+        box.pack_end(close_button, False, False, 0)
+        self.pack_start(box, False, False, 0)
+
+        label = Gtk.Label(use_markup=True, label=message)
+        label.set_line_wrap(True)
+        self.pack_start(label, True, True, 0)
+
+        self.get_style_context().add_class("app-notification")
+
+    def on_close_clicked(self, _button: Gtk.Button) -> None:
+        cast(Gtk.Revealer, self.get_parent()).set_reveal_child(False)

@@ -18,6 +18,7 @@
 Custom widgets
 """
 from .date import DatePickerBox
+from .message import MessageBox
 from .message import YesNoMessageBox
 from .notes import NoteBox
 from .notes import NotesPresenter
@@ -31,4 +32,5 @@ __all__ = [
     "NoteBox",
     "DatePickerBox",
     "YesNoMessageBox",
+    "MessageBox",
 ]
