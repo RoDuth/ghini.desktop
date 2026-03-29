@@ -1339,8 +1339,9 @@
                               </packing>
                             </child>
                             <child>
-                              <object class="GtkComboBox" id="_sp_custom1_combo">
+                              <object class="GtkComboBoxText" id="_sp_custom1_combo">
                                 <property name="can-focus">False</property>
+                                <signal name="changed" handler="on_combobox_changed" swapped="no"/>
                               </object>
                               <packing>
                                 <property name="left-attach">1</property>
@@ -1348,8 +1349,9 @@
                               </packing>
                             </child>
                             <child>
-                              <object class="GtkComboBox" id="_sp_custom2_combo">
+                              <object class="GtkComboBoxText" id="_sp_custom2_combo">
                                 <property name="can-focus">False</property>
+                                <signal name="changed" handler="on_combobox_changed" swapped="no"/>
                               </object>
                               <packing>
                                 <property name="left-attach">3</property>

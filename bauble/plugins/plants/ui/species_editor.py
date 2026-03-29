@@ -28,6 +28,7 @@ logger = logging.getLogger(__name__)
 
 import re
 import traceback
+from ast import literal_eval
 from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
@@ -50,6 +51,7 @@ import bauble
 from bauble import db
 from bauble import utils
 from bauble.i18n import _
+from bauble.meta import BaubleMeta
 from bauble.ui import dialogs
 from bauble.ui.handlers import ComboBoxHandler
 from bauble.ui.handlers import EntryWCompletionHandler
@@ -209,6 +211,10 @@ class SpeciesEditorDialog(
     habit_cell = cast(Gtk.CellRendererText, Gtk.Template.Child())
     habit_completion = cast(Gtk.EntryCompletion, Gtk.Template.Child())
     habit_entry = cast(Gtk.Entry, Gtk.Template.Child())
+    _sp_custom1_label = cast(Gtk.Label, Gtk.Template.Child())
+    _sp_custom1_combo = cast(Gtk.ComboBoxText, Gtk.Template.Child())
+    _sp_custom2_label = cast(Gtk.Label, Gtk.Template.Child())
+    _sp_custom2_combo = cast(Gtk.ComboBoxText, Gtk.Template.Child())
 
     infrasp_presenter = cast(InfraspecificPresenter, Gtk.Template.Child())
     vernacular_presenter = cast(VernacularNamePresenter, Gtk.Template.Child())
@@ -276,6 +282,9 @@ class SpeciesEditorDialog(
             self.grex_entry: "grex",
             self.habit_comboentry: "habit",
         }
+
+        self._setup_custom_field("_sp_custom1", self._sp_custom1_combo)
+        self._setup_custom_field("_sp_custom2", self._sp_custom2_combo)
 
         populate_enum_combo(self.hybrid_combo, model, "hybrid")
         populate_enum_combo(self.qualifier_combo, model, "sp_qual")
@@ -401,6 +410,32 @@ class SpeciesEditorDialog(
         default_dialog_update(self, self.can_commit)
         self.refresh_cites_label()
         self.refresh_fullname_label()
+
+    def _setup_custom_field(
+        self,
+        column_name: str,
+        widget: Gtk.ComboBox,
+    ) -> None:
+        with db.Session() as session:
+            custom_meta = session.execute(
+                select(BaubleMeta).where(BaubleMeta.name == column_name)
+            ).scalar()
+        # pylint: disable=protected-access
+        if custom_meta:
+            custom_meta = literal_eval(custom_meta.value)
+            display_name = custom_meta.get("display_name")
+            if display_name:
+                label = getattr(self, column_name + "_label")
+                label.set_label(display_name)
+                label.set_visible(label)
+            values = custom_meta.get("values")
+            if values:
+                combo = getattr(self, column_name + "_combo")
+                combo.set_visible(True)
+                for v in values:
+                    combo.append_text(v or "")
+            field_name = custom_meta.get("field_name")
+            self.widgets_to_model_map[widget] = field_name
 
     def refresh_cites_label(self) -> None:
         gen_cites = fam_cites = "N/A"

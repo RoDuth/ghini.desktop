@@ -28,7 +28,9 @@ from sqlalchemy import select
 
 from bauble import db
 from bauble import utils
+from bauble.meta import BaubleMeta
 from bauble.plugins.imex.csv_ import CSVRestore
+from bauble.plugins.plants import PlantsPlugin
 from bauble.plugins.plants.family import Family
 from bauble.plugins.plants.genus import Genus
 from bauble.plugins.plants.species_model import Habit
@@ -771,6 +773,53 @@ class SpeciesEditorDialogTests(BaubleTestCase):
 
         self.assertEqual(editor.model.habit.name, "Tree")
 
+        editor.destroy()
+
+    def test_custom_fields(self):
+        # pylint: disable=protected-access
+        meta = BaubleMeta(
+            name="_sp_custom1",
+            value=(
+                "{'field_name': 'nca_status', "
+                "'display_name': 'NCA Status', "
+                "'values': "
+                "('extinct', 'Critically endangered', 'vulnerable', None)}"
+            ),
+        )
+        self.session.add(meta)
+        self.session.commit()
+        # effectively also tests PlantsPlugin.register_custom_column
+        PlantsPlugin.register_custom_column("_sp_custom1")
+
+        family = Family(epithet="Myrtaceae")
+        genus = Genus(family=family, epithet="Rhodomytus")
+        species = Species(
+            genus=genus,
+            epithet="psidioides",
+            nca_status="Critically endangered",
+        )
+        self.session.add(species)
+        self.session.commit()
+
+        self.assertEqual(species.nca_status, "Critically endangered")
+        self.assertEqual(species._sp_custom1, "Critically endangered")
+
+        editor = SpeciesEditorDialog(species, self.session)
+
+        self.assertEqual(editor._sp_custom1_label.get_text(), "NCA Status")
+        self.assertEqual(
+            get_widget_value(editor._sp_custom1_combo),
+            "Critically endangered",
+        )
+
+        set_widget_value(editor._sp_custom1_combo, "")
+
+        self.assertEqual(species.nca_status, None)
+
+        # tear down
+        self.session.delete(meta)
+        self.session.commit()
+        PlantsPlugin.register_custom_column("_sp_custom1")
         editor.destroy()
 
     def test_genus_get_completions(self):

@@ -592,7 +592,8 @@ class PlantsPlugin(pluginmgr.Plugin):
             field_name = custom_meta["field_name"]
             field_values = custom_meta["values"]
             short_hand = custom_meta.get("short_hand")
-            enum.init(field_values, empty_to_none=None in field_values)
+            empty_to_none = None in field_values
+            enum.init(field_values, empty_to_none=empty_to_none)
             # register with ExpressionRow
             ExpressionRow.custom_columns[field_name] = field_values
 
@@ -600,6 +601,9 @@ class PlantsPlugin(pluginmgr.Plugin):
                 return getattr(self, column_name)
 
             def _set(self, value):
+                if empty_to_none:
+                    value = value or None
+
                 if value in field_values:
                     setattr(self, column_name, value)
                 else:
