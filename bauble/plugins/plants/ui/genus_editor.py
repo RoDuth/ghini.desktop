@@ -408,7 +408,8 @@ class GenusEditorDialog(
             get_values=self.subfamily_get_completions,
         )
 
-    def subfamily_get_completions(self, text: str) -> list[str]:
+    def subfamily_get_completions(self, text: str) -> list[Row]:
+
         stmt = (
             select(Genus.subfamily)
             .where(utils.ilike(Genus.subfamily, f"{text}%%"))
@@ -420,9 +421,7 @@ class GenusEditorDialog(
         if self.model.family:
             stmt = stmt.where(Genus.family == self.model.family)
 
-        with db.engine.connect() as connection:
-
-            return connection.scalars(stmt).all()
+        return self.session.execute(stmt).all()
 
     @Gtk.Template.Callback()
     def on_tribe_entry_changed(self, entry: Gtk.Entry) -> None:
@@ -431,7 +430,8 @@ class GenusEditorDialog(
             get_values=self.tribe_get_completions,
         )
 
-    def tribe_get_completions(self, text: str) -> list[str]:
+    def tribe_get_completions(self, text: str) -> list[Row]:
+
         stmt = (
             select(Genus.tribe)
             .where(utils.ilike(Genus.tribe, f"{text}%%"))
@@ -446,9 +446,7 @@ class GenusEditorDialog(
         if self.model.subfamily:
             stmt = stmt.where(Genus.subfamily == self.model.subfamily)
 
-        with db.engine.connect() as connection:
-
-            return connection.scalars(stmt).all()
+        return self.session.execute(stmt).all()
 
     @Gtk.Template.Callback()
     def on_subtribe_entry_changed(self, entry: Gtk.Entry) -> None:
@@ -457,7 +455,8 @@ class GenusEditorDialog(
             get_values=self.subtribe_get_completions,
         )
 
-    def subtribe_get_completions(self, text: str) -> list[str]:
+    def subtribe_get_completions(self, text: str) -> list[Row]:
+
         stmt = (
             select(Genus.subtribe)
             .where(utils.ilike(Genus.subtribe, f"{text}%%"))
@@ -475,9 +474,7 @@ class GenusEditorDialog(
         if self.model.tribe:
             stmt = stmt.where(Genus.tribe == self.model.tribe)
 
-        with db.engine.connect() as connection:
-
-            return connection.scalars(stmt).all()
+        return self.session.execute(stmt).all()
 
     @Gtk.Template.Callback()
     def on_changed(self, _presenter: Gtk.Widget) -> None:

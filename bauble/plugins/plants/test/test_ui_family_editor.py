@@ -314,7 +314,7 @@ class FamilyEditorDialogTests(BaubleTestCase):
 
         completions = editor.order_get_completions("Ord")
         self.assertEqual(len(completions), 20)
-        self.assertTrue(all(i.startswith("Order") for i in completions))
+        self.assertTrue(all(i[0].startswith("Order") for i in completions))
 
         editor.destroy()
 
@@ -347,13 +347,13 @@ class FamilyEditorDialogTests(BaubleTestCase):
 
         completions = editor.suborder_get_completions("Subo")
         self.assertEqual(len(completions), 20)
-        self.assertTrue(all(i.startswith("Subo") for i in completions))
+        self.assertTrue(all(i[0].startswith("Subo") for i in completions))
 
         editor.order_entry.set_text("Order1")
 
         completions = editor.suborder_get_completions("Subo")
         self.assertEqual(len(completions), 20)
-        self.assertTrue(all(i.startswith("Suborder") for i in completions))
+        self.assertTrue(all(i[0].startswith("Suborder") for i in completions))
 
         editor.order_entry.set_text("Order3")
 

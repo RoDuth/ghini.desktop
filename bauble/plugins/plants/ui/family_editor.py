@@ -30,6 +30,7 @@ from typing import cast
 from gi.repository import GLib
 from gi.repository import Gtk
 from sqlalchemy import select
+from sqlalchemy.engine import Row
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
@@ -280,8 +281,7 @@ class FamilyEditorDialog(
             get_values=self.order_get_completions,
         )
 
-    @staticmethod
-    def order_get_completions(text: str) -> list[str]:
+    def order_get_completions(self, text: str) -> list[Row]:
         stmt = (
             select(Family.order)
             .where(utils.ilike(Family.order, f"{text}%%"))
@@ -290,9 +290,7 @@ class FamilyEditorDialog(
             .limit(20)
         )
 
-        with db.engine.connect() as connection:
-
-            return connection.scalars(stmt).all()
+        return self.session.execute(stmt).all()
 
     @Gtk.Template.Callback()
     def on_suborder_entry_changed(self, entry: Gtk.Entry) -> None:
@@ -301,7 +299,7 @@ class FamilyEditorDialog(
             get_values=self.suborder_get_completions,
         )
 
-    def suborder_get_completions(self, text: str) -> list[str]:
+    def suborder_get_completions(self, text: str) -> list[Row]:
         stmt = (
             select(Family.suborder)
             .where(utils.ilike(Family.suborder, f"{text}%%"))
@@ -313,9 +311,7 @@ class FamilyEditorDialog(
         if self.model.order:
             stmt = stmt.where(Family.order == self.model.order)
 
-        with db.engine.connect() as connection:
-
-            return connection.scalars(stmt).all()
+        return self.session.execute(stmt).all()
 
     def check_synonym(self) -> None:
         if self.model.accepted:

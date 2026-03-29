@@ -364,7 +364,7 @@ class GenusEditorDialogTests(BaubleTestCase):
 
         completions = editor.subfamily_get_completions("abc")
         self.assertEqual(len(completions), 20)
-        self.assertTrue(all(i.startswith("abcd") for i in completions))
+        self.assertTrue(all(i[0].startswith("abcd") for i in completions))
 
         editor.destroy()
 
@@ -400,13 +400,13 @@ class GenusEditorDialogTests(BaubleTestCase):
 
         completions = editor.tribe_get_completions("this")
         self.assertEqual(len(completions), 20)
-        self.assertTrue(all(i.startswith("this") for i in completions))
+        self.assertTrue(all(i[0].startswith("this") for i in completions))
 
         editor.subfamily_entry.set_text("abcd")
 
         completions = editor.tribe_get_completions("this")
         self.assertEqual(len(completions), 20)
-        self.assertTrue(all(i.startswith("this") for i in completions))
+        self.assertTrue(all(i[0].startswith("this") for i in completions))
 
         editor.subfamily_entry.set_text("wxyz1")
 
