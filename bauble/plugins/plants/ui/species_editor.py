@@ -223,7 +223,8 @@ class SpeciesEditorDialog(
     pictures_presenter = cast(NotesPresenter[PictureBox], Gtk.Template.Child())
     links_menu_btn = cast(LinksMenuButton, Gtk.Template.Child())
 
-    on_entry_changed_match = EntryWCompletionHandler(must_match=True)
+    on_completion_entry_matched = EntryWCompletionHandler(must_match=True)
+    on_completion_entry_changed = EntryWCompletionHandler()
     on_habit_combo_changed = ComboBoxHandler(column=1, must_match=True)
     on_toggled = ToggleButtonHandler()
 
@@ -571,7 +572,7 @@ class SpeciesEditorDialog(
 
     @Gtk.Template.Callback()
     def on_genus_entry_changed(self, entry: Gtk.Entry) -> None:
-        self.on_entry_changed_match(
+        self.on_completion_entry_matched(
             entry,
             get_values=self.genus_get_completions,
         )
@@ -645,6 +646,128 @@ class SpeciesEditorDialog(
         message_box.show_all()
         self.revealer.add(message_box)
         self.revealer.set_reveal_child(True)
+
+    @Gtk.Template.Callback()
+    def on_subgenus_entry_changed(self, entry: Gtk.Entry) -> None:
+        self.on_completion_entry_changed(
+            entry,
+            get_values=self.subgenus_get_completions,
+        )
+
+    def subgenus_get_completions(self, text: str) -> list[Row]:
+
+        stmt = (
+            select(Species.subgenus)
+            .where(Species.genus == self.model.genus)
+            .where(utils.ilike(Species.subgenus, f"{text}%"))
+            .distinct()
+            .order_by(Species.subgenus)
+            .limit(20)
+        )
+
+        return self.session.execute(stmt).all()
+
+    @Gtk.Template.Callback()
+    def on_section_entry_changed(self, entry: Gtk.Entry) -> None:
+        self.on_completion_entry_changed(
+            entry,
+            get_values=self.section_get_completions,
+        )
+
+    def section_get_completions(self, text: str) -> list[Row]:
+
+        stmt = (
+            select(Species.section)
+            .where(Species.genus == self.model.genus)
+            .where(utils.ilike(Species.section, f"{text}%"))
+        )
+        if self.model.subgenus:
+            stmt = stmt.where(Species.subgenus == self.model.subgenus)
+
+        stmt = stmt.distinct().order_by(Species.section).limit(20)
+
+        return self.session.execute(stmt).all()
+
+    @Gtk.Template.Callback()
+    def on_subsection_entry_changed(self, entry: Gtk.Entry) -> None:
+        self.on_completion_entry_changed(
+            entry,
+            get_values=self.subsection_get_completions,
+        )
+
+    def subsection_get_completions(self, text: str) -> list[Row]:
+
+        stmt = (
+            select(Species.subsection)
+            .where(Species.genus == self.model.genus)
+            .where(utils.ilike(Species.subsection, f"{text}%"))
+        )
+        if self.model.subgenus:
+            stmt = stmt.where(Species.subgenus == self.model.subgenus)
+
+        if self.model.section:
+            stmt = stmt.where(Species.section == self.model.section)
+
+        stmt = stmt.distinct().order_by(Species.subsection).limit(20)
+
+        return self.session.execute(stmt).all()
+
+    @Gtk.Template.Callback()
+    def on_series_entry_changed(self, entry: Gtk.Entry) -> None:
+        self.on_completion_entry_changed(
+            entry,
+            get_values=self.series_get_completions,
+        )
+
+    def series_get_completions(self, text: str) -> list[Row]:
+
+        stmt = (
+            select(Species.series)
+            .where(Species.genus == self.model.genus)
+            .where(utils.ilike(Species.series, f"{text}%"))
+        )
+        if self.model.subgenus:
+            stmt = stmt.where(Species.subgenus == self.model.subgenus)
+
+        if self.model.section:
+            stmt = stmt.where(Species.section == self.model.section)
+
+        if self.model.subsection:
+            stmt = stmt.where(Species.subsection == self.model.subsection)
+
+        stmt = stmt.distinct().order_by(Species.series).limit(20)
+
+        return self.session.execute(stmt).all()
+
+    @Gtk.Template.Callback()
+    def on_subseries_entry_changed(self, entry: Gtk.Entry) -> None:
+        self.on_completion_entry_changed(
+            entry,
+            get_values=self.subseries_get_completions,
+        )
+
+    def subseries_get_completions(self, text: str) -> list[Row]:
+
+        stmt = (
+            select(Species.subseries)
+            .where(Species.genus == self.model.genus)
+            .where(utils.ilike(Species.subseries, f"{text}%"))
+        )
+        if self.model.subgenus:
+            stmt = stmt.where(Species.subgenus == self.model.subgenus)
+
+        if self.model.section:
+            stmt = stmt.where(Species.section == self.model.section)
+
+        if self.model.subsection:
+            stmt = stmt.where(Species.subsection == self.model.subsection)
+
+        if self.model.series:
+            stmt = stmt.where(Species.series == self.model.series)
+
+        stmt = stmt.distinct().order_by(Species.subseries).limit(20)
+
+        return self.session.execute(stmt).all()
 
     @Gtk.Template.Callback()
     @staticmethod

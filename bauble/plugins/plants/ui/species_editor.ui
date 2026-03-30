@@ -21,6 +21,86 @@
       <object class="GtkCellRendererText" id="genus_cell"/>
     </child>
   </object>
+  <object class="GtkListStore" id="subgenus_list_store">
+    <columns>
+      <!-- column-name gchararray -->
+      <column type="gchararray"/>
+    </columns>
+  </object>
+  <object class="GtkEntryCompletion" id="subgenus_completion">
+    <property name="model">subgenus_list_store</property>
+    <property name="text-column">0</property>
+    <child>
+      <object class="GtkCellRendererText"/>
+      <attributes>
+        <attribute name="text">0</attribute>
+      </attributes>
+    </child>
+  </object>
+  <object class="GtkListStore" id="section_list_store">
+    <columns>
+      <!-- column-name gchararray -->
+      <column type="gchararray"/>
+    </columns>
+  </object>
+  <object class="GtkEntryCompletion" id="section_completion">
+    <property name="model">section_list_store</property>
+    <property name="text-column">0</property>
+    <child>
+      <object class="GtkCellRendererText"/>
+      <attributes>
+        <attribute name="text">0</attribute>
+      </attributes>
+    </child>
+  </object>
+  <object class="GtkListStore" id="subsection_list_store">
+    <columns>
+      <!-- column-name gchararray -->
+      <column type="gchararray"/>
+    </columns>
+  </object>
+  <object class="GtkEntryCompletion" id="subsection_completion">
+    <property name="model">subsection_list_store</property>
+    <property name="text-column">0</property>
+    <child>
+      <object class="GtkCellRendererText"/>
+      <attributes>
+        <attribute name="text">0</attribute>
+      </attributes>
+    </child>
+  </object>
+  <object class="GtkListStore" id="series_list_store">
+    <columns>
+      <!-- column-name gchararray -->
+      <column type="gchararray"/>
+    </columns>
+  </object>
+  <object class="GtkEntryCompletion" id="series_completion">
+    <property name="model">series_list_store</property>
+    <property name="text-column">0</property>
+    <child>
+      <object class="GtkCellRendererText"/>
+      <attributes>
+        <attribute name="text">0</attribute>
+      </attributes>
+    </child>
+  </object>
+  <object class="GtkListStore" id="subseries_list_store">
+    <columns>
+      <!-- column-name gchararray -->
+      <column type="gchararray"/>
+    </columns>
+  </object>
+  <object class="GtkEntryCompletion" id="subseries_completion">
+    <property name="model">subseries_list_store</property>
+    <property name="text-column">0</property>
+    <child>
+      <object class="GtkCellRendererText"/>
+      <attributes>
+        <attribute name="text">0</attribute>
+      </attributes>
+    </child>
+  </object>
   <object class="GtkListStore" id="habit_liststore">
     <columns>
       <!-- column-name gchararray -->
@@ -520,6 +600,8 @@
                                         <property name="visible">True</property>
                                         <property name="can-focus">True</property>
                                         <property name="hexpand">True</property>
+                                        <signal name="changed" handler="on_subgenus_entry_changed" swapped="no"/>
+                                        <property name="completion">subgenus_completion</property>
                                       </object>
                                       <packing>
                                         <property name="left-attach">1</property>
@@ -531,6 +613,8 @@
                                         <property name="visible">True</property>
                                         <property name="can-focus">True</property>
                                         <property name="hexpand">True</property>
+                                        <signal name="changed" handler="on_section_entry_changed" swapped="no"/>
+                                        <property name="completion">section_completion</property>
                                       </object>
                                       <packing>
                                         <property name="left-attach">1</property>
@@ -542,6 +626,8 @@
                                         <property name="visible">True</property>
                                         <property name="can-focus">True</property>
                                         <property name="hexpand">True</property>
+                                        <signal name="changed" handler="on_subsection_entry_changed" swapped="no"/>
+                                        <property name="completion">subsection_completion</property>
                                       </object>
                                       <packing>
                                         <property name="left-attach">1</property>
@@ -553,6 +639,8 @@
                                         <property name="visible">True</property>
                                         <property name="can-focus">True</property>
                                         <property name="hexpand">True</property>
+                                        <signal name="changed" handler="on_series_entry_changed" swapped="no"/>
+                                        <property name="completion">series_completion</property>
                                       </object>
                                       <packing>
                                         <property name="left-attach">1</property>
@@ -564,6 +652,8 @@
                                         <property name="visible">True</property>
                                         <property name="can-focus">True</property>
                                         <property name="hexpand">True</property>
+                                        <signal name="changed" handler="on_subseries_entry_changed" swapped="no"/>
+                                        <property name="completion">subseries_completion</property>
                                       </object>
                                       <packing>
                                         <property name="left-attach">1</property>

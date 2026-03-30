@@ -92,7 +92,7 @@ class SpeciesEditorDialogTests(BaubleTestCase):
             self.assertEqual(widget, editor.genus_entry)
             self.assertTrue(
                 problem.startswith(
-                    "not_matched::on_entry_changed_match::SpeciesEditorDialog"
+                    "not_matched::on_completion_entry_matched::SpeciesEditor"
                 )
             )
 
@@ -820,6 +820,313 @@ class SpeciesEditorDialogTests(BaubleTestCase):
         self.session.delete(meta)
         self.session.commit()
         PlantsPlugin.register_custom_column("_sp_custom1")
+        editor.destroy()
+
+    def test_on_subgenus_entry_changed(self):
+        editor = SpeciesEditorDialog(Species(), self.session)
+        editor.subgenus_entry.set_text("Foo")
+
+        self.assertEqual(editor.model.subgenus, "Foo")
+
+        editor.destroy()
+
+    def test_subgenus_get_completions(self):
+        family = Family(epithet="Poaceae")
+        genus1 = Genus(family=family, epithet="Bambusa")
+        genus2 = Genus(family=family, epithet="Poa")
+        for i in range(30):
+            self.session.add(
+                Species(
+                    genus=genus1,
+                    epithet=f"sp{i}",
+                    subgenus=f"abcd{i}",
+                )
+            )
+            self.session.add(
+                Species(
+                    genus=genus2,
+                    epithet=f"sp{i}",
+                    subgenus="wxyz",
+                )
+            )
+        self.session.commit()
+        editor = SpeciesEditorDialog(Species(genus=genus1), self.session)
+
+        completions = editor.subgenus_get_completions("a")
+        self.assertEqual(len(completions), 20)
+        self.assertTrue(all(i[0].startswith("abcd") for i in completions))
+
+        completions = editor.subgenus_get_completions("abcd11")
+        self.assertEqual(len(completions), 1)
+        self.assertEqual(completions[0][0], "abcd11")
+
+        completions = editor.subgenus_get_completions("w")
+        self.assertEqual(len(completions), 0)
+
+        editor.destroy()
+
+    def test_on_section_entry_changed(self):
+        editor = SpeciesEditorDialog(Species(), self.session)
+        editor.section_entry.set_text("Foo")
+
+        self.assertEqual(editor.model.section, "Foo")
+
+        editor.destroy()
+
+    def test_section_get_completions(self):
+        family = Family(epithet="Poaceae")
+        genus = Genus(family=family, epithet="Bambusa")
+        for i in range(30):
+            self.session.add(
+                Species(
+                    genus=genus,
+                    epithet=f"spA{i}",
+                    subgenus="subg1",
+                    section=f"abcd{i}",
+                )
+            )
+            self.session.add(
+                Species(
+                    genus=genus,
+                    epithet=f"spB{i}",
+                    subgenus="subg2",
+                    section="wxyz",
+                )
+            )
+        self.session.commit()
+        editor = SpeciesEditorDialog(Species(genus=genus), self.session)
+
+        completions = editor.section_get_completions("a")
+        self.assertEqual(len(completions), 20)
+        self.assertTrue(all(i[0].startswith("abcd") for i in completions))
+
+        completions = editor.section_get_completions("abcd11")
+        self.assertEqual(len(completions), 1)
+        self.assertEqual(completions[0][0], "abcd11")
+
+        completions = editor.section_get_completions("w")
+        self.assertEqual(completions[0][0], "wxyz")
+
+        editor.subgenus_entry.set_text("subg1")
+
+        completions = editor.section_get_completions("w")
+        self.assertEqual(len(completions), 0)
+        completions = editor.section_get_completions("a")
+        self.assertEqual(len(completions), 20)
+
+        editor.destroy()
+
+    def test_on_subsection_entry_changed(self):
+        editor = SpeciesEditorDialog(Species(), self.session)
+        editor.subsection_entry.set_text("Foo")
+
+        self.assertEqual(editor.model.subsection, "Foo")
+
+        editor.destroy()
+
+    def test_subsection_get_completions(self):
+        family = Family(epithet="Poaceae")
+        genus = Genus(family=family, epithet="Bambusa")
+        for i in range(30):
+            self.session.add(
+                Species(
+                    genus=genus,
+                    epithet=f"spA{i}",
+                    subgenus="subg1",
+                    section="sect1",
+                    subsection=f"abcd{i}",
+                )
+            )
+            self.session.add(
+                Species(
+                    genus=genus,
+                    epithet=f"spB{i}",
+                    subgenus="subg2",
+                    section="sect2",
+                    subsection="wxyz",
+                )
+            )
+        self.session.commit()
+        editor = SpeciesEditorDialog(Species(genus=genus), self.session)
+
+        completions = editor.subsection_get_completions("a")
+        self.assertEqual(len(completions), 20)
+        self.assertTrue(all(i[0].startswith("abcd") for i in completions))
+
+        completions = editor.subsection_get_completions("abcd11")
+        self.assertEqual(len(completions), 1)
+        self.assertEqual(completions[0][0], "abcd11")
+
+        completions = editor.subsection_get_completions("w")
+        self.assertEqual(completions[0][0], "wxyz")
+
+        editor.section_entry.set_text("sect1")
+
+        completions = editor.subsection_get_completions("w")
+        self.assertEqual(len(completions), 0)
+        completions = editor.subsection_get_completions("a")
+        self.assertEqual(len(completions), 20)
+
+        editor.section_entry.set_text("")
+        editor.subgenus_entry.set_text("subg2")
+
+        completions = editor.subsection_get_completions("w")
+        self.assertEqual(completions[0][0], "wxyz")
+        completions = editor.subsection_get_completions("a")
+        self.assertEqual(len(completions), 0)
+
+        editor.destroy()
+
+    def test_on_series_entry_changed(self):
+        editor = SpeciesEditorDialog(Species(), self.session)
+        editor.series_entry.set_text("Foo")
+
+        self.assertEqual(editor.model.series, "Foo")
+
+        editor.destroy()
+
+    def test_series_get_completions(self):
+        family = Family(epithet="Poaceae")
+        genus = Genus(family=family, epithet="Bambusa")
+        for i in range(30):
+            self.session.add(
+                Species(
+                    genus=genus,
+                    epithet=f"spA{i}",
+                    subgenus="subg1",
+                    section="sect1",
+                    subsection="subsect1",
+                    series=f"abcd{i}",
+                )
+            )
+            self.session.add(
+                Species(
+                    genus=genus,
+                    epithet=f"spB{i}",
+                    subgenus="subg2",
+                    section="sect2",
+                    subsection="subsect2",
+                    series="wxyz",
+                )
+            )
+        self.session.commit()
+        editor = SpeciesEditorDialog(Species(genus=genus), self.session)
+
+        completions = editor.series_get_completions("a")
+        self.assertEqual(len(completions), 20)
+        self.assertTrue(all(i[0].startswith("abcd") for i in completions))
+
+        completions = editor.series_get_completions("abcd11")
+        self.assertEqual(len(completions), 1)
+        self.assertEqual(completions[0][0], "abcd11")
+
+        completions = editor.series_get_completions("w")
+        self.assertEqual(completions[0][0], "wxyz")
+
+        editor.subsection_entry.set_text("subsect1")
+
+        completions = editor.series_get_completions("w")
+        self.assertEqual(len(completions), 0)
+        completions = editor.series_get_completions("a")
+        self.assertEqual(len(completions), 20)
+
+        editor.subsection_entry.set_text("")
+        editor.section_entry.set_text("sect2")
+
+        completions = editor.series_get_completions("w")
+        self.assertEqual(completions[0][0], "wxyz")
+        completions = editor.series_get_completions("a")
+        self.assertEqual(len(completions), 0)
+
+        editor.section_entry.set_text("")
+        editor.subgenus_entry.set_text("subg1")
+
+        completions = editor.series_get_completions("w")
+        self.assertEqual(len(completions), 0)
+        completions = editor.series_get_completions("a")
+        self.assertEqual(len(completions), 20)
+
+        editor.destroy()
+
+    def test_on_subseries_entry_changed(self):
+        editor = SpeciesEditorDialog(Species(), self.session)
+        editor.subseries_entry.set_text("Foo")
+
+        self.assertEqual(editor.model.subseries, "Foo")
+
+        editor.destroy()
+
+    def test_subseries_get_completions(self):
+        family = Family(epithet="Poaceae")
+        genus = Genus(family=family, epithet="Bambusa")
+        for i in range(30):
+            self.session.add(
+                Species(
+                    genus=genus,
+                    epithet=f"spA{i}",
+                    subgenus="subg1",
+                    section="sect1",
+                    subsection="subsect1",
+                    series="series1",
+                    subseries=f"abcd{i}",
+                )
+            )
+            self.session.add(
+                Species(
+                    genus=genus,
+                    epithet=f"spB{i}",
+                    subgenus="subg2",
+                    section="sect2",
+                    subsection="subsect2",
+                    series="series2",
+                    subseries="wxyz",
+                )
+            )
+        self.session.commit()
+        editor = SpeciesEditorDialog(Species(genus=genus), self.session)
+
+        completions = editor.subseries_get_completions("a")
+        self.assertEqual(len(completions), 20)
+        self.assertTrue(all(i[0].startswith("abcd") for i in completions))
+
+        completions = editor.subseries_get_completions("abcd11")
+        self.assertEqual(len(completions), 1)
+        self.assertEqual(completions[0][0], "abcd11")
+
+        completions = editor.subseries_get_completions("w")
+        self.assertEqual(completions[0][0], "wxyz")
+
+        editor.series_entry.set_text("series2")
+
+        completions = editor.subseries_get_completions("w")
+        self.assertEqual(completions[0][0], "wxyz")
+        completions = editor.subseries_get_completions("a")
+        self.assertEqual(len(completions), 0)
+
+        editor.series_entry.set_text("")
+        editor.subsection_entry.set_text("subsect1")
+
+        completions = editor.subseries_get_completions("w")
+        self.assertEqual(len(completions), 0)
+        completions = editor.subseries_get_completions("a")
+        self.assertEqual(len(completions), 20)
+
+        editor.subsection_entry.set_text("")
+        editor.section_entry.set_text("sect2")
+
+        completions = editor.subseries_get_completions("w")
+        self.assertEqual(completions[0][0], "wxyz")
+        completions = editor.subseries_get_completions("a")
+        self.assertEqual(len(completions), 0)
+
+        editor.section_entry.set_text("")
+        editor.subgenus_entry.set_text("subg1")
+
+        completions = editor.subseries_get_completions("w")
+        self.assertEqual(len(completions), 0)
+        completions = editor.subseries_get_completions("a")
+        self.assertEqual(len(completions), 20)
+
         editor.destroy()
 
     def test_genus_get_completions(self):
