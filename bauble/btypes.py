@@ -193,10 +193,10 @@ class CustomEnum(Enum):
     When instantiating provide :param size:. Choose a size reasonable enough to
     accommodate expected uses.
 
-    Call `self.init(values, empty_to_none, translations)` when ready to
+    Call ``self.init(values, empty_to_none, translations)`` when ready to
     initialise, may also need to reopen connection if the connection has been
     in use, due to SQLA caching of Columns.
-    e.g.: `db.conn(str(db.engine.url))`
+    e.g.: ``db.conn(str(db.engine.url))``
     """
 
     cache_ok = False

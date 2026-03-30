@@ -438,7 +438,7 @@ species_test_data = (
         "genus_id": 5,
         "cultivar_epithet": "Springwater",
         "grex": "Jim Kie",
-        "full_sci_name": "Paphiopedilum Jim Kie 'Springwater'",
+        "full_sci_name": "Paphiopedilum Jim Kie grex 'Springwater'",
     },
     {
         "id": 30,

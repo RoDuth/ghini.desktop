@@ -294,9 +294,9 @@ class SynonymsPresenterTests(BaubleTestCase):
         for func in get_setUp_data_funcs():
             func()
 
-        myrtaceae = (
-            self.session.query(Family).filter_by(epithet="Myrtaceae").first()
-        )
+        myrtaceae = self.session.execute(
+            select(Family).where(Family.epithet == "Myrtaceae")
+        ).scalar()
         leptospermaceae = Family(epithet="Leptospermaceae")
         myrtaceae.synonyms.append(leptospermaceae)
         self.session.commit()
@@ -591,15 +591,15 @@ class SpeciesCompletionTests(BaubleTestCase):
         setup_plants_data()
         self.family = Family(family="Myrtaceae")
         self.genus = Genus(family=self.family, genus="Syzygium")
-        self.sp1 = Species(genus=self.genus, sp="australe")
-        self.sp2 = Species(genus=self.genus, sp="luehmannii")
-        self.sp3 = Species(genus=self.genus, sp="aqueum")
+        self.sp1 = Species(genus=self.genus, epithet="australe")
+        self.sp2 = Species(genus=self.genus, epithet="luehmannii")
+        self.sp3 = Species(genus=self.genus, epithet="aqueum")
         self.session.add_all(
             [self.family, self.genus, self.sp1, self.sp2, self.sp3]
         )
         self.session.commit()
-        self.sp4 = self.session.query(Species).get(9)
-        self.sp5 = self.session.query(Species).get(25)
+        self.sp4 = self.session.get(Species, 9)
+        self.sp5 = self.session.get(Species, 25)
         self.session.commit()
 
         self.completion = Gtk.EntryCompletion()
@@ -686,12 +686,12 @@ class SpeciesCompletionTests(BaubleTestCase):
         key = ""
         self.assertEqual(
             len(self.session.execute(species_completions(key)).all()),
-            len(self.session.query(Species).all()),
+            len(self.session.execute(select(Species)).all()),
         )
 
         key = "Maxillaria × general"
-        sp5 = self.session.query(Species).get(10)
-        sp6 = self.session.query(Species).get(11)
+        sp5 = self.session.get(Species, 10)
+        sp6 = self.session.get(Species, 11)
         # self.assertIn(self.sp4, completion(key).all())
         self.assertCountEqual(
             self.session.execute(species_completions(key)).scalars().all(),
@@ -1707,7 +1707,7 @@ class VernacularNamePresenterTests(BaubleTestCase):
     def test_on_cell_edited(self):
         family = Family(family="family")
         genus = Genus(genus="genus", family=family)
-        species = Species(genus=genus, sp="sp")
+        species = Species(genus=genus, epithet="sp")
         name = VernacularName(name="Test Name", language="EN")
         species.vernacular_names.append(name)
         species.default_vernacular_name = name
@@ -1783,7 +1783,7 @@ class VernacularNamePresenterTests(BaubleTestCase):
     def test_generic_data_func(self):
         family = Family(family="family")
         genus = Genus(genus="genus", family=family)
-        species = Species(genus=genus, sp="sp")
+        species = Species(genus=genus, epithet="sp")
         name = VernacularName(name="Test Name", language="EN")
         species.vernacular_names.append(name)
         species.default_vernacular_name = name
@@ -1890,7 +1890,7 @@ class VernacularNamePresenterTests(BaubleTestCase):
     def test_default_data_func(self):
         family = Family(family="family")
         genus = Genus(genus="genus", family=family)
-        species = Species(genus=genus, sp="sp")
+        species = Species(genus=genus, epithet="sp")
         name = VernacularName(name="Test Name", language="EN")
         species.vernacular_names.append(name)
         species.default_vernacular_name = name
@@ -2363,8 +2363,8 @@ class FunctionTests(BaubleTestCase):
             sp="wilsonii",
             infraspecific_parts="subsp. cryptophlebium",
         )
-        sp7 = self.session.query(Species).get(26)
-        sp9 = self.session.query(Species).get(9)
+        sp7 = self.session.get(Species, 26)
+        sp9 = self.session.get(Species, 9)
         self.assertTrue(species_to_string_matcher(sp1, "S a"))
         self.assertTrue(species_to_string_matcher(sp1, "Syzyg"))
         self.assertTrue(species_to_string_matcher(sp1, "Syzygium australe"))
@@ -2414,19 +2414,19 @@ class FunctionTests(BaubleTestCase):
         self.assertTrue(species_to_string_matcher(sp9, "Maxil × gen"))
         self.assertFalse(species_to_string_matcher(sp9, "Maxil × sen"))
         key = "Maxillaria s. str var"
-        sp = self.session.query(Species).get(1)
+        sp = self.session.get(Species, 1)
         self.assertTrue(species_to_string_matcher(sp, key))
         key = "Maxi var"
         self.assertTrue(species_to_string_matcher(sp, key))
 
     def test_species_cell_data_func(self):
         family = Family(family="Myrtaceae")
-        gen = Genus(family=family, genus="Syzygium")
-        sp = Species(genus=gen, sp="australe")
-        self.session.add(sp)
+        genus = Genus(family=family, genus="Syzygium")
+        species = Species(genus=genus, epithet="australe")
+        self.session.add(species)
         self.session.commit()
         mock_renderer = mock.Mock()
-        mock_model = [[sp]]
+        mock_model = [[species]]
 
         species_cell_data_func(None, mock_renderer, mock_model, 0)
 

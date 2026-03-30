@@ -388,6 +388,7 @@ class SpeciesEditorDialog(
             self.set_title(f"{current} - {self.model.string(author=True)}")
 
         if self.model.label_markup:
+            logger.debug("has label_markup expanding")
             self.label_markup_expander.set_expanded(True)
             self.label_markup_entry.emit("changed")
 
