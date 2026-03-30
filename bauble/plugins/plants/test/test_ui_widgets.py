@@ -49,6 +49,7 @@ from bauble.ui.utils import set_widget_value
 from bauble.ui.widgets.message import MessageBox
 
 from ..ui.widgets.distribution import DistributionPresenter
+from ..ui.widgets.geography import GeographyMenu
 from ..ui.widgets.species import InfraspecificPresenter
 from ..ui.widgets.species import InfraspRow
 from ..ui.widgets.species import SpeciesEntry
@@ -2339,6 +2340,103 @@ class DistributionPresenterTests(BaubleClassTestCase):
         presenter.on_copy_codes()
 
         presenter.destroy()
+
+
+class GeographyMenuTests(BaubleTestCase):
+    def test_resets_after_changes(self):
+        # start empty
+        GeographyMenu.reset()  # incase other tests have already loaded
+        menu = GeographyMenu()
+
+        self.assertEqual(menu.geos_ordered, {})
+        self.assertEqual(menu._geos_ordered, {})
+
+        # insert
+        geo1 = Geography(
+            name="EUROPE",
+            code="1",
+            level=1,
+        )
+        self.session.add(geo1)
+        self.session.commit()
+        geo2 = Geography(
+            name="Eastern Europe",
+            code="14",
+            level=2,
+            parent_id=geo1.id,
+        )
+        self.session.add(geo2)
+        self.session.commit()
+
+        self.assertEqual(menu._geos_ordered, {})
+        self.assertEqual(
+            menu.geos_ordered,
+            {
+                None: [(geo1.id, "EUROPE")],
+                geo1.id: [(geo2.id, "Eastern Europe")],
+            },
+        )
+        self.assertEqual(
+            menu._geos_ordered,
+            {
+                None: [(geo1.id, "EUROPE")],
+                geo1.id: [(geo2.id, "Eastern Europe")],
+            },
+        )
+
+        # update
+        geo1.name = "Europe"
+        self.session.commit()
+
+        self.assertEqual(
+            menu.geos_ordered,
+            {
+                None: [(geo1.id, "Europe")],
+                geo1.id: [(geo2.id, "Eastern Europe")],
+            },
+        )
+        self.assertEqual(
+            menu._geos_ordered,
+            {
+                None: [(geo1.id, "Europe")],
+                geo1.id: [(geo2.id, "Eastern Europe")],
+            },
+        )
+
+        # delete
+        self.session.delete(geo2)
+        self.session.commit()
+
+        self.assertEqual(
+            menu.geos_ordered,
+            {None: [(geo1.id, "Europe")]},
+        )
+        self.assertEqual(
+            menu._geos_ordered,
+            {None: [(geo1.id, "Europe")]},
+        )
+
+        menu.reset()
+
+    def test_single_geography_appends_as_menu_item(self):
+        """Test that a single geography is added as a menu item."""
+        geo = Geography(
+            name="EUROPE",
+            code="1",
+            level=1,
+        )
+        self.session.add(geo)
+        self.session.commit()
+
+        menu = GeographyMenu()
+
+        with mock.patch.object(menu, "append_submenu") as mock_append:
+            self.assertEqual(len(menu.geos_ordered), 1)
+            self.assertEqual(menu.get_n_items(), 1)
+            # confirm its not a submenu
+            mock_append.assert_not_called()
+
+        menu.reset()
 
 
 class FunctionTests(BaubleTestCase):

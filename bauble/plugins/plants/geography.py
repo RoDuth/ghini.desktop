@@ -22,15 +22,16 @@ The geography module,
 World Geographical Scheme for Recording Plant Distributions (WGSRPD)
 """
 import logging
+
+logger = logging.getLogger(__name__)
+
 import threading
 import traceback
-from collections.abc import Callable
 from collections.abc import Iterable
 from collections.abc import Iterator
 from collections.abc import Sequence
 from dataclasses import dataclass
 from dataclasses import field
-from operator import itemgetter
 from pathlib import Path
 from typing import TYPE_CHECKING
 from typing import Any
@@ -38,8 +39,6 @@ from typing import Optional
 from typing import Protocol
 from typing import Self
 from typing import cast
-
-logger = logging.getLogger(__name__)
 
 from gi.repository import Gdk
 from gi.repository import GdkPixbuf
@@ -131,155 +130,6 @@ def get_species_in_geography(geo):
         .filter(SpeciesDistribution.geography_id.in_(master_ids))
     )
     return query.all()
-
-
-class GeographyMenu(Gio.Menu):
-    """Menu that attaches to a button for geography selection.
-
-    NOTE: the menu is populated in a thread.  The button supplied to
-    ``attach_new`` should be set insensitive and will be set sensitive when the
-    menu is ready and attached.
-
-    Usage example::
-
-        def __init__(self):
-            GeographyMenu.attach_new(self.on_activate_menu_item, geo_button)
-
-        # signal handler for the menu item activation
-        def on_activate_menu_item(self, action, geo_id): ...
-
-    """
-
-    ACTION_NAME = "geography_activated"
-    _geos_ordered: dict[int | None, list[tuple[int, str]]] = {}
-
-    def __init__(self) -> None:
-        super().__init__()
-        self._populate()
-
-    @classmethod
-    def attach_new(
-        cls,
-        handler: Callable[[Gio.SimpleAction, GLib.Variant], None],
-        button: Gtk.Button,
-    ) -> None:
-
-        threading.Thread(
-            target=cls._create,
-            args=(handler, button),
-            daemon=True,
-        ).start()
-
-    @classmethod
-    def _create(
-        cls,
-        handler: Callable[[Gio.SimpleAction, GLib.Variant], None],
-        button: Gtk.Button,
-    ) -> None:
-
-        logger.debug("new geography menu %s", button)
-        menu_model = cls()
-        GLib.idle_add(menu_model._attach, handler, button)
-
-    def _attach(
-        self,
-        handler: Callable[[Gio.SimpleAction, GLib.Variant], None],
-        button: Gtk.Button,
-    ) -> None:
-        self._attach_action_group(handler, button)
-        menu = Gtk.Menu.new_from_model(self)
-        menu.attach_to_widget(button)
-
-        button.connect(
-            "button-press-event",
-            lambda w, e: menu.popup_at_pointer(e),
-        )
-
-        button.set_sensitive(True)
-
-    @property
-    def geos_ordered(self) -> dict[int | None, list[tuple[int, str]]]:
-        if not self._geos_ordered:
-            geography_table = Geography.__table__
-            stmt = select(
-                [
-                    geography_table.c.id,
-                    geography_table.c.name,
-                    geography_table.c.parent_id,
-                ]
-            )
-            with db.engine.begin() as connection:
-                geos = connection.execute(stmt).all()
-
-            geos_ordered: dict[int | None, list[tuple[int, str]]] = {}
-            for id_, name, parent_id in geos:
-                geos_ordered.setdefault(parent_id, []).append((id_, name))
-
-            for kids in geos_ordered.values():
-                kids.sort(key=itemgetter(1))  # sort by name
-
-            type(self)._geos_ordered = geos_ordered
-        return self._geos_ordered
-
-    def _attach_action_group(
-        self,
-        handler: Callable[[Gio.SimpleAction, GLib.Variant], None],
-        button: Gtk.Button,
-    ) -> None:
-        action = Gio.SimpleAction.new(self.ACTION_NAME, GLib.VariantType("s"))
-        action.connect("activate", handler)
-        action_group = Gio.SimpleActionGroup()
-        action_group.add_action(action)
-        button.insert_action_group("geo", action_group)
-
-    def _build_menu(self, geo_id: int, name: str) -> Gio.MenuItem | Gio.Menu:
-        next_level = self.geos_ordered.get(geo_id)
-
-        if next_level:
-            submenu = Gio.Menu()
-            item = Gio.MenuItem.new(name, f"geo.{self.ACTION_NAME}::{geo_id}")
-            submenu.append_item(item)
-            section = Gio.Menu()
-            submenu.append_section(None, section)
-            for id_, name_ in next_level:
-                next_item = self._build_menu(id_, name_)
-                if isinstance(next_item, Gio.MenuItem):
-                    section.append_item(next_item)
-                else:
-                    section.append_submenu(name_, next_item)
-            # result
-            return submenu
-
-        # base case
-        return Gio.MenuItem.new(name, f"geo.{self.ACTION_NAME}::{geo_id}")
-
-    def _populate(self) -> None:
-        """add geography value to the menu, any top level items that don't
-        have any kids are appended to the bottom of the menu
-        """
-
-        if not self.geos_ordered:
-            # we would get here if the geos_ordered isn't populated, usually
-            # during a unit test
-            return
-
-        no_kids = []
-
-        for geo_id, geo_name in self.geos_ordered[None]:
-            menu = self._build_menu(geo_id, geo_name)
-
-            if isinstance(menu, Gio.Menu):
-                self.append_submenu(geo_name, menu)
-            else:
-                no_kids.append(menu)
-
-        for item in no_kids:
-            # append to the end of the menu
-            self.append_item(item)
-
-    @classmethod
-    def reset(cls) -> None:
-        cls._geos_ordered = {}
 
 
 class Geography(db.Domain):
@@ -1256,22 +1106,6 @@ def geography_before_update(_mapper, _connection, target: Geography) -> None:
 @event.listens_for(Geography, "before_insert")
 def geography_before_insert(_mapper, _connection, target: Geography) -> None:
     target.approx_area = target.get_approx_area()
-
-
-# update the menu in the event of any changes (should be rare)
-@event.listens_for(Geography, "after_update")
-def geography_after_update(_mapper, _connection, _target) -> None:
-    GeographyMenu.reset()
-
-
-@event.listens_for(Geography, "after_insert")
-def geography_after_insert(_mapper, _connection, _target) -> None:
-    GeographyMenu.reset()
-
-
-@event.listens_for(Geography, "after_delete")
-def geography_after_delete(_mapper, _connection, _target) -> None:
-    GeographyMenu.reset()
 
 
 def update_all_approx_areas_task(*_args: Any) -> Iterator[None]:

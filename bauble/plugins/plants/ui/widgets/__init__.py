@@ -17,11 +17,13 @@
 """
 Generic widgets.
 """
+from .geography import GeographyMenu
 from .synonyms import SynonymsExpander
 from .synonyms import SynonymsPresenter
 from .synonyms import taxon_completion_cell_data_func
 
 __all__ = [
+    "GeographyMenu",
     "SynonymsExpander",
     "SynonymsPresenter",
     "taxon_completion_cell_data_func",

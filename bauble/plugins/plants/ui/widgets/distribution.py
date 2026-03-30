@@ -15,7 +15,7 @@
 # You should have received a copy of the GNU General Public License
 # along with ghini.desktop. If not, see <http://www.gnu.org/licenses/>.
 """
-distribution widgets.
+SpeciesDistribution widgets.
 """
 
 import logging
@@ -41,10 +41,10 @@ from bauble.ui import dialogs
 from bauble.ui.utils import get_clipboard
 
 from ...geography import Geography
-from ...geography import GeographyMenu
 from ...geography import consolidate_geographies
 from ...species_model import Species
 from ...species_model import SpeciesDistribution
+from .geography import GeographyMenu
 
 parent = Path(__file__).resolve().parent
 

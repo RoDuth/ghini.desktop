@@ -72,7 +72,6 @@ from .geography import DistributionMap
 from .geography import DistributionMapEventBox
 from .geography import GeneralGeographyExpander
 from .geography import Geography
-from .geography import GeographyMenu
 from .geography import _coord_string
 from .geography import _path_string
 from .geography import calculate_zoom_buffer
@@ -4378,103 +4377,6 @@ class GeographyTests2(TestCase):
             get_viewbox(-180, -10, 50, 90, 1), "-180.0 -90.0 360.0 180.0"
         )
         self.assertRaises(ValueError, get_viewbox, -180, -10, 50, 90, 2)
-
-
-class GeographyMenuTests(BaubleTestCase):
-    def test_resets_after_changes(self):
-        """Test that no geographies returns empty list."""
-        # start empty
-        menu = GeographyMenu()
-
-        self.assertEqual(menu._geos_ordered, {})
-        self.assertEqual(menu.geos_ordered, {})
-
-        # insert
-        geo1 = Geography(
-            name="EUROPE",
-            code="1",
-            level=1,
-        )
-        self.session.add(geo1)
-        self.session.commit()
-        geo2 = Geography(
-            name="Eastern Europe",
-            code="14",
-            level=2,
-            parent_id=geo1.id,
-        )
-        self.session.add(geo2)
-        self.session.commit()
-
-        self.assertEqual(menu._geos_ordered, {})
-        self.assertEqual(
-            menu.geos_ordered,
-            {
-                None: [(geo1.id, "EUROPE")],
-                geo1.id: [(geo2.id, "Eastern Europe")],
-            },
-        )
-        self.assertEqual(
-            menu._geos_ordered,
-            {
-                None: [(geo1.id, "EUROPE")],
-                geo1.id: [(geo2.id, "Eastern Europe")],
-            },
-        )
-
-        # update
-        geo1.name = "Europe"
-        self.session.commit()
-
-        self.assertEqual(
-            menu.geos_ordered,
-            {
-                None: [(geo1.id, "Europe")],
-                geo1.id: [(geo2.id, "Eastern Europe")],
-            },
-        )
-        self.assertEqual(
-            menu._geos_ordered,
-            {
-                None: [(geo1.id, "Europe")],
-                geo1.id: [(geo2.id, "Eastern Europe")],
-            },
-        )
-
-        # delete
-        self.session.delete(geo2)
-        self.session.commit()
-
-        self.assertEqual(
-            menu.geos_ordered,
-            {None: [(geo1.id, "Europe")]},
-        )
-        self.assertEqual(
-            menu._geos_ordered,
-            {None: [(geo1.id, "Europe")]},
-        )
-
-        menu.reset()
-
-    def test_single_geography_appends_as_menu_item(self):
-        """Test that a single geography is added as a menu item."""
-        geo = Geography(
-            name="EUROPE",
-            code="1",
-            level=1,
-        )
-        self.session.add(geo)
-        self.session.commit()
-
-        menu = GeographyMenu()
-
-        with mock.patch.object(menu, "append_submenu") as mock_append:
-            self.assertEqual(len(menu.geos_ordered), 1)
-            self.assertEqual(menu.get_n_items(), 1)
-            # confirm its not a submenu
-            mock_append.assert_not_called()
-
-        menu.reset()
 
 
 class DistributionMapTests(BaubleClassTestCase):

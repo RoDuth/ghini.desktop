@@ -69,7 +69,7 @@ from bauble.ui.views import PropertiesExpander
 from bauble.utils.geo import KMLMapCallbackFunctor
 
 from ..plants.geography import Geography
-from ..plants.geography import GeographyMenu
+from ..plants.ui.widgets import GeographyMenu
 
 if TYPE_CHECKING:
     from .accession import Accession
