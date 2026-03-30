@@ -19,6 +19,7 @@
 """
 Generic widgets tests
 """
+from datetime import datetime
 from unittest import TestCase
 from unittest import mock
 
@@ -31,23 +32,25 @@ from bauble import utils
 from bauble.plugins.plants.family import Family
 from bauble.plugins.plants.family import FamilySynonym
 from bauble.plugins.plants.genus import Genus
+from bauble.plugins.plants.geography import Geography
 from bauble.plugins.plants.species_model import Species
+from bauble.plugins.plants.species_model import SpeciesDistribution
 from bauble.plugins.plants.species_model import VernacularName
 from bauble.plugins.plants.species_model import update_all_full_names_task
 from bauble.plugins.plants.test_plants import setUp_data as setup_plants_data
-from bauble.plugins.plants.ui.widgets.species import InfraspecificPresenter
-from bauble.plugins.plants.ui.widgets.species import InfraspRow
-from bauble.plugins.plants.ui.widgets.vernacular import (
-    CAPITALISE_VNAMES_ON_PASTE_PREF_KEY,
-)
-from bauble.plugins.plants.ui.widgets.vernacular import VernacularNamePresenter
+from bauble.plugins.plants.test_plants import setup_geographies
+from bauble.test import BaubleClassTestCase
 from bauble.test import BaubleTestCase
 from bauble.test import get_setUp_data_funcs
 from bauble.test import update_gui
+from bauble.test import wait_on_threads
 from bauble.ui.utils import get_widget_value
 from bauble.ui.utils import set_widget_value
 from bauble.ui.widgets.message import MessageBox
 
+from ..ui.widgets.distribution import DistributionPresenter
+from ..ui.widgets.species import InfraspecificPresenter
+from ..ui.widgets.species import InfraspRow
 from ..ui.widgets.species import SpeciesEntry
 from ..ui.widgets.species import species_cell_data_func
 from ..ui.widgets.species import species_completions
@@ -56,6 +59,8 @@ from ..ui.widgets.species import species_to_string_matcher
 from ..ui.widgets.synonyms import SynonymsPresenter
 from ..ui.widgets.synonyms import _syn_data_func
 from ..ui.widgets.synonyms import taxon_completion_cell_data_func
+from ..ui.widgets.vernacular import CAPITALISE_VNAMES_ON_PASTE_PREF_KEY
+from ..ui.widgets.vernacular import VernacularNamePresenter
 
 
 class SynonymsPresenterTests(BaubleTestCase):
@@ -1930,6 +1935,408 @@ class VernacularNamePresenterTests(BaubleTestCase):
         ) as logs:
             presenter.default_data_func(None, mock_cell, mock_model, 0, None)
         self.assertIn("DetachedInstanceError", logs.output[0])
+
+        presenter.destroy()
+
+
+class DistributionPresenterTests(BaubleClassTestCase):
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        # setup_plants_data()
+        setup_geographies()
+        family = Family(family="Myrtaceae")
+        genus = Genus(genus="Melaleuca", family=family)
+        cls.species = Species(genus=genus, epithet="viminalis")
+
+        cls.session.add(cls.species)
+        cls.session.commit()
+
+        cls.qld = cls.session.execute(
+            select(Geography).where(Geography.code == "QLD")
+        ).scalar()
+        cls.nsw = cls.session.execute(
+            select(Geography).where(Geography.code == "NSW")
+        ).scalar()
+
+    def tearDown(self):
+        super().tearDown()
+        self.species.distribution = []
+        self.session.commit()
+
+    def test_init_new(self):
+        presenter = DistributionPresenter()
+        presenter.init(Species(), self.session)
+
+        self.assertFalse(presenter.add_button.get_sensitive())
+        self.assertEqual(presenter.label.get_text(), "")
+
+        wait_on_threads()
+        update_gui()
+
+        self.assertTrue(presenter.add_button.get_sensitive())
+        self.assertEqual(presenter.label.get_text(), "")
+
+        presenter.destroy()
+
+    def test_init_existing(self):
+        self.species.distribution.append(SpeciesDistribution(geography_id=695))
+        self.session.commit()
+
+        presenter = DistributionPresenter()
+        presenter.init(self.species, self.session)
+
+        self.assertFalse(presenter.add_button.get_sensitive())
+        self.assertEqual(presenter.label.get_text(), "Queensland")
+
+        wait_on_threads()
+        update_gui()
+
+        self.assertTrue(presenter.add_button.get_sensitive())
+        self.assertEqual(presenter.label.get_text(), "Queensland")
+
+        presenter.destroy()
+
+    def test_refresh_view_long_label_shortens(self):
+
+        for dist in self.session.execute(
+            select(Geography).where(Geography.id < 100)
+        ).scalars():
+            spdist = SpeciesDistribution(geography=dist)
+            self.species.distribution.append(spdist)
+
+        self.session.commit()
+
+        presenter = DistributionPresenter()
+        presenter.init(self.species, self.session)
+        wait_on_threads()
+        update_gui()
+        text = presenter.label.get_text()
+        self.assertEqual(text[-4:], " ...")
+        self.assertTrue(490 < len(text) < 510)
+
+        presenter.destroy()
+
+    def test_on_remove_button_pressed(self):
+        qld_dist = SpeciesDistribution(geography=self.qld)
+        nsw_dist = SpeciesDistribution(geography=self.nsw)
+        self.species.distribution.append(qld_dist)
+        self.species.distribution.append(nsw_dist)
+        self.session.commit()
+
+        presenter = DistributionPresenter()
+        presenter.init(self.species, self.session)
+        wait_on_threads()
+        update_gui()
+        presenter.remove_menu_model = mock.Mock()
+        presenter.remove_menu = mock.Mock()
+
+        mock_event = mock.Mock(button=1, time=datetime.now().timestamp())
+        presenter.on_remove_button_pressed(None, mock_event)
+
+        self.assertEqual(presenter.remove_menu_model.append_item.call_count, 2)
+        self.assertEqual(presenter.remove_menu.popup_at_pointer.call_count, 1)
+
+        presenter.destroy()
+
+    def test_on_activate_add_menu_item(self):
+        presenter = DistributionPresenter()
+        presenter.init(self.species, self.session)
+        wait_on_threads()
+        update_gui()
+        mock_geo = mock.Mock()
+        mock_geo.unpack.return_value = self.qld.id
+        presenter.on_activate_add_menu_item(None, mock_geo)
+        # add twice only adds once
+        presenter.on_activate_add_menu_item(None, mock_geo)
+
+        self.assertEqual(
+            [dist.geography for dist in self.species.distribution],
+            [self.qld],
+        )
+
+        mock_geo.unpack.return_value = "99999"
+        with self.assertLogs(
+            "bauble.plugins.plants.ui.widgets.distribution", level="DEBUG"
+        ) as logs:
+            presenter.on_activate_add_menu_item(None, mock_geo)
+
+        self.assertIn("Can't find Geography with ID: 99999", logs.output[0])
+
+        presenter.destroy()
+
+    def test_on_activate_remove_menu_item(self):
+        qld_dist = SpeciesDistribution(geography=self.qld)
+        nsw_dist = SpeciesDistribution(geography=self.nsw)
+        self.species.distribution.append(qld_dist)
+        self.species.distribution.append(nsw_dist)
+        self.session.add(self.species)
+        self.session.commit()
+
+        presenter = DistributionPresenter()
+        presenter.init(self.species, self.session)
+        wait_on_threads()
+        update_gui()
+        mock_geo = mock.Mock()
+        mock_geo.unpack.return_value = self.qld.id
+        presenter.on_activate_remove_menu_item(None, mock_geo)
+        self.assertEqual(
+            [dist.geography for dist in self.species.distribution],
+            [self.nsw],
+        )
+
+        presenter.destroy()
+
+    def test_on_clear_all(self):
+        qld_dist = SpeciesDistribution(geography=self.qld)
+        nsw_dist = SpeciesDistribution(geography=self.nsw)
+        self.species.distribution.append(qld_dist)
+        self.species.distribution.append(nsw_dist)
+        self.session.add(self.species)
+        self.session.commit()
+
+        presenter = DistributionPresenter()
+        presenter.init(self.species, self.session)
+        wait_on_threads()
+        update_gui()
+        presenter.on_clear_all()
+        self.assertEqual(self.species.distribution, [])
+
+        presenter.destroy()
+
+    @mock.patch("bauble.ui.dialogs.message_dialog")
+    def test_append_dists_from_clipboard_text(self, mock_dialog):
+        # haven't split these up as setUp is slow
+        presenter = DistributionPresenter()
+        presenter.init(self.species, self.session)
+        wait_on_threads()
+        update_gui()
+        # empty str
+        txt = ""
+        presenter.append_dists_from_text(txt)
+
+        self.assertCountEqual(self.species.distribution, [])
+
+        # junk data (i.e. a mistake)
+        txt = "XYZ"
+        presenter.append_dists_from_text(txt)
+
+        self.assertCountEqual(self.species.distribution, [])
+        mock_dialog.assert_called()
+        mock_dialog.reset_mock()
+
+        txt = "<asdf,KJ\nFDkjdsaiwj, <>,{[,127|8.9h\\dafn"
+        presenter.append_dists_from_text(txt)
+
+        self.assertCountEqual(self.species.distribution, [])
+        mock_dialog.assert_called()
+        mock_dialog.reset_mock()
+
+        # test data that almost matches but is a little wrong
+        txt = "New Zealand, Lord Howe i., XYZ"
+        presenter.append_dists_from_text(txt)
+
+        self.assertCountEqual(self.species.distribution, [])
+        mock_dialog.assert_called()
+        mock_dialog.reset_mock()
+
+        # test an empty list
+        txt = ","
+        window = Gtk.Window()  # cover toplevel
+        window.add(presenter)
+        presenter.append_dists_from_text(txt)
+
+        self.assertCountEqual(self.species.distribution, [])
+        mock_dialog.assert_called()
+        mock_dialog.reset_mock()
+        # none of the above should have added any distribution
+        self.assertEqual(self.species.distribution, [])
+
+        # test a single list
+        txt = "Australia"
+        presenter.append_dists_from_text(txt)
+        self.assertCountEqual(
+            [i.geography.id for i in self.species.distribution],
+            [38],
+        )
+        mock_dialog.assert_not_called()
+        mock_dialog.reset_mock()
+
+        self.species.distribution = []
+        # test ambiguous (more than one level, should select highest)
+        txt = "Queensland"
+        presenter.append_dists_from_text(txt)
+
+        self.assertCountEqual(
+            [i.geography.id for i in self.species.distribution],
+            [695],
+        )
+        mock_dialog.assert_not_called()
+        mock_dialog.reset_mock()
+
+        self.species.distribution = []
+        # test ambiguous item in list with all others lower level
+        txt = (
+            "Queensland, New South Wales, Victoria, South Australia, "
+            "Tasmania, Norfolk Is."
+        )
+        presenter.append_dists_from_text(txt)
+
+        self.assertCountEqual(
+            [i.geography.id for i in self.species.distribution],
+            (330, 296, 407, 359, 378, 286),
+        )
+        mock_dialog.assert_not_called()
+        mock_dialog.reset_mock()
+
+        self.species.distribution = []
+        # test abreviated to 12 chars
+        txt = "New South Wa, Victoria, South Austra, Tasmania, Norfolk Is."
+        presenter.append_dists_from_text(txt)
+
+        self.assertCountEqual(
+            [i.geography.id for i in self.species.distribution],
+            (296, 407, 359, 378, 286),
+            [i.geography.name for i in self.species.distribution],
+        )
+        mock_dialog.assert_not_called()
+        mock_dialog.reset_mock()
+
+        self.species.distribution = []
+        # test abreviated to 12 chars lowercase
+        txt = "new south wa, victoria, south austra, tasmania, norfolk is."
+        presenter.append_dists_from_text(txt)
+
+        self.assertCountEqual(
+            [i.geography.id for i in self.species.distribution],
+            (296, 407, 359, 378, 286),
+            [i.geography.name for i in self.species.distribution],
+        )
+        mock_dialog.assert_not_called()
+        mock_dialog.reset_mock()
+
+        self.species.distribution = []
+        # test codes
+        txt = "NFK, QLD, NWG-PN, NSW-NS"
+        presenter.append_dists_from_text(txt)
+
+        self.assertCountEqual(
+            [i.geography.id for i in self.species.distribution],
+            (286, 330, 691, 689),
+            [i.geography.code for i in self.species.distribution],
+        )
+        mock_dialog.assert_not_called()
+
+        presenter.destroy()
+
+    def test_on_consolidate(self):
+        lv2s = self.session.execute(
+            select(Geography.id)
+            .where(Geography.level == 2)
+            .where(Geography.parent_id.in_([1, 5]))
+        ).scalars()
+        lv3 = self.session.execute(
+            select(Geography)
+            .where(Geography.level == 3)
+            .where(Geography.parent_id.in_(lv2s))
+        ).scalars()
+        for i in lv3:
+            self.species.distribution.append(SpeciesDistribution(geography=i))
+        self.session.add(self.species)
+        self.session.commit()
+
+        presenter = DistributionPresenter()
+        presenter.init(self.species, self.session)
+        wait_on_threads()
+        update_gui()
+        presenter.on_consolidate()
+        self.assertCountEqual(
+            [i.geography.id for i in self.species.distribution],
+            (1, 5),
+        )
+
+        presenter.destroy()
+
+    @mock.patch("bauble.plugins.plants.ui.widgets.distribution.get_clipboard")
+    def test_on_paste_append(self, mock_clipboard):
+        mock_clipboard().wait_for_text.return_value = "Tasmania, Queensland"
+        nsw_dist = SpeciesDistribution(geography=self.nsw)
+        self.species.distribution.append(nsw_dist)
+        self.session.commit()
+
+        presenter = DistributionPresenter()
+        presenter.init(self.species, self.session)
+        wait_on_threads()
+        update_gui()
+        presenter.on_paste_append()
+
+        self.assertCountEqual(
+            [i.geography.id for i in self.species.distribution],
+            [296, 330, 378],
+        )
+
+        # test no clipboard doesn't fail
+        mock_clipboard.reset_mock()
+        mock_clipboard.return_value = None
+        presenter.on_paste_append()
+
+        presenter.destroy()
+
+    @mock.patch("bauble.plugins.plants.ui.widgets.distribution.get_clipboard")
+    def test_on_paste_replace(self, mock_clipboard):
+        mock_clipboard().wait_for_text.return_value = "Tasmania, Queensland"
+        nsw_dist = SpeciesDistribution(geography=self.nsw)
+        self.species.distribution.append(nsw_dist)
+        self.session.add(self.species)
+        self.session.commit()
+
+        presenter = DistributionPresenter()
+        presenter.init(self.species, self.session)
+        wait_on_threads()
+        update_gui()
+        presenter.on_paste_replace()
+
+        self.assertCountEqual(
+            [i.geography.id for i in self.species.distribution],
+            [330, 378],
+        )
+
+        # test no clipboard doesn't fail
+        mock_clipboard.reset_mock()
+        mock_clipboard.return_value = None
+        presenter.on_paste_replace()
+
+        presenter.destroy()
+
+    @mock.patch("bauble.plugins.plants.ui.widgets.distribution.get_clipboard")
+    def test_on_copy(self, mock_clipboard):
+        qld_dist = SpeciesDistribution(geography=self.qld)
+        nsw_dist = SpeciesDistribution(geography=self.nsw)
+        self.species.distribution.append(qld_dist)
+        self.species.distribution.append(nsw_dist)
+        self.session.add(self.species)
+        self.session.commit()
+
+        presenter = DistributionPresenter()
+        presenter.init(self.species, self.session)
+        wait_on_threads()
+        update_gui()
+        presenter.on_copy_codes()
+
+        mock_clipboard().set_text.assert_called_with("QLD, NSW", -1)
+
+        mock_clipboard.reset_mock()
+        presenter.on_copy_names()
+
+        mock_clipboard().set_text.assert_called_with(
+            "Queensland, New South Wales", -1
+        )
+
+        # test no clipboard doesn't fail
+        mock_clipboard.reset_mock()
+        mock_clipboard.return_value = None
+        presenter.on_copy_names()
+        presenter.on_copy_codes()
 
         presenter.destroy()
 

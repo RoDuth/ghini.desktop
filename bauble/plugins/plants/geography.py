@@ -160,7 +160,7 @@ class GeographyMenu(Gio.Menu):
     @classmethod
     def attach_new(
         cls,
-        handler: Callable[[Gio.SimpleAction, str], None],
+        handler: Callable[[Gio.SimpleAction, GLib.Variant], None],
         button: Gtk.Button,
     ) -> None:
 
@@ -173,7 +173,7 @@ class GeographyMenu(Gio.Menu):
     @classmethod
     def _create(
         cls,
-        handler: Callable[[Gio.SimpleAction, str], None],
+        handler: Callable[[Gio.SimpleAction, GLib.Variant], None],
         button: Gtk.Button,
     ) -> None:
 
@@ -183,7 +183,7 @@ class GeographyMenu(Gio.Menu):
 
     def _attach(
         self,
-        handler: Callable[[Gio.SimpleAction, str], None],
+        handler: Callable[[Gio.SimpleAction, GLib.Variant], None],
         button: Gtk.Button,
     ) -> None:
         self._attach_action_group(handler, button)
@@ -223,7 +223,7 @@ class GeographyMenu(Gio.Menu):
 
     def _attach_action_group(
         self,
-        handler: Callable[[Gio.SimpleAction, str], None],
+        handler: Callable[[Gio.SimpleAction, GLib.Variant], None],
         button: Gtk.Button,
     ) -> None:
         action = Gio.SimpleAction.new(self.ACTION_NAME, GLib.VariantType("s"))

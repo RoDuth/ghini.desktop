@@ -362,6 +362,12 @@ class UIUtilsTests(BaubleTestCase):
         self.assertEqual(utils.format_combo_entry_text(combo, 0), "")
         self.assertEqual(utils.format_combo_entry_text(combo, 1), "Test")
 
+    def test_get_clipboard(self):
+        self.assertIsNotNone(utils.get_clipboard())
+        with mock.patch("bauble.ui.utils.Gdk.Display") as mock_display:
+            mock_display().get_default.return_value = None
+            self.assertIsNone(utils.get_clipboard())
+
 
 class ImageLoaderTests(BaubleTestCase):
     def setUp(self):

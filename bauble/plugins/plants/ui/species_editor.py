@@ -79,6 +79,7 @@ from ..species_model import SpeciesSynonym
 from ..species_model import VernacularName
 from .widgets import SynonymsPresenter
 from .widgets import taxon_completion_cell_data_func
+from .widgets.distribution import DistributionPresenter
 from .widgets.species import InfraspecificPresenter
 from .widgets.species import SpeciesEntry
 from .widgets.species import species_cell_data_func
@@ -217,6 +218,7 @@ class SpeciesEditorDialog(
     _sp_custom2_combo = cast(Gtk.ComboBoxText, Gtk.Template.Child())
 
     infrasp_presenter = cast(InfraspecificPresenter, Gtk.Template.Child())
+    dist_presenter = cast(DistributionPresenter, Gtk.Template.Child())
     vernacular_presenter = cast(VernacularNamePresenter, Gtk.Template.Child())
     synonyms_presenter = cast(SynonymsPresenter, Gtk.Template.Child())
     notes_presenter = cast(NotesPresenter[NoteBox], Gtk.Template.Child())
@@ -324,6 +326,7 @@ class SpeciesEditorDialog(
         )
         self.links_menu_btn.init(model, SPECIES_WEB_BUTTON_DEFS_PREFS)
         self.infrasp_presenter.init(model)
+        self.dist_presenter.init(model, self.session)
         self.vernacular_presenter.init(model, self.session, self.revealer)
         self.notes_presenter.init(model)
         self.pictures_presenter.init(model, "_pictures", PictureBox)

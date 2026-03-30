@@ -32,6 +32,7 @@ from typing import Any
 from typing import Protocol
 from typing import cast
 
+from gi.repository import Gdk
 from gi.repository import GdkPixbuf
 from gi.repository import GLib
 from gi.repository import GObject
@@ -602,3 +603,11 @@ def format_combo_entry_text(combo: Gtk.ComboBox, path: Gtk.TreePath) -> str:
     if not detail:
         return ""
     return str(detail)
+
+
+def get_clipboard() -> Gtk.Clipboard | None:
+    """Get the default clipboard if its available, else return None"""
+    display = Gdk.Display().get_default()
+    if display:
+        return Gtk.Clipboard.get_default(display)
+    return None
