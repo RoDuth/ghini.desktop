@@ -242,7 +242,8 @@ class SpeciesEditorDialogTests(BaubleTestCase):
         editor.show()
         mock_dialog.assert_called_once_with(
             "You must first add or import at least one genus into the "
-            "database before you can add species."
+            "database before you can add species.",
+            parent=editor,
         )
         del editor
 
@@ -1458,6 +1459,48 @@ class SpeciesEditorDialogTests(BaubleTestCase):
         icon_name = editor.expand_btn_icon.get_icon_name()[0]
         self.assertEqual("pan-end-symbolic", icon_name)
         self.assertFalse(editor.cv_extras_grid.get_visible())
+
+        editor.destroy()
+
+    def test_refresh_fullname_label(self):
+        # toggles prev_sp_box visibility
+        # sets sp_fullname_label to markup
+        # resets label_markup if markup has changed
+        family = Family(epithet="Orchidaceae")
+        genus = Genus(family=family, epithet="Paphiopedilum")
+        species = Species(
+            genus=genus,
+            grex="Jim Kie",
+            cultivar_epithet="Springwater",
+        )
+        species.label_markup = "Test markup"
+        self.session.add(species)
+        self.session.commit()
+        editor = SpeciesEditorDialog(species, self.session)
+        # on init if a label_markup exists then the label should set and the
+        # expander expand
+        self.assertTrue(editor.label_markup_expander.get_expanded())
+        self.assertEqual(
+            editor.label_markup_label.get_label(),
+            "Test markup",
+        )
+
+        editor.refresh_fullname_label()  # should not reset label_markup
+        self.assertEqual(editor.model.label_markup, "Test markup")
+        # should not trigger change on the label yet
+        editor.model.grex = "Test Grex"
+        self.assertEqual(
+            editor.fullname_label.get_label(),
+            "<i>Paphiopedilum</i> Jim Kie grex 'Springwater'",
+        )
+        self.assertFalse(editor.prev_sp_box.get_visible())
+
+        editor.refresh_fullname_label()
+        self.assertEqual(
+            editor.fullname_label.get_label(),
+            "<i>Paphiopedilum</i> Test Grex grex 'Springwater'",
+        )
+        self.assertIsNone(editor.model.label_markup)
 
         editor.destroy()
 

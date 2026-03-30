@@ -33,6 +33,7 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Self
+from typing import TypedDict
 from typing import cast
 
 from gi.repository import GLib
@@ -163,6 +164,37 @@ def split_taxon_full_name(full_name: str) -> Name | None:
     matchdict = match.groupdict()
 
     return Name(**matchdict)
+
+
+class SpeciesFullName(TypedDict):
+    genus: Genus
+    subgenus: str | None
+    section: str | None
+    subsection: str | None
+    series: str | None
+    subseries: str | None
+    epithet: str | None
+    hybrid: str | None
+    sp_author: str | None
+    sp_qual: str | None
+    cv_group: str | None
+    grex: str | None
+    cultivar_epithet: str | None
+    trade_name: str | None
+    trademark_symbol: str | None
+    pbr_protected: str | None
+    infrasp1: str | None
+    infrasp1_rank: str | None
+    infrasp1_author: str | None
+    infrasp2: str | None
+    infrasp2_rank: str | None
+    infrasp2_author: str | None
+    infrasp3: str | None
+    infrasp3_rank: str | None
+    infrasp3_author: str | None
+    infrasp4: str | None
+    infrasp4_rank: str | None
+    infrasp4_author: str | None
 
 
 @Gtk.Template(filename=str(parent / "species_editor.ui"))
@@ -455,13 +487,18 @@ class SpeciesEditorDialog(
         string = f"Family: {fam_cites}, Genus: {gen_cites}"
         self.cites_label.set_text(string)
 
-    def capture_start_sp(self, model):
-        self.start_sp_dict = None
+    def capture_start_sp(self, model: Species) -> None:
+        self.start_sp_dict: SpeciesFullName | None = None
         self.start_sp_markup = None
         if model not in self.session.new:
             self.start_sp_dict = {
                 "genus": model.genus,
-                "sp": model.sp,
+                "subgenus": model.subgenus,
+                "section": model.section,
+                "subsection": model.subsection,
+                "series": model.series,
+                "subseries": model.subseries,
+                "epithet": model.epithet,
                 "hybrid": model.hybrid,
                 "sp_author": model.sp_author,
                 "sp_qual": model.sp_qual,
@@ -809,7 +846,7 @@ class SpeciesEditorDialog(
     @Gtk.Template.Callback()
     def on_markup_entry_changed(self, entry: Gtk.Entry) -> None:
         self.remove_problem(self.PROBLEM_INVALID_MARKUP, entry)
-        value = entry.get_text()
+        value: str | None = entry.get_text()
 
         if value == self.model.markup():
             entry.set_name("unsaved-entry")
@@ -817,7 +854,7 @@ class SpeciesEditorDialog(
             entry.set_name("GtkEntry")
 
         if value in (self.model.markup(), ""):
-            value = ""
+            value = None
 
         if value:
             try:
@@ -825,13 +862,13 @@ class SpeciesEditorDialog(
                 self.label_markup_label.set_markup(value)
             except (GLib.Error, TypeError, RuntimeError, UnicodeDecodeError):
                 self.label_markup_label.set_markup("--")
+                value = None
                 self.add_problem(self.PROBLEM_INVALID_MARKUP, entry)
-                return
         else:
             self.label_markup_label.set_markup("--")
-            return
 
-        super().on_text_entry_changed(entry)
+        self.model.label_markup = value
+        self.update()
 
     @Gtk.Template.Callback()
     def on_markup_button_clicked(self, _button: Gtk.Button) -> None:
@@ -994,7 +1031,7 @@ class SpeciesEditorDialog(
     def do_commit(self) -> bool:
         try:
             self.session.commit()
-            if self.add_syn_chkbox.get_active():
+            if self.add_syn_chkbox.get_active() and self.start_sp_dict:
                 # second commit so history is placed last - sync could fail
                 # unique constraint on full_sci_name otherwise
                 syn = Species(**self.start_sp_dict)
@@ -1005,7 +1042,10 @@ class SpeciesEditorDialog(
         except SQLAlchemyError as e:
             msg = _("Error committing changes.\n\n%s") % utils.xml_safe(e)
             dialogs.message_details_dialog(
-                msg, traceback.format_exc(), Gtk.MessageType.ERROR
+                msg,
+                traceback.format_exc(),
+                Gtk.MessageType.ERROR,
+                parent=self,
             )
             self.session.rollback()
             self.model = self.session.merge(self.model)
@@ -1017,7 +1057,7 @@ class SpeciesEditorDialog(
                 "You must first add or import at least one genus into the "
                 "database before you can add species."
             )
-            dialogs.message_dialog(msg)
+            dialogs.message_dialog(msg, parent=self)
             self.destroy()
         else:
             Gtk.Dialog.do_show(self, *args, **kwargs)
