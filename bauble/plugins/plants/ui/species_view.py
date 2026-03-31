@@ -19,24 +19,549 @@
 """
 Species GUI search view components.
 """
+
+import logging
+
+logger = logging.getLogger(__name__)
+
 import traceback
+from ast import literal_eval
 from collections.abc import Sequence
+from pathlib import Path
+from typing import cast
 
 from gi.repository import Gtk
+from sqlalchemy import and_
+from sqlalchemy import distinct
+from sqlalchemy import func
+from sqlalchemy import select
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 from sqlalchemy.orm.session import object_session
 
+import bauble
+from bauble import db
+from bauble import prefs
 from bauble import utils
 from bauble.i18n import _
 from bauble.ui import dialogs
 from bauble.ui.views import Action
+from bauble.ui.views import InfoBox
+from bauble.ui.views import InfoExpander
+from bauble.ui.views import LinksExpander
+from bauble.ui.views import PropertiesExpander
+from bauble.ui.views import on_clicked_search
+from bauble.ui.views import on_clicked_select
+from bauble.ui.views import select_in_search_results
 
 from ..species_model import Species
 from ..species_model import VernacularName
+from ..species_model import red_list_values
 from .geography_view import map_kml_callback
+from .misc import on_taxa_clicked
+from .species_editor import SPECIES_WEB_BUTTON_DEFS_PREFS
 from .species_editor import add_accession_callback
 from .species_editor import edit_callback
+from .widgets import DistributionMapEventBox
+from .widgets import SynonymsExpander
+
+parent = Path(__file__).resolve().parent
+
+
+class VernacularExpander(InfoExpander[Species], Gtk.Expander):
+    DEFAULT_LBL = _("(default)")
+
+    def __init__(self) -> None:
+        super().__init__(label=_("Vernacular names"))
+        self.connect("notify::expanded", self.on_expanded)
+        self.box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+        self.box.set_border_width(5)
+        self.add(self.box)
+
+    def update(self, row: Species) -> None:
+        self.set_sensitive(False)
+        self.box.foreach(self.box.remove)
+
+        names: list[tuple[str, str]] = []
+
+        if row.vernacular_names:
+
+            for vernacular in sorted(row.vernacular_names, key=str):
+                language = ""
+
+                if vernacular.language:
+                    language = f" - {vernacular.language}"
+
+                if (
+                    row.default_vernacular_name is not None
+                    and vernacular == row.default_vernacular_name
+                ):
+                    names.insert(
+                        0,
+                        (
+                            vernacular.name or "",
+                            f"{vernacular.name}{language} {self.DEFAULT_LBL}",
+                        ),
+                    )
+                else:
+                    names.append(
+                        (vernacular.name or "", f"{vernacular.name}{language}")
+                    )
+
+            self.set_sensitive(True)
+
+        for name, label_txt in names:
+            ebox = Gtk.EventBox()
+            label = Gtk.Label(
+                label=label_txt,
+                xalign=0.0,
+                yalign=0.5,
+            )
+            ebox.add(label)
+            utils.make_label_clickable(
+                label,
+                on_clicked_search,
+                f"vernacular_name where name = '{name}'",
+            )
+            self.box.pack_start(ebox, False, False, 0)
+
+        self.show_all()
+
+
+def infobox_counts(id_: int) -> dict[str, int]:
+    from ...garden import Accession
+    from ...garden import Plant
+
+    stmt = (
+        select(
+            func.count(distinct(Accession.id)),
+            func.count(distinct(Plant.accession_id)),
+            func.count(Plant.id),
+            func.sum(Plant.quantity),
+        )
+        .select_from(Species)
+        .outerjoin(Accession)
+        .outerjoin(Plant)
+        .where(Species.id == id_)
+    )
+    with db.engine.begin() as connection:
+        counts = connection.execute(stmt).one()
+
+    keys = (
+        "accessions",
+        "acc_w_plants",
+        "plants",
+        "living_plants",
+    )
+
+    return dict(zip(keys, counts, strict=True))
+
+
+@Gtk.Template(filename=str(parent / "species_expander.ui"))
+class GeneralSpeciesExpander(
+    InfoExpander[Species],
+    Gtk.Expander,
+):
+    """expander to present general information about a species"""
+
+    __gtype_name__ = "GeneralSpeciesExpander"
+
+    GEO_AREAS_EXPANDED_PREF = "infobox.species_geo_areas_expanded"
+
+    general_box = cast(Gtk.Box, Gtk.Template.Child())
+    details_box = cast(Gtk.Box, Gtk.Template.Child())
+    details_gen_label = cast(Gtk.Label, Gtk.Template.Child())
+    subgen_label = cast(Gtk.Label, Gtk.Template.Child())
+    section_label = cast(Gtk.Label, Gtk.Template.Child())
+    subsection_label = cast(Gtk.Label, Gtk.Template.Child())
+    series_label = cast(Gtk.Label, Gtk.Template.Child())
+    subseries_label = cast(Gtk.Label, Gtk.Template.Child())
+    gen_label = cast(Gtk.Label, Gtk.Template.Child())
+    name_label = cast(Gtk.Label, Gtk.Template.Child())
+    fam_label = cast(Gtk.Label, Gtk.Template.Child())
+    num_acc_label = cast(Gtk.Label, Gtk.Template.Child())
+    num_plants_label = cast(Gtk.Label, Gtk.Template.Child())
+    living_plants_label = cast(Gtk.Label, Gtk.Template.Child())
+    plant_locations_box = cast(Gtk.Box, Gtk.Template.Child())
+    cites_label = cast(Gtk.Label, Gtk.Template.Child())
+    red_list_label = cast(Gtk.Label, Gtk.Template.Child())
+    _sp_custom1_label = cast(Gtk.Label, Gtk.Template.Child())
+    _sp_custom1_data_label = cast(Gtk.Label, Gtk.Template.Child())
+    _sp_custom2_label = cast(Gtk.Label, Gtk.Template.Child())
+    _sp_custom2_data_label = cast(Gtk.Label, Gtk.Template.Child())
+    awards_label = cast(Gtk.Label, Gtk.Template.Child())
+    habit_label = cast(Gtk.Label, Gtk.Template.Child())
+    verifications_box = cast(Gtk.Box, Gtk.Template.Child())
+    label_markup_label = cast(Gtk.Label, Gtk.Template.Child())
+    label_markup_data_label = cast(Gtk.Label, Gtk.Template.Child())
+    labeldist_label = cast(Gtk.Label, Gtk.Template.Child())
+    map_event_box = cast(DistributionMapEventBox, Gtk.Template.Child())
+    dist_details_box = cast(Gtk.Box, Gtk.Template.Child())
+
+    def __init__(self) -> None:
+        super().__init__(label=_("General"))
+        self.connect("notify::expanded", self.on_expanded)
+        self.has_details = False
+        self._current_db_id: int | None = None
+        self._custom_columns: set[str] = set()
+
+    def _setup_custom_column(self, column_name: str) -> None:
+        self._current_db_id = id(db.engine.url)
+        with db.Session() as session:
+            custom_meta = (
+                session.query(bauble.meta.BaubleMeta)
+                .filter(bauble.meta.BaubleMeta.name == column_name)
+                .first()
+            )
+        if custom_meta:
+            self._custom_columns.add(column_name)
+            custom_meta = literal_eval(custom_meta.value)
+            display_name = custom_meta.get("display_name")
+
+            if display_name:
+                label = getattr(self, column_name + "_label")
+                label.set_text(display_name + ":")
+                data_label = getattr(self, column_name + "_data_label")
+                utils.unhide_widgets((label, data_label))
+
+        else:
+            label = getattr(self, column_name + "_label")
+            label.set_text("_custom_")
+            data_label = getattr(self, column_name + "_data_label")
+            utils.hide_widgets((label, data_label))
+
+    @staticmethod
+    def on_areas_expanded(expander: Gtk.Expander) -> None:
+        prefs.prefs[GeneralSpeciesExpander.GEO_AREAS_EXPANDED_PREF] = (
+            not expander.get_expanded()
+        )
+
+    @staticmethod
+    def select_all_areas(_label, _event, row: Species) -> None:
+        for dist in row.distribution:
+            select_in_search_results(dist.geography)
+
+    def update(self, row: Species) -> None:
+        self.has_details = any(
+            (
+                row.subgenus,
+                row.section,
+                row.subsection,
+                row.series,
+                row.subseries,
+            )
+        )
+        # on first run and in case of connection change
+        if self._current_db_id != id(db.engine.url):
+            self._setup_custom_column("_sp_custom1")
+            self._setup_custom_column("_sp_custom2")
+
+        self.update_family(row)
+        self.update_genus(row)
+        self.update_details(row)
+
+        self.name_label.set_markup(
+            f" <big>{row.markup(authors=True, genus=False)}</big>",
+        )
+
+        self.update_counts(row)
+
+        self.cites_label.set_label(row.cites or "")
+        self.red_list_label.set_label(red_list_values[row.red_list])
+
+        self.update_custom_columns(row)
+
+        self.awards_label.set_label(row.awards or "")
+        self.habit_label.set_label(str(row.habit or ""))
+
+        self.update_label_markup(row)
+        self.update_distribution(row)
+        self.update_plant_locations(row)
+        self.update_verifications(row)
+        self.update_clickable_labels(row)
+
+        self.show_all()
+
+    def update_family(self, row: Species) -> None:
+        self.fam_label.set_markup(
+            f"<small>({row.genus.family.family})</small>",
+        )
+        utils.make_label_clickable(
+            self.fam_label,
+            on_taxa_clicked,
+            row.genus.family,
+        )
+
+    def update_genus(self, row: Species) -> None:
+        genus = row.genus.markup()
+        self.gen_label.set_markup(f"<big>{genus}</big>")
+        utils.make_label_clickable(self.gen_label, on_taxa_clicked, row.genus)
+
+    def update_details(self, row: Species) -> None:
+        """Provides infragenic parts, if they exist, above the full name."""
+        if not self.has_details:
+            utils.hide_widgets([self.details_box])
+            return
+
+        utils.unhide_widgets([self.details_box])
+        self.details_gen_label.set_markup(
+            f"<i>{utils.xml_safe(row.genus)}</i>",
+        )
+        details = (
+            ("subg.", "subgen_label", "subgenus"),
+            ("sect.", "section_label", "section"),
+            ("subsect.", "subsection_label", "subsection"),
+            ("ser.", "series_label", "series"),
+            ("subser.", "subseries_label", "subseries"),
+        )
+        step = 0
+        for abv, widget_name, attr in details:
+            widget = getattr(self, widget_name)
+            value = getattr(row, attr)
+            if value:
+                step += 12
+                utils.unhide_widgets([widget])
+                widget.set_margin_start(step)
+                widget.set_markup(
+                    f"<small>{abv} <i>{utils.xml_safe(value)}</i></small>"
+                )
+                utils.make_label_clickable(
+                    widget,
+                    on_clicked_search,
+                    f"species where {attr} = {value}",
+                )
+            else:
+                utils.hide_widgets([widget])
+
+    def update_counts(self, row: Species) -> None:
+        counts = infobox_counts(row.id)
+        self.num_plants_label.set_label("0")
+
+        self.num_acc_label.set_label(str(counts["accessions"] or 0))
+
+        if counts["plants"]:
+            self.num_plants_label.set_label(
+                f"{counts['plants']} in {counts['acc_w_plants']} accessions"
+            )
+
+        self.living_plants_label.set_label(str(counts["living_plants"] or 0))
+
+    def update_custom_columns(self, row: Species) -> None:
+        for column_name in self._custom_columns:
+            data_label = getattr(self, column_name + "_data_label")
+            value = getattr(row, column_name)
+            data_label.set_label(value or "")
+
+            utils.make_label_clickable(
+                data_label,
+                on_clicked_search,
+                f"species where {column_name} = '{value}'",
+            )
+
+    def update_label_markup(self, row: Species) -> None:
+        if row.label_markup:
+            utils.unhide_widgets(
+                [
+                    self.label_markup_label,
+                    self.label_markup_data_label,
+                ]
+            )
+            self.label_markup_data_label.set_markup(row.label_markup)
+        else:
+            utils.hide_widgets(
+                [
+                    self.label_markup_label,
+                    self.label_markup_data_label,
+                ]
+            )
+            self.label_markup_data_label.set_label("--")
+
+    def update_distribution(self, row: Species) -> None:
+        self.labeldist_label.set_label(str(row.label_distribution or ""))
+
+        self.map_event_box.update(row)
+
+        self.dist_details_box.foreach(self.dist_details_box.remove)
+
+        if not row.distribution:
+            return
+
+        expander = Gtk.Expander(label=_("Areas"), expanded=False)
+        expander.connect("activate", self.on_areas_expanded)
+        expander.set_expanded(
+            prefs.prefs.get(self.GEO_AREAS_EXPANDED_PREF, False)
+        )
+
+        box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+        for geo in row.distribution:
+            event_box = Gtk.EventBox()
+            label = Gtk.Label(label=str(geo))
+            label.set_halign(Gtk.Align.START)
+            event_box.add(label)
+
+            utils.make_label_clickable(label, on_clicked_select, geo.geography)
+            box.pack_start(event_box, False, False, 0)
+
+        event_box = Gtk.EventBox()
+        label = Gtk.Label(label="...select all")
+        label.set_halign(Gtk.Align.START)
+        event_box.add(label)
+        utils.make_label_clickable(label, self.select_all_areas, row)
+        box.pack_start(event_box, False, False, 0)
+        expander.add(box)
+        self.dist_details_box.pack_start(expander, False, False, 0)
+
+    def update_plant_locations(self, row: Species) -> None:
+        self.plant_locations_box.foreach(self.plant_locations_box.remove)
+
+        def plant_selector(data):
+            acc, plt = data
+            select_in_search_results(acc, expand_current_first=True)
+            select_in_search_results(plt, expand_current_first=True)
+
+        on_clicked = utils.generate_on_clicked(plant_selector)
+
+        sep = ""
+
+        from ...garden import Accession
+        from ...garden import Plant
+
+        session = cast(Session, object_session(row))
+        plants = (
+            session.query(Plant)
+            .join(Accession)
+            .filter(Accession.species_id == row.id)
+            .filter(Plant.quantity > 0)
+        )
+
+        for plant in sorted(plants, key=lambda p: p.location.code):
+            if sep:
+                label = Gtk.Label(label=sep)
+                self.plant_locations_box.pack_start(label, False, False, 0)
+            loc = plant.location
+            event_box = Gtk.EventBox()
+            label = Gtk.Label(label=f"{loc.code}")
+            label.set_halign(Gtk.Align.START)
+            event_box.add(label)
+
+            utils.make_label_clickable(
+                label, on_clicked, (plant.accession, plant)
+            )
+            self.plant_locations_box.pack_start(event_box, False, False, 0)
+            sep = ", "
+
+    def update_verifications(self, row: Species) -> None:
+        from ...garden.accession import Verification
+
+        self.verifications_box.foreach(self.verifications_box.remove)
+
+        new = 0
+        prev = 0
+        with db.engine.begin() as connection:
+            stmt = (
+                select(func.count())
+                .select_from(Verification.__table__)
+                .where(
+                    and_(
+                        Verification.prev_species_id == row.id,
+                        Verification.species_id != row.id,
+                    )
+                )
+            )
+            prev = cast(int, connection.execute(stmt).scalar())
+            stmt = (
+                select(func.count())
+                .select_from(Verification.__table__)
+                .where(Verification.species_id == row.id)
+            )
+            new = cast(int, connection.execute(stmt).scalar())
+
+        if prev:
+            event_box = Gtk.EventBox()
+            label = Gtk.Label(label=_("%s prev.") % prev)
+            event_box.add(label)
+            self.verifications_box.add(event_box)
+            utils.make_label_clickable(
+                label,
+                on_clicked_search,
+                f"accession where verifications.prev_species.id = {row.id}",
+            )
+            if new:
+                # comma
+                label = Gtk.Label(label=", ")
+                self.verifications_box.add(label)
+
+        if new:
+            event_box = Gtk.EventBox()
+            label = Gtk.Label(label=_("%s new") % new)
+            event_box.add(label)
+            self.verifications_box.add(event_box)
+            utils.make_label_clickable(
+                label,
+                on_clicked_search,
+                f"accession where verifications.species.id = {row.id}",
+            )
+
+    def update_clickable_labels(self, row: Species) -> None:
+        labels_to_searches = (
+            (
+                self.num_acc_label,
+                f"accession where species.id = {row.id}",
+            ),
+            (
+                self.num_plants_label,
+                f"plant where accession.species.id = {row.id}",
+            ),
+            (
+                self.cites_label,
+                f"species where cites = '{row.cites}'",
+            ),
+            (
+                self.red_list_label,
+                f"species where red_list = '{row.red_list}'",
+            ),
+            (
+                self.living_plants_label,
+                f"plant where accession.species.id = {row.id} "
+                "and quantity > 0",
+            ),
+        )
+
+        for label, search in labels_to_searches:
+            utils.make_label_clickable(
+                label,
+                on_clicked_search,
+                search,
+            )
+
+
+class SpeciesInfoBox(InfoBox[Species]):
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.add_expander(GeneralSpeciesExpander())
+        self.add_expander(VernacularExpander())
+        self.add_expander(SynonymsExpander[Species]())
+
+        button_defs = []
+        buttons = prefs.prefs.itersection(SPECIES_WEB_BUTTON_DEFS_PREFS)
+        for name, button in buttons:
+            button["name"] = name
+            button_defs.append(button)
+
+        self.add_expander(LinksExpander("notes", links=button_defs))
+        self.add_expander(PropertiesExpander())
+
+
+# it's easier just to put this here instead of playing around with imports
+class VernacularNameInfoBox(SpeciesInfoBox):
+
+    def update(self, row: db.Domain) -> None:
+        logger.debug(
+            "VernacularNameInfoBox.update %s(%s)", row.__class__.__name__, row
+        )
+        if isinstance(row, VernacularName):
+            super().update(row.species)
 
 
 def remove_callback(

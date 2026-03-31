@@ -42,11 +42,11 @@ from bauble.ui.views import PropertiesExpander
 from bauble.ui.views import on_clicked_search
 
 from ..genus import Genus
-from ..species import on_taxa_clicked
 from ..species_model import Species
 from .genus_editor import GENUS_WEB_BUTTON_DEFS_PREFS
 from .genus_editor import add_species_callback
 from .genus_editor import edit_callback
+from .misc import on_taxa_clicked
 from .widgets import SynonymsExpander
 
 

@@ -2434,7 +2434,7 @@ class GeneralPlantExpander(
             row.accession,
         )
 
-        from ..plants.species import on_taxa_clicked
+        from ..plants.ui.misc import on_taxa_clicked
 
         utils.make_label_clickable(
             self.name_label,

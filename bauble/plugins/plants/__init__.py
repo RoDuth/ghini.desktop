@@ -59,10 +59,8 @@ from .geography import get_species_in_geography
 from .species import BinomialSearch
 from .species import Species
 from .species import SpeciesDistribution
-from .species import SpeciesInfoBox
 from .species import SynonymSearch
 from .species import VernacularName
-from .species import VernacularNameInfoBox
 from .species import get_binomial_completions
 from .species_model import update_all_full_names_handler
 from .ui.family_editor import create_family
@@ -77,6 +75,8 @@ from .ui.geography_view import GeographyInfoBox
 from .ui.geography_view import geography_context_menu
 from .ui.species_editor import create_species
 from .ui.species_editor import edit_callback as species_edit_callback
+from .ui.species_view import SpeciesInfoBox
+from .ui.species_view import VernacularNameInfoBox
 from .ui.species_view import species_context_menu
 from .ui.species_view import vernname_context_menu
 from .ui.widgets.geography import DistributionMap
