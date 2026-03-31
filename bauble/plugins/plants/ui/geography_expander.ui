@@ -35,14 +35,7 @@
               </packing>
             </child>
             <child>
-              <object class="GtkBox" id="map_box">
-                <property name="visible">True</property>
-                <property name="can-focus">False</property>
-                <property name="orientation">vertical</property>
-                <child>
-                  <placeholder/>
-                </child>
-              </object>
+              <object class="DistributionMapEventBox" id="map_event_box"/>
               <packing>
                 <property name="expand">False</property>
                 <property name="fill">True</property>

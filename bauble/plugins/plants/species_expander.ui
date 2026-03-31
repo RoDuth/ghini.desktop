@@ -695,13 +695,7 @@
                 <property name="orientation">vertical</property>
                 <property name="border-width">5</property>
                 <child>
-                  <object class="GtkBox" id="dist_map_box">
-                    <property name="visible">True</property>
-                    <property name="can-focus">False</property>
-                    <child>
-                      <placeholder/>
-                    </child>
-                  </object>
+                  <object class="DistributionMapEventBox" id="map_event_box"/>
                   <packing>
                     <property name="expand">False</property>
                     <property name="fill">True</property>

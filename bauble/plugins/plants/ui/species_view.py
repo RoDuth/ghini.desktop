@@ -32,9 +32,9 @@ from bauble.i18n import _
 from bauble.ui import dialogs
 from bauble.ui.views import Action
 
-from ..geography import map_kml_callback
 from ..species_model import Species
 from ..species_model import VernacularName
+from .geography_view import map_kml_callback
 from .species_editor import add_accession_callback
 from .species_editor import edit_callback
 
@@ -110,7 +110,7 @@ remove_action = Action(
 
 distribution_map_action = Action(
     "acc_dist_map",
-    _("Show distribution in _map"),
+    _("Show Distribution in _Map"),
     callback=map_kml_callback,
     accelerator="<ctrl>m",
     multiselect=True,

@@ -1,4 +1,4 @@
-# Copyright 2026 Ross Demuth <rossdemuth123@gmail.com>
+# Copyright 2024-2026 Ross Demuth <rossdemuth123@gmail.com>
 #
 # This file is part of ghini.desktop.
 #
@@ -15,18 +15,24 @@
 # You should have received a copy of the GNU General Public License
 # along with ghini.desktop. If not, see <http://www.gnu.org/licenses/>.
 """
-Generic widgets.
+Geography search view parts.
 """
-from .geography import DistributionMapEventBox
-from .geography import GeographyMenu
-from .synonyms import SynonymsExpander
-from .synonyms import SynonymsPresenter
-from .synonyms import taxon_completion_cell_data_func
+from unittest import mock
 
-__all__ = [
-    "DistributionMapEventBox",
-    "GeographyMenu",
-    "SynonymsExpander",
-    "SynonymsPresenter",
-    "taxon_completion_cell_data_func",
-]
+from ..geography import Geography
+from ..test_plants import PlantTestCase
+from ..test_plants import setup_geographies
+from ..ui.geography_view import GeneralGeographyExpander
+
+
+class InfoBoxTests(PlantTestCase):
+
+    @mock.patch("bauble.utils.make_label_clickable")
+    def test_expander_update_with_parent_makes_label_clickable(self, mock_mlc):
+        setup_geographies()
+        qld = self.session.get(Geography, 330)
+        self.assertTrue(qld.parent)
+
+        expander = GeneralGeographyExpander()
+        expander.update(qld)
+        mock_mlc.assert_called()

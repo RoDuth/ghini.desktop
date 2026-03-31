@@ -67,7 +67,6 @@ from .family import Family
 from .family import FamilySynonym
 from .genus import Genus
 from .genus import GenusSynonym
-from .geography import DistributionMapEventBox
 from .species_model import DefaultVernacularName
 from .species_model import Species
 from .species_model import SpeciesDistribution
@@ -76,6 +75,7 @@ from .species_model import SpeciesSynonym
 from .species_model import VernacularName
 from .species_model import red_list_values
 from .ui.species_editor import SPECIES_WEB_BUTTON_DEFS_PREFS
+from .ui.widgets import DistributionMapEventBox
 from .ui.widgets import SynonymsExpander
 
 # imported by clients of this modules
@@ -508,15 +508,13 @@ class GeneralSpeciesExpander(
     label_markup_label = cast(Gtk.Label, Gtk.Template.Child())
     label_markup_data_label = cast(Gtk.Label, Gtk.Template.Child())
     labeldist_label = cast(Gtk.Label, Gtk.Template.Child())
-    dist_map_box = cast(Gtk.Box, Gtk.Template.Child())
+    map_event_box = cast(DistributionMapEventBox, Gtk.Template.Child())
     dist_details_box = cast(Gtk.Box, Gtk.Template.Child())
 
     def __init__(self) -> None:
         super().__init__(label=_("General"))
         self.connect("notify::expanded", self.on_expanded)
         self.has_details = False
-        self.map_event_box = DistributionMapEventBox()
-        self.dist_map_box.pack_start(self.map_event_box, False, False, 0)
         self._current_db_id: int | None = None
         self._custom_columns: set[str] = set()
 

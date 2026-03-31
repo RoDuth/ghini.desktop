@@ -19,14 +19,20 @@
 """
 Generic widgets tests
 """
+import os
 from datetime import datetime
+from tempfile import mkstemp
 from unittest import TestCase
 from unittest import mock
 
+from gi.repository import Gdk
 from gi.repository import Gtk
+from sqlalchemy import func
 from sqlalchemy import select
+from sqlalchemy import update
 from sqlalchemy.orm.exc import DetachedInstanceError
 
+from bauble import db
 from bauble import prefs
 from bauble import utils
 from bauble.plugins.plants.family import Family
@@ -44,12 +50,23 @@ from bauble.test import BaubleTestCase
 from bauble.test import get_setUp_data_funcs
 from bauble.test import update_gui
 from bauble.test import wait_on_threads
+from bauble.ui.presenter import Response
 from bauble.ui.utils import get_widget_value
 from bauble.ui.utils import set_widget_value
 from bauble.ui.widgets.message import MessageBox
 
+from ..ui.species_editor import SpeciesEditorDialog
 from ..ui.widgets.distribution import DistributionPresenter
+from ..ui.widgets.geography import GEO_PACIFIC_CENTRIC
+from ..ui.widgets.geography import DistributionMap
+from ..ui.widgets.geography import DistributionMapEventBox
 from ..ui.widgets.geography import GeographyMenu
+from ..ui.widgets.geography import calculate_zoom_buffer
+from ..ui.widgets.geography import get_viewbox
+from ..ui.widgets.geography import split_lats_longs
+from ..ui.widgets.geography import straddles_antimeridian
+from ..ui.widgets.geography import update_all_approx_areas_handler
+from ..ui.widgets.geography import update_all_approx_areas_task
 from ..ui.widgets.species import InfraspecificPresenter
 from ..ui.widgets.species import InfraspRow
 from ..ui.widgets.species import SpeciesEntry
@@ -2437,6 +2454,670 @@ class GeographyMenuTests(BaubleTestCase):
             mock_append.assert_not_called()
 
         menu.reset()
+
+
+class DistributionMapTests(BaubleClassTestCase):
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        setup_geographies()
+        cls.geo = cls.session.get(Geography, 682)
+        fam = Family(epithet="Cyatheaceae")
+        gen = Genus(epithet="Sphaeropteris", family=fam)
+        cls.sp = Species(epithet="robusta", genus=gen)
+        cls.sp.distribution.append(SpeciesDistribution(geography=cls.geo))
+        cls.session.add(cls.sp)
+        cls.session.commit()
+
+    def setUp(self):
+        DistributionMap._world = ""
+        DistributionMap._world_pixbuf = None
+        DistributionMap._image_cache = utils.LRUCache()
+
+    def test_world_template(self):
+        # calling world generates the template
+        dist = DistributionMap([682])
+        self.assertEqual(dist._world, "")
+        world = dist.world
+        self.assertIn("{selected}", world)
+        self.assertEqual(dist._world, world)
+        # template doesn't change when geography does
+        dist = DistributionMap([50])
+        self.assertEqual(world, dist.world)
+        # str shows populated template
+        dist = DistributionMap([682])
+        self.assertNotIn("{selected}", str(dist))
+
+    def test_pacific_centric_world_template(self):
+        dist = DistributionMap([50])
+        norm = str(dist)
+        self.assertIn('viewBox="-180', norm)
+        # reset and set pref
+        DistributionMap._world = ""
+        prefs.prefs[GEO_PACIFIC_CENTRIC] = True
+        dist = DistributionMap([50])
+        pc = str(dist)
+        self.assertIn('viewBox="-30', pc)
+        self.assertTrue(len(pc) > len(norm))
+
+    def test_world_pixbuf(self):
+        # calling world_pixbuf generates the pixbuf
+        dist = DistributionMap([682])
+        self.assertIsNone(dist._world_pixbuf)
+        world = dist.world_pixbuf
+        self.assertIsNotNone(world)
+        # template doesn't change when geography does
+        dist = DistributionMap([50])
+        self.assertEqual(world, dist.world_pixbuf)
+
+    def test_map(self):
+        # calling map (via __str__) populates
+        dist = DistributionMap([682])
+        self.assertFalse(dist._map)
+        map_ = str(dist)
+        self.assertEqual(map_, dist.map)
+        # map does change when geography does
+        dist = DistributionMap([50])
+        self.assertNotEqual(map_, dist.map)
+
+    def test_as_image_starts_blank_then_populates(self):
+        # returns image immediately (even if not populated yet)
+        dist = DistributionMap([682])
+        # initially None
+        self.assertIsNone(dist._world_pixbuf)
+        self.assertIsNone(dist._image)
+        # trigger creation
+        dist.world
+        # initially the same (Blank)
+        self.assertEqual(dist._world_pixbuf, dist.as_image().get_pixbuf())
+        self.assertIsNotNone(dist._image)
+        # populates with correct image after threads and idle_add complete
+        wait_on_threads()
+        update_gui()
+        self.assertNotEqual(dist._world_pixbuf, dist.as_image().get_pixbuf())
+
+    def test_dist_map_cache(self):
+        cache = utils.LRUCache(size=121)
+        # load the cache
+        for i in range(121):
+            cache[i] = Gtk.Image()
+        self.assertEqual(len(cache), 121)
+        self.assertIsNotNone(cache.get(0))
+        # removes first entry
+        cache[121] = Gtk.Image()
+        self.assertEqual(len(cache), 121)
+        self.assertIsNone(cache.get(0))
+        # if get first does not remove it first
+        self.assertIsNotNone(cache[1])
+        self.assertEqual(len(cache), 121)
+        cache[122] = Gtk.Image()
+        self.assertIsNotNone(cache.get(1))
+        # removes second
+        self.assertIsNone(cache.get(2))
+
+    def test_dist_map_does_not_cause_history_entries(self):
+        # incase of history triggered by update to approx area
+        # (depends on system, pyproj/proj version)
+        geo_id = self.geo.id
+        start = self.session.scalar(
+            select(func.count())
+            .select_from(db.History)
+            .where(db.History.table_name == "geography")
+            .where(db.History.table_id == geo_id)
+        )
+        dist_map = self.sp.get_geography_ids()
+        self.assertTrue(dist_map)
+        editor = SpeciesEditorDialog(self.sp, self.session)
+        editor.emit("response", Response.OK)
+        update_gui()
+        editor.destroy()
+
+        hist = self.session.scalars(
+            select(db.History.values)
+            .where(db.History.table_name == "geography")
+            .where(db.History.table_id == geo_id)
+        ).all()
+        self.assertEqual(len(hist), start, hist)
+
+    def test_get_areas(self):
+        dist = DistributionMap([657, 683])
+        self.assertEqual(
+            [i.code for i in dist.get_areas()], ["MXI-RA", "NFK-NI"]
+        )
+
+    def test_zoom_map(self):
+        dist = DistributionMap([657, 683])
+        paths = (
+            '<path stroke="green" stroke-width="0.2" fill="green" d="M '
+            "-115.75 24.952 L -115.75 24.953 L -115.75 24.954 L -115.749 "
+            '24.952 Z"/><path stroke="green" stroke-width="0.2" '
+            'fill="green" d="M 244.25 24.952 L 244.25 24.953 L 244.25 '
+            '24.954 L 244.251 24.952 Z"/>'
+        )
+        self.assertFalse(dist._zoom_map)
+        self.assertIn(paths, dist.zoom_map)
+        self.assertTrue(dist._zoom_map)
+        self.assertIn('viewBox="{viewbox}">', dist.zoom_map)
+        with mock.patch(
+            "bauble.plugins.plants.ui.widgets.geography.get_world_paths"
+        ) as gwp:
+            self.assertIn('viewBox="{viewbox}">', dist.zoom_map)
+            gwp.assert_not_called()
+            dist._zoom_map = ""
+            self.assertIn('viewBox="{viewbox}">', dist.zoom_map)
+            gwp.assert_called()
+
+    def test_get_zoom_viewbox(self):
+        dist = DistributionMap([683])
+        self.assertIsNone(dist._current_max_mins)
+        self.assertEqual(dist.get_zoom_viewbox(10), "149.955 20.043 36.0 18.0")
+        self.assertIsNotNone(dist._current_max_mins)
+        with mock.patch(
+            "bauble.plugins.plants.ui.widgets.geography.straddles_antimeridian"
+        ) as sam:
+            self.assertEqual(
+                dist.get_zoom_viewbox(9), "147.955 19.043 40.0 20.0"
+            )
+            sam.assert_not_called()
+
+        # stradling
+        fiji = 167
+        dist = DistributionMap([fiji])
+        self.assertIsNone(dist._current_max_mins)
+        self.assertEqual(dist.get_zoom_viewbox(18), "169.415 11.581 20.0 10.0")
+        self.assertIsNotNone(dist._current_max_mins)
+        self.assertEqual(dist.get_zoom_viewbox(2), "89.415 -28.419 180.0 90.0")
+        # too far west to zoom out too far
+        cook_is = 138
+        dist = DistributionMap([cook_is])
+        self.assertIsNone(dist._current_max_mins)
+        self.assertEqual(dist.get_zoom_viewbox(18), "-170.24 14.999 20.0 10.0")
+        # now pacific centric
+        self.assertEqual(dist.get_zoom_viewbox(8), "177.26 8.749 45.0 22.5")
+
+    def test_get_max_zoom(self):
+        rocas_alijos = 657
+        dist = DistributionMap([rocas_alijos])
+        self.assertEqual(dist.get_max_zoom(), 18)
+
+        new_zealand = 39
+        dist = DistributionMap([new_zealand])
+        self.assertEqual(dist.get_max_zoom(), 7)
+
+        # EUROPE, ASIA_TEMPERATE, NORTHERN AMERICA (Global)
+        dist = DistributionMap([1, 3, 7])
+        self.assertEqual(dist.get_max_zoom(), 1)
+
+        # africa
+        africa = 2
+        dist = DistributionMap([africa])
+        self.assertEqual(dist.get_max_zoom(), 2)
+
+    def test_replace_image(self):
+        rocas_alijos = 657
+        dist = DistributionMap([rocas_alijos])
+        start_map = dist.map
+        start_pb = dist.as_image().get_pixbuf()
+        self.assertIn(dist._image, dist._image_cache.values())
+        replace = (
+            '<svg width="100" height="100" xmlns="http://www.w3.org/2000/svg">'
+            '<path stroke="green" stroke-width="0.2" fill="green" d="M 0 0 L '
+            '0 100 L 100 100 L 100 0 Z"/></svg>'
+        )
+        dist.replace_image(replace)
+        self.assertEqual(replace, dist.map)
+        self.assertNotEqual(start_map, dist.map)
+        self.assertNotEqual(start_pb, dist.as_image().get_pixbuf())
+        self.assertNotIn(dist._image, dist._image_cache.values())
+
+    def test_zoom_to_level(self):
+        rocas_alijos = 657
+        dist = DistributionMap([rocas_alijos])
+        dist._zoom_map = "TEST {viewbox}"
+        dist.replace_image = mock.Mock()
+        dist.zoom_to_level(8.0)
+        dist.replace_image.assert_called_with("TEST -138.25 -36.203 45.0 22.5")
+
+    def test_detach_image(self):
+        rocas_alijos = 657
+        dist = DistributionMap([rocas_alijos])
+        # covers no image
+        dist.detach_image()
+        box = Gtk.Box()
+        box.add(dist.as_image())
+
+        self.assertEqual(dist._image.get_parent(), box)
+
+        dist.detach_image()
+
+        self.assertIsNone(dist._image.get_parent())
+
+
+class DistributionMapEventBoxTests(BaubleTestCase):
+    def test_update(self):
+        geo = Geography(
+            name="Lord Howe I.",
+            code="NFK-LH",
+            level=4,
+        )
+        self.session.add(geo)
+        self.session.commit()
+        map_ebox = DistributionMapEventBox()
+
+        self.assertIsNone(map_ebox.distribution_map)
+        self.assertEqual(len(map_ebox.get_children()), 0)
+
+        # No geojson
+        map_ebox.update(geo)
+
+        self.assertIsNone(map_ebox.distribution_map)
+        self.assertEqual(len(map_ebox.get_children()), 0)
+
+        geojson = {
+            "type": "Polygon",
+            "coordinates": [
+                [
+                    [159.07080078125, -31.599998474121094],
+                    [159.08578491210938, -31.561111450195312],
+                    [159.04913330078125, -31.52166748046875],
+                    [159.10189819335938, -31.57111358642578],
+                    [159.07080078125, -31.599998474121094],
+                ]
+            ],
+        }
+        geo.geojson = geojson
+        self.session.commit()
+        map_ebox.update(geo)
+
+        self.assertIsNotNone(map_ebox.distribution_map)
+        self.assertEqual(len(map_ebox.get_children()), 1)
+
+    def test_on_map_button_release(self):
+        btn = Gdk.EventButton()
+        btn.button = 1
+        map_ebox = DistributionMapEventBox()
+        map_ebox.zoomed = False
+        self.assertFalse(map_ebox.on_map_button_release(None, btn))
+
+        btn = Gdk.EventButton()
+        btn.button = 3
+        map_ebox = DistributionMapEventBox()
+        map_ebox.zoomed = False
+        path = (
+            "bauble.plugins.plants.ui.widgets.geography.Gtk.Menu."
+            "popup_at_pointer"
+        )
+        with mock.patch(path) as mock_popup:
+
+            self.assertTrue(map_ebox.on_map_button_release(map_ebox, btn))
+            mock_popup.assert_called()
+
+        map_action_name = DistributionMapEventBox.MAP_ACTION_NAME
+        grp = map_ebox.get_action_group(map_action_name)
+
+        self.assertTrue(grp.lookup_action("zoom"))
+        self.assertIsNone(grp.lookup_action("zmout"))
+
+        map_ebox.zoomed = True
+        with mock.patch(path) as mock_popup:
+
+            self.assertTrue(map_ebox.on_map_button_release(map_ebox, btn))
+            mock_popup.assert_called()
+
+        grp = map_ebox.get_action_group(map_action_name)
+
+        self.assertIsNone(grp.lookup_action("zoom"))
+        self.assertTrue(grp.lookup_action("zmout"))
+
+    @mock.patch(
+        "bauble.plugins.plants.ui.widgets.geography.Gtk.FileChooserNative"
+    )
+    def test_on_dist_map_save(self, mock_chooser):
+        geojson = {
+            "type": "Polygon",
+            "coordinates": [
+                [
+                    [159.07080078125, -31.599998474121094],
+                    [159.08578491210938, -31.561111450195312],
+                    [159.04913330078125, -31.52166748046875],
+                    [159.10189819335938, -31.57111358642578],
+                    [159.07080078125, -31.599998474121094],
+                ]
+            ],
+        }
+        geo = Geography(
+            name="Lord Howe I.",
+            code="NFK-LH",
+            level=4,
+            geojson=geojson,
+        )
+        self.session.add(geo)
+        self.session.commit()
+        map_ebox = DistributionMapEventBox()
+        map_ebox.update(geo)
+        # mock filechooser to CANCEL and check that get_filename is not
+        # called
+        mock_chooser.new().run.return_value = Gtk.ResponseType.CANCEL
+        map_ebox.on_dist_map_save(None, None)
+        mock_chooser.new().get_filename.assert_not_called()
+
+        handle, filename = mkstemp(suffix=".svg")
+        mock_chooser.new().run.return_value = Gtk.ResponseType.ACCEPT
+        mock_chooser.new().get_filename.return_value = filename
+        map_ebox.on_dist_map_save(None, None)
+        mock_chooser.new().get_filename.assert_called()
+        os.close(handle)
+        with open(filename, "r", encoding="utf-8") as f:
+            out = f.read()
+
+        svg_paths = (
+            '<path stroke="green" stroke-width="0.2" fill="green" d='
+            '"M 159.071 -31.6 L 159.086 -31.561 L 159.049 -31.522 L 159.102 '
+            '-31.571 Z"/>'
+        )
+        svg = DistributionMap._world.format(selected=svg_paths)
+        self.assertIn(svg_paths, svg)
+        self.assertEqual(out, svg)
+        # type guard
+        mock_chooser.reset_mock()
+        map_ebox.distribution_map = None
+        map_ebox.on_dist_map_save(None, None)
+        mock_chooser.new().get_filename.assert_not_called()
+
+    @mock.patch("bauble.plugins.plants.ui.widgets.geography.get_clipboard")
+    def test_on_dist_map_copy(self, mock_clipboard):
+        geojson = {
+            "type": "Polygon",
+            "coordinates": [
+                [
+                    [159.07080078125, -31.599998474121094],
+                    [159.08578491210938, -31.561111450195312],
+                    [159.04913330078125, -31.52166748046875],
+                    [159.10189819335938, -31.57111358642578],
+                    [159.07080078125, -31.599998474121094],
+                ]
+            ],
+        }
+        geo = Geography(
+            name="Lord Howe I.",
+            code="NFK-LH",
+            level=4,
+            geojson=geojson,
+        )
+        self.session.add(geo)
+        self.session.commit()
+        map_ebox = DistributionMapEventBox()
+        map_ebox.update(geo)
+
+        map_ebox.on_dist_map_copy(None, None)
+        mock_clipboard().set_image.assert_called_with(
+            DistributionMap(geo.get_geography_ids()).as_image().get_pixbuf()
+        )
+        mock_clipboard.reset_mock()
+        map_ebox.distribution_map = None
+        map_ebox.on_dist_map_copy(None, None)
+        mock_clipboard().set_image.assert_not_called()
+
+    def test_on_dist_map_zoom(self):
+        # type guard, doesn't fail because it bails early
+        map_ebox = DistributionMapEventBox()
+        map_ebox.distribution_map = None
+        self.assertIsNone(map_ebox.on_dist_map_zoom(None, None))
+        # zoom == 1
+        map_ebox.zoomed = False
+        map_ebox.distribution_map = mock.Mock()
+        map_ebox.distribution_map.get_max_zoom.return_value = 1
+        map_ebox.on_dist_map_zoom(None, None)
+        map_ebox.distribution_map.zoom_to_level.assert_not_called()
+        self.assertFalse(map_ebox.zoomed)
+        # zoom == 10
+        map_ebox.distribution_map.get_max_zoom.return_value = 10
+        map_ebox.on_dist_map_zoom(None, None)
+        map_ebox.distribution_map.zoom_to_level.assert_called_with(10)
+        self.assertTrue(map_ebox.zoomed)
+
+    def test_on_dist_map_zoom_out(self):
+        # type guard, doesn't fail because it bails early
+        map_ebox = DistributionMapEventBox()
+        map_ebox.distribution_map = None
+        self.assertIsNone(map_ebox.on_dist_map_zoom_out(None, None))
+        # zoom == 2
+        map_ebox.distribution_map = mock.Mock()
+        map_ebox.zoomed = True
+        map_ebox.zoom_level = 2
+        map_ebox.on_dist_map_zoom_out(None, None)
+        self.assertEqual(map_ebox.zoom_level, 1)
+        self.assertFalse(map_ebox.zoomed)
+        map_ebox.distribution_map.zoom_to_level.assert_called_with(1)
+        # zoom = 10
+        map_ebox.distribution_map = mock.Mock()
+        map_ebox.zoomed = True
+        map_ebox.zoom_level = 10
+        map_ebox.on_dist_map_zoom_out(None, None)
+        self.assertEqual(map_ebox.zoom_level, 8)
+        self.assertTrue(map_ebox.zoomed)
+        map_ebox.distribution_map.zoom_to_level.assert_called_with(8)
+
+
+class GeographyFuncTests(TestCase):
+    """Tests not requiring setup_geographies()"""
+
+    def test_split_lats_longs(self):
+        geojson1 = {
+            "type": "Polygon",
+            "coordinates": [
+                [
+                    [-115.7504425, 24.9516697],
+                    [-115.7500534, 24.9512501],
+                    [-115.7487793, 24.9524994],
+                    [-115.7500305, 24.9537201],
+                    [-115.7504196, 24.9533291],
+                    [-115.7504501, 24.9516697],
+                    [-115.7504425, 24.9516697],
+                ]
+            ],
+        }
+        geo1 = Geography(
+            name="Rocas Alijos",
+            code="MXI-RA",
+            level=4,
+            geojson=geojson1,
+        )
+        geojson2 = {
+            "type": "MultiPolygon",
+            "coordinates": [
+                [
+                    [
+                        [159.07080078125, -31.599998474121094],
+                        [159.08578491210938, -31.561111450195312],
+                        [159.04913330078125, -31.52166748046875],
+                        [159.10189819335938, -31.57111358642578],
+                        [159.07080078125, -31.599998474121094],
+                    ],
+                    [
+                        [139.07080078125, -21.599998474121094],
+                        [139.08578491210938, -21.561111450195312],
+                        [139.04913330078125, -21.52166748046875],
+                        [139.10189819335938, -21.57111358642578],
+                        [139.07080078125, -21.599998474121094],
+                    ],
+                ]
+            ],
+        }
+        geo2 = Geography(
+            name="Lord Howe I.",
+            code="NFK-LH",
+            level=4,
+            geojson=geojson2,
+        )
+
+        areas = [geo1, geo2]
+        longs, lats = split_lats_longs(areas)
+
+        longs_result = []
+        lats_result = []
+        for coord in geojson1["coordinates"][0]:
+            longs_result.append(coord[0])
+            lats_result.append(coord[1])
+        for poly in geojson2["coordinates"][0]:
+            for coord in poly:
+                longs_result.append(coord[0])
+                lats_result.append(coord[1])
+
+        self.assertCountEqual(longs, longs_result)
+        self.assertCountEqual(lats, lats_result)
+
+    def test_get_zoom_buffer(self):
+        self.assertEqual(calculate_zoom_buffer(1, -180, 180), 0)
+        self.assertEqual(calculate_zoom_buffer(1, -1, 1), 179)
+        self.assertEqual(calculate_zoom_buffer(1, -100, 100), 80)
+        self.assertEqual(calculate_zoom_buffer(1, -10, 10), 170)
+        self.assertEqual(calculate_zoom_buffer(2, -10, 10), 80)
+        self.assertEqual(calculate_zoom_buffer(5, -10, 10), 26)
+        self.assertEqual(calculate_zoom_buffer(5, 0, 72), 0)
+        # zoomed too far
+        self.assertRaises(ValueError, calculate_zoom_buffer, 6, 0, 72)
+
+    def test_straddles_antimeridian(self):
+        # doesn't stradle
+        self.assertFalse(
+            straddles_antimeridian([120, 0, -120], [120, 0, -120 + 360], 1)
+        )
+        self.assertFalse(
+            straddles_antimeridian([20, 0, -20], [20, 0, -20 + 360], 8)
+        )
+        self.assertFalse(straddles_antimeridian([91, -91], [91, -91 + 360], 1))
+        # africa
+        self.assertFalse(
+            straddles_antimeridian([60, 1, -17], [60, 0, -17 + 360], 1)
+        )
+        # zoomed it doesn't stradle, zoomed less it would be too far east
+        self.assertFalse(straddles_antimeridian([91, 150], [91, 150], 4))
+        # straddles
+        self.assertTrue(
+            straddles_antimeridian([120, -120], [120, -120 + 360], 1)
+        )
+        self.assertTrue(
+            straddles_antimeridian([120, 179, -120], [120, 179, -120 + 360], 1)
+        )
+        self.assertTrue(
+            straddles_antimeridian([178, -178], [178, -178 + 360], 1)
+        )
+        # too far West
+        self.assertTrue(
+            straddles_antimeridian([10, -179], [10, -179 + 360], 1)
+        )
+        self.assertTrue(
+            straddles_antimeridian([10, 12, -179], [10, 12, -179 + 360], 1)
+        )
+        self.assertTrue(
+            straddles_antimeridian(
+                [10, -10, -179], [10, -10 + 360, -179 + 360], 1
+            )
+        )
+        self.assertTrue(straddles_antimeridian([1, -180], [1, -180 + 360], 1))
+        self.assertTrue(
+            straddles_antimeridian([-91, -150], [-91 + 360, -150 + 360], 2)
+        )
+        # too far East
+        self.assertTrue(straddles_antimeridian([180, -1], [180, -1 + 360], 1))
+        self.assertTrue(
+            straddles_antimeridian([178, -10], [178, -10 + 360], 1)
+        )
+        self.assertTrue(straddles_antimeridian([91, 150], [91, 150], 2))
+        # raises - zoomed to far
+        self.assertRaises(
+            ValueError, straddles_antimeridian, [91, 150], [91, 150], 7
+        )
+
+    def test_get_viewbox(self):
+        self.assertEqual(
+            get_viewbox(-180, 180, -90, 90, 1), "-180.0 -90.0 360.0 180.0"
+        )
+        self.assertEqual(
+            get_viewbox(-100, 100, -50, 50, 2), "-90.0 -45.0 180.0 90.0"
+        )
+        # far north corrects y
+        self.assertEqual(
+            get_viewbox(-40, 40, 50, 80, 2), "-90.0 -90.0 180.0 90.0"
+        )
+        # far south corrects y
+        self.assertEqual(
+            get_viewbox(-40, 40, -50, -80, 2), "-90.0 0.0 180.0 90.0"
+        )
+        self.assertEqual(
+            get_viewbox(153.5433446, 138.0000446, -10.0513948, -29.1705948, 8),
+            "138.815 27.48 45.0 22.5",
+        )
+        self.assertEqual(
+            get_viewbox(-180, -10, 50, 90, 1), "-180.0 -90.0 360.0 180.0"
+        )
+        self.assertRaises(ValueError, get_viewbox, -180, -10, 50, 90, 2)
+
+
+class UpdateAllApproxAreaTests(BaubleTestCase):
+    def test_update_all_approx_areas_handler(self):
+        setup_geographies()
+        vals = {}
+        geos = self.session.scalars(select(Geography))
+
+        for geo in geos:
+            self.assertTrue(geo.approx_area)
+            vals[geo.id] = geo.approx_area
+            geo.geojson = None
+
+        # use core so listen_for is not trggered
+        with db.engine.begin() as connection:
+            table = Geography.__table__
+            stmt = update(table).values(approx_area=0.0)
+            connection.execute(stmt)
+
+        for geo in geos:
+            self.session.refresh(geo)
+            self.assertFalse(geo.approx_area)
+
+        update_all_approx_areas_handler()
+        # A fail here may indicated our default is incorrect
+        for geo in geos:
+            self.session.refresh(geo)
+            self.assertAlmostEqual(
+                geo.approx_area, vals[geo.id], delta=2, msg=geo
+            )
+
+        # use core so listen_for is not trggered
+        with db.engine.begin() as connection:
+            table = Geography.__table__
+            stmt = update(table).values(geojson=None)
+            connection.execute(stmt)
+
+        for geo in geos:
+            self.session.refresh(geo)
+            self.assertFalse(geo.geojson)
+            self.assertTrue(geo.approx_area)
+
+        update_all_approx_areas_handler()
+        for geo in geos:
+            self.session.refresh(geo)
+            self.assertEqual(geo.approx_area, 0.0)
+
+    @mock.patch("bauble.ui.dialogs.message_details_dialog")
+    def test_update_all_approx_areas_handler_exception(self, mock_dialog):
+        with mock.patch(
+            "bauble.plugins.plants.ui.widgets.geography.queue"
+        ) as que:
+            que.side_effect = Exception
+            update_all_approx_areas_handler()
+        mock_dialog.assert_called()
+
+    def test_update_all_approx_areas_task(self):
+        geo = Geography(
+            name="Lord Howe I.",
+            code="NFK-LH",
+            level=4,
+        )
+        self.session.add(geo)
+        self.session.commit()
+        self.assertTrue(list(update_all_approx_areas_task()))
 
 
 class FunctionTests(BaubleTestCase):

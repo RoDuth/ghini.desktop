@@ -54,12 +54,8 @@ from bauble.ui.views import View
 from .family import Familia
 from .family import Family
 from .genus import Genus
-from .geography import DistributionMap
 from .geography import Geography
-from .geography import GeographyInfoBox
-from .geography import geography_context_menu
 from .geography import get_species_in_geography
-from .geography import update_all_approx_areas_handler
 from .species import BinomialSearch
 from .species import Species
 from .species import SpeciesDistribution
@@ -77,10 +73,14 @@ from .ui.genus_editor import create_genus
 from .ui.genus_editor import edit_callback as genus_edit_callback
 from .ui.genus_view import GenusInfoBox
 from .ui.genus_view import genus_context_menu
+from .ui.geography_view import GeographyInfoBox
+from .ui.geography_view import geography_context_menu
 from .ui.species_editor import create_species
 from .ui.species_editor import edit_callback as species_edit_callback
 from .ui.species_view import species_context_menu
 from .ui.species_view import vernname_context_menu
+from .ui.widgets.geography import DistributionMap
+from .ui.widgets.geography import update_all_approx_areas_handler
 
 # imported by clients of the module
 __all__ = ["Familia", "SpeciesDistribution"]

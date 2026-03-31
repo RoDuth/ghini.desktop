@@ -64,7 +64,6 @@ from bauble import utils
 from bauble.i18n import _
 from bauble.ui import dialogs
 
-from .geography import DistributionMap
 from .geography import Geography
 from .model import Synonym
 from .model import Taxon
@@ -1212,10 +1211,10 @@ class Species(Taxon, db.WithNotes):
         setattr(self, self.infrasp_attr[level]["epithet"], epithet)
         setattr(self, self.infrasp_attr[level]["author"], author)
 
-    def distribution_map(self) -> DistributionMap | None:
+    def get_geography_ids(self) -> list[int] | None:
         if not self.distribution:
             return None
-        return DistributionMap([i.geography.id for i in self.distribution])
+        return [i.geography.id for i in self.distribution]
 
     @classmethod
     def top_level_count(
