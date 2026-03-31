@@ -61,56 +61,56 @@ class DatePickerBox(Gtk.Box):
     call ``init`` on instantiation. General you will want to use the entry
     widget for the value and connect to the ``changed`` signal. e.g.::
 
-    XML = '''<?xml version="1.0" encoding="UTF-8"?>
-    <interface>
-      <template class="Dialog" parent="GtkDialog">
-        <property name="default-width">300</property>
-        <property name="default-height">150</property>
-        <child internal-child="vbox">
-          <object class="GtkBox">
-            <property name="visible">True</property>
-            <property name="can-focus">False</property>
-            <property name="orientation">vertical</property>
-            <child>
-              <object class="DatePickerBox" id="date_picker">
+        XML = '''<?xml version="1.0" encoding="UTF-8"?>
+        <interface>
+          <template class="Dialog" parent="GtkDialog">
+            <property name="default-width">300</property>
+            <property name="default-height">150</property>
+            <child internal-child="vbox">
+              <object class="GtkBox">
                 <property name="visible">True</property>
-                <signal name="changed" handler="on_date_entry_changed"/>
+                <property name="can-focus">False</property>
+                <property name="orientation">vertical</property>
+                <child>
+                  <object class="DatePickerBox" id="date_picker">
+                    <property name="visible">True</property>
+                    <signal name="changed" handler="on_date_entry_changed"/>
+                  </object>
+                  <packing>
+                    <property name="expand">False</property>
+                    <property name="fill">False</property>
+                    <property name="position">0</property>
+                  </packing>
+                </child>
               </object>
-              <packing>
-                <property name="expand">False</property>
-                <property name="fill">False</property>
-                <property name="position">0</property>
-              </packing>
             </child>
-          </object>
-        </child>
-      </template>
-    </interface>
-    '''
+          </template>
+        </interface>
+        '''
 
-    @Gtk.Template(string=XML)
-    class Dialog(GenericPresenter, Gtk.Dialog):
+        @Gtk.Template(string=XML)
+        class Dialog(GenericPresenter, Gtk.Dialog):
 
-        __gtype_name__ = "Dialog"
+            __gtype_name__ = "Dialog"
 
-        date_picker = cast(DatePickerBox, Gtk.Template.Child())
+            datepicker = cast(DatePickerBox, Gtk.Template.Child())
 
-        on_date_changed = EntryHandler(
-            [Validator(validate_date, "invalid_date")],
-            lambda value, *_args: parse_str_date(value, as_date=True),
-        )
+            on_date_changed = EntryHandler(
+                [Validator(validate_date, "invalid_date")],
+                lambda value, *_args: parse_str_date(value, as_date=True),
+            )
 
-        def __init__(self, model) -> None:
-            super().__init__(model, self)
-            self.date_picker.init()
-            self.date_entry = self.date_picker.entry
-            self.widgets_to_model_map = {
-                self.date_entry: "date",
-            }
+            def __init__(self, model) -> None:
+                super().__init__(model, self)
+                self.datepicker.init()
+                self.date_entry = self.datepicker.entry
+                self.widgets_to_model_map = {
+                    self.date_entry: "date",
+                }
 
-        @Gtk.Template.Callback()
-        def on_date_entry_changed(self, date_picker: DatePickerBox) -> None:
-            self.on_date_changed(date_picker.entry)
+            @Gtk.Template.Callback()
+            def on_date_entry_changed(self, datepicker: DatePickerBox) -> None:
+                self.on_date_changed(datepicker.entry)
 
     """
 
