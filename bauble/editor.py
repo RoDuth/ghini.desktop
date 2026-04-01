@@ -20,9 +20,12 @@
 Description: a collection of functions and abstract classes for creating
 editors
 """
+import logging
+
+logger = logging.getLogger(__name__)
+
 import datetime
 import json
-import logging
 import os
 import re
 import threading
@@ -31,8 +34,6 @@ from collections.abc import Callable
 from pathlib import Path
 from typing import Self
 from typing import cast
-
-logger = logging.getLogger(__name__)
 
 import dateutil.parser as date_parser
 from gi.repository import GdkPixbuf
@@ -57,6 +58,7 @@ from bauble.ui import dialogs
 from bauble.ui.utils import ImageLoader
 from bauble.ui.utils import clear_model
 from bauble.ui.utils import combo_get_value_iter
+from bauble.ui.utils import format_combo_entry_text
 from bauble.ui.utils import get_widget_value
 from bauble.ui.utils import search_tree_model
 from bauble.ui.utils import set_widget_value
@@ -655,7 +657,7 @@ class GenericEditorView:
             completion.set_inline_selection(True)
             # completion.set_minimum_key_length(2)
 
-            combo.connect("format-entry-text", utils.format_combo_entry_text)
+            combo.connect("format-entry-text", format_combo_entry_text)
 
         if default is not None:
             treeiter = combo_get_value_iter(combo, default)

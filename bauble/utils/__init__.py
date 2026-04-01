@@ -44,6 +44,7 @@ from string import capwords
 from typing import Any
 from typing import Literal
 from typing import overload
+from warnings import deprecated
 from xml.sax import saxutils
 
 from gi.repository import Gtk
@@ -276,7 +277,7 @@ class BuilderWidgets(UserDict):
             parent.remove(widget)
 
 
-# Avoids: Gtk-CRITICAL: gtk_entry_set_text: assertion 'text != NULL'
+@deprecated("deprecated, use bauble.ui.utils.format_combo_entry_text instead")
 def format_combo_entry_text(combo, path):
     """Return text for a Gtk.Entry of a Gtk.ComboBox with model and entry where
     the model contains a list of objects that should be displayed as strings.

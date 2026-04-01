@@ -40,6 +40,7 @@ from bauble import prefs
 from bauble import search
 from bauble import utils
 from bauble.i18n import _
+from bauble.ui.utils import format_combo_entry_text
 from bauble.ui.utils import search_tree_model
 from bauble.ui.views import HistoryView
 from bauble.ui.views import HomeView
@@ -531,9 +532,7 @@ def init_location_comboentry(presenter, combo, on_select):
 
     presenter.view.connect(combo, "changed", on_combo_changed)
 
-    presenter.view.connect(
-        combo, "format-entry-text", utils.format_combo_entry_text
-    )
+    presenter.view.connect(combo, "format-entry-text", format_combo_entry_text)
 
 
 plugin = GardenPlugin

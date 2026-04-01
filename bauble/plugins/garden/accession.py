@@ -74,6 +74,7 @@ from bauble.error import check
 from bauble.i18n import _
 from bauble.ui import dialogs
 from bauble.ui.utils import clear_model
+from bauble.ui.utils import format_combo_entry_text
 from bauble.ui.utils import search_tree_model
 from bauble.ui.utils import set_widget_value
 from bauble.ui.views import Action
@@ -2592,9 +2593,7 @@ class SourcePresenter(editor.GenericEditorPresenter):
 
         self.view.connect(combo, "changed", self.on_source_combo_changed)
 
-        self.view.connect(
-            combo, "format-entry-text", utils.format_combo_entry_text
-        )
+        self.view.connect(combo, "format-entry-text", format_combo_entry_text)
 
     def on_source_entry_changed(self, entry):
         text = entry.get_text()
