@@ -20,3 +20,4 @@ coverage
 pytest
 sphinx
 pyinstaller
+types-pyinstaller
