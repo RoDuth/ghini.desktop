@@ -24,6 +24,7 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+import traceback
 from pathlib import Path
 from typing import cast
 
@@ -34,6 +35,8 @@ from sqlalchemy import select
 from sqlalchemy.sql import Select
 
 from bauble import utils
+from bauble.task import queue
+from bauble.ui import dialogs
 from bauble.ui.presenter import GenericPresenter
 from bauble.ui.utils import get_widget_value
 from bauble.ui.utils import set_widget_value
@@ -41,8 +44,23 @@ from bauble.ui.utils import set_widget_value
 from ...genus import Genus
 from ...species_model import Species
 from ...species_model import infrasp_rank_values
+from ...species_model import update_all_full_names_task
 
 parent = Path(__file__).resolve().parent
+
+
+def update_all_full_names_handler(*_args):
+    """Handler to update all the species full names."""
+
+    try:
+        queue(update_all_full_names_task())
+    except Exception as e:  # pylint: disable=broad-except
+        dialogs.message_details_dialog(
+            utils.xml_safe(str(e)),
+            traceback.format_exc(),
+            Gtk.MessageType.ERROR,
+        )
+        logger.debug(traceback.format_exc())
 
 
 def species_completions(text: str) -> Select:

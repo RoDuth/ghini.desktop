@@ -28,6 +28,7 @@ from unittest import mock
 from gi.repository import Gdk
 from gi.repository import Gtk
 from sqlalchemy import func
+from sqlalchemy import insert
 from sqlalchemy import select
 from sqlalchemy import update
 from sqlalchemy.orm.exc import DetachedInstanceError
@@ -74,6 +75,7 @@ from ..ui.widgets.species import species_cell_data_func
 from ..ui.widgets.species import species_completions
 from ..ui.widgets.species import species_match_func
 from ..ui.widgets.species import species_to_string_matcher
+from ..ui.widgets.species import update_all_full_names_handler
 from ..ui.widgets.synonyms import SynonymsPresenter
 from ..ui.widgets.synonyms import _syn_data_func
 from ..ui.widgets.synonyms import taxon_completion_cell_data_func
@@ -3213,3 +3215,34 @@ class FunctionTests(BaubleTestCase):
             "markup",
             "<i>Syzygium</i> <i>australe</i>  (<small>Myrtaceae</small>)",
         )
+
+    @mock.patch("bauble.ui.dialogs.message_details_dialog")
+    def test_update_all_full_names_handler(self, mock_dialog):
+        family = Family(family="Myrtaceae")
+        genus = Genus(family=family, genus="Syzygium")
+        self.session.add(genus)
+        self.session.commit()
+        # avoid listen_for
+        with db.engine.begin() as connection:
+            stmt = insert(Species.__table__).values(
+                genus_id=genus.id, sp="australe"
+            )
+            connection.execute(stmt)
+
+        species = self.session.scalar(
+            select(Species)
+            .where(Species.genus == genus)
+            .where(Species.epithet == "australe")
+        )
+        self.assertIsNone(species.full_name)
+        update_all_full_names_handler()
+
+        self.session.refresh(species)
+        self.assertEqual(species.full_name, "Syzygium australe")
+
+        with mock.patch(
+            "bauble.plugins.plants.ui.widgets.species.queue"
+        ) as mock_queue:
+            mock_queue.side_effect = Exception("BOOM")
+            update_all_full_names_handler()
+            mock_dialog.assert_called_once()

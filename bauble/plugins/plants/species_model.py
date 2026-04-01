@@ -62,7 +62,6 @@ from bauble import db
 from bauble import prefs
 from bauble import utils
 from bauble.i18n import _
-from bauble.ui import dialogs
 
 from .geography import Geography
 from .model import Synonym
@@ -1339,25 +1338,6 @@ def update_all_full_names_task():
             yield
     session.commit()
     session.close()
-
-
-def update_all_full_names_handler(*_args):
-    """Handler to update all the species full names."""
-    import traceback
-
-    from gi.repository import Gtk
-
-    from bauble.task import queue
-
-    try:
-        queue(update_all_full_names_task())
-    except Exception as e:  # pylint: disable=broad-except
-        dialogs.message_details_dialog(
-            utils.xml_safe(str(e)),
-            traceback.format_exc(),
-            Gtk.MessageType.ERROR,
-        )
-        logger.debug(traceback.format_exc())
 
 
 SpeciesNote = db.make_note_class("Species")

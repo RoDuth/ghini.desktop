@@ -79,7 +79,6 @@ from .species import get_binomial_completions
 from .species_model import SpeciesPicture
 from .species_model import _remove_zws as remove_zws
 from .species_model import markup_italics
-from .species_model import update_all_full_names_handler
 from .species_model import update_all_full_names_task
 
 family_test_data = (
@@ -2228,7 +2227,7 @@ class SpeciesTests(PlantTestCase):
 
     def test_adding_synonym_doesnt_add_sp_history_entry(self):
         # update all full names so listens_for doesn't make the a change
-        update_all_full_names_handler()
+        list(update_all_full_names_task())
         sp1 = self.session.query(Species).get(5)
         sp2 = self.session.query(Species).get(6)
         hist_start = self.session.query(db.History).count()
@@ -4957,12 +4956,12 @@ class SpeciesFullNameTests(PlantTestCase):
         end_count = hist_query.count()
         self.assertEqual(start_count, end_count)
 
-    def test_update_all_full_names_handler(self):
+    def test_update_all_full_names_task(self):
         hist_query = self.session.query(db.History.values).filter(
             db.History.table_name == "species"
         )
         start_count = hist_query.count()
-        update_all_full_names_handler()
+        list(update_all_full_names_task())
         sp_query = self.session.query(Species)
         for sp in sp_query:
             if sp.id in species_str_map:

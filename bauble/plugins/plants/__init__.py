@@ -21,13 +21,14 @@ plants plugin
 """
 
 import logging
+
+logger = logging.getLogger(__name__)
+
 import os
 from ast import literal_eval
 from functools import partial
 from pathlib import Path
 from threading import Thread
-
-logger = logging.getLogger(__name__)
 
 from gi.repository import Gio
 from gi.repository import GLib
@@ -62,7 +63,6 @@ from .species import SpeciesDistribution
 from .species import SynonymSearch
 from .species import VernacularName
 from .species import get_binomial_completions
-from .species_model import update_all_full_names_handler
 from .ui.family_editor import create_family
 from .ui.family_editor import edit_callback as family_edit_callback
 from .ui.family_view import FamilyInfoBox
@@ -81,6 +81,7 @@ from .ui.species_view import species_context_menu
 from .ui.species_view import vernname_context_menu
 from .ui.widgets.geography import DistributionMap
 from .ui.widgets.geography import update_all_approx_areas_handler
+from .ui.widgets.species import update_all_full_names_handler
 
 # imported by clients of the module
 __all__ = ["Familia", "SpeciesDistribution"]
