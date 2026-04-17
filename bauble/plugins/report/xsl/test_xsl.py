@@ -543,7 +543,7 @@ class GlobalFunctionsTests(XSLTestCase):
         os.remove(test_xml)
 
     def test_create_abcd_xml_plants_private_only_exlude_raises(self):
-        objs = [self.session.query(Accession).get(1)]
+        objs = [self.session.get(Accession, 1)]
         # plants
         with self.assertRaises(BaubleError):
             create_abcd_xml(
@@ -551,7 +551,7 @@ class GlobalFunctionsTests(XSLTestCase):
             )
 
     def test_create_abcd_xml_accessions_private_only_exclude_raises(self):
-        objs = [self.session.query(Accession).get(1)]
+        objs = [self.session.get(Accession, 1)]
         # test does not create xml
         with self.assertRaises(BaubleError):
             create_abcd_xml(
@@ -559,7 +559,7 @@ class GlobalFunctionsTests(XSLTestCase):
             )
 
     def test_create_abcd_xml_accessions_private_only_include_succeeds(self):
-        objs = [self.session.query(Accession).get(1)]
+        objs = [self.session.get(Accession, 1)]
         test_xml = create_abcd_xml(
             self.temp_path, ACCESSION_SOURCE_TYPE, True, True, objs
         )

@@ -128,7 +128,7 @@ class ReportTests(BaubleTestCase):
         self.session.commit()
 
     def test_no_objects_in_FamilyNote(self):
-        family = self.session.query(Family).get(1)
+        family = self.session.get(Family, 1)
         from bauble.plugins.plants.family import FamilyNote
 
         fn = FamilyNote(family=family, note="empty")
@@ -149,7 +149,7 @@ class ReportTests(BaubleTestCase):
         self.assertRaises(BaubleError, get_geographies_pertinent_to, fn)
 
     def test_get_species_pertinent_to_sessionless(self):
-        family = self.session.query(Family).get(1)
+        family = self.session.get(Family, 1)
         ids = get_ids(get_species_pertinent_to([family]))
         self.assertCountEqual(ids, list(range(1, 5)))
 
@@ -157,7 +157,7 @@ class ReportTests(BaubleTestCase):
         """
         Test getting the species from different types
         """
-        family = self.session.query(Family).get(1)
+        family = self.session.get(Family, 1)
         ids = get_ids(get_species_pertinent_to(family, self.session))
         self.assertCountEqual(ids, list(range(1, 5)))
 
@@ -165,42 +165,42 @@ class ReportTests(BaubleTestCase):
         """
         Test getting the species from different types
         """
-        family = self.session.query(Family).get(1)
+        family = self.session.get(Family, 1)
         ids = get_ids(get_species_pertinent_to([family], self.session))
         self.assertCountEqual(ids, list(range(1, 5)))
 
-        family = self.session.query(Family).get(1)
-        family2 = self.session.query(Family).get(2)
+        family = self.session.get(Family, 1)
+        family2 = self.session.get(Family, 2)
         ids = get_ids(
             get_species_pertinent_to([family, family2], self.session)
         )
         self.assertCountEqual(ids, list(range(1, 9)))
 
-        genus = self.session.query(Genus).get(1)
+        genus = self.session.get(Genus, 1)
         ids = get_ids(get_species_pertinent_to([genus], self.session))
         self.assertCountEqual(ids, [1, 2])
 
-        species = self.session.query(Species).get(1)
+        species = self.session.get(Species, 1)
         ids = get_ids(get_species_pertinent_to([species], self.session))
         self.assertCountEqual(ids, [1])
 
-        accession = self.session.query(Accession).get(1)
+        accession = self.session.get(Accession, 1)
         ids = get_ids(get_species_pertinent_to([accession], self.session))
         self.assertCountEqual(ids, [1])
 
-        contact = self.session.query(SourceDetail).get(1)
+        contact = self.session.get(SourceDetail, 1)
         ids = get_ids(get_species_pertinent_to(contact, self.session))
         self.assertCountEqual(ids, [1])
 
-        plant = self.session.query(Plant).get(1)
+        plant = self.session.get(Plant, 1)
         ids = get_ids(get_species_pertinent_to([plant], self.session))
         self.assertCountEqual(ids, [1])
 
-        location = self.session.query(Location).get(1)
+        location = self.session.get(Location, 1)
         ids = get_ids(get_species_pertinent_to([location], self.session))
         self.assertCountEqual(ids, [1])
 
-        vn = self.session.query(VernacularName).get(1)
+        vn = self.session.get(VernacularName, 1)
         ids = get_ids(get_species_pertinent_to([vn], self.session))
         self.assertCountEqual(ids, [1])
 
@@ -212,7 +212,7 @@ class ReportTests(BaubleTestCase):
         accession.source.collection = Collection(locale="down the road")
         self.session.add(accession)
         self.session.commit()
-        collection = self.session.query(Collection).get(1)
+        collection = self.session.get(Collection, 1)
         ids = get_ids(get_species_pertinent_to([collection], self.session))
         self.assertCountEqual(ids, [1])
 
@@ -253,42 +253,42 @@ class ReportTests(BaubleTestCase):
         """
         Test getting the accessions from different types
         """
-        family = self.session.query(Family).get(1)
+        family = self.session.get(Family, 1)
         ids = get_ids(get_accessions_pertinent_to([family], self.session))
         self.assertCountEqual(ids, list(range(1, 9)))
 
-        family = self.session.query(Family).get(1)
-        family2 = self.session.query(Family).get(1)
+        family = self.session.get(Family, 1)
+        family2 = self.session.get(Family, 1)
         ids = get_ids(
             get_accessions_pertinent_to([family, family2], self.session)
         )
         self.assertCountEqual(ids, list(range(1, 9)))
 
-        genus = self.session.query(Genus).get(1)
+        genus = self.session.get(Genus, 1)
         ids = get_ids(get_accessions_pertinent_to(genus, self.session))
         self.assertCountEqual(ids, list(range(1, 5)))
 
-        species = self.session.query(Species).get(1)
+        species = self.session.get(Species, 1)
         ids = get_ids(get_accessions_pertinent_to(species, self.session))
         self.assertCountEqual(ids, [1, 2])
 
-        accession = self.session.query(Accession).get(1)
+        accession = self.session.get(Accession, 1)
         ids = get_ids(get_accessions_pertinent_to([accession], self.session))
         self.assertCountEqual(ids, [1])
 
-        contact = self.session.query(SourceDetail).get(1)
+        contact = self.session.get(SourceDetail, 1)
         ids = get_ids(get_accessions_pertinent_to(contact, self.session))
         self.assertTrue(ids == [1], ids)
 
-        plant = self.session.query(Plant).get(1)
+        plant = self.session.get(Plant, 1)
         ids = get_ids(get_accessions_pertinent_to([plant], self.session))
         self.assertCountEqual(ids, [1])
 
-        location = self.session.query(Location).get(1)
+        location = self.session.get(Location, 1)
         ids = get_ids(get_accessions_pertinent_to([location], self.session))
         self.assertCountEqual(ids, [1])
 
-        vn = self.session.query(VernacularName).get(1)
+        vn = self.session.get(VernacularName, 1)
         ids = get_ids(get_accessions_pertinent_to([vn], self.session))
         self.assertCountEqual(ids, [1, 2])
 
@@ -300,7 +300,7 @@ class ReportTests(BaubleTestCase):
         accession.source.collection = Collection(locale="down the road")
         self.session.add(accession)
         self.session.commit()
-        collection = self.session.query(Collection).get(1)
+        collection = self.session.get(Collection, 1)
         ids = get_ids(get_accessions_pertinent_to([collection], self.session))
         self.assertCountEqual(ids, [1])
 
@@ -334,42 +334,42 @@ class ReportTests(BaubleTestCase):
         Test getting the plants from different types
         """
         # get plants from one family
-        family = self.session.query(Family).get(1)
+        family = self.session.get(Family, 1)
         ids = get_ids(get_plants_pertinent_to(family, self.session))
         self.assertCountEqual(ids, list(range(1, 17)))
 
         # get plants from multiple families
-        family = self.session.query(Family).get(1)
-        family2 = self.session.query(Family).get(2)
+        family = self.session.get(Family, 1)
+        family2 = self.session.get(Family, 2)
         ids = get_ids(get_plants_pertinent_to([family, family2], self.session))
         self.assertCountEqual(ids, list(range(1, 33)))
 
-        genus = self.session.query(Genus).get(1)
+        genus = self.session.get(Genus, 1)
         ids = get_ids(get_plants_pertinent_to(genus, self.session))
         self.assertCountEqual(ids, list(range(1, 9)))
 
-        species = self.session.query(Species).get(1)
+        species = self.session.get(Species, 1)
         ids = get_ids(get_plants_pertinent_to(species, self.session))
         self.assertCountEqual(ids, list(range(1, 5)))
 
-        accession = self.session.query(Accession).get(1)
+        accession = self.session.get(Accession, 1)
         ids = get_ids(get_plants_pertinent_to(accession, self.session))
         self.assertCountEqual(ids, list(range(1, 3)))
 
-        contact = self.session.query(SourceDetail).get(1)
+        contact = self.session.get(SourceDetail, 1)
         ids = get_ids(get_plants_pertinent_to(contact, self.session))
         self.assertTrue(ids == list(range(1, 3)), ids)
 
-        plant = self.session.query(Plant).get(1)
+        plant = self.session.get(Plant, 1)
         ids = get_ids(get_plants_pertinent_to(plant, self.session))
         self.assertCountEqual(ids, [1])
 
-        location = self.session.query(Location).get(1)
+        location = self.session.get(Location, 1)
         plants = get_plants_pertinent_to([location], self.session)
         ids = sorted([p.id for p in plants])
         self.assertCountEqual(ids, [1])
 
-        vn = self.session.query(VernacularName).get(1)
+        vn = self.session.get(VernacularName, 1)
         ids = get_ids(get_plants_pertinent_to(vn, self.session))
         self.assertCountEqual(ids, list(range(1, 5)))
 
@@ -387,7 +387,7 @@ class ReportTests(BaubleTestCase):
         accession.source.collection = Collection(locale="down the road")
         self.session.add(accession)
         self.session.commit()
-        collection = self.session.query(Collection).get(1)
+        collection = self.session.get(Collection, 1)
         ids = get_ids(get_plants_pertinent_to([collection], self.session))
         self.assertCountEqual(ids, list(range(1, 3)))
 
@@ -429,43 +429,43 @@ class ReportTests(BaubleTestCase):
         Test getting the locations from different types
         """
         # get locations from one family
-        family = self.session.query(Family).get(1)
+        family = self.session.get(Family, 1)
         ids = get_ids(get_locations_pertinent_to(family, self.session))
         self.assertCountEqual(ids, list(range(1, 17)))
 
         # get locations from multiple families
-        family = self.session.query(Family).get(1)
-        family2 = self.session.query(Family).get(2)
+        family = self.session.get(Family, 1)
+        family2 = self.session.get(Family, 2)
         ids = get_ids(
             get_locations_pertinent_to([family, family2], self.session)
         )
         self.assertCountEqual(ids, list(range(1, 33)))
 
-        genus = self.session.query(Genus).get(1)
+        genus = self.session.get(Genus, 1)
         ids = get_ids(get_locations_pertinent_to(genus, self.session))
         self.assertCountEqual(ids, list(range(1, 9)))
 
-        species = self.session.query(Species).get(1)
+        species = self.session.get(Species, 1)
         ids = get_ids(get_locations_pertinent_to(species, self.session))
         self.assertCountEqual(ids, list(range(1, 5)))
 
-        vn = self.session.query(VernacularName).get(1)
+        vn = self.session.get(VernacularName, 1)
         ids = get_ids(get_locations_pertinent_to(vn, self.session))
         self.assertCountEqual(ids, list(range(1, 5)))
 
-        plant = self.session.query(Plant).get(1)
+        plant = self.session.get(Plant, 1)
         ids = get_ids(get_locations_pertinent_to(plant, self.session))
         self.assertCountEqual(ids, [1])
 
-        accession = self.session.query(Accession).get(1)
+        accession = self.session.get(Accession, 1)
         ids = get_ids(get_locations_pertinent_to(accession, self.session))
         self.assertCountEqual(ids, list(range(1, 3)))
 
-        contact = self.session.query(SourceDetail).get(1)
+        contact = self.session.get(SourceDetail, 1)
         ids = get_ids(get_locations_pertinent_to(contact, self.session))
         self.assertTrue(ids == list(range(1, 3)))
 
-        location = self.session.query(Location).get(1)
+        location = self.session.get(Location, 1)
         locations = get_locations_pertinent_to([location], self.session)
         ids = [l.id for l in locations]
         self.assertCountEqual(ids, [1])
@@ -478,7 +478,7 @@ class ReportTests(BaubleTestCase):
         accession.source.collection = Collection(locale="down the road")
         self.session.add(accession)
         self.session.commit()
-        collection = self.session.query(Collection).get(1)
+        collection = self.session.get(Collection, 1)
         ids = get_ids(get_locations_pertinent_to([collection], self.session))
         self.assertCountEqual(ids, list(range(1, 3)))
 
@@ -507,17 +507,17 @@ class ReportTests(BaubleTestCase):
         setup_geographies()
         self.assertTrue(len(self.session.query(Geography).all()) > 700)
 
-        geo1 = self.session.query(Geography).get(330)
-        geo2 = self.session.query(Geography).get(694)
+        geo1 = self.session.get(Geography, 330)
+        geo2 = self.session.get(Geography, 694)
 
-        acc1 = self.session.query(Accession).get(1)
+        acc1 = self.session.get(Accession, 1)
         acc1.source.collection = Collection(locale="down the road")
         acc1.source.collection.region = geo1
         self.assertIsNotNone(acc1.source.collection)
         self.session.add(acc1)
         self.session.commit()
 
-        sp1 = self.session.query(Species).get(1)
+        sp1 = self.session.get(Species, 1)
         sp1_dist = SpeciesDistribution(species=sp1, geography=geo2)
         self.session.add(sp1_dist)
         self.session.commit()
@@ -528,43 +528,43 @@ class ReportTests(BaubleTestCase):
         self.assertCountEqual(ids, [694, 330])
 
         # get geographies from one family
-        family = self.session.query(Family).get(1)
+        family = self.session.get(Family, 1)
         ids = get_ids(get_geographies_pertinent_to(family, self.session))
         self.assertCountEqual(ids, [694])
 
         # get locations from multiple families
-        family = self.session.query(Family).get(1)
-        family2 = self.session.query(Family).get(2)
+        family = self.session.get(Family, 1)
+        family2 = self.session.get(Family, 2)
         ids = get_ids(
             get_geographies_pertinent_to([family, family2], self.session)
         )
         self.assertCountEqual(ids, [694])
 
-        genus = self.session.query(Genus).get(1)
+        genus = self.session.get(Genus, 1)
         ids = get_ids(get_geographies_pertinent_to(genus, self.session))
         self.assertCountEqual(ids, [694])
 
-        species = self.session.query(Species).get(1)
+        species = self.session.get(Species, 1)
         ids = get_ids(get_geographies_pertinent_to(species, self.session))
         self.assertCountEqual(ids, [694])
 
-        vn = self.session.query(VernacularName).get(1)
+        vn = self.session.get(VernacularName, 1)
         ids = get_ids(get_geographies_pertinent_to(vn, self.session))
         self.assertCountEqual(ids, [694])
 
-        plant = self.session.query(Plant).get(1)
+        plant = self.session.get(Plant, 1)
         ids = get_ids(get_geographies_pertinent_to(plant, self.session))
         self.assertCountEqual(ids, [694])
 
-        accession = self.session.query(Accession).get(1)
+        accession = self.session.get(Accession, 1)
         ids = get_ids(get_geographies_pertinent_to(accession, self.session))
         self.assertCountEqual(ids, [330])
 
-        contact = self.session.query(SourceDetail).get(1)
+        contact = self.session.get(SourceDetail, 1)
         ids = get_ids(get_geographies_pertinent_to(contact, self.session))
         self.assertCountEqual(ids, [694])
 
-        location = self.session.query(Location).get(1)
+        location = self.session.get(Location, 1)
         ids = get_ids(get_geographies_pertinent_to([location], self.session))
         self.assertCountEqual(ids, [694])
 
@@ -574,7 +574,7 @@ class ReportTests(BaubleTestCase):
         self.assertCountEqual(ids, [694])
 
         accession.source.collection = Collection(locale="down the road")
-        collection = self.session.query(Collection).get(1)
+        collection = self.session.get(Collection, 1)
         ids = get_ids(get_geographies_pertinent_to([collection], self.session))
         self.assertCountEqual(ids, [330])
 
@@ -601,17 +601,17 @@ class ReportTests(BaubleTestCase):
         setup_geographies()
         self.assertTrue(len(self.session.query(Geography).all()) > 700)
 
-        geo1 = self.session.query(Geography).get(330)
-        geo2 = self.session.query(Geography).get(694)
+        geo1 = self.session.get(Geography, 330)
+        geo2 = self.session.get(Geography, 694)
 
-        acc1 = self.session.query(Accession).get(1)
+        acc1 = self.session.get(Accession, 1)
         acc1.source.collection = Collection(locale="down the road")
         acc1.source.collection.region = geo1
         self.assertIsNotNone(acc1.source.collection)
         self.session.add(acc1)
         self.session.commit()
 
-        sp1 = self.session.query(Species).get(1)
+        sp1 = self.session.get(Species, 1)
         sp1_dist = SpeciesDistribution(species=sp1, geography=geo2)
         self.session.add(sp1_dist)
         self.session.commit()

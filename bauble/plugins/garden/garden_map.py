@@ -939,7 +939,7 @@ class SearchViewMapPresenter:
         search_view = get_search_view()
 
         session = search_view.session
-        plant = session.query(Plant).get(id_)
+        plant = session.get(Plant, id_)
         model = search_view.results_view.get_model()
 
         if not model or plant is None:

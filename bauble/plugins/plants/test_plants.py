@@ -776,7 +776,7 @@ class FamilyTests(PlantTestCase):
 
         # test that deleting the previous synonyms didn't delete the
         # family that it refered to
-        self.assertTrue(self.session.query(Family).get(family.id))
+        self.assertTrue(self.session.get(Family, family.id))
 
         # test that deleting a family that has synonyms deletes all
         # the synonyms that refer to that family deletes all the
@@ -916,7 +916,7 @@ class FamilyTests(PlantTestCase):
         self.assertEqual(fam.pictures, [])
 
     def test_active_no_genera(self):
-        fam = self.session.query(Family).get(12)
+        fam = self.session.get(Family, 12)
         self.assertFalse(fam.active)
         # test the hybrid_property expression
         # pylint: disable=no-member  # is_
@@ -926,7 +926,7 @@ class FamilyTests(PlantTestCase):
         self.assertNotIn(fam, fam_active_in_db)
 
     def test_active_no_species(self):
-        fam = self.session.query(Family).get(8)
+        fam = self.session.get(Family, 8)
         self.assertFalse(fam.active)
         # test the hybrid_property expression
         # pylint: disable=no-member  # is_
@@ -936,7 +936,7 @@ class FamilyTests(PlantTestCase):
         self.assertNotIn(fam, fam_active_in_db)
 
     def test_active_no_accession(self):
-        fam = self.session.query(Family).get(1)
+        fam = self.session.get(Family, 1)
         # check this is a family with no accession
         self.assertEqual(
             len(
@@ -960,7 +960,7 @@ class FamilyTests(PlantTestCase):
     def test_active_no_plants(self):
         from ..garden import Accession
 
-        sp = self.session.query(Species).get(26)
+        sp = self.session.get(Species, 26)
         fam = sp.genus.family
         # check this is a family with no plants
         self.assertEqual(
@@ -991,7 +991,7 @@ class FamilyTests(PlantTestCase):
         from ..garden import Accession
         from ..garden import Location
 
-        sp = self.session.query(Species).get(26)
+        sp = self.session.get(Species, 26)
         acc = Accession(code="foo", species=sp)
         plt = Plant(
             code="1", accession=acc, quantity=1, location=Location(code="bar")
@@ -1012,7 +1012,7 @@ class FamilyTests(PlantTestCase):
         from ..garden import Accession
         from ..garden import Location
 
-        sp = self.session.query(Species).get(26)
+        sp = self.session.get(Species, 26)
         fam = sp.genus.family
         self.assertEqual(
             len(
@@ -1210,7 +1210,7 @@ class FamilyTopLevelCountTests(BaubleTestCase):
 
     def test_top_level_count_wo_species_in_genera(self):
 
-        gen = self.session.query(Genus).get(14)
+        gen = self.session.get(Genus, 14)
         for sp in gen.species:
             self.session.delete(sp)
         self.session.commit()
@@ -1230,7 +1230,7 @@ class FamilyTopLevelCountTests(BaubleTestCase):
 
     def test_top_level_count_wo_species_in_genera_exclude_inactive_set(self):
 
-        gen = self.session.query(Genus).get(14)
+        gen = self.session.get(Genus, 14)
         for sp in gen.species:
             self.session.delete(sp)
         self.session.commit()
@@ -1249,9 +1249,9 @@ class FamilyTopLevelCountTests(BaubleTestCase):
         self.assertEqual(str(Family.top_level_count([1, 2], True)), expected)
 
     def test_top_level_count_wo_plant_qty(self):
-        plt = self.session.query(Plant).get(1)
+        plt = self.session.get(Plant, 1)
         self.session.delete(plt)
-        plt = self.session.query(Plant).get(2)
+        plt = self.session.get(Plant, 2)
         plt.quantity = 0
         self.session.commit()
 
@@ -1269,9 +1269,9 @@ class FamilyTopLevelCountTests(BaubleTestCase):
         self.assertEqual(str(Family.top_level_count([1, 2])), expected)
 
     def test_top_level_count_wo_plant_qty_exclude_inactive_set(self):
-        plt = self.session.query(Plant).get(1)
+        plt = self.session.get(Plant, 1)
         self.session.delete(plt)
-        plt = self.session.query(Plant).get(2)
+        plt = self.session.get(Plant, 2)
         plt.quantity = 0
         self.session.commit()
 
@@ -1335,7 +1335,7 @@ class GenusTests(PlantTestCase):
 
         # test that deleting the previous synonyms didn't delete the
         # genus that it refered to
-        self.assertTrue(self.session.query(Genus).get(genus.id))
+        self.assertTrue(self.session.get(Genus, genus.id))
 
         # test that deleting a genus that has synonyms deletes all
         # the synonyms that refer to that genus
@@ -1375,7 +1375,7 @@ class GenusTests(PlantTestCase):
 
     def test_string(self):
         for gid, expected in genus_str_map.items():
-            gen = self.session.query(Genus).get(gid)
+            gen = self.session.get(Genus, gid)
 
             self.assertEqual(str(gen), expected)
 
@@ -1384,7 +1384,7 @@ class GenusTests(PlantTestCase):
             )
 
         for gid, expected in genus_str_author_map.items():
-            gen = self.session.query(Genus).get(gid)
+            gen = self.session.get(Genus, gid)
 
             self.assertEqual(gen.string(author=True), expected)
 
@@ -1535,8 +1535,8 @@ class GenusTests(PlantTestCase):
         from ..garden import Accession
         from ..garden import Location
 
-        gen = self.session.query(Genus).get(1)
-        sp1 = self.session.query(Species).get(22)
+        gen = self.session.get(Genus, 1)
+        sp1 = self.session.get(Species, 22)
         acc = Accession(species=sp1, code="1")
         plt = Plant(
             accession=acc,
@@ -1569,7 +1569,7 @@ class GenusTests(PlantTestCase):
         self.assertFalse(gen.has_children())
 
     def test_active_no_species(self):
-        gen = self.session.query(Genus).get(11)
+        gen = self.session.get(Genus, 11)
         # check genus has no species
         self.assertEqual(len(gen.species), 0)
         self.assertFalse(gen.active)
@@ -1581,7 +1581,7 @@ class GenusTests(PlantTestCase):
         self.assertNotIn(gen, fam_active_in_db)
 
     def test_active_no_accession(self):
-        gen = self.session.query(Genus).get(9)
+        gen = self.session.get(Genus, 9)
         # check this is a family with no accession
         self.assertEqual(
             len([acc for sp in gen.species for acc in sp.accessions]),
@@ -1598,7 +1598,7 @@ class GenusTests(PlantTestCase):
     def test_active_no_plants(self):
         from ..garden import Accession
 
-        sp = self.session.query(Species).get(26)
+        sp = self.session.get(Species, 26)
         gen = sp.genus
         # check this is a family with no plants
         self.assertEqual(
@@ -1628,7 +1628,7 @@ class GenusTests(PlantTestCase):
         from ..garden import Accession
         from ..garden import Location
 
-        sp = self.session.query(Species).get(26)
+        sp = self.session.get(Species, 26)
         acc = Accession(code="foo", species=sp)
         plt = Plant(
             code="1", accession=acc, quantity=1, location=Location(code="bar")
@@ -1649,7 +1649,7 @@ class GenusTests(PlantTestCase):
         from ..garden import Accession
         from ..garden import Location
 
-        sp = self.session.query(Species).get(26)
+        sp = self.session.get(Species, 26)
         gen = sp.genus
         acc = Accession(code="foo", species=sp)
         plt = Plant(
@@ -1782,9 +1782,9 @@ class GenusTopLevelCountTests(BaubleTestCase):
         self.assertEqual(str(Genus.top_level_count([1, gen.id])), expected)
 
     def test_top_level_count_wo_plant_qty(self):
-        plt = self.session.query(Plant).get(1)
+        plt = self.session.get(Plant, 1)
         self.session.delete(plt)
-        plt = self.session.query(Plant).get(2)
+        plt = self.session.get(Plant, 2)
         plt.quantity = 0
         self.session.commit()
 
@@ -1802,9 +1802,9 @@ class GenusTopLevelCountTests(BaubleTestCase):
         self.assertEqual(str(Genus.top_level_count([1, 3])), expected)
 
     def test_top_level_count_wo_plant_qty_exclude_inactive_set(self):
-        plt = self.session.query(Plant).get(1)
+        plt = self.session.get(Plant, 1)
         self.session.delete(plt)
-        plt = self.session.query(Plant).get(2)
+        plt = self.session.get(Plant, 2)
         plt.quantity = 0
         self.session.commit()
 
@@ -1954,10 +1954,10 @@ class SpeciesTests(PlantTestCase):
         """
 
         def get_sp_str(id, **kwargs):
-            return self.session.query(Species).get(id).string(**kwargs)
+            return self.session.get(Species, id).string(**kwargs)
 
         for sid, expect in species_str_map.items():
-            sp = self.session.query(Species).get(sid)
+            sp = self.session.get(Species, sid)
             printable_name = remove_zws("%s" % sp)
             self.assertEqual(species_str_map[sid], printable_name)
             spstr = get_sp_str(sid)
@@ -1989,7 +1989,7 @@ class SpeciesTests(PlantTestCase):
 
     def test_lexicographic_order__unspecified_precedes_specified(self):
         def get_sp_str(id, **kwargs):
-            return self.session.query(Species).get(id).string(**kwargs)
+            return self.session.get(Species, id).string(**kwargs)
 
         self.assertTrue(get_sp_str(1) > get_sp_str(22))
         self.assertTrue(get_sp_str(1) > get_sp_str(23))
@@ -2114,9 +2114,9 @@ class SpeciesTests(PlantTestCase):
         self.assertEqual(sp.default_vernacular_name.language, "Lang")
 
     def test_accepted_low_level(self):
-        sp1 = self.session.query(Species).get(2)
-        sp2 = self.session.query(Species).get(3)
-        sp3 = self.session.query(Species).get(4)
+        sp1 = self.session.get(Species, 2)
+        sp2 = self.session.get(Species, 3)
+        sp3 = self.session.get(Species, 4)
         sp1.accepted = sp2
         self.session.commit()
         self.assertEqual(sp1.accepted, sp2)
@@ -2140,7 +2140,7 @@ class SpeciesTests(PlantTestCase):
         """
         Test the Species.synonyms property
         """
-        load_sp = lambda id: self.session.query(Species).get(id)
+        load_sp = lambda id: self.session.get(Species, id)
 
         def syn_str(id1, id2, isit="not"):
             sp1 = load_sp(id1)
@@ -2213,11 +2213,11 @@ class SpeciesTests(PlantTestCase):
         self.session.commit()
         assert sp2 not in sp1.synonyms
         # but doesn't delete the species it referes to.
-        self.assertTrue(self.session.query(Species).get(sp1.id))
+        self.assertTrue(self.session.get(Species, sp1.id))
 
         # test that deleting a species that has synonyms deletes all
         # the synonyms that refer to that species
-        sp3 = Species(genus=self.session.query(Genus).get(1), epithet="three")
+        sp3 = Species(genus=self.session.get(Genus, 1), epithet="three")
         self.session.add(sp3)
         sp1.synonyms.append(sp3)
         self.session.commit()
@@ -2228,8 +2228,8 @@ class SpeciesTests(PlantTestCase):
     def test_adding_synonym_doesnt_add_sp_history_entry(self):
         # update all full names so listens_for doesn't make the a change
         list(update_all_full_names_task())
-        sp1 = self.session.query(Species).get(5)
-        sp2 = self.session.query(Species).get(6)
+        sp1 = self.session.get(Species, 5)
+        sp2 = self.session.get(Species, 6)
         hist_start = self.session.query(db.History).count()
         # this should not update the species
         sp1.synonyms.append(sp2)
@@ -2497,7 +2497,7 @@ class SpeciesTests(PlantTestCase):
             "test",
             None,
         )
-        sp = self.session.query(Species).get(1)
+        sp = self.session.get(Species, 1)
         self.assertEqual(
             sp.__table__.c["_sp_custom1"].type.values,
             ("extinct", "vulnerable", None),
@@ -2516,7 +2516,7 @@ class SpeciesTests(PlantTestCase):
         self.session.close()
         db.open_conn(db.engine.url)
         self.session = db.Session()
-        sp = self.session.query(Species).get(1)
+        sp = self.session.get(Species, 1)
 
         self.assertEqual(sp.nca_status, "vulnerable")
         # can't set value when not in values
@@ -2551,7 +2551,7 @@ class SpeciesTests(PlantTestCase):
 
     def test_family_name_hybrid_property(self):
         # property
-        sp = self.session.query(Species).get(1)
+        sp = self.session.get(Species, 1)
         self.assertEqual(sp.family_name, "Orchidaceae")
         # expression
         palms = self.session.query(Species.id).filter(
@@ -2561,11 +2561,11 @@ class SpeciesTests(PlantTestCase):
         self.assertCountEqual(palm_ids, [26])
 
     def test_pictures_property_wo_pics(self):
-        sp = self.session.query(Species).get(1)
+        sp = self.session.get(Species, 1)
         self.assertEqual(sp.pictures, [])
 
     def test_pictures_property_w_pics(self):
-        sp = self.session.query(Species).get(1)
+        sp = self.session.get(Species, 1)
         pic1 = SpeciesPicture(picture="test1.jpg")
         sp._pictures.append(pic1)
         self.assertEqual(sp.pictures, [pic1])
@@ -2827,9 +2827,9 @@ class SpeciesTopLevelCountTests(BaubleTestCase):
         self.assertEqual(str(Species.top_level_count([1, 3])), expected)
 
     def test_top_level_count_wo_plant_qty(self):
-        plt = self.session.query(Plant).get(1)
+        plt = self.session.get(Plant, 1)
         self.session.delete(plt)
-        plt = self.session.query(Plant).get(2)
+        plt = self.session.get(Plant, 2)
         plt.quantity = 0
         self.session.commit()
 
@@ -2847,9 +2847,9 @@ class SpeciesTopLevelCountTests(BaubleTestCase):
         self.assertEqual(str(Species.top_level_count([1, 3])), expected)
 
     def test_top_level_count_wo_plant_qty_exclude_inactive_set(self):
-        plt = self.session.query(Plant).get(1)
+        plt = self.session.get(Plant, 1)
         self.session.delete(plt)
-        plt = self.session.query(Plant).get(2)
+        plt = self.session.get(Plant, 2)
         plt.quantity = 0
         self.session.commit()
 
@@ -2867,7 +2867,7 @@ class SpeciesTopLevelCountTests(BaubleTestCase):
         self.assertEqual(str(Species.top_level_count([1, 3], True)), expected)
 
     def test_top_level_count_sp_wo_plant_qty_exclude_inactive_set(self):
-        plt = self.session.query(Plant).get(1)
+        plt = self.session.get(Plant, 1)
         for acc in plt.accession.species.accessions:
 
             if not acc.plants:
@@ -3415,26 +3415,24 @@ class GeographyTests(BaubleClassTestCase):
         self.session.add_all([sp3, dist])
         self.session.commit()
 
-        oaxaca = self.session.query(Geography).get(oaxaca_id)
+        oaxaca = self.session.get(Geography, oaxaca_id)
         species = get_species_in_geography(oaxaca)
         self.assertTrue([s.id for s in species] == [sp2.id])
 
-        mexico = self.session.query(Geography).get(mexico_id)
+        mexico = self.session.get(Geography, mexico_id)
         species = get_species_in_geography(mexico)
         self.assertTrue([s.id for s in species] == [sp1.id, sp2.id])
 
-        north_america = self.session.query(Geography).get(northern_america_id)
+        north_america = self.session.get(Geography, northern_america_id)
         species = get_species_in_geography(north_america)
         self.assertTrue([s.id for s in species] == [sp1.id, sp2.id, sp3.id])
 
         # recorded in parent should show in children
-        british_columbia = self.session.query(Geography).get(
-            british_columbia_id
-        )
+        british_columbia = self.session.get(Geography, british_columbia_id)
         species = get_species_in_geography(british_columbia)
         self.assertTrue([s.id for s in species] == [sp3.id])
 
-        puebla = self.session.query(Geography).get(puebla_id)
+        puebla = self.session.get(Geography, puebla_id)
         species = get_species_in_geography(puebla)
         self.assertTrue([s.id for s in species] == [sp1.id])
 
@@ -3457,7 +3455,7 @@ class GeographyTests(BaubleClassTestCase):
         )
 
     def test_get_children_id_get_parent_id(self):
-        australia = self.session.query(Geography).get(38)
+        australia = self.session.get(Geography, 38)
         self.assertCountEqual(
             australia.get_children_ids(),
             [
@@ -3479,7 +3477,7 @@ class GeographyTests(BaubleClassTestCase):
                 286,
             ],
         )
-        lord_howe = self.session.query(Geography).get(682)
+        lord_howe = self.session.get(Geography, 682)
         self.assertCountEqual(lord_howe.get_parent_ids(), [286, 38, 5])
 
     def test_consolidate_geographies(self):
@@ -3517,7 +3515,7 @@ class GeographyTests(BaubleClassTestCase):
             .filter(Geography.parent_id.in_(lv3s))
             .filter(Geography.level == 4)
         )
-        result = [self.session.query(Geography).get(58)]
+        result = [self.session.get(Geography, 58)]
         self.assertCountEqual(result, consolidate_geographies(lv4))
         # a combination that ends up in AUSTALIASIA + Paupua New Guinea
         ids = (39, 688, 689, 286, 297, 330, 359, 378, 407, 414, 691)
@@ -3531,7 +3529,7 @@ class GeographyTests(BaubleClassTestCase):
         # AUSTRALASIA and Lord Howe I. should remove Lord Howe
         ids = (5, 682)
         geos = self.session.query(Geography).filter(Geography.id.in_(ids))
-        result = [self.session.query(Geography).get(5)]
+        result = [self.session.get(Geography, 5)]
         self.assertCountEqual(result, consolidate_geographies(geos))
 
     def test_approx_area(self):
@@ -3587,7 +3585,7 @@ class GeographyTests(BaubleClassTestCase):
             .filter(Geography.level == 4)
         )
         # with allowable_children = 2 gets brazil
-        result = [self.session.query(Geography).get(58)]
+        result = [self.session.get(Geography, 58)]
         self.assertCountEqual(
             result, consolidate_geographies_by_percent_area(lv4, 33, 2)
         )
@@ -3610,14 +3608,14 @@ class GeographyTests(BaubleClassTestCase):
         # AUSTRALASIA and Lord Howe I. should remove Lord Howe
         ids = (5, 682)
         geos = self.session.query(Geography).filter(Geography.id.in_(ids))
-        result = [self.session.query(Geography).get(5)]
+        result = [self.session.get(Geography, 5)]
         self.assertCountEqual(
             result, consolidate_geographies_by_percent_area(geos, 33)
         )
         # Australia and Lord Howe I. should remove Lord Howe
         ids = (38, 682)
         geos = self.session.query(Geography).filter(Geography.id.in_(ids))
-        result = [self.session.query(Geography).get(38)]
+        result = [self.session.get(Geography, 38)]
         self.assertCountEqual(
             result, consolidate_geographies_by_percent_area(geos, 33)
         )
@@ -3935,22 +3933,22 @@ class CitesStatus_test(PlantTestCase):
 
     def test_property(self):
         # genus CITES set on the genus
-        obj = self.session.query(Genus).get(1)
+        obj = self.session.get(Genus, 1)
         self.assertEqual(obj.cites, "II")
         # genus CITES set on the family
-        obj = self.session.query(Genus).get(6)
+        obj = self.session.get(Genus, 6)
         self.assertEqual(obj.cites, "II")
         # genus CITES set differently on the genus to the family
-        obj = self.session.query(Genus).get(5)
+        obj = self.session.get(Genus, 5)
         self.assertEqual(obj.cites, "I")
         # species CITES set differently on the genus to the family
-        obj = self.session.query(Species).get(17)
+        obj = self.session.get(Species, 17)
         self.assertEqual(obj.cites, "I")
         # species CITES set differently on the species to the family
-        obj = self.session.query(Species).get(18)
+        obj = self.session.get(Species, 18)
         self.assertEqual(obj.cites, "III")
         # species CITES set on the family
-        obj = self.session.query(Species).get(19)
+        obj = self.session.get(Species, 19)
         self.assertEqual(obj.cites, "II")
 
     def test_property_expression(self):
@@ -3979,7 +3977,7 @@ class CitesStatus_test(PlantTestCase):
         )
 
     def test_property_setter(self):
-        obj = self.session.query(Genus).get(2)
+        obj = self.session.get(Genus, 2)
         obj.cites = "II"
         self.session.commit()
         self.assertEqual(obj._cites, "II")
@@ -3988,7 +3986,7 @@ class CitesStatus_test(PlantTestCase):
         self.session.commit()
         self.assertIsNone(obj._cites)
 
-        obj = self.session.query(Family).get(3)
+        obj = self.session.get(Family, 3)
         obj.cites = "III"
         self.session.commit()
         self.assertEqual(obj.cites, "III")
@@ -3997,7 +3995,7 @@ class CitesStatus_test(PlantTestCase):
         self.session.commit()
         self.assertIsNone(obj.cites)
 
-        obj = self.session.query(Species).get(3)
+        obj = self.session.get(Species, 3)
         obj.cites = "I"
         self.session.commit()
         self.assertEqual(obj.cites, "I")
@@ -4834,7 +4832,7 @@ class SpeciesFullNameTests(PlantTestCase):
     def test_full_name_updated_on_species_update(self):
         # check update any epithet, infrasp or ranks, group, cv, etc.
         # Epithet
-        sp = self.session.query(Species).get(1)
+        sp = self.session.get(Species, 1)
         sp.epithet = "sophronitis"
         self.session.add(sp)
         self.session.commit()
@@ -4871,9 +4869,9 @@ class SpeciesFullNameTests(PlantTestCase):
     def test_full_name_updated_on_genus_update(self):
         # check epithet, hybrid, etc.
         # new genus
-        fam = self.session.query(Family).get(1)
+        fam = self.session.get(Family, 1)
         gen = Genus(epithet="Ornithidium", family=fam)
-        sp = self.session.query(Species).get(1)
+        sp = self.session.get(Species, 1)
         sp.genus = gen
         self.session.add(gen)
         self.session.commit()
@@ -4916,9 +4914,9 @@ class SpeciesFullNameTests(PlantTestCase):
 
     def test_full_name_updated_on_genus_and_sp_update(self):
         # change to another existing genus
-        sp = self.session.query(Species).get(1)
+        sp = self.session.get(Species, 1)
         start = sp.full_name
-        gen = self.session.query(Genus).get(sp.genus_id + 1)
+        gen = self.session.get(Genus, sp.genus_id + 1)
         sp.genus = gen
         sp.epither = "test_new"
         self.session.add(sp)
@@ -4946,7 +4944,7 @@ class SpeciesFullNameTests(PlantTestCase):
             .filter(db.History.table_id == 1)
         )
         start_count = hist_query.count()
-        sp = self.session.query(Species).get(1)
+        sp = self.session.get(Species, 1)
         start = sp.full_name
         sp.epithet = "variabilis"
         self.session.add(sp)

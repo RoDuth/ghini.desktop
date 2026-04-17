@@ -1079,7 +1079,7 @@ def get_existing(session, model, **kwargs):
     for col in model.__table__.columns:
         if col.primary_key and (pkey := kwargs.get(col.key)):
             logger.debug("trying using primary key: %s", col.key)
-            inst = session.query(model).get(pkey)
+            inst = session.get(model, pkey)
 
     # try using unique fields
     if not inst:

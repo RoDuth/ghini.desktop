@@ -611,7 +611,7 @@ class CollectionPresenter(editor.ChildPresenter):
 
     def set_region(self, _action, geo_id):
         geo_id = int(geo_id.unpack())
-        geography = self.session.query(Geography).get(geo_id)
+        geography = self.session.get(Geography, geo_id)
         self.set_model_attr("region", geography)
         self.view.widgets.add_region_button.props.label = str(geography)
 

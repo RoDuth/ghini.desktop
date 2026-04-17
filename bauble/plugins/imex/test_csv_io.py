@@ -206,7 +206,7 @@ class CSVExporterTests(CSVTestCase):
         exporter.presenter.cleanup()
 
     def test_export_plants_w_notes(self):
-        plt = self.session.query(Plant).get(1)
+        plt = self.session.get(Plant, 1)
         plt.notes.append(PlantNote(category="test1", note="test note"))
         plt.notes.append(PlantNote(category="[test2]", note="test1"))
         plt.notes.append(PlantNote(category="[test2]", note="test2"))
@@ -343,8 +343,8 @@ class CSVExporterTests(CSVTestCase):
 
     def test_mixed_types_raises(self):
         mock_view = MockView()
-        plant = self.session.query(Plant).get(1)
-        loc = self.session.query(Location).get(1)
+        plant = self.session.get(Plant, 1)
+        loc = self.session.get(Location, 1)
         mock_view.selection = [loc, plant]
         from bauble.error import BaubleError
 
@@ -663,7 +663,7 @@ class CSVImporterEmptyDBTests(BaubleTestCase):
         importer.domain = Plant
         importer.option = "1"
         importer.run()
-        added_plant = self.session.query(Plant).get(1)
+        added_plant = self.session.get(Plant, 1)
         logger.debug("added_plant: %s", added_plant)
         end_plants = self.session.query(Plant).count()
         # planted added
@@ -753,7 +753,7 @@ class CSVImporterEmptyDBTests(BaubleTestCase):
         self.assertEqual(end_source_detail, start_source_detail + 1)
         self.assertEqual(end_collection, start_collection + 1)
 
-        added_acc = self.session.query(Accession).get(1)
+        added_acc = self.session.get(Accession, 1)
         for k, v in acc[1].items():
             logger.debug("assert equal %s = %s", acc[0][k], v)
             self.assertEqual(str(attrgetter(acc[0][k])(added_acc)), v)
@@ -895,7 +895,7 @@ class CSVImporterEmptyDBTests(BaubleTestCase):
         self.assertEqual(end_source_detail, start_source_detail + 2)
         self.assertEqual(end_collection, start_collection + 1)
 
-        added_acc = self.session.query(Accession).get(1)
+        added_acc = self.session.get(Accession, 1)
         for k, v in acc[1].items():
             logger.debug("assert equal %s = %s", acc[0][k], v)
             self.assertEqual(str(attrgetter(acc[0][k])(added_acc)), v)
@@ -1120,7 +1120,7 @@ class CSVImporterEmptyDBTests(BaubleTestCase):
             .filter(Species.epithet == "ingens", Genus.epithet == "Syzygium")
             .one()
         )
-        added_sp = self.session.query(Species).get(3)
+        added_sp = self.session.get(Species, 3)
         for k, v in species[2].items():
             logger.debug("assert equal %s = %s", species[0][k], v)
             self.assertEqual(str(attrgetter(species[0][k])(added_sp)), v)
@@ -1359,7 +1359,7 @@ class CSVImporterTests(CSVTestCase):
         importer.run()
         end_accs = self.session.query(Accession).count()
         # test no additions
-        updated_acc = self.session.query(Accession).get(1)
+        updated_acc = self.session.get(Accession, 1)
         self.assertEqual(end_accs, start_accs)
         # test the date.
         self.assertEqual(updated_acc.date_recvd, datetime(2020, 9, 29).date())
@@ -1403,7 +1403,7 @@ class CSVImporterTests(CSVTestCase):
         end_plants = self.session.query(Plant).count()
         end_sp = self.session.query(Species).count()
         # check the plant was updated
-        updated_plant = self.session.query(Plant).get(1)
+        updated_plant = self.session.get(Plant, 1)
         # quantity changed
         self.assertEqual(updated_plant.quantity, 3)
         # species changed
@@ -1434,7 +1434,7 @@ class CSVImporterTests(CSVTestCase):
         importer.domain = Plant
         importer.option = "0"
         importer.run()
-        updated_plant = self.session.query(Plant).get(1)
+        updated_plant = self.session.get(Plant, 1)
         end_plants = self.session.query(Plant).count()
         # check the plant was updated
         self.assertEqual(updated_plant.geojson.get("type"), "Point")
@@ -1491,7 +1491,7 @@ class CSVImporterTests(CSVTestCase):
         importer.domain = Plant
         importer.option = "0"
         importer.run()
-        updated_plant = self.session.query(Plant).get(1)
+        updated_plant = self.session.get(Plant, 1)
         end_plants = self.session.query(Plant).count()
         end_sp = self.session.query(Species).count()
         # check the plant was updated
@@ -1533,7 +1533,7 @@ class CSVImporterTests(CSVTestCase):
             reader = csv.DictReader(f)
             for record in reader:
                 self.assertEqual(int(record["__line_#"]), 1)
-        updated_plant = self.session.query(Plant).get(1)
+        updated_plant = self.session.get(Plant, 1)
         end_plants = self.session.query(Plant).count()
         end_sp = self.session.query(Species).count()
         # check the plant was not changed
@@ -1551,9 +1551,9 @@ class CSVImporterTests(CSVTestCase):
     def test_update_plant_quantity_planted_date(self):
         # add the plant here so a planted entry is created by the event
         # listener
-        acc = self.session.query(Accession).get(1)
+        acc = self.session.get(Accession, 1)
         acc_code = acc.code
-        loc = self.session.query(Location).get(1)
+        loc = self.session.get(Location, 1)
         plt = Plant(accession=acc, code="3", quantity=1, location=loc)
         self.session.add(plt)
         self.session.commit()
@@ -1583,7 +1583,7 @@ class CSVImporterTests(CSVTestCase):
         importer.domain = Plant
         importer.option = "0"
         importer.run()
-        updated_plant = self.session.query(Plant).get(plt_id)
+        updated_plant = self.session.get(Plant, plt_id)
         logger.debug("updated_plant: %s", updated_plant)
         end_plants = self.session.query(Plant).count()
         # date changed, quantity the same
@@ -1602,9 +1602,9 @@ class CSVImporterTests(CSVTestCase):
     def test_update_plant_quantity_death_date(self):
         # add the plant here so a planted entry is created by the event
         # listener
-        acc = self.session.query(Accession).get(1)
+        acc = self.session.get(Accession, 1)
         acc_code = acc.code
-        loc = self.session.query(Location).get(1)
+        loc = self.session.get(Location, 1)
         plt = Plant(accession=acc, code="3", quantity=1, location=loc)
         self.session.add(plt)
         self.session.commit()
@@ -1638,7 +1638,7 @@ class CSVImporterTests(CSVTestCase):
         importer.domain = Plant
         importer.option = "0"
         importer.run()
-        updated_plant = self.session.query(Plant).get(plt_id)
+        updated_plant = self.session.get(Plant, plt_id)
         logger.debug("updated_plant: %s", updated_plant)
         end_plants = self.session.query(Plant).count()
         # quantity changed
@@ -1674,7 +1674,7 @@ class CSVImporterTests(CSVTestCase):
         importer.domain = Plant
         importer.option = "0"
         importer.run()
-        updated_plant = self.session.query(Plant).get(plt_id)
+        updated_plant = self.session.get(Plant, plt_id)
         # death date updated
         self.assertEqual(
             updated_plant.death.date,
@@ -1694,7 +1694,7 @@ class CSVImporterTests(CSVTestCase):
         importer.domain = Accession
         importer.option = "0"
         importer.run()
-        updated_acc = self.session.query(Accession).get(3)
+        updated_acc = self.session.get(Accession, 3)
         end_accs = self.session.query(Accession).count()
         # no acessions added
         self.assertEqual(end_accs, start_accs)

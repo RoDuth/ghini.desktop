@@ -769,7 +769,7 @@ class TestSearchViewMapPresenter(BaubleTestCase):
     def test_populate_worker_skips_doubleups(self):
         for func in get_setUp_data_funcs():
             func()
-        plt1 = self.session.query(Plant).get(1)
+        plt1 = self.session.get(Plant, 1)
         plt1.geojson = point
         self.session.commit()
         map_ = GardenMap(Map())
@@ -818,9 +818,9 @@ class TestSearchViewMapPresenter(BaubleTestCase):
         # Also tests adders
         for func in get_setUp_data_funcs():
             func()
-        plt1 = self.session.query(Plant).get(1)
-        plt2 = self.session.query(Plant).get(2)
-        plt3 = self.session.query(Plant).get(3)
+        plt1 = self.session.get(Plant, 1)
+        plt2 = self.session.get(Plant, 2)
+        plt3 = self.session.get(Plant, 3)
         plt1.geojson = point
         plt2.geojson = line
         plt3.geojson = poly
@@ -844,9 +844,9 @@ class TestSearchViewMapPresenter(BaubleTestCase):
     def test_update_map_selects(self):
         for func in get_setUp_data_funcs():
             func()
-        plt1 = self.session.query(Plant).get(1)
-        plt2 = self.session.query(Plant).get(2)
-        plt3 = self.session.query(Plant).get(3)
+        plt1 = self.session.get(Plant, 1)
+        plt2 = self.session.get(Plant, 2)
+        plt3 = self.session.get(Plant, 3)
         plt3.quantity = 0
         plt1.geojson = point
         plt2.geojson = line
@@ -887,9 +887,9 @@ class TestSearchViewMapPresenter(BaubleTestCase):
     def test_update_map_updates_bbox(self):
         for func in get_setUp_data_funcs():
             func()
-        plt1 = self.session.query(Plant).get(1)
-        plt2 = self.session.query(Plant).get(2)
-        plt3 = self.session.query(Plant).get(3)
+        plt1 = self.session.get(Plant, 1)
+        plt2 = self.session.get(Plant, 2)
+        plt3 = self.session.get(Plant, 3)
         plt1.geojson = point
         plt3.geojson = poly
         self.session.commit()
@@ -924,8 +924,8 @@ class TestSearchViewMapPresenter(BaubleTestCase):
     def test_update_map_threads(self):
         for func in get_setUp_data_funcs():
             func()
-        plt1 = self.session.query(Plant).get(1)
-        plt3 = self.session.query(Plant).get(3)
+        plt1 = self.session.get(Plant, 1)
+        plt3 = self.session.get(Plant, 3)
         plt1.geojson = point
         plt3.geojson = poly
         self.session.commit()
@@ -959,8 +959,8 @@ class TestSearchViewMapPresenter(BaubleTestCase):
     def test_update_map_redraw(self):
         for func in get_setUp_data_funcs():
             func()
-        plt1 = self.session.query(Plant).get(1)
-        plt3 = self.session.query(Plant).get(3)
+        plt1 = self.session.get(Plant, 1)
+        plt3 = self.session.get(Plant, 3)
         plt1.geojson = point
         plt3.geojson = poly
         self.session.commit()
@@ -1010,13 +1010,13 @@ class TestSearchViewMapPresenter(BaubleTestCase):
         presenter.is_visible = lambda: True
         # preload the cache
         get_locations_polys()
-        plt1 = self.session.query(Plant).get(1)
-        plt2 = self.session.query(Plant).get(2)
-        plt3 = self.session.query(Plant).get(3)
+        plt1 = self.session.get(Plant, 1)
+        plt2 = self.session.get(Plant, 2)
+        plt3 = self.session.get(Plant, 3)
         plt1.geojson = point
         plt2.geojson = line
         plt3.geojson = poly
-        loc1 = self.session.query(Location).get(1)
+        loc1 = self.session.get(Location, 1)
         loc1.geojson = poly
         self.session.commit()
         get_locations_polys.clear_cache()
@@ -1052,9 +1052,9 @@ class TestSearchViewMapPresenter(BaubleTestCase):
     def test_populate_map_from_search_view(self):
         for func in get_setUp_data_funcs():
             func()
-        plt1 = self.session.query(Plant).get(1)
-        plt2 = self.session.query(Plant).get(2)
-        plt3 = self.session.query(Plant).get(3)
+        plt1 = self.session.get(Plant, 1)
+        plt2 = self.session.get(Plant, 2)
+        plt3 = self.session.get(Plant, 3)
         plt1.geojson = point
         plt2.geojson = line
         plt3.geojson = poly
@@ -1163,7 +1163,7 @@ class TestSearchViewMapPresenter(BaubleTestCase):
         presenter.is_visible = lambda: True
         # preload the cache
         get_locations_polys()
-        loc = self.session.query(Location).get(1)
+        loc = self.session.get(Location, 1)
         loc.geojson = poly
         self.session.commit()
         presenter.add_locations()
@@ -1176,7 +1176,7 @@ class TestSearchViewMapPresenter(BaubleTestCase):
             polys2 = get_locations_polys()
         self.assertEqual(polys, polys2)
         # test values are updated next call if if any locs are updated
-        loc = self.session.query(Location).get(2)
+        loc = self.session.get(Location, 2)
         loc.geojson = poly
         self.session.commit()
         with self.assertLogs(level="DEBUG") as logs:
@@ -1393,9 +1393,9 @@ class TestSearchViewMapPresenter(BaubleTestCase):
     def test_select_plant_by_id(self, mock_gui):
         for func in get_setUp_data_funcs():
             func()
-        plt1 = self.session.query(Plant).get(1)
+        plt1 = self.session.get(Plant, 1)
         plt1.geojson = point
-        plt2 = self.session.query(Plant).get(2)
+        plt2 = self.session.get(Plant, 2)
         plt2.geojson = point2
         self.session.commit()
         map_ = Map()
@@ -1452,7 +1452,7 @@ class TestSearchViewMapPresenter(BaubleTestCase):
     def test_highlight_location(self):
         for func in get_setUp_data_funcs():
             func()
-        loc1 = self.session.query(Location).get(1)
+        loc1 = self.session.get(Location, 1)
         loc1.geojson = poly
         self.session.commit()
         map_ = GardenMap(Map())
@@ -1470,7 +1470,7 @@ class TestSearchViewMapPresenter(BaubleTestCase):
     def test_highlight_plant(self):
         for func in get_setUp_data_funcs():
             func()
-        plt1 = self.session.query(Plant).get(1)
+        plt1 = self.session.get(Plant, 1)
         plt1.geojson = point
         self.session.commit()
         map_ = GardenMap(Map())
@@ -1558,7 +1558,7 @@ class TestSearchViewMapPresenter(BaubleTestCase):
         self.assertEqual(len(results), len(presenter.loc_items))
         self.assertFalse(presenter.redraw_on_update)
         self.assertFalse(presenter.clear_locations_cache)
-        loc1 = self.session.query(Location).get(1)
+        loc1 = self.session.get(Location, 1)
         self.assertIn(loc1.id, presenter.loc_items)
 
         poly2 = {
@@ -1599,7 +1599,7 @@ class TestSearchViewMapPresenter(BaubleTestCase):
         self.assertEqual(len(results), len(presenter.loc_items))
         self.assertFalse(presenter.redraw_on_update)
         self.assertFalse(presenter.clear_locations_cache)
-        loc1 = self.session.query(Location).get(1)
+        loc1 = self.session.get(Location, 1)
         self.assertIn(loc1.id, presenter.loc_items)
 
         loc1.geojson = None
@@ -1652,7 +1652,7 @@ class TestSearchViewMapPresenter(BaubleTestCase):
         update_gui()
         # check we did populate and flags are not set
         self.assertEqual(len(results), len(presenter.plt_items))
-        plt1 = self.session.query(Plant).get(1)
+        plt1 = self.session.get(Plant, 1)
         self.assertIn(plt1.id, presenter.plt_items)
         self.assertIsInstance(presenter.plt_items[plt1.id], MapPoint)
 
@@ -1680,7 +1680,7 @@ class TestSearchViewMapPresenter(BaubleTestCase):
         update_gui()
         # check we did populate and flags are not set
         self.assertEqual(len(results), len(presenter.plt_items))
-        plt1 = self.session.query(Plant).get(1)
+        plt1 = self.session.get(Plant, 1)
         self.assertIn(plt1.id, presenter.plt_items)
         self.assertIsInstance(presenter.plt_items[plt1.id], MapPoint)
 
@@ -1707,7 +1707,7 @@ class TestSearchViewMapPresenter(BaubleTestCase):
         update_gui()
         # check we did populate and flags are not set
         self.assertEqual(len(results), len(presenter.plt_items))
-        plt1 = self.session.query(Plant).get(1)
+        plt1 = self.session.get(Plant, 1)
         self.assertIn(plt1.id, presenter.plt_items)
         self.assertIsInstance(presenter.plt_items[plt1.id], MapPoint)
         self.assertEqual(
@@ -1743,7 +1743,7 @@ class TestSearchViewMapPresenter(BaubleTestCase):
         update_gui()
         # check we did populate and flags are not set
         self.assertEqual(len(results), len(presenter.plt_items))
-        plt1 = self.session.query(Plant).get(3)
+        plt1 = self.session.get(Plant, 3)
         self.assertIn(plt1.id, presenter.plt_items)
         self.assertIsInstance(presenter.plt_items[plt1.id], MapPoint)
 

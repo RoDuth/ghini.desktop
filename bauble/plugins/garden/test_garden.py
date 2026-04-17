@@ -506,8 +506,8 @@ class PlantTests(GardenTestCase):
         planted_id = planted.id
         self.session.delete(plt)
         self.session.commit()
-        self.assertFalse(self.session.query(PlantChange).get(planted_id))
-        self.assertTrue(self.session.query(Location).get(self.location.id))
+        self.assertFalse(self.session.get(PlantChange, planted_id))
+        self.assertTrue(self.session.get(Location, self.location.id))
 
     def test_duplicate(self):
         """
@@ -1228,7 +1228,7 @@ class PlantTests(GardenTestCase):
         # supplied ids are expected to come from the search result, the search
         # would need to be rerun to have an impact (and hence the inactive
         # already excluded)
-        plt = self.session.query(Plant).get(1)
+        plt = self.session.get(Plant, 1)
         plt.quantity = 0
         self.session.commit()
 
@@ -1492,7 +1492,7 @@ class PlantUpdatedTests(BaubleTestCase):
 
 class PlantEditorPresenterTests(GardenTestCase):
     def test_acc_get_completions(self):
-        acc = self.session.query(Accession).get(7)
+        acc = self.session.get(Accession, 7)
         plant = Plant()
         self.session.add(plant)
         presenter = PlantEditorPresenter(plant, PlantEditorView())
@@ -1512,7 +1512,7 @@ class PlantEditorPresenterTests(GardenTestCase):
 
     def test_acc_to_string_matcher(self):
         # not part of the presenter class but is used by it
-        acc = self.session.query(Accession).get(7)
+        acc = self.session.get(Accession, 7)
         self.assertTrue(acc_to_string_matcher(acc, "2022"))
         self.assertTrue(acc_to_string_matcher(acc, "Cynodo"))
         self.assertTrue(acc_to_string_matcher(acc, "20 Cyn"))
@@ -1525,7 +1525,7 @@ class PlantEditorPresenterTests(GardenTestCase):
         self.assertFalse(acc_to_string_matcher(acc, "19 Cyn"))
 
     def test_on_select(self):
-        acc = self.session.query(Accession).get(7)
+        acc = self.session.get(Accession, 7)
         plant = Plant()
         self.session.add(plant)
         presenter = PlantEditorPresenter(plant, PlantEditorView())
@@ -1543,18 +1543,18 @@ class PlantEditorPresenterTests(GardenTestCase):
         del presenter
 
     def test_presenter_discourages_editing_if_qty_zero(self):
-        plant = self.session.query(Plant).get(1)
+        plant = self.session.get(Plant, 1)
         plant.quantity = 0
         presenter = PlantEditorPresenter(plant, PlantEditorView())
         self.assertFalse(presenter.view.widgets.notebook.get_sensitive())
         del presenter
 
     def test_init_reason_combo(self):
-        plant = self.session.query(Plant).get(1)
+        plant = self.session.get(Plant, 1)
         presenter = PlantEditorPresenter(plant, PlantEditorView())
         self.assertEqual(presenter.reasons, change_reasons)
         self.assertFalse(presenter.view.widgets.change_frame.get_sensitive())
-        loc2 = self.session.query(Location).get(2)
+        loc2 = self.session.get(Location, 2)
         presenter.model.location = loc2
         presenter._init_reason_combo()
         self.assertEqual(presenter.reasons, transfer_reasons)
@@ -1595,7 +1595,7 @@ class PlantEditorPresenterTests(GardenTestCase):
         del presenter
 
     def test_reset_change(self):
-        acc = self.session.query(Accession).get(7)
+        acc = self.session.get(Accession, 7)
         plant = Plant(accession=acc, quantity=1)
         plant.accession_id = acc.id
         self.session.add(plant)
@@ -1902,9 +1902,9 @@ class PropagationTests(GardenTestCase):
         # the cutting and its rooted children to be deleted
         prop.cutting = None
         self.session.commit()
-        self.assertTrue(not self.session.query(PropCutting).get(cutting_id))
+        self.assertTrue(not self.session.get(PropCutting, cutting_id))
         self.assertTrue(
-            not self.session.query(PropCuttingRooted).get(rooted_id)
+            not self.session.get(PropCuttingRooted, rooted_id)
         )
 
     def test_accession_links_to_parent_plant(self):
@@ -1933,7 +1933,7 @@ class PropagationTests(GardenTestCase):
         # this should cause the cutting and its rooted children to be deleted
         prop.seed = None
         self.session.commit()
-        self.assertTrue(not self.session.query(PropSeed).get(seed_id))
+        self.assertTrue(not self.session.get(PropSeed, seed_id))
 
     def test_cutting_editor(self):
         loc = Location(name="name", code="code")
@@ -2001,7 +2001,7 @@ class PropagationTests(GardenTestCase):
         editor.session.close()
 
         s = db.Session()
-        propagation = s.query(Propagation).get(model_id)
+        propagation = s.get(Propagation, model_id)
 
         self.assertTrue(propagation.prop_type == "Seed")
         # make sure the each value in default_seed_values matches the model
@@ -2119,7 +2119,7 @@ class VoucherTests(GardenTestCase):
         voucher_id = voucher.id
         self.accession.vouchers.remove(voucher)
         self.session.commit()
-        self.assertTrue(not self.session.query(Voucher).get(voucher_id))
+        self.assertTrue(not self.session.get(Voucher, voucher_id))
 
         # test that if we set voucher.accession to None then the
         # voucher is deleted but not the accession
@@ -2130,11 +2130,11 @@ class VoucherTests(GardenTestCase):
         acc_id = voucher.accession.id
         voucher.accession = None
         self.session.commit()
-        self.assertTrue(not self.session.query(Voucher).get(voucher_id))
-        self.assertTrue(self.session.query(Accession).get(acc_id))
+        self.assertTrue(not self.session.get(Voucher, voucher_id))
+        self.assertTrue(self.session.get(Accession, acc_id))
 
     def test_on_tree_cursor_changed(self):
-        acc = self.session.query(Accession).get(2)
+        acc = self.session.get(Accession, 2)
         mock_parent = unittest.mock.Mock()
         presenter = VoucherPresenter(
             mock_parent, acc, AccessionEditorView(), self.session
@@ -2164,7 +2164,7 @@ class VoucherTests(GardenTestCase):
         presenter.cleanup()
 
     def test_on_cell_edited(self):
-        acc = self.session.query(Accession).get(2)
+        acc = self.session.get(Accession, 2)
         voucher = Voucher(herbarium="ABC", code="1234567")
         voucher.accession = acc
         self.session.commit()
@@ -2185,7 +2185,7 @@ class VoucherTests(GardenTestCase):
         presenter.cleanup()
 
     def test_on_remove_clicked(self):
-        acc = self.session.query(Accession).get(2)
+        acc = self.session.get(Accession, 2)
         voucher = Voucher(herbarium="ABC", code="1234567", accession=acc)
         voucher_parent = Voucher(
             herbarium="ABC",
@@ -2209,7 +2209,7 @@ class VoucherTests(GardenTestCase):
         presenter.cleanup()
 
     def test_on_add_clicked(self):
-        acc = self.session.query(Accession).get(2)
+        acc = self.session.get(Accession, 2)
         mock_parent = unittest.mock.Mock()
         presenter = VoucherPresenter(
             mock_parent, acc, AccessionEditorView(), self.session
@@ -2249,8 +2249,8 @@ class SourceTests(GardenTestCase):
         # source.propagation attribute to None - and commit
         source.propagation = None
         self.session.commit()
-        self.assertFalse(self.session.query(PropCutting).get(cutting_id))
-        self.assertFalse(self.session.query(Propagation).get(prop_id))
+        self.assertFalse(self.session.get(PropCutting, cutting_id))
+        self.assertFalse(self.session.get(Propagation, prop_id))
 
     def test_seed_propagation_cascades(self):
         """
@@ -2271,8 +2271,8 @@ class SourceTests(GardenTestCase):
         # source.propagation attribute to None - and commit
         source.propagation = None
         self.session.commit()
-        self.assertFalse(self.session.query(PropSeed).get(seed_id))
-        self.assertFalse(self.session.query(Propagation).get(prop_id))
+        self.assertFalse(self.session.get(PropSeed, seed_id))
+        self.assertFalse(self.session.get(Propagation, prop_id))
 
     def test_propagation_of_source_material_cascades(self):
         # create a source object with a collection and propagation (this could
@@ -2296,11 +2296,11 @@ class SourceTests(GardenTestCase):
 
         # the Collection and Propagation should be
         # deleted since they are specific to the source
-        self.assertFalse(self.session.query(Collection).get(coll_id))
-        self.assertFalse(self.session.query(Propagation).get(prop_id))
+        self.assertFalse(self.session.get(Collection, coll_id))
+        self.assertFalse(self.session.get(Propagation, prop_id))
 
         # the SourceDetail shouldn't be deleted as it is independent of the source
-        self.assertTrue(self.session.query(SourceDetail).get(source_detail_id))
+        self.assertTrue(self.session.get(SourceDetail, source_detail_id))
 
     def test_plant_propagation_as_source_cascades(self):
         # create a source object
@@ -2327,7 +2327,7 @@ class SourceTests(GardenTestCase):
 
         # the Propagation shouldn't be deleted as it is independant of the
         # source
-        self.assertTrue(self.session.query(Propagation).get(plant_prop_id))
+        self.assertTrue(self.session.get(Propagation, plant_prop_id))
 
 
 class SourcePresenterTests(GardenTestCase):
@@ -2726,7 +2726,7 @@ class AccessionTests(GardenTestCase):
         plant_id = plant.id
         self.session.delete(acc)
         self.session.commit()
-        self.assertFalse(self.session.query(Plant).get(plant_id))
+        self.assertFalse(self.session.get(Plant, plant_id))
 
     def test_constraints(self):
         """
@@ -3385,7 +3385,7 @@ class AccessionTests(GardenTestCase):
         )
 
     def test_top_level_count_wo_plant_qty(self):
-        plt = self.session.query(Plant).get(1)
+        plt = self.session.get(Plant, 1)
         plt.quantity = 0
         self.session.commit()
 
@@ -3403,7 +3403,7 @@ class AccessionTests(GardenTestCase):
         self.assertEqual(str(Accession.top_level_count([1, 2])), expected)
 
     def test_top_level_count_wo_plant_qty_exclude_inactive(self):
-        plt = self.session.query(Plant).get(2)
+        plt = self.session.get(Plant, 2)
         plt.quantity = 0
         self.session.commit()
 
@@ -3423,7 +3423,7 @@ class AccessionTests(GardenTestCase):
         )
 
     def test_top_level_count_wo_plant(self):
-        plt = self.session.query(Plant).get(1)
+        plt = self.session.get(Plant, 1)
         self.session.delete(plt)
         self.session.commit()
 
@@ -3441,9 +3441,9 @@ class AccessionTests(GardenTestCase):
         self.assertEqual(str(Accession.top_level_count([1, 2])), expected)
 
     def test_top_level_count_wo_plant_exclude_inactive(self):
-        plt = self.session.query(Plant).get(1)
+        plt = self.session.get(Plant, 1)
         self.session.delete(plt)
-        plt = self.session.query(Plant).get(2)
+        plt = self.session.get(Plant, 2)
         plt.quantity = 0
         self.session.commit()
 
@@ -3463,11 +3463,11 @@ class AccessionTests(GardenTestCase):
         )
 
     def test_top_level_count_wo_plant_2_locations_exclude_inactive(self):
-        plt = self.session.query(Plant).get(1)
-        loc = self.session.query(Location).get(2)
+        plt = self.session.get(Plant, 1)
+        loc = self.session.get(Location, 2)
         plt.location = loc
         plt.quantity = 0
-        plt = self.session.query(Plant).get(2)
+        plt = self.session.get(Plant, 2)
         plt.quantity = 0
         self.session.commit()
 
@@ -3756,8 +3756,8 @@ class IntendedLocationsTests(GardenTestCase):
         # accession is not removed if intended_location is removed.
         self.session.delete(int_loc)
         self.session.commit()
-        self.assertEqual(acc, self.session.query(Accession).get(acc.id))
-        self.assertEqual(loc1, self.session.query(Location).get(loc1.id))
+        self.assertEqual(acc, self.session.get(Accession, acc.id))
+        self.assertEqual(loc1, self.session.get(Location, loc1.id))
 
     def test_intended_locations_cascades_delete_location(self):
         sp = self.session.query(Species).first()
@@ -4362,8 +4362,8 @@ class VerificationTests(GardenTestCase):
 
     def test_verification_box(self):
         list(update_all_full_names_task())
-        acc = self.session.query(Accession).get(2)
-        sp = self.session.query(Species).get(5)
+        acc = self.session.get(Accession, 2)
+        sp = self.session.get(Species, 5)
         ver = Verification(accession=acc)
         acc.verifications.append(ver)
         mock_parent = unittest.mock.Mock()
@@ -4402,7 +4402,7 @@ class VerificationTests(GardenTestCase):
         "bauble.plugins.garden.accession.dialogs.yes_no_dialog"
     )
     def test_on_remove_button_clicked(self, mock_dialog):
-        acc = self.session.query(Accession).get(2)
+        acc = self.session.get(Accession, 2)
         sp = (
             self.session.query(Species)
             .filter(Species.id != acc.species.id)
@@ -4431,7 +4431,7 @@ class VerificationTests(GardenTestCase):
         "bauble.plugins.garden.accession.dialogs.yes_no_dialog"
     )
     def test_on_remove_button_clicked_user_backout(self, mock_dialog):
-        acc = self.session.query(Accession).get(2)
+        acc = self.session.get(Accession, 2)
         sp = (
             self.session.query(Species)
             .filter(Species.id != acc.species.id)
@@ -4459,7 +4459,7 @@ class VerificationTests(GardenTestCase):
         self.assertEqual(acc.verifications, [ver])
 
     def test_ref_get_completions(self):
-        acc1 = self.session.query(Accession).get(1)
+        acc1 = self.session.get(Accession, 1)
         ver1 = Verification(
             verifier="me",
             date=datetime.date.today(),
@@ -4469,7 +4469,7 @@ class VerificationTests(GardenTestCase):
             reference="Flora of Queensland",
         )
         acc1.verifications.append(ver1)
-        acc2 = self.session.query(Accession).get(2)
+        acc2 = self.session.get(Accession, 2)
         ver2 = Verification(
             verifier="me",
             date=datetime.date.today(),
@@ -4489,7 +4489,7 @@ class VerificationTests(GardenTestCase):
         )
 
     def test_verifier_get_completions(self):
-        acc1 = self.session.query(Accession).get(1)
+        acc1 = self.session.get(Accession, 1)
         ver1 = Verification(
             verifier="Some botanist from an herbarium",
             date=datetime.date.today(),
@@ -4498,7 +4498,7 @@ class VerificationTests(GardenTestCase):
             prev_species=acc1.species,
         )
         acc1.verifications.append(ver1)
-        acc2 = self.session.query(Accession).get(2)
+        acc2 = self.session.get(Accession, 2)
         ver2 = Verification(
             verifier="Some botanist from an herbarium",
             date=datetime.date.today(),
@@ -4520,7 +4520,7 @@ class VerificationTests(GardenTestCase):
         "bauble.plugins.garden.accession.dialogs.yes_no_dialog"
     )
     def test_on_copy_to_taxon_general_clicked(self, mock_dialog):
-        acc = self.session.query(Accession).get(1)
+        acc = self.session.get(Accession, 1)
         sp = (
             self.session.query(Species)
             .filter(Species.id != acc.species.id)
@@ -4550,7 +4550,7 @@ class VerificationTests(GardenTestCase):
         "bauble.plugins.garden.accession.dialogs.yes_no_dialog"
     )
     def test_on_copy_to_taxon_general_clicked_user_backout(self, mock_dialog):
-        acc = self.session.query(Accession).get(1)
+        acc = self.session.get(Accession, 1)
         sp = (
             self.session.query(Species)
             .filter(Species.id != acc.species.id)
@@ -4746,9 +4746,9 @@ class LocationTests(GardenTestCase):
         self.assertEqual(str(Location.top_level_count([1, 2], True)), expected)
 
     def test_top_level_count_wo_plant_wo_plant_qty_exclude_inactive(self):
-        plt = self.session.query(Plant).get(2)
+        plt = self.session.get(Plant, 2)
         self.session.delete(plt)
-        plt = self.session.query(Plant).get(1)
+        plt = self.session.get(Plant, 1)
         plt.quantity = 0
         self.session.commit()
 
@@ -4815,7 +4815,7 @@ class LocationTests(GardenTestCase):
         self.assertTrue(expander.get_expanded())
 
         # without description
-        loc = self.session.query(Location).get(2)
+        loc = self.session.get(Location, 2)
         expander.update(loc)
 
         self.assertFalse(expander.get_expanded())
@@ -5089,7 +5089,7 @@ class CollectionTests(GardenTestCase):
         mock_parent = unittest.mock.MagicMock()
         presenter = CollectionPresenter(mock_parent, model, view, self.session)
         update_gui()
-        geo = self.session.query(Geography).get(5)
+        geo = self.session.get(Geography, 5)
         mock_var = unittest.mock.Mock()
         mock_var.unpack.return_value = 5
         presenter.set_region(None, mock_var)
@@ -5115,7 +5115,7 @@ class CollectionTests(GardenTestCase):
 
     def test_collector_get_completions(self):
         view = AccessionEditorView()
-        model = self.session.query(Collection).get(1)
+        model = self.session.get(Collection, 1)
         presenter = CollectionPresenter(
             unittest.mock.MagicMock(), model, view, self.session
         )
@@ -5152,7 +5152,7 @@ class CollectionTests(GardenTestCase):
         self.assertEqual(collection.pictures, [])
 
     def test_active_no_plants(self):
-        collection = self.session.query(Collection).get(3)
+        collection = self.session.get(Collection, 3)
 
         self.assertTrue(collection.active)
 
@@ -5164,7 +5164,7 @@ class CollectionTests(GardenTestCase):
         self.assertIn(collection, collection_active_in_db)
 
     def test_active_plants_w_qty(self):
-        collection = self.session.query(Collection).get(2)
+        collection = self.session.get(Collection, 2)
 
         self.assertTrue(collection.active)
 
@@ -5176,7 +5176,7 @@ class CollectionTests(GardenTestCase):
         self.assertIn(collection, collection_active_in_db)
 
     def test_active_plants_wo_qty(self):
-        collection = self.session.query(Collection).get(1)
+        collection = self.session.get(Collection, 1)
         for plt in collection.source.accession.plants:
             plt.quantity = 0
         self.session.commit()
@@ -5205,7 +5205,7 @@ class CollectionTests(GardenTestCase):
         self.assertEqual(str(Collection.top_level_count([1, 3])), expected)
 
     def test_top_level_count_wo_plant_qty(self):
-        collection = self.session.query(Collection).get(1)
+        collection = self.session.get(Collection, 1)
         for plt in collection.source.accession.plants:
             plt.quantity = 0
         self.session.commit()
@@ -5224,7 +5224,7 @@ class CollectionTests(GardenTestCase):
         self.assertEqual(str(Collection.top_level_count([1, 3])), expected)
 
     def test_top_level_count_wo_plant_qty_exclude_inactive(self):
-        collection = self.session.query(Collection).get(1)
+        collection = self.session.get(Collection, 1)
         collection.source.accession.plants[0].quantity = 0
         self.session.commit()
 
@@ -6140,7 +6140,7 @@ class SourceDetailTests(GardenTestCase):
     def test_pictures(self):
         source = self.session.query(SourceDetail).first()
         self.assertEqual(source.pictures, [])
-        plt = self.session.query(Plant).get(4)
+        plt = self.session.get(Plant, 4)
         pic = PlantPicture(picture="test1.jpg", plant=plt)
         self.session.commit()
         self.assertEqual(source.pictures, [pic])
@@ -6168,7 +6168,7 @@ class SourceDetailTests(GardenTestCase):
         self.assertEqual(str(SourceDetail.top_level_count([1, 2])), expected)
 
     def test_top_level_count_wo_plant_qty(self):
-        plt = self.session.query(Plant).get(1)
+        plt = self.session.get(Plant, 1)
         plt.quantity = 0
         self.session.commit()
 
@@ -6186,7 +6186,7 @@ class SourceDetailTests(GardenTestCase):
         self.assertEqual(str(SourceDetail.top_level_count([1, 2])), expected)
 
     def test_top_level_count_wo_plant_qty_exclude_inactive(self):
-        plt = self.session.query(Plant).get(1)
+        plt = self.session.get(Plant, 1)
         plt.quantity = 0
         self.session.commit()
         expected = (
@@ -6205,7 +6205,7 @@ class SourceDetailTests(GardenTestCase):
         )
 
     def test_top_level_count_wo_plant(self):
-        plt = self.session.query(Plant).get(1)
+        plt = self.session.get(Plant, 1)
         self.session.delete(plt)
         self.session.commit()
 
@@ -6223,9 +6223,9 @@ class SourceDetailTests(GardenTestCase):
         self.assertEqual(str(SourceDetail.top_level_count([1, 2])), expected)
 
     def test_top_level_count_wo_plant_exclude_inactive(self):
-        plt = self.session.query(Plant).get(4)  # makes acc 5 active
+        plt = self.session.get(Plant, 4)  # makes acc 5 active
         self.session.delete(plt)
-        plt = self.session.query(Plant).get(1)
+        plt = self.session.get(Plant, 1)
         plt.quantity = 0
         self.session.commit()
 
@@ -6245,7 +6245,7 @@ class SourceDetailTests(GardenTestCase):
         )
 
     def test_active_no_accession(self):
-        source = self.session.query(SourceDetail).get(2)
+        source = self.session.get(SourceDetail, 2)
         self.assertTrue(source.active)
         # test the hybrid_property expression
         # pylint: disable=no-member  # is_
@@ -6255,8 +6255,8 @@ class SourceDetailTests(GardenTestCase):
         self.assertIn(source, source_active_in_db)
 
     def test_active_one_accession_w_no_plants(self):
-        contact = self.session.query(SourceDetail).get(2)
-        sp = self.session.query(Species).get(1)
+        contact = self.session.get(SourceDetail, 2)
+        sp = self.session.get(Species, 1)
         acc = Accession(code="foo", species=sp)
         source = Source(source_detail=contact)
         acc.source = source
@@ -6271,7 +6271,7 @@ class SourceDetailTests(GardenTestCase):
         self.assertIn(contact, source_active_in_db)
 
     def test_active_plants_w_qty(self):
-        source = self.session.query(SourceDetail).get(1)
+        source = self.session.get(SourceDetail, 1)
         self.assertTrue(source.active)
         # test the hybrid_property expression
         # pylint: disable=no-member  # is_
@@ -6281,9 +6281,9 @@ class SourceDetailTests(GardenTestCase):
         self.assertIn(source, source_active_in_db)
 
     def test_active_plants_wo_qty(self):
-        contact = self.session.query(SourceDetail).get(2)
-        sp = self.session.query(Species).get(1)
-        loc = self.session.query(Location).get(1)
+        contact = self.session.get(SourceDetail, 2)
+        sp = self.session.get(Species, 1)
+        loc = self.session.get(Location, 1)
         acc = Accession(code="foo", species=sp)
         source = Source(source_detail=contact)
         acc.source = source

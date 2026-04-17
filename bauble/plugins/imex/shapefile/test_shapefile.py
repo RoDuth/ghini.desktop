@@ -2186,7 +2186,7 @@ class ShapefileExportTests(ShapefileTestCase):
             )
 
     def test_exports_search_plants_with_no_geojson(self):
-        rec1 = self.session.query(Plant).get(1)
+        rec1 = self.session.get(Plant, 1)
         rec1.geojson = None
         self.session.add(rec1)
         self.session.commit()
@@ -3605,7 +3605,7 @@ class ShapefileImportTests(ShapefileTestCase):
 
     def test_add_or_update_all_records_failed_transform(self):
         # make sure test update also - add some base data
-        rec1 = self.session.query(Location).get(1)
+        rec1 = self.session.get(Location, 1)
         rec1.geojson = epsg3857_poly
         self.session.add(rec1)
         self.session.commit()
@@ -4351,7 +4351,7 @@ class ShapefileImportTests(ShapefileTestCase):
         self.session.commit()
         end = self.session.query(Location).all()
         self.assertEqual(len(end), len(start))
-        updated = self.session.query(Location).get(1)
+        updated = self.session.get(Location, 1)
         self.assertEqual(updated.code, "QCC01")
 
     @mock.patch("bauble.ui.dialogs.create_yes_no_dialog")
@@ -4372,7 +4372,7 @@ class ShapefileImportTests(ShapefileTestCase):
         self.session.commit()
         end = self.session.query(Location).all()
         self.assertEqual(len(end), len(start))
-        updated = self.session.query(Location).get(1)
+        updated = self.session.get(Location, 1)
         self.assertEqual(updated.code, "QCC01")
 
     @mock.patch("bauble.ui.dialogs.create_yes_no_dialog")
@@ -4411,17 +4411,17 @@ class ShapefileImportTests(ShapefileTestCase):
         self.session.commit()
         end = self.session.query(Location).all()
         self.assertEqual(len(end), len(start))
-        updated1 = self.session.query(Location).get(1)
+        updated1 = self.session.get(Location, 1)
         self.assertEqual(updated1.code, "APC02")
-        updated2 = self.session.query(Location).get(2)
+        updated2 = self.session.get(Location, 2)
         self.assertEqual(updated2.code, "QCC02")
 
     @mock.patch("bauble.ui.dialogs.create_yes_no_dialog")
     def test_import_task_multi_w_filter(self, mock_dialog):
         # multiple files with a filter
-        plt1 = self.session.query(Plant).get(1)
+        plt1 = self.session.get(Plant, 1)
         self.assertIsNone(plt1.geojson)
-        plt3 = self.session.query(Plant).get(3)
+        plt3 = self.session.get(Plant, 3)
         self.assertIsNone(plt3)
         mock_dialog().run.return_value = -9
         importer = self.importer
@@ -4453,10 +4453,10 @@ class ShapefileImportTests(ShapefileTestCase):
         self.session.commit()
         end = self.session.query(Plant).all()
         self.assertEqual(len(end), len(start) + 1)
-        plt1 = self.session.query(Plant).get(1)
+        plt1 = self.session.get(Plant, 1)
         self.assertIsNotNone(plt1.geojson)
         # plt2 is not from the same accession
-        plt2 = self.session.query(Plant).get(2)
+        plt2 = self.session.get(Plant, 2)
         self.assertIsNone(plt2.geojson)
         plt3 = (
             self.session.query(Plant)

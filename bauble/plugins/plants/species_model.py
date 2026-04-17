@@ -219,7 +219,7 @@ class VNList(list):
             # see if the deleted vernacular name is the default then remove
             # from both if it is.
             session = object_session(vernacular)
-            vn_sp = session.query(Species).get(vernacular.species_id)
+            vn_sp = session.get(Species, vernacular.species_id)
             if vn_sp.default_vernacular_name == vernacular:
                 del vn_sp.default_vernacular_name
         except Exception as e:  # pylint: disable=broad-except

@@ -222,7 +222,7 @@ class TestSearchView(BaubleTestCase):
     def test_update_infobox_exception_reraises_removes_infobox(self):
         for func in get_setUp_data_funcs():
             func()
-        genus = self.session.query(Genus).get(1)
+        genus = self.session.get(Genus, 1)
         with mock.patch.object(
             self.search_view.info_pane, "show_all"
         ) as mock_show:
@@ -1221,7 +1221,7 @@ class TestSearchView(BaubleTestCase):
 
         from bauble.plugins.garden import Plant
 
-        plt1 = self.session.query(Plant).get(1)
+        plt1 = self.session.get(Plant, 1)
         plt1.quantity = 0
         self.session.commit()
 
@@ -2109,8 +2109,8 @@ class TestSearchView(BaubleTestCase):
         from bauble.plugins.garden import Plant
         from bauble.plugins.garden.plant import PlantPicture
 
-        plt1 = self.session.query(Plant).get(1)
-        plt2 = self.session.query(Plant).get(2)
+        plt1 = self.session.get(Plant, 1)
+        plt2 = self.session.get(Plant, 2)
         pic1 = PlantPicture(picture="test1.jpg")
         plt2.pictures.append(pic1)
         self.session.add(pic1)
@@ -3711,7 +3711,7 @@ class GlobalFunctionsTests(BaubleTestCase):
         search_view.history_action = mock.Mock()
         search_view.search("genus where id <= 3")
         start = search_view.get_selected_values()
-        obj = self.session.query(start[0].__class__).get(3)
+        obj = self.session.get(start[0].__class__, 3)
         with mock.patch("bauble.gui") as mock_gui:
             mock_gui.get_view.return_value = search_view
             select_in_search_results(obj)
@@ -3727,7 +3727,7 @@ class GlobalFunctionsTests(BaubleTestCase):
         search_view.history_action = mock.Mock()
         search_view.search("genus where id <= 3")
         start = search_view.get_selected_values()
-        obj = self.session.query(start[0].__class__).get(3)
+        obj = self.session.get(start[0].__class__, 3)
         sp = obj.species[0]
         with mock.patch("bauble.gui") as mock_gui:
             mock_gui.get_view.return_value = search_view
@@ -3750,7 +3750,7 @@ class GlobalFunctionsTests(BaubleTestCase):
         search_view.history_action = mock.Mock()
         search_view.search("genus where id <= 3")
         start = search_view.get_selected_values()
-        obj = self.session.query(start[0].__class__).get(5)
+        obj = self.session.get(start[0].__class__, 5)
         with mock.patch("bauble.gui") as mock_gui:
             mock_gui.get_view.return_value = search_view
             with self.assertLogs(level="DEBUG") as logs:

@@ -196,7 +196,7 @@ class CSVTests(ImexTestCase):
         importer.start([filename], force=True)
 
     def test_import_bool_column(self):
-        sp = self.session.query(Species).get(1)
+        sp = self.session.get(Species, 1)
         self.session.add(Accession(species=sp, code="2023.0001"))
         self.session.commit()
         data = [
@@ -229,10 +229,10 @@ class CSVTests(ImexTestCase):
         importer = CSVTestImporter()
         importer.start([filename], force=True)
 
-        voucher = self.session.query(Voucher).get(1)
+        voucher = self.session.get(Voucher, 1)
         self.assertTrue(voucher.parent_material)
 
-        voucher = self.session.query(Voucher).get(2)
+        voucher = self.session.get(Voucher, 2)
         self.assertFalse(voucher.parent_material)
 
     def test_with_open_connection(self):
@@ -750,7 +750,7 @@ class GenericImporterTests(BaubleTestCase):
         out = BasicImporter().add_rec_to_db(self.session, obj, data2)
         self.assertEqual(obj, out)
         self.session.commit()
-        result = self.session.query(Plant).get(1)
+        result = self.session.get(Plant, 1)
         self.assertEqual(len(result.changes), 2)
         self.assertEqual(result.changes[1].quantity, 10)
         self.assertEqual(result.quantity, data2["quantity"])
@@ -772,7 +772,7 @@ class GenericImporterTests(BaubleTestCase):
         self.assertRaises(IntegrityError, self.session.commit)
         self.session.rollback()
         session2 = db.Session()
-        result = session2.query(Plant).get(1)
+        result = session2.get(Plant, 1)
         self.assertEqual(len(result.changes), 2)
         self.assertEqual(result.quantity, data2["quantity"])
         self.assertEqual(result.changes[1].quantity, 10)
@@ -809,7 +809,7 @@ class GenericImporterTests(BaubleTestCase):
         self.assertEqual(obj, out)
         # Committing will reveal issues that only show up at commit
         self.session.commit()
-        result = self.session.query(Plant).get(1)
+        result = self.session.get(Plant, 1)
         self.assertEqual(result.quantity, data1.get("quantity"))
         self.assertEqual(result.code, data1.get("code"))
         self.assertEqual(
@@ -840,7 +840,7 @@ class GenericImporterTests(BaubleTestCase):
         out = BasicImporter().add_rec_to_db(self.session, obj, data2)
         self.assertEqual(obj, out)
         self.session.commit()
-        result = self.session.query(Plant).get(1)
+        result = self.session.get(Plant, 1)
         self.assertEqual(
             result.planted.date.strftime("%d/%m/%Y %I:%M:%S %p").lower(),
             data2.get("planted").get("date").lower(),
@@ -875,7 +875,7 @@ class GenericImporterTests(BaubleTestCase):
         self.assertEqual(obj, out)
         # Committing will reveal issues that only show up at commit
         self.session.commit()
-        result = self.session.query(Plant).get(1)
+        result = self.session.get(Plant, 1)
         # then kill it
         data2 = {
             "accession": {"code": "XXXX000001"},
@@ -886,7 +886,7 @@ class GenericImporterTests(BaubleTestCase):
         out = BasicImporter().add_rec_to_db(self.session, obj, data2)
         self.assertEqual(obj, out)
         self.session.commit()
-        result = self.session.query(Plant).get(1)
+        result = self.session.get(Plant, 1)
         self.assertEqual(
             result.death.date.strftime("%d/%m/%Y %I:%M:%S %p").lower(),
             data2.get("death").get("date").lower(),
@@ -902,7 +902,7 @@ class GenericImporterTests(BaubleTestCase):
         out = BasicImporter().add_rec_to_db(self.session, obj, data3)
         self.assertEqual(obj, out)
         self.session.commit()
-        result = self.session.query(Plant).get(1)
+        result = self.session.get(Plant, 1)
         self.assertEqual(
             result.death.date.strftime("%d/%m/%Y %I:%M:%S %p").lower(),
             data3.get("death").get("date").lower(),
@@ -937,7 +937,7 @@ class GenericImporterTests(BaubleTestCase):
         self.assertEqual(obj, out)
         # Committing will reveal issues that only show up at commit
         self.session.commit()
-        result = self.session.query(Plant).get(1)
+        result = self.session.get(Plant, 1)
         self.assertEqual(result.geojson.get("type"), "Point")
         self.assertEqual(len(result.geojson.get("coordinates")), 2)
         self.assertEqual(len(result.changes), 1)
@@ -982,7 +982,7 @@ class GenericImporterTests(BaubleTestCase):
     def test_get_db_item_id_only(self):
         for func in get_setUp_data_funcs():
             func()
-        loc1 = self.session.query(Location).get(1)
+        loc1 = self.session.get(Location, 1)
         self.assertIsNotNone(loc1)
         # Note float id will fail in postgres if get_value_as_python_type
         # doesn't convert to int correctly
@@ -1019,7 +1019,7 @@ class GenericImporterTests(BaubleTestCase):
     def test_get_db_item_plant_acc_code(self):
         for func in get_setUp_data_funcs():
             func()
-        plt1 = self.session.query(Plant).get(2)
+        plt1 = self.session.get(Plant, 2)
         self.assertIsNotNone(plt1)
 
         record = {
@@ -1052,7 +1052,7 @@ class GenericImporterTests(BaubleTestCase):
         mock_dialog().run.return_value = -8
         for func in get_setUp_data_funcs():
             func()
-        plt1 = self.session.query(Plant).get(2)
+        plt1 = self.session.get(Plant, 2)
         self.assertIsNotNone(plt1)
 
         record = {
@@ -1077,7 +1077,7 @@ class GenericImporterTests(BaubleTestCase):
         mock_dialog().run.return_value = -6
         for func in get_setUp_data_funcs():
             func()
-        plt1 = self.session.query(Plant).get(2)
+        plt1 = self.session.get(Plant, 2)
         self.assertIsNotNone(plt1)
 
         record = {
@@ -1107,7 +1107,7 @@ class GenericImporterTests(BaubleTestCase):
         mock_dialog().run.return_value = -9
         for func in get_setUp_data_funcs():
             func()
-        plt1 = self.session.query(Plant).get(2)
+        plt1 = self.session.get(Plant, 2)
         self.assertIsNotNone(plt1)
 
         record = {
@@ -1287,19 +1287,19 @@ class GenericExporterTests(BaubleTestCase):
         self.assertAlmostEqual(val, now, delta=2)
 
     def test_get_item_value_gets_path(self):
-        item = self.session.query(Plant).get(1)
+        item = self.session.get(Plant, 1)
         val = GenericExporter.get_item_value(
             "accession.species.genus.family.epithet", item
         )
         self.assertEqual(val, "Orchidaceae")
 
     def test_get_item_value_gets_boolean(self):
-        item = self.session.query(Accession).get(1)
+        item = self.session.get(Accession, 1)
         val = GenericExporter.get_item_value("private", item)
         self.assertEqual(val, "True")
 
     def test_get_item_record_w_notes(self):
-        item = self.session.query(Species).get(1)
+        item = self.session.get(Species, 1)
         val = GenericExporter.get_item_record(
             item, {"sp": "species", "gen": "genus.epithet"}
         )
@@ -1320,7 +1320,7 @@ class GenericExporterTests(BaubleTestCase):
         self.assertEqual(val, {"name": "Australia"})
 
     def test_get_item_record_wo_notes_text_field_does_not_error(self):
-        item = self.session.query(Collection).get(1)
+        item = self.session.get(Collection, 1)
         val = GenericExporter.get_item_record(
             item, {"locale": "locale", "collector": "collector"}
         )

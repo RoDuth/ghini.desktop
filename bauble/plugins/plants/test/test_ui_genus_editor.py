@@ -712,14 +712,14 @@ class FunctionTests(BaubleTestCase):
 
 class GenusCompletionTests(PlantTestCase):
     def test_genus_to_string_matcher(self):
-        gen1 = self.session.query(Genus).get(9)
+        gen1 = self.session.get(Genus, 9)
         self.assertTrue(genus_to_string_matcher(gen1, "Buty"))
         self.assertTrue(genus_to_string_matcher(gen1, "× Buty"))
         self.assertFalse(genus_to_string_matcher(gen1, "Auty"))
         self.assertFalse(genus_to_string_matcher(gen1, "× Auty"))
 
     def test_genus_cell_data_func(self):
-        gen = self.session.query(Genus).get(9)
+        gen = self.session.get(Genus, 9)
         mock_renderer = mock.Mock()
         mock_model = [[gen]]
 
@@ -729,7 +729,7 @@ class GenusCompletionTests(PlantTestCase):
             "markup", "× <i>Butyagrus</i> Vorster  (<small>Arecaceae</small>)"
         )
 
-        gen = self.session.query(Genus).get(2)
+        gen = self.session.get(Genus, 2)
         mock_renderer = mock.Mock()
         mock_model = [[gen]]
 
@@ -785,13 +785,13 @@ class GenusCompletionTests(PlantTestCase):
         key = "Max"
         self.assertCountEqual(
             self.session.execute(genus_completions(key)).scalars().all(),
-            [self.session.query(Genus).get(1)],
+            [self.session.get(Genus, 1)],
         )
 
         key = "max"
         self.assertCountEqual(
             self.session.execute(genus_completions(key)).scalars().all(),
-            [self.session.query(Genus).get(1)],
+            [self.session.get(Genus, 1)],
         )
 
         key = "C"
@@ -803,7 +803,7 @@ class GenusCompletionTests(PlantTestCase):
         key = "+ Cr"
         self.assertCountEqual(
             self.session.execute(genus_completions(key)).scalars().all(),
-            [self.session.query(Genus).get(8)],
+            [self.session.get(Genus, 8)],
         )
 
         key = "×"
