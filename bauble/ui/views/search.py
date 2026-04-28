@@ -54,7 +54,6 @@ from sqlalchemy.orm.exc import ObjectDeletedError
 
 import bauble
 from bauble import db
-from bauble import paths
 from bauble import pluginmgr
 from bauble import prefs
 from bauble import search
