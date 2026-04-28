@@ -28,7 +28,7 @@ logger = logging.getLogger(__name__)
 import bauble
 from bauble import db
 from bauble import pluginmgr
-from bauble import search
+from bauble.search.strategies import get_strategy
 from bauble.ui.views import HistoryView
 from bauble.ui.views import SearchView
 
@@ -48,7 +48,7 @@ class TagPlugin(pluginmgr.Plugin):
     @classmethod
     def init(cls) -> None:
 
-        mapper_search = search.strategies.get_strategy("MapperSearch")
+        mapper_search = get_strategy("MapperSearch")
 
         if not mapper_search:
             return
