@@ -533,8 +533,8 @@ class SpeciesEditorDialog(
             self.fullname_label.set_text("--")
             return
 
-        family_str = self.model.genus.family.string(author=True)
-        genus_str = self.model.genus.string(author=True)
+        family_str = utils.xml_safe(self.model.genus.family.string())
+        genus_str = self.model.genus.markup(authors=True, for_search_view=True)
         self.parents_label.set_markup(f"<b>{family_str} > {genus_str}</b>")
         sp_str = self.model.string(markup=True, author=True)
         self.fullname_label.set_markup(sp_str)
