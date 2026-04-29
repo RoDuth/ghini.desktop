@@ -34,6 +34,7 @@ from bauble.plugins.plants.family import Family
 from bauble.plugins.plants.genus import Genus
 from bauble.plugins.plants.species import Species
 from bauble.plugins.plants.species import VernacularName
+from bauble.plugins.plants.species_model import register_custom_column
 from bauble.test import BaubleTestCase
 from bauble.test import get_setUp_data_funcs
 from bauble.ui.views import SearchView
@@ -41,7 +42,6 @@ from bauble.ui.views import SearchView
 from ...garden import Accession
 from ...garden import Plant
 from ...garden.accession import Verification
-from .. import PlantsPlugin
 from ..test_plants import setUp_data as setup_plants_data
 from ..ui.misc import on_taxa_clicked
 from ..ui.species_editor import SPECIES_WEB_BUTTON_DEFS_PREFS
@@ -187,7 +187,7 @@ class SpeciesInfoBoxTests(BaubleTestCase):
                 f" <big>{sp.markup(authors=True, genus=False)}</big>",
             )
 
-    def test_general_setup_custom_column(self):
+    def test_general_expander_custom_column(self):
         meta = BaubleMeta(
             name="_sp_custom1",
             value=(
@@ -199,8 +199,8 @@ class SpeciesInfoBoxTests(BaubleTestCase):
         self.session.add(meta)
         self.session.commit()
         sp = self.session.get(Species, 1)
-        # effectively also tests PlantsPlugin.register_custom_column
-        PlantsPlugin.register_custom_column("_sp_custom1")
+
+        register_custom_column("_sp_custom1")
         infobox = SearchView.row_meta[Species].infobox
 
         general = infobox.get_nth_page(0).expanders["General"]
@@ -217,7 +217,7 @@ class SpeciesInfoBoxTests(BaubleTestCase):
         sp = Species(genus=genus, sp="sp")
         self.session.add(sp)
         self.session.commit()
-        PlantsPlugin.register_custom_column("_sp_custom1")
+        register_custom_column("_sp_custom1")
         infobox = SearchView.row_meta[Species].infobox
 
         general._setup_custom_column("_sp_custom1")

@@ -1,6 +1,6 @@
 # pylint: disable=no-self-use,protected-access,too-many-public-methods
 # pylint: disable=too-few-public-methods,too-many-lines
-# Copyright (c) 2022-2025 Ross Demuth <rossdemuth123@gmail.com>
+# Copyright (c) 2022-2026 Ross Demuth <rossdemuth123@gmail.com>
 #
 # This file is part of ghini.desktop.
 #
@@ -3301,31 +3301,59 @@ class HomeViewTests(BaubleTestCase):
     def test_update(self, mock_gui):
         mock_send = mock.Mock()
         mock_gui.send_command = mock_send
-        def_view = HomeView()
-        self.assertFalse(list(def_view.search_box.domain_combo.get_model()))
-        self.assertFalse(def_view.infobox)
-        def_view.update()
+        view = HomeView()
+        self.assertFalse(list(view.search_box.domain_combo.get_model()))
+        view.update()
         # HomeInfoBox threads
         wait_on_threads()
-        self.assertTrue(list(def_view.search_box.domain_combo.get_model()))
-        # set in PlantsPlugin.init
-        self.assertTrue(def_view.infoboxclass)
-        self.assertTrue(def_view.infobox)
+        self.assertTrue(list(view.search_box.domain_combo.get_model()))
         # default, no widget set.
-        self.assertIsInstance(def_view._main_widget, Gtk.Image)
+        self.assertIsInstance(view._main_widget, Gtk.Image)
 
         # main_widget
         mock_widget = Gtk.Box()
         mock_widget.update = mock.Mock()
         HomeView.main_widget = mock_widget
-        def_view.update()
+        view.update()
+        wait_on_threads()
         mock_widget.update.assert_called()
         # changing main widget works
         mock_widget2 = Gtk.Box()
         mock_widget2.update = mock.Mock()
         HomeView.main_widget = mock_widget2
-        def_view.update()
+        view.update()
+        wait_on_threads()
         mock_widget2.update.assert_called()
+
+    def test_update_sensitive_exclude_inactive(self):
+        view = HomeView()
+        view.update()
+        wait_on_threads()
+        update_gui()
+
+        for row in view.stats_grid.stats_rows:
+            self.assertTrue(row.total_label.get_sensitive())
+            self.assertTrue(row.in_use_label.get_sensitive())
+            self.assertTrue(row.unused_label.get_sensitive())
+
+        prefs.prefs[prefs.exclude_inactive_pref] = True
+        view.update()
+        wait_on_threads()
+        update_gui()
+
+        count = 0
+        for row in view.stats_grid.stats_rows:
+            if row.has_active:
+                self.assertFalse(row.total_label.get_sensitive())
+                self.assertTrue(row.in_use_label.get_sensitive())
+                self.assertFalse(row.unused_label.get_sensitive())
+                count += 1
+            else:
+                self.assertTrue(row.total_label.get_sensitive())
+                self.assertTrue(row.in_use_label.get_sensitive())
+                self.assertTrue(row.unused_label.get_sensitive())
+
+        self.assertGreater(count, 0)
 
     @mock.patch.object(HomeView, "update")
     def test_homecommandhandler(self, mock_update):

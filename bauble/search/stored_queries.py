@@ -56,9 +56,10 @@ class StoredQuery(db.Base):  # pylint: disable=too-few-public-methods
     query: str = Column(Text, nullable=False)
 
 
-@Gtk.Template(
-    filename=str(Path(__file__).resolve().parent / "stored_query_editor.ui")
-)
+parent = Path(__file__).resolve().parent
+
+
+@Gtk.Template(filename=str(parent / "stored_query_editor.ui"))
 class StoredQueryEditorDialog(
     GenericPresenter[StoredQuery],
     Gtk.Dialog,
@@ -114,9 +115,7 @@ class StoredQueryEditorDialog(
         self.ok_button.set_sensitive(not has_problems)
 
 
-@Gtk.Template(
-    filename=str(Path(__file__).resolve().parent / "stored_queries_dialog.ui")
-)
+@Gtk.Template(filename=str(parent / "stored_queries_dialog.ui"))
 class StoredQueriesDialog(Gtk.Dialog):
     """Dialog to manage stored queries.
 
@@ -125,7 +124,6 @@ class StoredQueriesDialog(Gtk.Dialog):
 
     __gtype_name__ = "StoredQueriesDialog"
 
-    # new_button = cast(Gtk.Button, Gtk.Template.Child())
     delete_button = cast(Gtk.Button, Gtk.Template.Child())
     edit_button = cast(Gtk.Button, Gtk.Template.Child())
     list_store = cast(Gtk.ListStore, Gtk.Template.Child())
@@ -307,11 +305,7 @@ def _upgrade_stored_queries() -> None:
             logger.debug("%s(%s)", type(e).__name__, e)
 
 
-@Gtk.Template(
-    filename=str(
-        Path(__file__).resolve().parent / "stored_queries_button_box.ui"
-    )
-)
+@Gtk.Template(filename=str(parent / "stored_queries_button_box.ui"))
 class StoredQueriesButtonBox(Gtk.Box):
     """Home view button box widget for stored queries.
 
@@ -325,7 +319,6 @@ class StoredQueriesButtonBox(Gtk.Box):
 
     def __init__(self) -> None:
         super().__init__()
-        self.refresh()
 
     @Gtk.Template.Callback()
     def on_edit_button_clicked(self, _button: Gtk.Button) -> None:

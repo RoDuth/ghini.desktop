@@ -34,7 +34,10 @@ from sqlalchemy import inspect
 from sqlalchemy import select
 from sqlalchemy.sql import Select
 
+from bauble import db
+from bauble import meta
 from bauble import utils
+from bauble.i18n import _
 from bauble.task import queue
 from bauble.ui import dialogs
 from bauble.ui.presenter import GenericPresenter
@@ -44,9 +47,60 @@ from bauble.ui.utils import set_widget_value
 from ...genus import Genus
 from ...species_model import Species
 from ...species_model import infrasp_rank_values
+from ...species_model import register_custom_column
 from ...species_model import update_all_full_names_task
 
 parent = Path(__file__).resolve().parent
+
+
+def setup_conservation_fields(*_args) -> None:
+    msg = _(
+        "Setup custom conservation fields.\n\nYou have 2 fields "
+        "available.  To set them up you need to provide a "
+        "dictionary that defines the `field_name` as used in "
+        "searches, reports, etc., the `display_name` as used in "
+        "the editor and the `values` as a tuple or list of the "
+        "values it can accept.\n\n Examples are provided, replace "
+        "these as needed set them empty to disable."
+    )
+
+    custom1_default = (
+        "{'field_name': 'nca_status', "
+        "'display_name': 'NCA Status', "
+        "'short_hand': 'NCA', "
+        "'values': ("
+        "'Extinct in the wild', "
+        "'Critically endangered', "
+        "'Endangered', "
+        "'Vulnerable', "
+        "'Near threatened', "
+        "'Special least concern', "
+        "'Least concern', "
+        "None"
+        ")}"
+    )
+    custom2_default = (
+        "{'field_name': 'epbc_status', "
+        "'display_name': 'EPBC Status',  "
+        "'short_hand': 'EPBC', "
+        "'values': ("
+        "'Extinct', "
+        "'Critically endangered', "
+        "'Endangered', "
+        "'Vulnerable', "
+        "'Conservation dependent', "
+        "'Not listed', "
+        "None"
+        ")}"
+    )
+    meta.set_value(
+        ("_sp_custom1", "_sp_custom2"),
+        (custom1_default, custom2_default),
+        msg,
+    )
+    register_custom_column("_sp_custom1")
+    register_custom_column("_sp_custom2")
+    db.open_conn(db.engine.url)
 
 
 def update_all_full_names_handler(*_args):

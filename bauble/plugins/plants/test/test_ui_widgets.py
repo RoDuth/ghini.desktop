@@ -71,6 +71,7 @@ from ..ui.widgets.geography import update_all_approx_areas_task
 from ..ui.widgets.species import InfraspecificPresenter
 from ..ui.widgets.species import InfraspRow
 from ..ui.widgets.species import SpeciesEntry
+from ..ui.widgets.species import setup_conservation_fields
 from ..ui.widgets.species import species_cell_data_func
 from ..ui.widgets.species import species_completions
 from ..ui.widgets.species import species_match_func
@@ -3246,3 +3247,14 @@ class FunctionTests(BaubleTestCase):
             mock_queue.side_effect = Exception("BOOM")
             update_all_full_names_handler()
             mock_dialog.assert_called_once()
+
+    @mock.patch("bauble.meta.create_message_dialog")
+    def test_setup_conservation_fields(self, mock_dialog):
+        mock_dialog().run.return_value = -5  # OK
+
+        with mock.patch("bauble.db.open_conn") as mock_open_conn:
+            setup_conservation_fields()
+
+            mock_open_conn.assert_called_once()
+        self.assertTrue(hasattr(Species, "nca_status"))
+        self.assertTrue(hasattr(Species, "epbc_status"))

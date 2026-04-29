@@ -50,10 +50,8 @@ from bauble.test import BaubleClassTestCase
 from bauble.test import BaubleTestCase
 from bauble.test import check_dupids
 from bauble.test import get_setUp_data_funcs
-from bauble.test import wait_on_threads
 
 from ..garden import Plant
-from . import HomeInfoBox
 from . import PlantsPlugin
 from .family import Family
 from .family import FamilyNote
@@ -79,6 +77,7 @@ from .species import get_binomial_completions
 from .species_model import SpeciesPicture
 from .species_model import _remove_zws as remove_zws
 from .species_model import markup_italics
+from .species_model import register_custom_column
 from .species_model import update_all_full_names_task
 
 family_test_data = (
@@ -2483,8 +2482,8 @@ class SpeciesTests(PlantTestCase):
         )
         self.session.add(meta)
         self.session.commit()
-        # effectively also tests PlantsPlugin.register_custom_column
-        PlantsPlugin.register_custom_column("_sp_custom1")
+
+        register_custom_column("_sp_custom1")
 
         self.assertTrue(hasattr(Species, "nca_status"))
         self.assertEqual(
@@ -2539,7 +2538,7 @@ class SpeciesTests(PlantTestCase):
         # cleanup
         self.session.delete(meta)
         self.session.commit()
-        PlantsPlugin.register_custom_column("_sp_custom1")
+        register_custom_column("_sp_custom1")
 
         # reset the connection (similar to opening a new connection, also
         # reruns register_custom_column etc.)
@@ -4756,36 +4755,6 @@ class RetrieveTests(PlantTestCase):
         }
         geo = Geography.retrieve(self.session, keys)
         self.assertIsNone(geo)
-
-
-class HomeInfoBoxTests(BaubleTestCase):
-    @mock.patch("bauble.gui")
-    def test_update_sensitise_exclude_inactive(self, _mock_gui):
-        home = HomeInfoBox()
-        home.update()
-        wait_on_threads()
-        for widget in [
-            home.home_nplttot,
-            home.home_npltnot,
-            home.home_nacctot,
-            home.home_naccnot,
-            home.home_nspctot,
-            home.home_nspcnot,
-        ]:
-            self.assertTrue(widget.get_parent().get_sensitive())
-
-        prefs.prefs[prefs.exclude_inactive_pref] = True
-        home.update()
-        wait_on_threads()
-        for widget in [
-            home.home_nplttot,
-            home.home_npltnot,
-            home.home_nacctot,
-            home.home_naccnot,
-            home.home_nspctot,
-            home.home_nspcnot,
-        ]:
-            self.assertFalse(widget.get_parent().get_sensitive())
 
 
 class SpeciesFullNameTests(PlantTestCase):

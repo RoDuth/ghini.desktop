@@ -165,7 +165,7 @@ Click Cancel to discard them.</property>
                   </packing>
                 </child>
                 <child>
-                  <object class="GtkToolButton" id="new_button">
+                  <object class="GtkToolButton">
                     <property name="visible">True</property>
                     <property name="can-focus">False</property>
                     <property name="tooltip-text" translatable="yes">Click to add a new stored query</property>

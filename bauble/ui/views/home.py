@@ -24,38 +24,48 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+import threading
 from collections.abc import Callable
 from pathlib import Path
+from typing import Any
 from typing import Protocol
 from typing import cast
 
+from gi.repository import GLib
 from gi.repository import Gtk
+from gi.repository import Pango
+from sqlalchemy import text
 
 import bauble
 from bauble import db
 from bauble import paths
 from bauble import pluginmgr
+from bauble import prefs
 from bauble import search
 from bauble import utils
 from bauble.i18n import _
 
 from ..utils import clear_model
 from .base import View
+from .search import on_clicked_search
 
 
 class SimpleSearchBox(Gtk.Frame):
     """Provides a simple search for the home screen."""
 
     def __init__(self) -> None:
-        super().__init__(label=_("Simple Search"))
-        tooltip = _(
-            "Simple search provides a quick way to access basic expression "
-            "searches with the convenience of auto-completion. For more "
-            "advanced searches the query builder provides a better starting "
-            "point.\n\nTo return all of a domain use = *"
+        super().__init__(
+            label=_("Simple Search"),
+            valign=Gtk.Align.START,
+            vexpand=False,
+            tooltip_text=_(
+                "Simple search provides a quick way to access basic "
+                "expression searches with the convenience of auto-completion. "
+                "For more advanced searches the query builder provides a "
+                "better starting point.\n\nTo return all of a domain use = *"
+            ),
         )
         cast(Gtk.Label, self.get_label_widget()).set_margin_start(8)
-        self.set_tooltip_text(tooltip)
         self.domain: type[db.Domain] | None = None
         self.columns: list[str] = []
         self.short_domain: str = ""
@@ -86,10 +96,10 @@ class SimpleSearchBox(Gtk.Frame):
 
     def on_entry_activated(self, entry: Gtk.Entry) -> None:
         condition = self.cond_combo.get_active_text()
-        text = entry.get_text()
-        if text != "*":
-            text = repr(text)
-        search_str = f"{self.short_domain} {condition} {text}"
+        txt = entry.get_text()
+        if txt != "*":
+            txt = repr(txt)
+        search_str = f"{self.short_domain} {condition} {txt}"
         if bauble.gui:
             bauble.gui.send_command(search_str)
 
@@ -115,19 +125,19 @@ class SimpleSearchBox(Gtk.Frame):
             self.completion_getter = mapper_search.completion_funcs.get(domain)
 
     def on_entry_changed(self, entry: Gtk.Entry) -> None:
-        text = entry.get_text()
+        txt = entry.get_text()
         completion = entry.get_completion()
         key_length = completion.get_minimum_key_length()
         clear_model(completion)
 
-        if len(text) < key_length:
+        if len(txt) < key_length:
             return
 
         completion_model = Gtk.ListStore(str)
 
         with db.Session() as session:
             if self.completion_getter:
-                for val in self.completion_getter(session, text):
+                for val in self.completion_getter(session, txt):
                     completion_model.append([val])
             else:
                 for column in self.columns:
@@ -135,7 +145,7 @@ class SimpleSearchBox(Gtk.Frame):
                         session.query(getattr(self.domain, column))
                         .filter(
                             utils.ilike(
-                                getattr(self.domain, column), f"{text}%%"
+                                getattr(self.domain, column), f"{txt}%%"
                             )
                         )
                         .distinct()
@@ -161,6 +171,137 @@ class SimpleSearchBox(Gtk.Frame):
         self.domain_combo.set_active(0)
         self.cond_combo.set_active(0)
         self.entry.set_text("")
+
+
+class StatsLabel(Gtk.Label):
+    """Gtk.Label that is always bold with a margin of 4 for the stats grid."""
+
+    def __init__(self, label: str, **kwargs) -> None:
+        super().__init__(**kwargs)
+        attr_list = Pango.AttrList()
+        bold_attr = Pango.attr_weight_new(Pango.Weight.BOLD)
+        attr_list.insert(bold_attr)
+        self.set_attributes(attr_list)
+        self.set_margin_start(4)
+        self.set_margin_end(4)
+        self.set_margin_top(4)
+        self.set_margin_bottom(4)
+        self.set_label(label)
+
+    def set_label(self, label: Any) -> None:
+        # pylint: disable=arguments-differ
+        super().set_label(str(label))
+
+
+class StatsRow:
+    def __init__(
+        self,
+        label: str,
+        total_query: str,
+        total_link: str,
+        in_use_query: str,
+        in_use_link: str,
+        unused_query: str,
+        unused_link: str,
+        position: int,
+        has_active: bool = False,
+    ) -> None:
+        # pylint: disable=too-many-positional-arguments,too-many-arguments
+        self.label = StatsLabel(label=label, xalign=1)
+
+        self.total_label = StatsLabel(label="...")
+        self.total_viewport = self._wrap(self.total_label)
+        utils.make_label_clickable(
+            self.total_label,
+            on_clicked_search,
+            total_link,
+        )
+        self.total_query = text(total_query)
+
+        self.in_use_label = StatsLabel(label="...")
+        self.in_use_viewport = self._wrap(self.in_use_label)
+        utils.make_label_clickable(
+            self.in_use_label,
+            on_clicked_search,
+            in_use_link,
+        )
+        self.in_use_query = text(in_use_query)
+
+        self.unused_label = StatsLabel(label="...")
+        self.unused_viewport = self._wrap(self.unused_label)
+        utils.make_label_clickable(
+            self.unused_label,
+            on_clicked_search,
+            unused_link,
+        )
+        self.unused_query = text(unused_query)
+
+        self.position = position
+
+        self.has_active = has_active
+
+    @staticmethod
+    def _wrap(label: Gtk.Label) -> Gtk.Widget:
+        viewport = Gtk.Viewport(shadow_type=Gtk.ShadowType.ETCHED_OUT)
+        event_box = Gtk.EventBox(border_width=2)
+        viewport.add(event_box)
+        event_box.add(label)
+        return viewport
+
+    def update(self) -> None:
+        with db.engine.connect() as connection:
+            total = connection.execute(self.total_query).scalar()
+            in_use = connection.execute(self.in_use_query).scalar()
+            unused = connection.execute(self.unused_query).scalar()
+
+        GLib.idle_add(self.set_labels, total, in_use, unused)
+
+    def set_labels(self, total: int, in_use: int, unused: int) -> None:
+        if self.has_active:
+            sensitive = not prefs.prefs.get(prefs.exclude_inactive_pref)
+            self.total_label.set_sensitive(sensitive)
+            self.unused_label.set_sensitive(sensitive)
+
+        self.total_label.set_label(total)
+        self.in_use_label.set_label(in_use)
+        self.unused_label.set_label(unused)
+
+
+class StatsGrid(Gtk.Grid):
+    stats_rows: list[StatsRow] = []
+    initialised = False
+
+    def __init__(self) -> None:
+        super().__init__(
+            row_spacing=2,
+            column_spacing=2,
+            column_homogeneous=True,
+        )
+
+        label = Gtk.Label(use_markup=True, label=f"<b>{_('Total')}</b>")
+        self.attach(label, 1, 0, 1, 1)
+        label = Gtk.Label(use_markup=True, label=f"<b>{_('In Use')}</b>")
+        self.attach(label, 2, 0, 1, 1)
+        label = Gtk.Label(use_markup=True, label=f"<b>{_('Unused')}</b>")
+        self.attach(label, 3, 0, 1, 1)
+
+    def update(self) -> None:
+        for row in self.stats_rows:
+            row.update()
+
+    def init(self) -> None:
+        if self.initialised:
+            return
+
+        for row in self.stats_rows:
+            self.attach(row.label, 0, row.position, 1, 1)
+            self.attach(row.total_viewport, 1, row.position, 1, 1)
+            self.attach(row.in_use_viewport, 2, row.position, 1, 1)
+            self.attach(row.unused_viewport, 3, row.position, 1, 1)
+
+        self.show_all()
+
+        type(self).initialised = True
 
 
 class UpdateableNoArgs(Protocol):  # pylint: disable=too-few-public-methods
@@ -191,46 +332,44 @@ class HomeView(View, Gtk.Box):
     of the "what do I do now" screen.
     """
 
-    infoboxclass: type[UpdateableWidget] | None = None
     main_widget: UpdateableWidget | Gtk.Widget | None = None
 
     def __init__(self) -> None:
         super().__init__()
+        self.left_vbox = Gtk.Box(
+            orientation=Gtk.Orientation.VERTICAL, margin=8
+        )
+        self.right_vbox = Gtk.Box(
+            orientation=Gtk.Orientation.VERTICAL,
+            margin=8,
+        )
+        self.pack_start(self.left_vbox, True, True, 0)
+        self.pack_end(self.right_vbox, False, False, 0)
 
-        # home window contains a hbox: left half is for the proper home,
-        # right half for infobox, only one infobox is allowed.
-
-        self.hbox = Gtk.Box()
-        self.pack_start(self.hbox, True, True, 0)
-
-        self.vbox = Gtk.Box(spacing=0, orientation=Gtk.Orientation.VERTICAL)
         self.search_box = SimpleSearchBox()
-        self.search_box.set_valign(Gtk.Align.START)
-        self.search_box.set_vexpand(False)
-        self.vbox.pack_start(self.search_box, False, True, 5)
+        self.left_vbox.pack_start(self.search_box, False, True, 5)
 
-        self.hbox.pack_start(self.vbox, True, True, 0)
+        self.stats_grid = StatsGrid()
+        self.right_vbox.pack_start(self.stats_grid, False, False, 8)
 
-        self.infobox: UpdateableWidget | None = None
+        from bauble.search.stored_queries import StoredQueriesButtonBox
+
+        self.stored_queries_box = StoredQueriesButtonBox()
+        self.right_vbox.pack_start(self.stored_queries_box, True, True, 8)
+
         self._main_widget: UpdateableWidget | Gtk.Widget | None = None
 
     def update(self, *_args) -> None:
         logger.debug("HomeView::update")
 
         self.search_box.update()
+        self.stored_queries_box.refresh()
 
-        if self.infoboxclass and not self.infobox:
-            logger.debug("HomeView::update - creating infobox")
-            self.infobox = self.infoboxclass()  # pylint: disable=not-callable
-            self.hbox.pack_end(self.infobox, False, False, 8)
-            self.infobox.set_vexpand(False)
-            self.infobox.set_hexpand(False)
-            self.infobox.show()
-        if self.infobox:
-            logger.debug("HomeView::update - updating infobox")
-            self.infobox.update()
+        self.stats_grid.init()
+        threading.Thread(target=self.stats_grid.update, daemon=True).start()
+
         self.set_main_widget()
-        # pylint: disable=no-member
+
         if (
             self._main_widget
             and hasattr(self._main_widget, "update")
@@ -243,21 +382,23 @@ class HomeView(View, Gtk.Box):
         logger.debug("_main_widget = %s", self._main_widget)
         logger.debug("main_widget = %s", self.main_widget)
         if self._main_widget and self._main_widget is not self.main_widget:
-            self.vbox.remove(self._main_widget)
+            self.left_vbox.remove(self._main_widget)
             self._main_widget = None
 
-        if not self._main_widget:
-            if self.main_widget:
-                self._main_widget = self.main_widget
-            else:
-                self._main_widget = Gtk.Image()
-                self._main_widget.set_from_file(
-                    str(Path(paths.lib_dir(), "images", "bauble_logo.png"))
-                )
-                self._main_widget.set_valign(Gtk.Align.START)
-                self.__class__.main_widget = self._main_widget
-            self.vbox.pack_start(self._main_widget, True, True, 10)
-            self.vbox.show_all()
+        if self._main_widget:
+            return
+
+        if self.main_widget:
+            self._main_widget = self.main_widget
+        else:
+            self._main_widget = Gtk.Image()
+            self._main_widget.set_from_file(
+                str(Path(paths.lib_dir(), "images", "bauble_logo.png"))
+            )
+            self._main_widget.set_valign(Gtk.Align.START)
+            self.__class__.main_widget = self._main_widget
+        self.left_vbox.pack_start(self._main_widget, True, True, 10)
+        self.left_vbox.show_all()
 
 
 class HomeCommandHandler(pluginmgr.CommandHandler):

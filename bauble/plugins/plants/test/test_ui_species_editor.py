@@ -30,12 +30,12 @@ from bauble import db
 from bauble import utils
 from bauble.meta import BaubleMeta
 from bauble.plugins.imex.csv_ import CSVRestore
-from bauble.plugins.plants import PlantsPlugin
 from bauble.plugins.plants.family import Family
 from bauble.plugins.plants.genus import Genus
 from bauble.plugins.plants.species_model import Habit
 from bauble.plugins.plants.species_model import Species
 from bauble.plugins.plants.species_model import VernacularName
+from bauble.plugins.plants.species_model import register_custom_column
 from bauble.plugins.plants.test_plants import setUp_data as setup_plants_data
 from bauble.test import BaubleTestCase
 from bauble.test import update_gui
@@ -789,8 +789,8 @@ class SpeciesEditorDialogTests(BaubleTestCase):
         )
         self.session.add(meta)
         self.session.commit()
-        # effectively also tests PlantsPlugin.register_custom_column
-        PlantsPlugin.register_custom_column("_sp_custom1")
+
+        register_custom_column("_sp_custom1")
 
         family = Family(epithet="Myrtaceae")
         genus = Genus(family=family, epithet="Rhodomytus")
@@ -820,7 +820,7 @@ class SpeciesEditorDialogTests(BaubleTestCase):
         # tear down
         self.session.delete(meta)
         self.session.commit()
-        PlantsPlugin.register_custom_column("_sp_custom1")
+        register_custom_column("_sp_custom1")
         editor.destroy()
 
     def test_on_subgenus_entry_changed(self):

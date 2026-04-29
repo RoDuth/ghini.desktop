@@ -1,7 +1,7 @@
 # Copyright 2008-2010 Brett Adams
 # Copyright 2012-2016 Mario Frasca <mario@anche.no>.
 # Copyright 2017 Jardín Botánico de Quito
-# Copyright 2020-2025 Ross Demuth <rossdemuth123@gmail.com>
+# Copyright 2020-2026 Ross Demuth <rossdemuth123@gmail.com>
 #
 # This file is part of ghini.desktop.
 #
@@ -26,6 +26,7 @@ import logging
 logger = logging.getLogger(__name__)
 
 import re
+from ast import literal_eval
 from datetime import datetime
 from itertools import chain
 from typing import TYPE_CHECKING
@@ -57,8 +58,10 @@ from sqlalchemy.orm import object_session
 from sqlalchemy.orm import relationship
 from sqlalchemy.orm import synonym as sa_synonym
 
+import bauble
 from bauble import btypes as types
 from bauble import db
+from bauble import meta
 from bauble import prefs
 from bauble import utils
 from bauble.i18n import _
@@ -203,6 +206,64 @@ def markup_italics(string):
 
     result = result.strip()
     return start + result
+
+
+def register_custom_column(column_name: str) -> None:
+    logger.debug("register custom column: %s", column_name)
+
+    with db.Session() as session:
+        custom_meta = (
+            session.query(meta.BaubleMeta)
+            .filter(meta.BaubleMeta.name == column_name)
+            .first()
+        )
+
+    column: Column = getattr(Species, column_name)
+    enum: types.CustomEnum = column.prop.columns[0].type
+
+    if not custom_meta:
+        if hasattr(column, "_custom_column_name"):
+            enum.unset_values()
+            delattr(Species, getattr(column, "_custom_column_name"))
+            delattr(column, "_custom_column_name")
+            delattr(column, "_custom_column_short_hand")
+        return
+
+    custom_meta = literal_eval(custom_meta.value)
+    field_name = custom_meta["field_name"]
+    field_values = custom_meta["values"]
+    short_hand = custom_meta.get("short_hand")
+    empty_to_none = None in field_values
+    enum.init(field_values, empty_to_none=empty_to_none)
+
+    # register with ExpressionRow
+    if bauble.gui:
+        from bauble.search.query_builder import ExpressionRow
+
+        ExpressionRow.custom_columns[field_name] = field_values
+
+    def _get(self):
+        return getattr(self, column_name)
+
+    def _set(self, value):
+        if empty_to_none:
+            value = value or None
+
+        if value in field_values:
+            setattr(self, column_name, value)
+        else:
+            raise AttributeError(f"{value} is not in {field_values}")
+
+    def _exp(cls):
+        return getattr(cls, column_name)
+
+    setattr(
+        Species,
+        field_name,
+        hybrid_property(_get, fset=_set, expr=_exp),
+    )
+    setattr(column, "_custom_column_name", field_name)
+    setattr(column, "_custom_column_short_hand", short_hand)
 
 
 class VNList(list):

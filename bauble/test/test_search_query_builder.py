@@ -27,7 +27,8 @@ from sqlalchemy.orm.attributes import InstrumentedAttribute
 
 from bauble import prefs
 from bauble.plugins.garden.plant import Plant
-from bauble.plugins.plants.species import Species
+from bauble.plugins.plants.species_model import Species
+from bauble.plugins.plants.species_model import register_custom_column
 from bauble.search.query_builder import BuiltQuery
 from bauble.search.query_builder import Clause
 from bauble.search.query_builder import ExpressionRow
@@ -591,6 +592,7 @@ class QueryBuilderTests(BaubleTestCase):
         self.assertTrue(qb.validate())
         qb.destroy()
 
+    @mock.patch("bauble.gui", new=mock.Mock())
     def test_custom_column(self):
         from bauble.meta import BaubleMeta
 
@@ -604,10 +606,8 @@ class QueryBuilderTests(BaubleTestCase):
         )
         self.session.add(meta)
         self.session.commit()
-        # effectively also tests PlantsPlugin.register_custom_column
-        from bauble.plugins.plants import PlantsPlugin
 
-        PlantsPlugin.register_custom_column("_sp_custom1")
+        register_custom_column("_sp_custom1")
         qb = QueryBuilder()
         query = "species where nca_status = 'extinct'"
         qb.set_query(query)

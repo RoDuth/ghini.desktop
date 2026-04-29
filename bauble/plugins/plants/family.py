@@ -366,10 +366,6 @@ class Family(Taxon, db.WithNotes):
         return query.count()
 
 
-# defining the latin alias to the class.
-Familia = Family
-
-
 FamilyNote = db.make_note_class("Family")
 
 
