@@ -28,11 +28,11 @@ from bauble.test import BaubleTestCase
 
 from ..family import Family
 from ..genus import Genus
-from ..test_plants import PlantTestCase
 from ..ui.family_editor import FAMILY_WEB_BUTTON_DEFS_PREFS
 from ..ui.family_view import FamilyInfoBox
 from ..ui.family_view import GeneralFamilyExpander
 from ..ui.family_view import remove_callback
+from .test_plants import PlantTestCase
 
 
 class InfoBoxTests(PlantTestCase):

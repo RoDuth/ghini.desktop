@@ -36,7 +36,6 @@ from bauble.plugins.plants.species_model import Habit
 from bauble.plugins.plants.species_model import Species
 from bauble.plugins.plants.species_model import VernacularName
 from bauble.plugins.plants.species_model import register_custom_column
-from bauble.plugins.plants.test_plants import setUp_data as setup_plants_data
 from bauble.test import BaubleTestCase
 from bauble.test import update_gui
 from bauble.ui.presenter import Response
@@ -47,6 +46,7 @@ from bauble.ui.widgets.message import YesNoMessageBox
 from ..ui.species_editor import Name
 from ..ui.species_editor import SpeciesEditorDialog
 from ..ui.species_editor import split_taxon_full_name
+from .test_plants import setUp_data as setup_plants_data
 
 
 class SpeciesEditorDialogTests(BaubleTestCase):

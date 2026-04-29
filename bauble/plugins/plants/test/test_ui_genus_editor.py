@@ -32,7 +32,6 @@ from bauble.ui.presenter import Response
 from bauble.ui.utils import set_widget_value
 from bauble.ui.widgets import YesNoMessageBox
 
-from ..test_plants import PlantTestCase
 from ..ui.genus_editor import GenusEditorDialog
 from ..ui.genus_editor import add_species_callback
 from ..ui.genus_editor import edit_callback
@@ -41,6 +40,7 @@ from ..ui.genus_editor import genus_completions
 from ..ui.genus_editor import genus_match_func
 from ..ui.genus_editor import genus_to_string_matcher
 from ..ui.genus_editor import validate_unique_genus
+from .test_plants import PlantTestCase
 
 
 class GenusEditorDialogTests(BaubleTestCase):

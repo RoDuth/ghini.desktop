@@ -35,7 +35,7 @@ from sqlalchemy.exc import IntegrityError
 
 import bauble
 import bauble.plugins.garden.test_garden as garden_test
-import bauble.plugins.plants.test_plants as plants_test
+import bauble.plugins.plants.test.test_plants as plants_test
 from bauble import db
 from bauble import prefs
 from bauble.plugins.garden import Accession
@@ -1309,7 +1309,7 @@ class GenericExporterTests(BaubleTestCase):
 
     def test_get_item_record_wo_notes(self):
         from bauble.plugins.plants.geography import Geography
-        from bauble.plugins.plants.test_plants import setup_geographies
+        from bauble.plugins.plants.test.test_plants import setup_geographies
 
         setup_geographies()
 

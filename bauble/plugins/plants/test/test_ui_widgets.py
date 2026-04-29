@@ -44,8 +44,6 @@ from bauble.plugins.plants.species_model import Species
 from bauble.plugins.plants.species_model import SpeciesDistribution
 from bauble.plugins.plants.species_model import VernacularName
 from bauble.plugins.plants.species_model import update_all_full_names_task
-from bauble.plugins.plants.test_plants import setUp_data as setup_plants_data
-from bauble.plugins.plants.test_plants import setup_geographies
 from bauble.test import BaubleClassTestCase
 from bauble.test import BaubleTestCase
 from bauble.test import get_setUp_data_funcs
@@ -82,6 +80,8 @@ from ..ui.widgets.synonyms import _syn_data_func
 from ..ui.widgets.synonyms import taxon_completion_cell_data_func
 from ..ui.widgets.vernacular import CAPITALISE_VNAMES_ON_PASTE_PREF_KEY
 from ..ui.widgets.vernacular import VernacularNamePresenter
+from .test_plants import setUp_data as setup_plants_data
+from .test_plants import setup_geographies
 
 
 class SynonymsPresenterTests(BaubleTestCase):

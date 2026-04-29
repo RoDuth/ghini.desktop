@@ -29,7 +29,7 @@ from bauble.error import BaubleError
 from bauble.i18n import _
 from bauble.plugins.garden import test_garden as garden_test
 from bauble.plugins.garden.accession import Accession
-from bauble.plugins.plants import test_plants as plants_test
+from bauble.plugins.plants.test import test_plants as plants_test
 from bauble.plugins.plants.species import Species
 from bauble.test import BaubleTestCase
 

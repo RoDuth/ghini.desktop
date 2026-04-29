@@ -42,7 +42,6 @@ from bauble.ui.views import SearchView
 from ...garden import Accession
 from ...garden import Plant
 from ...garden.accession import Verification
-from ..test_plants import setUp_data as setup_plants_data
 from ..ui.misc import on_taxa_clicked
 from ..ui.species_editor import SPECIES_WEB_BUTTON_DEFS_PREFS
 from ..ui.species_view import GeneralSpeciesExpander
@@ -50,6 +49,7 @@ from ..ui.species_view import SpeciesInfoBox
 from ..ui.species_view import SynonymsExpander
 from ..ui.species_view import VernacularExpander
 from ..ui.species_view import remove_callback
+from .test_plants import setUp_data as setup_plants_data
 
 
 class SpeciesInfoBoxTests(BaubleTestCase):

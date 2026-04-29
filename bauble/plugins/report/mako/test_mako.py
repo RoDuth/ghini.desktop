@@ -27,7 +27,7 @@ from bauble.plugins.garden import Location
 from bauble.plugins.garden import Plant
 from bauble.plugins.plants import Family
 from bauble.plugins.plants import Geography
-from bauble.plugins.plants.test_plants import setup_geographies
+from bauble.plugins.plants.test.test_plants import setup_geographies
 from bauble.test import BaubleTestCase
 from bauble.test import get_setUp_data_funcs
 

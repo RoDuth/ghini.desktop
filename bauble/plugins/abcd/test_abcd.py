@@ -27,7 +27,7 @@ from unittest import mock
 import bauble.plugins.garden.test_garden as garden_test
 
 # from bauble.plugins.garden import Plant, Accession
-import bauble.plugins.plants.test_plants as plants_test
+import bauble.plugins.plants.test.test_plants as plants_test
 from bauble.plugins import abcd
 from bauble.test import BaubleTestCase
 

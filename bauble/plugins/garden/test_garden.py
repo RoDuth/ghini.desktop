@@ -47,7 +47,7 @@ from bauble.ui import dialogs
 from bauble.ui.utils import set_combo_from_value
 from bauble.ui.utils import set_widget_value
 
-from ..plants import test_plants as plants_test
+from ..plants.test import test_plants as plants_test
 from ..plants.family import Family
 from ..plants.genus import Genus
 from ..plants.geography import Geography

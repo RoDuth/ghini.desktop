@@ -33,7 +33,7 @@ from unittest import mock
 from gi.repository import Gtk
 
 import bauble.plugins.garden.test_garden as garden_test
-import bauble.plugins.plants.test_plants as plants_test
+import bauble.plugins.plants.test.test_plants as plants_test
 from bauble import db
 from bauble import prefs
 from bauble import utils

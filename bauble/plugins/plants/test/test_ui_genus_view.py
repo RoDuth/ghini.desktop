@@ -29,12 +29,11 @@ from bauble.plugins.plants.genus import Genus
 from bauble.plugins.plants.species import Species
 from bauble.test import BaubleTestCase
 
-# rename to avoid get_setUp_data_funcs finding it twice
-from ..test_plants import setUp_data as setup_plants_data
 from ..ui.genus_view import GENUS_WEB_BUTTON_DEFS_PREFS
 from ..ui.genus_view import GeneralGenusExpander
 from ..ui.genus_view import GenusInfoBox
 from ..ui.genus_view import remove_callback
+from .test_plants import setUp_data as setup_plants_data
 
 
 class InfoBoxTests(BaubleTestCase):

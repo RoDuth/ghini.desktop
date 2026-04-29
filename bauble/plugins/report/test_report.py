@@ -37,7 +37,7 @@ from bauble.plugins.plants import Geography
 from bauble.plugins.plants import Species
 from bauble.plugins.plants import SpeciesDistribution
 from bauble.plugins.plants import VernacularName
-from bauble.plugins.plants.test_plants import setup_geographies
+from bauble.plugins.plants.test.test_plants import setup_geographies
 from bauble.plugins.tag.model import Tag
 from bauble.plugins.tag.model import tag_objects
 from bauble.test import BaubleTestCase
