@@ -2,7 +2,7 @@
 # Copyright 2008-2010 Brett Adams
 # Copyright 2015 Mario Frasca <mario@anche.no>.
 # Copyright 2017 Jardín Botánico de Quito
-# Copyright 2021-2025 Ross Demuth <rossdemuth123@gmail.com>
+# Copyright 2021-2026 Ross Demuth <rossdemuth123@gmail.com>
 #
 # This file is part of ghini.desktop.
 #
@@ -21,10 +21,6 @@
 #
 # Description: test for the Plant plugin
 #
-import logging
-
-logging.basicConfig()
-# logging.getLogger('sqlalchemy.engine').setLevel(logging.INFO)
 
 import os
 from datetime import datetime
@@ -33,6 +29,7 @@ from functools import partial
 from unittest import TestCase
 from unittest import mock
 
+from sqlalchemy import func
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.exc import StatementError
@@ -709,6 +706,33 @@ class PrefsUpdatedTest(BaubleTestCase):
         )
         self.assertTrue(prefs.prefs.get("web_button_defs.genus.googlebutton"))
         self.assertTrue(prefs.prefs.get("web_button_defs.family.googlebutton"))
+
+
+class PlantsPluginTests(BaubleClassTestCase):
+
+    @mock.patch("bauble.plugins.plants.strategies")
+    def test_init_no_mapper_search_bails(self, mock_strategies):
+        # just tests the type narrowing
+        mock_strategies.get_strategy.return_value = None
+        PlantsPlugin.init()
+        mock_strategies.add_strategy.assert_not_called()
+
+    def test_install_w_existing_doesnt_overwrite(self):
+        # test that if the plugin is installed on an existing database it
+        # doesn't overwrite the existing data
+        family = Family(family="TestFamily")
+        self.session.add(family)
+        self.session.commit()
+        PlantsPlugin.install()
+        with db.engine.connect() as conn:
+            result = conn.scalar(select(func.count()).select_from(Family))
+
+            self.assertEqual(result, 1)
+
+    @mock.patch("bauble.plugins.plants.db")
+    def test_install_raises_w_db_error(self, mock_db):
+        mock_db.engine.connect.side_effect = Exception("BOOM")
+        self.assertRaises(Exception, PlantsPlugin.install)
 
 
 class FamilyTests(PlantTestCase):
@@ -3927,7 +3951,7 @@ class GeographyApproxAreaTests(BaubleTestCase):
         self.assertAlmostEqual(geo.get_approx_area(), 921283.0, delta=1)
 
 
-class CitesStatus_test(PlantTestCase):
+class CitesStatusTests(PlantTestCase):
     """we can retrieve the cites status as defined in family-genus-species"""
 
     def test_property(self):

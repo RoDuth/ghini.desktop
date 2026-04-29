@@ -34,12 +34,10 @@ from sqlalchemy import select
 import bauble
 from bauble import db
 from bauble import pluginmgr
-from bauble import utils
 from bauble.i18n import _
 from bauble.paths import lib_dir
 from bauble.search import strategies
 from bauble.search.query_builder import ExpressionRow
-from bauble.ui import dialogs
 from bauble.ui.views import HistoryView
 from bauble.ui.views import SearchView
 from bauble.ui.views import home
@@ -415,39 +413,25 @@ class PlantsPlugin(pluginmgr.Plugin):
             )
         ]
 
-        # this should only occur first time around, not wipe out existing
-        # data.  Or at least ask the user.
-        with db.engine.connect() as con:
-            fams = con.scalar(select(func.count()).select_from(Family))
-            gens = con.scalar(select(func.count()).select_from(Genus))
-            geos = con.scalar(select(func.count()).select_from(Geography))
-            if gens > 0 and fams > 0 and geos > 0:
-                msg = _(
-                    f"You already seem to have approximately <b>{gens}</b>"
-                    f" records in the genus table, <b>{fams}</b> in the "
-                    f"family table and <b>{geos}</b> in geography table. "
-                    "\n\n<b>Do you want to overwrite these tables and "
-                    "their related synonym tables?</b>"
-                )
-                if not dialogs.yes_no_dialog(msg, yes_delay=2):
-                    return
-        # pylint: disable=no-member
-        geo_table = Geography.__table__
-        depends = utils.find_dependent_tables(geo_table)
-
+        # confirm we are not just recovering from a failure where the plugin
+        # was lost.
         try:
-            logger.debug("dropping tables: %s", [i.name for i in depends])
-            db.metadata.drop_all(tables=depends)
-            logger.debug("dropping tables: %s", geo_table.name)
-            geo_table.drop(db.engine)
+            with db.engine.connect() as con:
+                fams = con.scalar(select(func.count()).select_from(Family))
+                gens = con.scalar(select(func.count()).select_from(Genus))
+                geos = con.scalar(select(func.count()).select_from(Geography))
+                if gens > 0 or fams > 0 or geos > 0:
+                    logger.warning(
+                        "PlantsPlugin::install, not importing defaults "
+                        "%s families, %s genera and %s geographies found",
+                        fams,
+                        gens,
+                        geos,
+                    )
+                    return
         except Exception as e:  # pylint: disable=broad-except
-            logger.debug("%s(%s)", type(e).__name__, e)
-
-        logger.debug("creating tables: %s", [i.name for i in depends])
-        geo_table.create(db.engine)
-
-        db.metadata.create_all(tables=depends)
-        logger.debug("creating tables: %s", geo_table.name)
+            logger.info("checking existing: %s(%s)", type(e).__name__, e)
+            raise
 
         # avoids circular import
         from bauble.plugins.imex.csv_ import CSVRestore
