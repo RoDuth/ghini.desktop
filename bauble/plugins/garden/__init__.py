@@ -45,6 +45,7 @@ from bauble.ui.utils import search_tree_model
 from bauble.ui.views import HistoryView
 from bauble.ui.views import HomeView
 from bauble.ui.views import SearchView
+from bauble.ui.views import home
 
 from .accession import BAUBLE_ACC_CODE_FORMAT
 from .accession import Accession
@@ -264,6 +265,58 @@ class GardenPlugin(pluginmgr.Plugin):
 
         Accession.code_format = (
             get_default_acc_code_format() or BAUBLE_ACC_CODE_FORMAT
+        )
+        home.StatsGrid.stats_rows.append(
+            home.StatsRow(
+                _("Accessions:"),
+                "SELECT COUNT(*) FROM accession",
+                "accession like %",
+                (
+                    "SELECT COUNT(DISTINCT accession.id) FROM accession "
+                    "JOIN plant ON plant.accession_id=accession.id "
+                    "WHERE plant.quantity>0"
+                ),
+                "accession where sum(plants.quantity) > 0",
+                (
+                    "SELECT COUNT(id) FROM accession WHERE id NOT IN (SELECT "
+                    "DISTINCT accession_id FROM plant WHERE plant.quantity>0)"
+                ),
+                "accession where plants = Empty or sum(plants.quantity)=0",
+                4,
+                True,
+            )
+        )
+        home.StatsGrid.stats_rows.append(
+            home.StatsRow(
+                _("Plants:"),
+                "SELECT COUNT(*) FROM plant",
+                "plant like %",
+                "SELECT COUNT(*) FROM plant WHERE quantity>0",
+                "plant where sum(quantity) > 0",
+                "SELECT COUNT(*) FROM plant WHERE quantity=0",
+                "plant where sum(quantity) = 0",
+                5,
+                True,
+            )
+        )
+        home.StatsGrid.stats_rows.append(
+            home.StatsRow(
+                _("Locations:"),
+                "SELECT COUNT(*) FROM location",
+                "location like %",
+                (
+                    "SELECT COUNT(DISTINCT location.id) FROM location "
+                    "JOIN plant ON plant.location_id=location.id "
+                    "WHERE plant.quantity>0"
+                ),
+                "location where sum(plants.quantity) > 0",
+                (
+                    "SELECT COUNT(id) FROM location WHERE id NOT IN (SELECT "
+                    "DISTINCT location_id FROM plant WHERE plant.quantity>0)"
+                ),
+                "location where plants = Empty or sum(plants.quantity)=0",
+                6,
+            )
         )
 
         institution = Institution()
