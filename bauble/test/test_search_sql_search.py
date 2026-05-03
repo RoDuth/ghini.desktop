@@ -26,7 +26,7 @@ from bauble.plugins.plants.genus import Genus
 from bauble.plugins.plants.geography import Geography
 from bauble.plugins.plants.species import Species
 from bauble.plugins.plants.species import SpeciesDistribution
-from bauble.plugins.plants.test.test_plants import setup_geographies
+from bauble.plugins.plants.test.test_geography import setup_geographies
 from bauble.search.sql_search import SQLSearchDialog
 from bauble.search.strategies import MapperSearch
 from bauble.test import BaubleTestCase

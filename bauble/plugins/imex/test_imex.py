@@ -1309,7 +1309,7 @@ class GenericExporterTests(BaubleTestCase):
 
     def test_get_item_record_wo_notes(self):
         from bauble.plugins.plants.geography import Geography
-        from bauble.plugins.plants.test.test_plants import setup_geographies
+        from bauble.plugins.plants.test.test_geography import setup_geographies
 
         setup_geographies()
 

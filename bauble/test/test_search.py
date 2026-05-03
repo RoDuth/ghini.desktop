@@ -52,7 +52,7 @@ from bauble.plugins.plants.species import Species
 from bauble.plugins.plants.species import SpeciesDistribution
 from bauble.plugins.plants.species import SpeciesPicture
 from bauble.plugins.plants.species import VernacularName
-from bauble.plugins.plants.test.test_plants import setup_geographies
+from bauble.plugins.plants.test.test_geography import setup_geographies
 from bauble.search.search import result_cache
 from bauble.search.strategies import UseStrategy
 from bauble.test import BaubleClassTestCase

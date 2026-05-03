@@ -21,8 +21,8 @@ from unittest import mock
 
 from ..geography import Geography
 from ..ui.geography_view import GeneralGeographyExpander
+from .test_geography import setup_geographies
 from .test_plants import PlantTestCase
-from .test_plants import setup_geographies
 
 
 class InfoBoxTests(PlantTestCase):

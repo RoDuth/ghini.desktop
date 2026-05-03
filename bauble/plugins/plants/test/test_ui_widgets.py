@@ -80,8 +80,8 @@ from ..ui.widgets.synonyms import _syn_data_func
 from ..ui.widgets.synonyms import taxon_completion_cell_data_func
 from ..ui.widgets.vernacular import CAPITALISE_VNAMES_ON_PASTE_PREF_KEY
 from ..ui.widgets.vernacular import VernacularNamePresenter
+from .test_geography import setup_geographies
 from .test_plants import setUp_data as setup_plants_data
-from .test_plants import setup_geographies
 
 
 class SynonymsPresenterTests(BaubleTestCase):

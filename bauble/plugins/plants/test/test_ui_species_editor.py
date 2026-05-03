@@ -45,6 +45,7 @@ from bauble.ui.widgets.message import YesNoMessageBox
 
 from ..ui.species_editor import Name
 from ..ui.species_editor import SpeciesEditorDialog
+from ..ui.species_editor import edit_callback
 from ..ui.species_editor import split_taxon_full_name
 from .test_plants import setUp_data as setup_plants_data
 
@@ -1883,6 +1884,20 @@ class FunctionTests(BaubleTestCase):
                 infrasp_epithet="hemilampra",
             ),
         )
+
+    def test_edit_callback(self):
+        caricaceae = Family(family="Caricaceae")
+        gen = Genus(epithet="Carica", family=caricaceae)
+        sp = Species(epithet="papaya", genus=gen)
+        self.session.add(sp)
+        self.session.flush()
+
+        with mock.patch.object(edit_callback, "dialog_class") as mock_editor:
+
+            self.assertFalse(edit_callback([sp]))
+            mock_editor.assert_called_once()
+            self.assertEqual(mock_editor.call_args.kwargs["model"], sp)
+            mock_editor().show.assert_called_once()
 
     def test_add_accession_callback(self):
         caricaceae = Family(family="Caricaceae")

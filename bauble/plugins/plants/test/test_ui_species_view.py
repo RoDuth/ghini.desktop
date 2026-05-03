@@ -42,7 +42,6 @@ from ..genus import Genus
 from ..species import Species
 from ..species import VernacularName
 from ..species import register_custom_column
-from ..ui.misc import on_taxa_clicked
 from ..ui.species_editor import SPECIES_WEB_BUTTON_DEFS_PREFS
 from ..ui.species_view import GeneralSpeciesExpander
 from ..ui.species_view import SpeciesInfoBox
@@ -434,28 +433,6 @@ class SpeciesInfoBoxTests(BaubleTestCase):
             self.assertEqual(len(labels), 1)
             self.assertNotIn("0 prev.", labels)
             self.assertIn("1 new", labels)
-
-    @mock.patch("bauble.plugins.plants.ui.misc.select_in_search_results")
-    def test_on_taxa_clicked(self, mock_select):
-        prefs.prefs[prefs.return_accepted_pref] = False
-        fam = Family(epithet="Spam")
-        fam2 = Family(epithet="Eggs")
-        fam.synonyms.append(fam2)
-
-        on_taxa_clicked(None, None, fam2)
-
-        mock_select.assert_called_once_with(fam2)
-
-        mock_select.reset_mock()
-        prefs.prefs[prefs.return_accepted_pref] = True
-
-        on_taxa_clicked(None, None, fam2)
-
-        args = mock_select.call_args_list
-
-        self.assertEqual(len(args), 2)
-        self.assertEqual(args[0].args, (fam,))
-        self.assertEqual(args[1].args, (fam2,))
 
     def test_species_info_box_links(self):
         infobox = SpeciesInfoBox()
