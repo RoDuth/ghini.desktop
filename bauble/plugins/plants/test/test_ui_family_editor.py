@@ -245,6 +245,7 @@ class FamilyEditorDialogTests(BaubleTestCase):
         # yes
         editor.family_entry.set_text("")
         editor.family_entry.set_text("Myrtaceae")
+        update_gui()
         child.get_children()[1].get_children()[0].emit("clicked")
 
         mock_callback.assert_called_once()

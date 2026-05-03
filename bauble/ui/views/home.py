@@ -250,9 +250,9 @@ class StatsRow:
 
     def update(self) -> None:
         with db.engine.connect() as connection:
-            total = connection.execute(self.total_query).scalar()
-            in_use = connection.execute(self.in_use_query).scalar()
-            unused = connection.execute(self.unused_query).scalar()
+            total = connection.scalar(self.total_query)
+            in_use = connection.scalar(self.in_use_query)
+            unused = connection.scalar(self.unused_query)
 
         GLib.idle_add(self.set_labels, total, in_use, unused)
 
@@ -287,6 +287,7 @@ class StatsGrid(Gtk.Grid):
 
     def update(self) -> None:
         for row in self.stats_rows:
+            logger.debug("Updating stats row: %s", row.label.get_label())
             row.update()
 
     def init(self) -> None:

@@ -42,7 +42,9 @@ from bauble import pluginmgr
 from bauble import prefs
 from bauble.ui.gui import GUI
 
-uri = make_url("sqlite:///:memory:")
+# use an in-memory database with shared cache for the sake of threads
+# can't use bauble.test.uri as this may be a persistent db (e.g. MSSQL)
+uri = make_url("sqlite:///file:memdb?mode=memory&cache=shared&uri=true")
 
 
 def setup_prefs():

@@ -270,7 +270,11 @@ def _upgrade_stored_queries() -> None:
             logger.debug("%s(%s)", type(e).__name__, e)
             return
 
-    meta_stqrs = _get_meta_stored_queries()
+    try:
+        meta_stqrs = _get_meta_stored_queries()
+    except SQLAlchemyError as e:
+        logger.debug("%s(%s)", type(e).__name__, e)
+        return
 
     if meta_stqrs:
         logger.debug("found meta_stqrs")

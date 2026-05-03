@@ -327,6 +327,7 @@ class GenusEditorDialogTests(BaubleTestCase):
         # yes
         editor.genus_entry.set_text("")
         editor.genus_entry.set_text("Sterculia")
+        update_gui()
         child.get_children()[1].get_children()[0].emit("clicked")
 
         mock_callback.assert_called_once()
