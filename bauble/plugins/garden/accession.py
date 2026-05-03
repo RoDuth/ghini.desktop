@@ -3512,8 +3512,8 @@ class AccessionEditor(editor.GenericModelViewPresenterEditor):
 
 # import at the bottom to avoid circular dependencies
 # pylint: disable=wrong-import-order
-from ..plants.species_model import Species
-from ..plants.species_model import SpeciesSynonym
+from ..plants.species import Species
+from ..plants.species import SpeciesSynonym
 
 
 @Gtk.Template(

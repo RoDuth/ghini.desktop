@@ -32,10 +32,10 @@ from bauble.meta import BaubleMeta
 from bauble.plugins.imex.csv_ import CSVRestore
 from bauble.plugins.plants.family import Family
 from bauble.plugins.plants.genus import Genus
-from bauble.plugins.plants.species_model import Habit
-from bauble.plugins.plants.species_model import Species
-from bauble.plugins.plants.species_model import VernacularName
-from bauble.plugins.plants.species_model import register_custom_column
+from bauble.plugins.plants.species import Habit
+from bauble.plugins.plants.species import Species
+from bauble.plugins.plants.species import VernacularName
+from bauble.plugins.plants.species import register_custom_column
 from bauble.test import BaubleTestCase
 from bauble.test import update_gui
 from bauble.ui.presenter import Response

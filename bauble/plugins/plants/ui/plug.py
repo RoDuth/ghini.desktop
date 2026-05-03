@@ -35,7 +35,6 @@ from ..geography import Geography
 from ..geography import get_species_in_geography
 from ..species import Species
 from ..species import VernacularName
-from ..species import get_binomial_completions
 from .family_editor import create_family
 from .family_editor import edit_callback as family_edit_callback
 from .family_view import FamilyInfoBox
@@ -46,6 +45,7 @@ from .genus_view import GenusInfoBox
 from .genus_view import genus_context_menu
 from .geography_view import GeographyInfoBox
 from .geography_view import geography_context_menu
+from .misc import get_binomial_completions
 from .species_editor import create_species
 from .species_editor import edit_callback as species_edit_callback
 from .species_view import SpeciesInfoBox

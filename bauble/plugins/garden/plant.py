@@ -1651,7 +1651,7 @@ class PlantEditorPresenter(GenericEditorPresenter, PresenterMapMixin):
         from bauble.utils import ilike
 
         from ..plants.genus import Genus
-        from ..plants.species_model import Species
+        from ..plants.species import Species
 
         if len(parts) == 1:
             # try straight accession code search first

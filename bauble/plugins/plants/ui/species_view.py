@@ -54,9 +54,9 @@ from bauble.ui.views import on_clicked_search
 from bauble.ui.views import on_clicked_select
 from bauble.ui.views import select_in_search_results
 
-from ..species_model import Species
-from ..species_model import VernacularName
-from ..species_model import red_list_values
+from ..species import Species
+from ..species import VernacularName
+from ..species import red_list_values
 from .geography_view import map_kml_callback
 from .misc import on_taxa_clicked
 from .species_editor import SPECIES_WEB_BUTTON_DEFS_PREFS

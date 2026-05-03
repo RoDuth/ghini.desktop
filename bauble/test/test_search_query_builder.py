@@ -27,8 +27,8 @@ from sqlalchemy.orm.attributes import InstrumentedAttribute
 
 from bauble import prefs
 from bauble.plugins.garden.plant import Plant
-from bauble.plugins.plants.species_model import Species
-from bauble.plugins.plants.species_model import register_custom_column
+from bauble.plugins.plants.species import Species
+from bauble.plugins.plants.species import register_custom_column
 from bauble.search.query_builder import BuiltQuery
 from bauble.search.query_builder import Clause
 from bauble.search.query_builder import ExpressionRow

@@ -41,8 +41,8 @@ from bauble.ui import dialogs
 from bauble.ui.presenter import Problem
 from bauble.ui.widgets import MessageBox
 
-from ...species_model import Species
-from ...species_model import VernacularName
+from ...species import Species
+from ...species import VernacularName
 
 parent = Path(__file__).resolve().parent
 

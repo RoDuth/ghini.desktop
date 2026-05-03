@@ -48,7 +48,7 @@ from bauble.ui.views import on_clicked_search
 
 from ..family import Family
 from ..genus import Genus
-from ..species_model import Species
+from ..species import Species
 from .family_editor import FAMILY_WEB_BUTTON_DEFS_PREFS
 from .family_editor import add_genera_callback
 from .family_editor import edit_callback

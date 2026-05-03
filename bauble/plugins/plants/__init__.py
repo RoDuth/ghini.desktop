@@ -38,16 +38,15 @@ from bauble.search import strategies
 from .family import Family
 from .genus import Genus
 from .geography import Geography
-from .species import BinomialSearch
+from .search import BinomialSearch
+from .search import SynonymSearch
 from .species import Species
 from .species import SpeciesDistribution
-from .species import SynonymSearch
 from .species import VernacularName
-from .species_model import register_custom_column
+from .species import register_custom_column
 
 # imported by clients of the module
 __all__ = ["SpeciesDistribution"]
-
 
 
 class PlantsPlugin(pluginmgr.Plugin):

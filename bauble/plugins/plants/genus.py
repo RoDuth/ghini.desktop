@@ -221,7 +221,7 @@ class Genus(Taxon, db.WithNotes):
         from ..garden import Accession
         from ..garden import Plant
         from ..garden.plant import PlantPicture
-        from .species_model import SpeciesPicture
+        from .species import SpeciesPicture
 
         sp_pics = (
             session.query(SpeciesPicture)
@@ -529,4 +529,4 @@ class GenusSynonym(Synonym):
 
 # late bindings
 from .family import Family
-from .species_model import Species
+from .species import Species

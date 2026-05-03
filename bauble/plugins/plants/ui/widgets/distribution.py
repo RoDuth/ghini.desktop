@@ -42,8 +42,8 @@ from bauble.ui.utils import get_clipboard
 
 from ...geography import Geography
 from ...geography import consolidate_geographies
-from ...species_model import Species
-from ...species_model import SpeciesDistribution
+from ...species import Species
+from ...species import SpeciesDistribution
 from .geography import GeographyMenu
 
 parent = Path(__file__).resolve().parent

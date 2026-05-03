@@ -59,7 +59,7 @@ from bauble.ui.widgets import YesNoMessageBox
 from ..family import Family
 from ..genus import Genus
 from ..genus import GenusSynonym
-from ..species_model import Species
+from ..species import Species
 from .species_editor import SpeciesEditorDialog
 from .widgets import SynonymsPresenter
 from .widgets import taxon_completion_cell_data_func

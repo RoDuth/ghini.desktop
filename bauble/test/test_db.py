@@ -44,7 +44,7 @@ from bauble.plugins.garden.location import Location
 from bauble.plugins.plants.genus import Family
 from bauble.plugins.plants.genus import Genus
 from bauble.plugins.plants.genus import Species
-from bauble.plugins.plants.species_model import VernacularName
+from bauble.plugins.plants.species import VernacularName
 from bauble.search.strategies import MapperSearch
 from bauble.test import BaubleTestCase
 from bauble.test import get_setUp_data_funcs

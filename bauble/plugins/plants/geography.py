@@ -69,8 +69,8 @@ def get_species_in_geography(geo):
     if not session:
         raise ValueError("geography is not in a session")
 
-    from .species_model import Species
-    from .species_model import SpeciesDistribution
+    from .species import Species
+    from .species import SpeciesDistribution
 
     master_ids = set([geo.id])
     master_ids.update(geo.get_children_ids())
@@ -200,7 +200,7 @@ class Geography(db.Domain):
         """Has this geography or any of it children or parents got a
         SpeciesDistribution
         """
-        from .species_model import SpeciesDistribution
+        from .species import SpeciesDistribution
 
         session = cast(Session, object_session(self))
         # more expensive than other models
@@ -217,7 +217,7 @@ class Geography(db.Domain):
 
     def count_children(self) -> int:
         # Much more expensive than other models
-        from .species_model import SpeciesDistribution
+        from .species import SpeciesDistribution
 
         session = cast(Session, object_session(self))
         ids = {self.id}

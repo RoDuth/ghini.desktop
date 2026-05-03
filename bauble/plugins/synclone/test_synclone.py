@@ -554,7 +554,7 @@ class DBSyncTests(BaubleTestCase):
             "values": {
                 "id": 1,
                 "obj_id": 10,
-                "obj_class": "bauble.plugins.plants.species_model.Species",
+                "obj_class": "bauble.plugins.plants.species.Species",
                 "tag_id": 1,
                 "_last_updated": 0,
                 "_created": 0,

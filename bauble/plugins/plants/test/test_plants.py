@@ -62,20 +62,19 @@ from ..geography import _path_string
 from ..geography import consolidate_geographies
 from ..geography import consolidate_geographies_by_percent_area
 from ..geography import get_species_in_geography
-from ..species import BinomialSearch
+from ..search import BinomialSearch
+from ..search import SynonymSearch
 from ..species import DefaultVernacularName
 from ..species import Species
 from ..species import SpeciesDistribution
 from ..species import SpeciesNote
+from ..species import SpeciesPicture
 from ..species import SpeciesSynonym
-from ..species import SynonymSearch
 from ..species import VernacularName
-from ..species import get_binomial_completions
-from ..species_model import SpeciesPicture
-from ..species_model import _remove_zws as remove_zws
-from ..species_model import markup_italics
-from ..species_model import register_custom_column
-from ..species_model import update_all_full_names_task
+from ..species import _remove_zws as remove_zws
+from ..species import markup_italics
+from ..species import register_custom_column
+from ..species import update_all_full_names_task
 
 family_test_data = (
     {"id": 1, "family": "Orchidaceae", "cites": "II"},
@@ -4363,6 +4362,8 @@ class GlobalFunctionsTest(PlantTestCase):
         self.assertEqual(partial(db.natsort, "species.accessions")(vName), [])
 
     def test_get_binomial_completions(self):
+        from ..ui.misc import get_binomial_completions
+
         self.assertEqual(
             get_binomial_completions("cyn"),
             {

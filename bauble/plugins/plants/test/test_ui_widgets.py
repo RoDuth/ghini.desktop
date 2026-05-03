@@ -40,10 +40,10 @@ from bauble.plugins.plants.family import Family
 from bauble.plugins.plants.family import FamilySynonym
 from bauble.plugins.plants.genus import Genus
 from bauble.plugins.plants.geography import Geography
-from bauble.plugins.plants.species_model import Species
-from bauble.plugins.plants.species_model import SpeciesDistribution
-from bauble.plugins.plants.species_model import VernacularName
-from bauble.plugins.plants.species_model import update_all_full_names_task
+from bauble.plugins.plants.species import Species
+from bauble.plugins.plants.species import SpeciesDistribution
+from bauble.plugins.plants.species import VernacularName
+from bauble.plugins.plants.species import update_all_full_names_task
 from bauble.test import BaubleClassTestCase
 from bauble.test import BaubleTestCase
 from bauble.test import get_setUp_data_funcs

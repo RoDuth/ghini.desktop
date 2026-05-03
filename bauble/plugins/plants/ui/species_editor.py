@@ -74,10 +74,10 @@ from bauble.ui.widgets import PictureBox
 from bauble.ui.widgets import YesNoMessageBox
 
 from ..genus import Genus
-from ..species_model import Habit
-from ..species_model import Species
-from ..species_model import SpeciesSynonym
-from ..species_model import VernacularName
+from ..species import Habit
+from ..species import Species
+from ..species import SpeciesSynonym
+from ..species import VernacularName
 from .widgets import SynonymsPresenter
 from .widgets import taxon_completion_cell_data_func
 from .widgets.distribution import DistributionPresenter

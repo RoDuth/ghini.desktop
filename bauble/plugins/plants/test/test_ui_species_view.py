@@ -30,11 +30,6 @@ from sqlalchemy.exc import SQLAlchemyError
 
 from bauble import prefs
 from bauble.meta import BaubleMeta
-from bauble.plugins.plants.family import Family
-from bauble.plugins.plants.genus import Genus
-from bauble.plugins.plants.species import Species
-from bauble.plugins.plants.species import VernacularName
-from bauble.plugins.plants.species_model import register_custom_column
 from bauble.test import BaubleTestCase
 from bauble.test import get_setUp_data_funcs
 from bauble.ui.views import SearchView
@@ -42,6 +37,11 @@ from bauble.ui.views import SearchView
 from ...garden import Accession
 from ...garden import Plant
 from ...garden.accession import Verification
+from ..family import Family
+from ..genus import Genus
+from ..species import Species
+from ..species import VernacularName
+from ..species import register_custom_column
 from ..ui.misc import on_taxa_clicked
 from ..ui.species_editor import SPECIES_WEB_BUTTON_DEFS_PREFS
 from ..ui.species_view import GeneralSpeciesExpander

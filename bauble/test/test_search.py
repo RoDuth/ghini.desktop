@@ -48,10 +48,10 @@ from bauble.plugins.plants.family import Family
 from bauble.plugins.plants.genus import Genus
 from bauble.plugins.plants.genus import GenusNote
 from bauble.plugins.plants.geography import Geography
-from bauble.plugins.plants.species_model import Species
-from bauble.plugins.plants.species_model import SpeciesDistribution
-from bauble.plugins.plants.species_model import SpeciesPicture
-from bauble.plugins.plants.species_model import VernacularName
+from bauble.plugins.plants.species import Species
+from bauble.plugins.plants.species import SpeciesDistribution
+from bauble.plugins.plants.species import SpeciesPicture
+from bauble.plugins.plants.species import VernacularName
 from bauble.plugins.plants.test.test_plants import setup_geographies
 from bauble.search.search import result_cache
 from bauble.search.strategies import UseStrategy

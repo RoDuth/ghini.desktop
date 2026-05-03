@@ -60,8 +60,8 @@ from bauble import utils
 
 from .model import Synonym
 from .model import Taxon
-from .species_model import Species
-from .species_model import SpeciesPicture
+from .species import Species
+from .species import SpeciesPicture
 
 
 class Family(Taxon, db.WithNotes):

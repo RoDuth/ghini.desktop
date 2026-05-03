@@ -51,10 +51,10 @@ from ..plants.test import test_plants as plants_test
 from ..plants.family import Family
 from ..plants.genus import Genus
 from ..plants.geography import Geography
-from ..plants.species_model import Species
-from ..plants.species_model import SpeciesDistribution
-from ..plants.species_model import _remove_zws as remove_zws
-from ..plants.species_model import update_all_full_names_task
+from ..plants.species import Species
+from ..plants.species import SpeciesDistribution
+from ..plants.species import _remove_zws as remove_zws
+from ..plants.species import update_all_full_names_task
 from . import get_plant_completions
 from .accession import INTENDED_ACTIONGRP_NAME
 from .accession import Accession

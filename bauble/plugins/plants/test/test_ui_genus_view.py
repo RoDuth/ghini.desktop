@@ -24,11 +24,11 @@ from sqlalchemy.exc import SQLAlchemyError
 
 from bauble import prefs
 from bauble import utils
-from bauble.plugins.plants.family import Family
-from bauble.plugins.plants.genus import Genus
-from bauble.plugins.plants.species import Species
 from bauble.test import BaubleTestCase
 
+from ..family import Family
+from ..genus import Genus
+from ..species import Species
 from ..ui.genus_view import GENUS_WEB_BUTTON_DEFS_PREFS
 from ..ui.genus_view import GeneralGenusExpander
 from ..ui.genus_view import GenusInfoBox

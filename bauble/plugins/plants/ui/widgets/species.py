@@ -45,10 +45,10 @@ from bauble.ui.utils import get_widget_value
 from bauble.ui.utils import set_widget_value
 
 from ...genus import Genus
-from ...species_model import Species
-from ...species_model import infrasp_rank_values
-from ...species_model import register_custom_column
-from ...species_model import update_all_full_names_task
+from ...species import Species
+from ...species import infrasp_rank_values
+from ...species import register_custom_column
+from ...species import update_all_full_names_task
 
 parent = Path(__file__).resolve().parent
 

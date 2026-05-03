@@ -11,7 +11,7 @@ from sqlalchemy.engine import make_url
 from bauble import db
 from bauble import pluginmgr
 from bauble import prefs
-from bauble.plugins.plants.species import BinomialSearch
+from bauble.plugins.plants.search import BinomialSearch
 from bauble.search import parser
 from bauble.search.query_builder import BuiltQuery
 from bauble.search.strategies import DomainSearch
