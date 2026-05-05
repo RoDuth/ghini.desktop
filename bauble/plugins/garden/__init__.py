@@ -50,8 +50,6 @@ from bauble.ui.views import home
 from .accession import BAUBLE_ACC_CODE_FORMAT
 from .accession import Accession
 from .accession import AccessionEditor
-from .accession import AccessionInfoBox
-from .accession import acc_context_menu
 from .accession import edit_callback as acc_edit_callback
 from .garden_map import LocationSearchMap
 from .institution import Institution
@@ -79,6 +77,8 @@ from .source import collection_edit_callback
 from .source import create_source_detail
 from .source import source_detail_context_menu
 from .source import source_detail_edit_callback
+from .ui.accession_view import AccessionInfoBox
+from .ui.accession_view import acc_context_menu
 
 # other ideas:
 # - cultivation table
