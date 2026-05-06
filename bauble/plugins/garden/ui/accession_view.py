@@ -77,7 +77,7 @@ class GeneralAccessionExpander(
     intended_locations_label = cast(Gtk.Label, Gtk.Template.Child())
     living_plants_label = cast(Gtk.Label, Gtk.Template.Child())
 
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__(label=_("General"))
         self.connect("notify::expanded", self.on_expanded)
 
@@ -467,7 +467,7 @@ class VerificationsExpander(
 class AccessionInfoBox(InfoBox[Collection | Accession]):
     """Accession InfoBox"""
 
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__()
         self.add_expander(GeneralAccessionExpander())
         self.add_expander(SourceExpander())

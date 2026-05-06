@@ -47,7 +47,6 @@ from bauble.ui import dialogs
 from bauble.ui.utils import set_combo_from_value
 from bauble.ui.utils import set_widget_value
 
-from ..plants.test import test_plants as plants_test
 from ..plants.family import Family
 from ..plants.genus import Genus
 from ..plants.geography import Geography
@@ -55,6 +54,7 @@ from ..plants.species import Species
 from ..plants.species import SpeciesDistribution
 from ..plants.species import _remove_zws as remove_zws
 from ..plants.species import update_all_full_names_task
+from ..plants.test import test_plants as plants_test
 from . import get_plant_completions
 from .accession import INTENDED_ACTIONGRP_NAME
 from .accession import Accession
@@ -78,8 +78,6 @@ from .institution import InstitutionCommand
 from .institution import InstitutionDialog
 from .institution import InstitutionTool
 from .institution import start_institution_editor
-from .location import DescriptionExpander
-from .location import GeneralLocationExpander
 from .location import Location
 from .location import LocationEditor
 from .location import LocationNote
@@ -1903,9 +1901,7 @@ class PropagationTests(GardenTestCase):
         prop.cutting = None
         self.session.commit()
         self.assertTrue(not self.session.get(PropCutting, cutting_id))
-        self.assertTrue(
-            not self.session.get(PropCuttingRooted, rooted_id)
-        )
+        self.assertTrue(not self.session.get(PropCuttingRooted, rooted_id))
 
     def test_accession_links_to_parent_plant(self):
         """we can reach the parent plant from an accession"""
@@ -4783,42 +4779,6 @@ class LocationTests(GardenTestCase):
         # detached returns empty
         self.session.expunge(loc)
         self.assertEqual(loc.pictures, [])
-
-    def test_general_location_expander_update_w_geojson(self):
-        expander = GeneralLocationExpander()
-        loc = self.session.query(Location).first()
-        loc.geojson = {
-            "type": "Polygon",
-            "coordinates": [
-                [
-                    [0.001, 0.001],
-                    [0.0, 0.001],
-                    [0.0, 0.0],
-                    [0.001, 0.0],
-                    [0.001, 0.001],
-                ],
-            ],
-        }
-        self.session.commit()
-
-        expander.update(loc)
-
-        self.assertEqual(expander.geojson_type_label.get_text(), "Polygon")
-        self.assertEqual(expander.approx_area_label.get_text(), "12309.07 m²")
-
-    def test_desription_expander_expands(self):
-        expander = DescriptionExpander()
-        # with description
-        loc = self.session.query(Location).first()
-        expander.update(loc)
-
-        self.assertTrue(expander.get_expanded())
-
-        # without description
-        loc = self.session.get(Location, 2)
-        expander.update(loc)
-
-        self.assertFalse(expander.get_expanded())
 
 
 class LocationUpdatedTests(BaubleTestCase):
