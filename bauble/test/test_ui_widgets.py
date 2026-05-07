@@ -18,6 +18,7 @@
 """
 Generic widgets tests
 """
+import shutil
 from datetime import datetime
 from pathlib import Path
 from tempfile import mkdtemp
@@ -28,12 +29,14 @@ from gi.repository import Gtk
 from PIL import Image
 
 from bauble import prefs
+from bauble import utils
 from bauble.error import BaubleError
 from bauble.plugins.plants.family import Family
 from bauble.plugins.plants.geography import Geography
 from bauble.plugins.plants.ui.family_editor import FAMILY_WEB_BUTTON_DEFS_PREFS
 from bauble.test import BaubleClassTestCase
 from bauble.ui.widgets.date import DatePickerBox
+from bauble.ui.widgets.notes import DocumentBox
 from bauble.ui.widgets.notes import NotesPresenter
 from bauble.ui.widgets.notes import PictureBox
 from bauble.ui.widgets.web import LinksMenuButton
@@ -366,7 +369,7 @@ class PicturesPresenterTests(BaubleClassTestCase):
 
         presenter.destroy()
 
-    def test_on_remove_button_clicked_not_existing(self):
+    def test_on_remove_button_clicked_no_existing(self):
 
         loc = Location(code="Loc1")
         loc._pictures.append(LocationPicture(picture="Test1.jpg"))
@@ -406,7 +409,7 @@ class PicturesPresenterTests(BaubleClassTestCase):
         pic_boxes[1].on_remove_button_clicked(None)
 
         mock_dialog.assert_called_once_with(
-            "File Test1.jpg exist, would you like to delete?",
+            "File Test1.jpg exists, would you like to delete?",
             parent=None,
             yes_delay=0.5,
         )
@@ -439,7 +442,7 @@ class PicturesPresenterTests(BaubleClassTestCase):
         pic_boxes[1].on_remove_button_clicked(None)
 
         mock_dialog.assert_called_once_with(
-            "File Test1.jpg exist, would you like to delete?",
+            "File Test1.jpg exists, would you like to delete?",
             parent=None,
             yes_delay=0.5,
         )
@@ -476,7 +479,7 @@ class PicturesPresenterTests(BaubleClassTestCase):
         pic_boxes[1].on_remove_button_clicked(None)
 
         mock_dialog.assert_called_once_with(
-            "File Test1.jpg exist, would you like to delete? 1 other "
+            "File Test1.jpg exists, would you like to delete? 1 other "
             "picture(s) of type location_picture exist using the same "
             "file.",
             parent=None,
@@ -689,6 +692,8 @@ class PicturesPresenterTests(BaubleClassTestCase):
         self.assertEqual(len(list(thumbs.glob("Test1.jpg"))), 1)
         self.assertEqual(len(list(thumbs.glob("Test1_*.jpg"))), 1)
 
+        shutil.rmtree(pics)
+
         presenter.destroy()
 
     def test_get_dialog_window(self):
@@ -726,17 +731,443 @@ class PicturesPresenterTests(BaubleClassTestCase):
     def test_update_label_truncates_long(self):
         pic_box = PictureBox(
             LocationPicture(
-                picture="a very only string requiring truncation.jpg"
+                picture="a very long string requiring truncation.jpg"
             )
         )
         self.assertEqual(
             pic_box.expander.get_label(),
-            " : a very only string re …",
+            " : a very long string re …",
         )
         pic_box.destroy()
 
 
+class DocumentsPresenterTests(BaubleClassTestCase):
+    def setUp(self):
+
+        prefs.prefs[prefs.root_directory_pref] = TEMP_ROOT
+
+        docs = Path(TEMP_ROOT, "documents")
+        if not docs.is_dir():
+            docs.mkdir()
+
+        empty_doc = docs / "foo.bar"
+        if not empty_doc.is_file():
+            empty_doc.touch()
+
+    def test_init(self):
+        # without documents
+        presenter = NotesPresenter()
+
+        presenter.init(Location(), "documents", DocumentBox)
+
+        self.assertIs(presenter.note_cls, LocationDocument)
+        self.assertEqual(len(presenter.expander_box.get_children()), 0)
+
+        presenter.destroy()
+
+        # with document
+        loc = Location(code="Loc2")
+        doc = LocationDocument(
+            category="Test",
+            document="spam.eggs",
+            note="A document about spam spam spam spam...",
+        )
+        loc.documents.append(doc)
+        self.session.add(doc)
+        self.session.commit()
+        presenter = NotesPresenter()
+
+        presenter.init(loc, "documents", DocumentBox)
+        doc_boxes = presenter.expander_box.get_children()
+
+        self.assertIs(presenter.note_cls, LocationDocument)
+        self.assertEqual(len(doc_boxes), 1)
+        self.assertEqual(doc_boxes[0].file_entry.get_text(), "spam.eggs")
+        self.assertEqual(
+            doc_boxes[0].category_combo.get_child().get_text(),
+            "Test",
+        )
+        buffer = doc_boxes[0].note_textbuffer
+        self.assertEqual(
+            buffer.get_text(*buffer.get_bounds(), False),
+            "A document about spam spam spam spam...",
+        )
+
+        presenter.destroy()
+
+        # not documents errors
+        presenter = NotesPresenter()
+        self.assertRaises(BaubleError, presenter.init, Geography())
+
+        self.session.delete(loc)
+        self.session.commit()
+        presenter.destroy()
+
+    def test_add_button_clicked(self):
+        presenter = NotesPresenter()
+        loc = Location()
+        presenter.init(loc, "documents", DocumentBox)
+
+        presenter.on_add_button_clicked(None)
+
+        doc_boxes = presenter.expander_box.get_children()
+
+        self.assertEqual(len(loc.documents), 1)
+        self.assertEqual(len(presenter.expander_box.get_children()), 1)
+        self.assertEqual(
+            doc_boxes[0].user_entry.get_text(),
+            utils.get_user_display_name(),
+        )
+
+        presenter.destroy()
+
+    def test_on_changed_emits(self):
+        # test it cascades
+        loc = Location(code="Loc1")
+        # catch some edge cases on the label
+        loc.documents.append(LocationDocument(user="Me", document="foo.bar"))
+        presenter = NotesPresenter()
+        presenter.init(loc, "documents", DocumentBox)
+        doc_boxes = presenter.expander_box.get_children()
+
+        with mock.patch.object(presenter, "emit") as mock_emit:
+            doc_boxes[0].emit("changed")
+            mock_emit.assert_called_once_with("changed")
+
+        presenter.destroy()
+
+    def test_can_commit(self):
+        loc = Location(code="Loc1")
+        loc.documents.append(LocationDocument(document="foo.bar"))
+        loc.documents.append(LocationDocument(document="foo2.bar"))
+        presenter = NotesPresenter()
+        presenter.init(loc, "documents", DocumentBox)
+
+        self.assertTrue(presenter.can_commit)
+
+        doc_boxes = presenter.expander_box.get_children()
+        doc_boxes[1].date_entry.set_text("BOOM")
+
+        self.assertFalse(presenter.can_commit)
+
+        presenter.destroy()
+
+    def test_on_remove_button_clicked_no_existing(self):
+        loc = Location(code="Loc1")
+        loc.documents.append(LocationDocument(document="foo.bar"))
+        loc.documents.append(LocationDocument(document="foo2.bar"))
+        presenter = NotesPresenter()
+        presenter.init(loc, "documents", DocumentBox)
+        doc_boxes = presenter.expander_box.get_children()
+        doc_boxes[0].on_remove_button_clicked(None)
+
+        self.assertEqual(len(loc.documents), 1)
+        self.assertEqual(len(presenter.expander_box.get_children()), 1)
+
+        presenter.destroy()
+
+    @mock.patch("bauble.ui.dialogs.yes_no_dialog")
+    def test_on_remove_button_clicked_existing_accept(self, mock_dialog):
+
+        docs = Path(TEMP_ROOT, "documents")
+        self.assertEqual(len(list(docs.glob("foo*.bar"))), 1)
+        loc = Location(code="Loc1")
+        loc.documents.append(LocationDocument(document="foo.bar"))
+        presenter = NotesPresenter()
+        presenter.init(loc, "documents", DocumentBox)
+        doc_boxes = presenter.expander_box.get_children()
+
+        self.assertEqual(doc_boxes[0].file_entry.get_text(), "foo.bar")
+
+        # Accept
+        mock_dialog.return_value = True
+        doc_boxes[0].on_remove_button_clicked(None)
+
+        mock_dialog.assert_called_once_with(
+            "File foo.bar exists, would you like to delete?",
+            parent=None,
+            yes_delay=0.5,
+        )
+
+        self.assertEqual(len(loc.documents), 0)
+        self.assertEqual(len(presenter.expander_box.get_children()), 0)
+        # files deleted
+        self.assertEqual(len(list(docs.glob("foo.bar"))), 0)
+
+        presenter.destroy()
+
+    @mock.patch("bauble.ui.dialogs.yes_no_dialog")
+    def test_on_remove_button_clicked_existing_reject(self, mock_dialog):
+
+        docs = Path(TEMP_ROOT, "documents")
+        self.assertEqual(len(list(docs.glob("foo.bar"))), 1)
+        loc = Location(code="Loc1")
+        loc.documents.append(LocationDocument(document="foo.bar"))
+        presenter = NotesPresenter()
+        presenter.init(loc, "documents", DocumentBox)
+        doc_boxes = presenter.expander_box.get_children()
+
+        self.assertEqual(doc_boxes[0].file_entry.get_text(), "foo.bar")
+        self.assertEqual(len(loc.documents), 1)
+
+        # reject
+        mock_dialog.return_value = False
+        doc_boxes[0].on_remove_button_clicked(None)
+
+        mock_dialog.assert_called_once_with(
+            "File foo.bar exists, would you like to delete?",
+            parent=None,
+            yes_delay=0.5,
+        )
+
+        # still removes the db entry
+        self.assertEqual(len(loc.documents), 0)
+        self.assertEqual(len(presenter.expander_box.get_children()), 0)
+        # file is left in place
+        self.assertEqual(len(list(docs.glob("foo.bar"))), 1)
+
+        presenter.destroy()
+
+    @mock.patch("bauble.ui.dialogs.yes_no_dialog")
+    def test_on_remove_button_clicked_existing_other(self, mock_dialog):
+
+        loc = Location(code="Loc1")
+        loc.documents.append(LocationDocument(document="foo.bar"))
+        presenter = NotesPresenter()
+        presenter.init(loc, "documents", DocumentBox)
+        doc_boxes = presenter.expander_box.get_children()
+
+        self.assertEqual(doc_boxes[0].file_entry.get_text(), "foo.bar")
+
+        # exists elewhere
+        loc2 = Location(code="Loc2")
+        loc2.documents.append(LocationDocument(document="foo.bar"))
+        self.session.add(loc2)
+        self.session.commit()
+
+        # Accept
+        mock_dialog.return_value = True
+        doc_boxes[0].on_remove_button_clicked(None)
+
+        mock_dialog.assert_called_once_with(
+            "File foo.bar exists, would you like to delete? 1 other "
+            "document(s) of type location_document exist using the same "
+            "file.",
+            parent=None,
+            yes_delay=0.5,
+        )
+
+        self.assertEqual(len(loc.documents), 0)
+        self.assertEqual(len(presenter.expander_box.get_children()), 0)
+
+        self.session.delete(loc2)
+        self.session.commit()
+        presenter.destroy()
+
+    @mock.patch("bauble.ui.dialogs.yes_no_dialog")
+    @mock.patch("bauble.ui.dialogs.message_details_dialog")
+    def test_on_remove_button_clicked_exception(
+        self,
+        mock_details_dialog,
+        mock_yn_dialog,
+    ):
+        loc = Location(code="Loc1")
+        loc.documents.append(LocationDocument(document="foo.bar"))
+        presenter = NotesPresenter()
+        presenter.init(loc, "documents", DocumentBox)
+        doc_boxes = presenter.expander_box.get_children()
+
+        self.assertEqual(doc_boxes[0].file_entry.get_text(), "foo.bar")
+
+        # Accept
+        mock_yn_dialog.return_value = True
+        with mock.patch("bauble.ui.widgets.notes.Path.unlink") as mock_unlink:
+            mock_unlink.side_effect = Exception("BOOM")
+            doc_boxes[0].on_remove_button_clicked(None)
+            mock_details_dialog.assert_called_once_with(
+                "Error removing file...  File in use?",
+                details="BOOM",
+                parent=None,
+            )
+
+        self.assertEqual(len(loc.documents), 1)
+        self.assertEqual(len(presenter.expander_box.get_children()), 1)
+
+        presenter.destroy()
+
+    def test_file_exists_menu_btn_is_sensitive(self):
+        loc = Location(code="Loc1")
+        loc.documents.append(LocationDocument(document="foo.bar"))
+        loc.documents.append(LocationDocument(document="ham.eggs"))
+        presenter = NotesPresenter()
+        presenter.init(loc, "documents", DocumentBox)
+        doc_boxes = presenter.expander_box.get_children()
+
+        self.assertEqual(doc_boxes[0].file_entry.get_text(), "ham.eggs")
+        self.assertFalse(doc_boxes[0].file_menu_btn.get_sensitive())
+        self.assertTrue(doc_boxes[0].file_set_box.get_sensitive())
+
+        self.assertEqual(doc_boxes[1].file_entry.get_text(), "foo.bar")
+        self.assertTrue(doc_boxes[1].file_menu_btn.get_sensitive())
+        self.assertFalse(doc_boxes[1].file_set_box.get_sensitive())
+
+        # setting to existing file updates sensitivity
+        doc_boxes[0].file_entry.set_text("foo.bar")
+        self.assertEqual(doc_boxes[0].file_entry.get_text(), "foo.bar")
+        self.assertTrue(doc_boxes[0].file_menu_btn.get_sensitive())
+        self.assertFalse(doc_boxes[0].file_set_box.get_sensitive())
+
+        # setting to non existing file updates sensitivity
+        doc_boxes[0].file_entry.set_text("ham.eggs")
+        self.assertEqual(doc_boxes[0].file_entry.get_text(), "ham.eggs")
+        self.assertFalse(doc_boxes[0].file_menu_btn.get_sensitive())
+        self.assertTrue(doc_boxes[0].file_set_box.get_sensitive())
+
+        presenter.destroy()
+
+    @mock.patch("gi.repository.Gtk.FileChooserNative.new")
+    def test_on_file_btnbrowse_clicked(self, mock_file_chooser):
+        temp = Path(mkdtemp())
+        test3_doc = temp / "Test3.bar"
+        test3_doc.touch()
+        test4_doc = temp / "Test4.bar"
+        test4_doc.touch()
+
+        mock_file_chooser().get_filenames.return_value = [
+            str(test3_doc),
+            str(test4_doc),
+        ]
+
+        loc = Location(code="Loc1")
+        presenter = NotesPresenter()
+        presenter.init(loc, "documents", DocumentBox)
+        presenter.on_add_button_clicked(None)
+        doc_boxes = presenter.expander_box.get_children()
+        doc_boxes[0].on_file_btnbrowse_clicked(None)
+        doc_boxes = presenter.expander_box.get_children()
+
+        self.assertEqual(len(loc.documents), 2)
+        self.assertEqual(len(presenter.expander_box.get_children()), 2)
+        self.assertEqual(doc_boxes[0].file_entry.get_text(), "Test4.bar")
+        self.assertEqual(doc_boxes[1].file_entry.get_text(), "Test3.bar")
+
+        # exception
+        with mock.patch.object(doc_boxes[0], "add_from_files") as mock_add:
+            mock_add.side_effect = Exception("BOOM")
+            with mock.patch("bauble.ui.dialogs.message_details_dialog") as md:
+                doc_boxes[0].on_file_btnbrowse_clicked(None)
+                md.assert_called_once_with(
+                    "Exception trying to add the selected files.",
+                    "BOOM",
+                    Gtk.MessageType.WARNING,
+                    parent=None,
+                )
+
+        presenter.destroy()
+
+    @mock.patch("bauble.ui.dialogs.yes_no_dialog")
+    def test_add_from_files(self, mock_dialog):
+        docs = Path(TEMP_ROOT, "documents")
+        self.assertEqual(len(list(docs.glob("foo*.bar"))), 1)
+        temp = Path(mkdtemp())
+        # existing
+        test1_doc = temp / "foo.bar"
+        test1_doc.touch()
+        # new
+        test5_doc = temp / "test5.bar"
+        test5_doc.touch()
+        loc = Location(code="Loc1")
+        presenter = NotesPresenter()
+        presenter.init(loc, "documents", DocumentBox)
+        presenter.on_add_button_clicked(None)
+        doc_boxes = presenter.expander_box.get_children()
+
+        self.assertEqual(len(doc_boxes), 1)
+
+        # don't rename
+        mock_dialog.return_value = False
+        doc_boxes[0].add_from_files([str(test1_doc), str(test5_doc)])
+        doc_boxes = presenter.expander_box.get_children()
+
+        self.assertEqual(len(doc_boxes), 1)
+        self.assertEqual(len(list(docs.glob("test5.bar"))), 1)
+        self.assertEqual(len(list(docs.glob("test5_*.bar"))), 0)
+        self.assertEqual(len(list(docs.glob("foo.bar"))), 1)
+        self.assertEqual(len(list(docs.glob("foo_*.bar"))), 0)
+
+        # do rename
+        mock_dialog.return_value = True
+        presenter.on_add_button_clicked(None)
+        doc_boxes = presenter.expander_box.get_children()
+        doc_boxes[0].add_from_files([str(test1_doc), str(test5_doc)])
+        doc_boxes = presenter.expander_box.get_children()
+
+        self.assertEqual(len(doc_boxes), 3)
+        self.assertEqual(len(list(docs.glob("test5.bar"))), 1)
+        self.assertEqual(len(list(docs.glob("test5_*.bar"))), 1)
+        self.assertEqual(len(list(docs.glob("foo.bar"))), 1)
+        self.assertEqual(len(list(docs.glob("foo_*.bar"))), 1)
+
+        shutil.rmtree(docs)
+
+        presenter.destroy()
+
+    def test_get_dialog_window(self):
+        loc = Location(code="Loc1")
+        presenter = NotesPresenter()
+        presenter.init(loc, "documents", DocumentBox)
+        presenter.on_add_button_clicked(None)
+        doc_boxes = presenter.expander_box.get_children()
+        win = Gtk.Window()
+        win.add(presenter)
+
+        self.assertIs(doc_boxes[0].get_dialog_window(), win)
+
+        presenter.destroy()
+
+    def test_update_label_truncates_long(self):
+        doc_box = DocumentBox(
+            LocationDocument(
+                user="Jade Green",
+                document="a very long string requiring truncation.doc",
+            )
+        )
+        self.assertEqual(
+            doc_box.expander.get_label(),
+            "Jade Green : a very long string req …",
+        )
+        doc_box.destroy()
+
+    def test_populate_categories(self):
+        loc1 = Location(code="Loc1")
+        loc1.documents.append(
+            LocationDocument(document="ham.eggs", category="Test")
+        )
+        loc1.documents.append(
+            LocationDocument(document="spam.eggs", category="Test")
+        )
+        loc1.documents.append(
+            LocationDocument(document="spam.spam", category="Other")
+        )
+        loc1.documents.append(
+            LocationDocument(document="spam.spam", category="Another")
+        )
+        self.session.add(loc1)
+        self.session.commit()
+        doc_box = DocumentBox(LocationDocument())
+        # pylint: disable=not-an-iterable
+        categories = [row[0] for row in doc_box.category_liststore]
+
+        self.assertCountEqual(categories, ["Test", "Other", "Another"])
+
+        self.session.delete(loc1)
+        self.session.commit()
+
+        doc_box.destroy()
+
+
 # avoid circular imports
 from bauble.plugins.garden.location import Location
+from bauble.plugins.garden.location import LocationDocument
 from bauble.plugins.garden.location import LocationNote
 from bauble.plugins.garden.location import LocationPicture

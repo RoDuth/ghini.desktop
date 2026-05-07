@@ -20,17 +20,19 @@ Custom widgets
 from .date import DatePickerBox
 from .message import MessageBox
 from .message import YesNoMessageBox
+from .notes import DocumentBox
 from .notes import NoteBox
 from .notes import NotesPresenter
 from .notes import PictureBox
 from .web import LinksMenuButton
 
 __all__ = [
-    "LinksMenuButton",
+    "DatePickerBox",
+    "MessageBox",
+    "YesNoMessageBox",
+    "DocumentBox",
+    "NoteBox",
     "NotesPresenter",
     "PictureBox",
-    "NoteBox",
-    "DatePickerBox",
-    "YesNoMessageBox",
-    "MessageBox",
+    "LinksMenuButton",
 ]
