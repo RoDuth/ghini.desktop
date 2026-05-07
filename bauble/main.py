@@ -47,10 +47,7 @@ from bauble.ui.connmgr import start_connection_manager
 
 class Application(Gtk.Application):
     def __init__(self, splash: Gtk.Window) -> None:
-        super().__init__(
-            application_id="org.gnome.GhiniDesktop",
-            flags=Gio.ApplicationFlags.FLAGS_NONE,
-        )
+        super().__init__(application_id="org.gnome.GhiniDesktop")
         self.connect("activate", self.on_activate)
         self.splash = splash
 
@@ -106,7 +103,7 @@ class Application(Gtk.Application):
         )
 
         # Keep clipboard contents after application exit
-        display = Gdk.Display.get_default()
+        display = Gdk.Display().get_default()
         if display:
             clip = Gtk.Clipboard.get_default(display)
             clip.set_can_store(None)
