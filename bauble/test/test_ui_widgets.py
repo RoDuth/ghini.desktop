@@ -18,6 +18,7 @@
 """
 Generic widgets tests
 """
+import json
 import shutil
 from datetime import datetime
 from pathlib import Path
@@ -36,6 +37,7 @@ from bauble.plugins.plants.geography import Geography
 from bauble.plugins.plants.ui.family_editor import FAMILY_WEB_BUTTON_DEFS_PREFS
 from bauble.test import BaubleClassTestCase
 from bauble.ui.widgets.date import DatePickerBox
+from bauble.ui.widgets.map import MapMenuButton
 from bauble.ui.widgets.notes import DocumentBox
 from bauble.ui.widgets.notes import NotesPresenter
 from bauble.ui.widgets.notes import PictureBox
@@ -118,6 +120,238 @@ class LinksMenuButtonTests(BaubleClassTestCase):
         mock_open.assert_called_with("http://www.google.com/search?q=Fooaceae")
 
         box.destroy()
+
+
+class MapMenuButtonTests(BaubleClassTestCase):
+    def test_init_no_geojson(self):
+        map_menu_button = MapMenuButton()
+        box = Gtk.Box()
+        box.add(map_menu_button)
+        loc = Location()
+        map_menu_button.init(loc, map_kml_callback)
+
+        self.assertEqual(map_menu_button.get_menu_model().get_n_items(), 1)
+        self.assertEqual(
+            map_menu_button.get_image().get_icon_name().icon_name,
+            "location-services-disabled-symbolic",
+        )
+
+        box.destroy()
+
+    def test_init_w_geojson(self):
+        map_menu_button = MapMenuButton()
+        box = Gtk.Box()
+        box.add(map_menu_button)
+        loc = Location()
+        loc.geojson = {
+            "type": "Polygon",
+            "coordinates": [
+                [
+                    [0.001, 0.001],
+                    [0.0, 0.001],
+                    [0.0, 0.0],
+                    [0.001, 0.0],
+                    [0.001, 0.001],
+                ],
+            ],
+        }
+        map_menu_button.init(loc, map_kml_callback)
+
+        self.assertEqual(map_menu_button.get_menu_model().get_n_items(), 4)
+        self.assertEqual(
+            map_menu_button.get_image().get_icon_name().icon_name,
+            "location-services-active-symbolic",
+        )
+
+        box.destroy()
+
+    @mock.patch("bauble.ui.widgets.map.get_clipboard")
+    def test_on_map_copy(self, mock_get_cb):
+        map_menu_button = MapMenuButton()
+        loc = Location()
+        geojson = {
+            "type": "Polygon",
+            "coordinates": [
+                [
+                    [0.001, 0.001],
+                    [0.0, 0.001],
+                    [0.0, 0.0],
+                    [0.001, 0.0],
+                    [0.001, 0.001],
+                ],
+            ],
+        }
+        loc.geojson = geojson
+        map_menu_button.init(loc, map_kml_callback)
+        map_menu_button.on_map_copy()
+        mock_get_cb().set_text.assert_called_once_with(json.dumps(geojson), -1)
+
+    @mock.patch("bauble.ui.widgets.map.get_clipboard")
+    def test_on_map_paste_no_clipboard_bails(self, mock_get_cb):
+        map_menu_button = MapMenuButton()
+        loc = Location()
+        mock_get_cb.return_value = None
+        map_menu_button.init(loc, map_kml_callback)
+        map_menu_button.on_map_paste()
+
+        mock_get_cb.assert_called_once()
+        self.assertIsNone(loc.geojson)
+
+    @mock.patch("bauble.ui.widgets.map.get_clipboard")
+    def test_on_map_paste_empty_clipboard_bails(self, mock_get_cb):
+        map_menu_button = MapMenuButton()
+        loc = Location()
+        mock_get_cb().wait_for_text.return_value = ""
+        map_menu_button.init(loc, map_kml_callback)
+        map_menu_button.on_map_paste()
+
+        self.assertIsNone(loc.geojson)
+
+    @mock.patch("bauble.ui.widgets.map.get_clipboard")
+    def test_on_map_paste_geojson(self, mock_get_cb):
+        map_menu_button = MapMenuButton()
+        loc = Location()
+        mock_get_cb().wait_for_text.return_value = ""
+        map_menu_button.init(loc, map_kml_callback)
+        geojson = {
+            "type": "Polygon",
+            "coordinates": [
+                [
+                    [0.001, 0.001],
+                    [0.0, 0.001],
+                    [0.0, 0.0],
+                    [0.001, 0.0],
+                    [0.001, 0.001],
+                ],
+            ],
+        }
+        mock_get_cb().wait_for_text.return_value = json.dumps(geojson)
+        map_menu_button.on_map_paste()
+
+        self.assertEqual(loc.geojson, geojson)
+
+    @mock.patch("bauble.ui.dialogs.message_dialog")
+    @mock.patch("bauble.ui.widgets.map.get_clipboard")
+    def test_on_map_paste_bad_geojson(self, mock_get_cb, mock_dlog):
+        map_menu_button = MapMenuButton()
+        loc = Location()
+        mock_get_cb().wait_for_text.return_value = ""
+        map_menu_button.init(loc, map_kml_callback)
+        geojson = {
+            "coordinates": [
+                [
+                    [0.001, 0.001],
+                    [0.0, 0.001],
+                    [0.0, 0.0],
+                    [0.001, 0.0],
+                    [0.001, 0.001],
+                ],
+            ],
+        }
+        mock_get_cb().wait_for_text.return_value = json.dumps(geojson)
+        map_menu_button.on_map_paste()
+
+        self.assertIsNone(loc.geojson, geojson)
+        mock_dlog.assert_called_once_with(
+            "Paste failed, invalid geojson?", parent=None
+        )
+
+    @mock.patch("bauble.ui.widgets.map.get_clipboard")
+    def test_on_map_paste_web_mercator(self, mock_get_cb):
+        map_menu_button = MapMenuButton()
+        loc = Location()
+        mock_get_cb().wait_for_text.return_value = ""
+        map_menu_button.init(loc, map_kml_callback)
+        coords = "-27.476576597577022, 152.97804903430196"
+        mock_get_cb().wait_for_text.return_value = coords
+        map_menu_button.on_map_paste()
+
+        self.assertEqual(
+            loc.geojson,
+            {
+                "type": "Point",
+                "coordinates": [152.97804903430196, -27.476576597577022],
+            },
+        )
+
+    @mock.patch("bauble.ui.widgets.map.get_clipboard")
+    def test_on_map_paste_kml(self, mock_get_cb):
+        map_menu_button = MapMenuButton()
+        loc = Location()
+        mock_get_cb().wait_for_text.return_value = ""
+        map_menu_button.init(loc, map_kml_callback)
+        kml = """<?xml version="1.0" encoding="UTF-8"?>
+            <kml xmlns="http://www.opengis.net/kml/2.2"
+                 xmlns:kml="http://www.opengis.net/kml/2.2">
+            <Document>
+                <Placemark>
+                    <Point>
+                        <coordinates>152.970337051314,-27.4764063330072,0</coordinates>
+                    </Point>
+                </Placemark>
+            </Document>
+            </kml>
+            """
+        mock_get_cb().wait_for_text.return_value = kml
+        map_menu_button.on_map_paste()
+
+        self.assertEqual(
+            loc.geojson,
+            {
+                "type": "Point",
+                "coordinates": [152.970337051314, -27.4764063330072],
+            },
+        )
+
+    @mock.patch("bauble.ui.dialogs.yes_no_dialog")
+    def test_on_map_delete(self, mock_yn_dlog):
+        mock_yn_dlog.return_value = True
+        map_menu_button = MapMenuButton()
+        loc = Location()
+        geojson = {
+            "type": "Polygon",
+            "coordinates": [
+                [
+                    [0.001, 0.001],
+                    [0.0, 0.001],
+                    [0.0, 0.0],
+                    [0.001, 0.0],
+                    [0.001, 0.001],
+                ],
+            ],
+        }
+        loc.geojson = geojson
+        map_menu_button.init(loc, map_kml_callback)
+        map_menu_button.on_map_delete()
+
+        self.assertIsNone(loc.geojson)
+
+    @mock.patch("bauble.meta.confirm_default")
+    @mock.patch("bauble.utils.desktop.open")
+    def test_on_map_kml_show(self, mock_open, mock_default):
+        mock_default.return_value = mock.Mock(
+            name="system_proj_string",
+            value="epsg:4326",
+        )
+        map_menu_button = MapMenuButton()
+        loc = Location()
+        geojson = {
+            "type": "Polygon",
+            "coordinates": [
+                [
+                    [0.001, 0.001],
+                    [0.0, 0.001],
+                    [0.0, 0.0],
+                    [0.001, 0.0],
+                    [0.001, 0.001],
+                ],
+            ],
+        }
+        loc.geojson = geojson
+        map_menu_button.init(loc, map_kml_callback)
+        map_menu_button.on_map_kml_show()
+
+        mock_open.assert_called_once()
 
 
 class DatePickerBoxTests(TestCase):
@@ -1145,3 +1379,4 @@ from bauble.plugins.garden.location import Location
 from bauble.plugins.garden.location import LocationDocument
 from bauble.plugins.garden.location import LocationNote
 from bauble.plugins.garden.location import LocationPicture
+from bauble.plugins.garden.ui.location_view import map_kml_callback

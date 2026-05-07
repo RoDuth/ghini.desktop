@@ -25,6 +25,7 @@ from math import sqrt
 from queue import PriorityQueue
 from typing import Any
 from typing import Literal
+from typing import Protocol
 from typing import Self
 from typing import TypedDict
 from typing import cast
@@ -283,6 +284,11 @@ class ProjDB:
             conn.execute(stmt)
 
 
+class ModelWGeojson(Protocol):  # pylint: disable=too-few-public-methods
+    __tablename__: str
+    geojson: str | None
+
+
 class KMLMapCallbackFunctor:  # pylint: disable=too-few-public-methods
     """Provides an action callback that can be instantiated with an appropriate
     filename for a Mako kml template to generate a kml map.
@@ -291,7 +297,7 @@ class KMLMapCallbackFunctor:  # pylint: disable=too-few-public-methods
     def __init__(self, filename: str) -> None:
         self.filename = filename
 
-    def __call__(self, objs: Sequence[db.Domain], **kwargs: Any) -> bool:
+    def __call__(self, objs: Sequence[ModelWGeojson], **kwargs: Any) -> bool:
         template = Template(
             filename=self.filename,
             input_encoding="utf-8",
