@@ -696,19 +696,6 @@ class PicturesPresenterTests(BaubleClassTestCase):
 
         presenter.destroy()
 
-    def test_get_dialog_window(self):
-        loc = Location(code="Loc1")
-        presenter = NotesPresenter()
-        presenter.init(loc, "_pictures", PictureBox)
-        presenter.on_add_button_clicked(None)
-        pic_boxes = presenter.expander_box.get_children()
-        win = Gtk.Window()
-        win.add(presenter)
-
-        self.assertIs(pic_boxes[0].get_dialog_window(), win)
-
-        presenter.destroy()
-
     def test_set_content_no_thumbnail(self):
         pics = Path(TEMP_ROOT, "pictures")
         no_thumb = pics / "no_thumb.jpg"
@@ -1109,19 +1096,6 @@ class DocumentsPresenterTests(BaubleClassTestCase):
         self.assertEqual(len(list(docs.glob("foo_*.bar"))), 1)
 
         shutil.rmtree(docs)
-
-        presenter.destroy()
-
-    def test_get_dialog_window(self):
-        loc = Location(code="Loc1")
-        presenter = NotesPresenter()
-        presenter.init(loc, "documents", DocumentBox)
-        presenter.on_add_button_clicked(None)
-        doc_boxes = presenter.expander_box.get_children()
-        win = Gtk.Window()
-        win.add(presenter)
-
-        self.assertIs(doc_boxes[0].get_dialog_window(), win)
 
         presenter.destroy()
 

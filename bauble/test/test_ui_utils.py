@@ -368,6 +368,13 @@ class UIUtilsTests(BaubleTestCase):
             mock_display().get_default.return_value = None
             self.assertIsNone(utils.get_clipboard())
 
+    def test_get_window_from_widget(self):
+        win = Gtk.Window()
+        entry = Gtk.Entry()
+        win.add(entry)
+
+        self.assertIs(utils.get_window_from_widget(entry), win)
+
 
 class ImageLoaderTests(BaubleTestCase):
     def setUp(self):

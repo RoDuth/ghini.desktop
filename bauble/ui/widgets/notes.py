@@ -50,6 +50,7 @@ from bauble.ui import dialogs
 from bauble.ui.handlers import EntryHandler
 from bauble.ui.presenter import GenericPresenter
 from bauble.ui.utils import ImageLoader
+from bauble.ui.utils import get_window_from_widget
 from bauble.ui.utils import set_widget_value
 from bauble.ui.validators import Validator
 from bauble.ui.validators import validate_date
@@ -246,18 +247,6 @@ class PictureBox(GenericPresenter[db.Note], Gtk.Box):
 
         return widget
 
-    def get_dialog_window(self) -> Gtk.Window | None:
-        # for testing
-        toplevel = self.get_toplevel()
-
-        logger.debug("toplevel=%s", toplevel)
-
-        if not isinstance(toplevel, Gtk.Window):
-            logger.debug("get_dialog_window: not a Gtk.Window returning None")
-            return None
-
-        return toplevel
-
     def populate_categories(self) -> None:
         category = self.model.__table__.c.category
         stmt = (
@@ -359,7 +348,7 @@ class PictureBox(GenericPresenter[db.Note], Gtk.Box):
         if thumbname.is_file() or filename.is_file():
             logger.debug("is_file")
 
-            parent_window = self.get_dialog_window()
+            parent_window = get_window_from_widget(self)
             # for testing
             msg = _("File %s exists, would you like to delete?") % text
 
@@ -429,7 +418,7 @@ class PictureBox(GenericPresenter[db.Note], Gtk.Box):
                 _("%s trying to add the selected files.") % type(e).__name__,
                 str(e),
                 Gtk.MessageType.WARNING,
-                parent=self.get_dialog_window(),
+                parent=get_window_from_widget(self),
             )
 
         file_chooser_dialog.destroy()
@@ -460,8 +449,9 @@ class PictureBox(GenericPresenter[db.Note], Gtk.Box):
                     'yourself select "No" to stop here so you can rename '
                     "it before returning."
                 )
+                parent_window = get_window_from_widget(self)
 
-                if dialogs.yes_no_dialog(msg, parent=self.get_dialog_window()):
+                if dialogs.yes_no_dialog(msg, parent=parent_window):
                     tstamp = datetime.now().strftime("%Y%m%d%M%S")
                     rename = f"{path.stem}_{tstamp}{path.suffix}"
                     self._copy_picture(box, path.name, rename)
@@ -580,18 +570,6 @@ class DocumentBox(GenericPresenter[db.Note], Gtk.Box):
 
         return widget
 
-    def get_dialog_window(self) -> Gtk.Window | None:
-        # for testing
-        toplevel = self.get_toplevel()
-
-        logger.debug("toplevel=%s", toplevel)
-
-        if not isinstance(toplevel, Gtk.Window):
-            logger.debug("get_dialog_window: not a Gtk.Window returning None")
-            return None
-
-        return toplevel
-
     def populate_categories(self) -> None:
         category = self.model.__table__.c.category
         stmt = (
@@ -656,7 +634,7 @@ class DocumentBox(GenericPresenter[db.Note], Gtk.Box):
                 _("%s trying to add the selected files.") % type(e).__name__,
                 str(e),
                 Gtk.MessageType.WARNING,
-                parent=self.get_dialog_window(),
+                parent=get_window_from_widget(self),
             )
 
         file_chooser_dialog.destroy()
@@ -670,7 +648,7 @@ class DocumentBox(GenericPresenter[db.Note], Gtk.Box):
         if filename.is_file():
             logger.debug("is_file")
 
-            parent_window = self.get_dialog_window()
+            parent_window = get_window_from_widget(self)
             # for testing
             msg = _("File %s exists, would you like to delete?") % text
 
@@ -745,7 +723,10 @@ class DocumentBox(GenericPresenter[db.Note], Gtk.Box):
                     "it before returning."
                 )
 
-                if dialogs.yes_no_dialog(msg, parent=self.get_dialog_window()):
+                if dialogs.yes_no_dialog(
+                    msg,
+                    parent=get_window_from_widget(self),
+                ):
                     tstamp = datetime.now().strftime("%Y%m%d%M%S")
                     rename = f"{path.stem}_{tstamp}{path.suffix}"
                     self._copy_file(box, path, destination.with_name(rename))

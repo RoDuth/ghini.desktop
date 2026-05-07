@@ -376,6 +376,7 @@ class GenusEditorDialog(
 
     @Gtk.Template.Callback()
     def on_family_add_button_clicked(self, _button: Gtk.Button) -> None:
+
         from .family_editor import FamilyEditorDialog
 
         epithet = self.family_entry.get_text() or ""
@@ -631,7 +632,10 @@ class GenusEditorDialog(
         except SQLAlchemyError as e:
             msg = _("Error committing changes.\n\n%s") % utils.xml_safe(e)
             dialogs.message_details_dialog(
-                msg, traceback.format_exc(), Gtk.MessageType.ERROR
+                msg,
+                traceback.format_exc(),
+                Gtk.MessageType.ERROR,
+                parent=self,
             )
             self.session.rollback()
             self.model = self.session.merge(self.model)

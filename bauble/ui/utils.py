@@ -611,3 +611,16 @@ def get_clipboard() -> Gtk.Clipboard | None:
     if display:
         return Gtk.Clipboard.get_default(display)
     return None
+
+
+def get_window_from_widget(widget: Gtk.Widget) -> Gtk.Window | None:
+    # for testing
+    toplevel = widget.get_toplevel()
+
+    logger.debug("toplevel=%s", toplevel)
+
+    if not isinstance(toplevel, Gtk.Window):
+        logger.debug("get_dialog_window: not a Gtk.Window returning None")
+        return None
+
+    return toplevel
