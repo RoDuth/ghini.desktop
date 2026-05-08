@@ -1,0 +1,264 @@
+# Copyright 2026 Ross Demuth <rossdemuth123@gmail.com>
+#
+# This file is part of ghini.desktop.
+#
+# ghini.desktop is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# ghini.desktop is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with ghini.desktop. If not, see <http://www.gnu.org/licenses/>.
+"""
+Location GUI editor parts.
+"""
+
+import logging
+
+logger = logging.getLogger(__name__)
+
+import traceback
+from pathlib import Path
+from typing import Self
+from typing import cast
+
+from gi.repository import GLib
+from gi.repository import Gspell
+from gi.repository import Gtk
+from sqlalchemy import select
+from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.orm import Session
+
+import bauble
+from bauble import prefs
+from bauble import utils
+from bauble.i18n import _
+from bauble.ui import dialogs
+from bauble.ui.presenter import EditCreateCallback
+from bauble.ui.presenter import GenericPresenter
+from bauble.ui.presenter import Response
+from bauble.ui.presenter import default_dialog_update
+from bauble.ui.widgets import DocumentBox
+from bauble.ui.widgets import MapMenuButton
+from bauble.ui.widgets import NoteBox
+from bauble.ui.widgets import NotesPresenter
+from bauble.ui.widgets import PictureBox
+from bauble.ui.widgets.message import YesNoMessageBox
+from bauble.utils.geo import KMLMapCallbackFunctor
+
+from ..location import Location
+
+LOC_KML_MAP_PREFS = "kml_templates.location"
+"""pref for path to a custom mako kml template."""
+
+parent = Path(__file__).resolve().parent
+
+
+@Gtk.Template(filename=str(parent / "location_editor.ui"))
+class LocationEditorDialog(
+    GenericPresenter[Location],
+    Gtk.Dialog,
+):  # pylint: disable=not-callable,too-many-public-methods
+
+    __gtype_name__ = "LocationEditorDialog"
+
+    revealer = cast(Gtk.Revealer, Gtk.Template.Child())
+    code_entry = cast(Gtk.Entry, Gtk.Template.Child())
+    name_entry = cast(Gtk.Entry, Gtk.Template.Child())
+    description_textview = cast(Gtk.TextView, Gtk.Template.Child())
+    description_textbuffer = cast(Gtk.TextBuffer, Gtk.Template.Child())
+
+    map_menu_btn = cast(MapMenuButton, Gtk.Template.Child())
+    notes_presenter = cast(NotesPresenter[NoteBox], Gtk.Template.Child())
+    pictures_presenter = cast(NotesPresenter[PictureBox], Gtk.Template.Child())
+    documents_presenter = cast(
+        NotesPresenter[DocumentBox],
+        Gtk.Template.Child(),
+    )
+
+    def __init__(
+        self,
+        model: Location,
+        session: Session,
+        transient_for: Gtk.Window | None = None,
+    ) -> None:
+        self.session = session
+
+        if model not in self.session:
+            model = self.session.merge(model)
+
+        if bauble.gui and not transient_for:
+            transient_for = bauble.gui.window
+
+        super().__init__(model, self, transient_for=transient_for)
+
+        self.widgets_to_model_map = {
+            self.code_entry: "code",
+            self.name_entry: "name",
+            self.description_textbuffer: "description",
+        }
+
+        self.refresh_all_widgets_from_model()
+
+        self.map_menu_btn.init(model, map_kml_callback)
+        self.notes_presenter.init(model)
+        self.pictures_presenter.init(model, "_pictures", PictureBox)
+        self.documents_presenter.init(model, "documents", DocumentBox)
+
+        spell_view = Gspell.TextView.get_from_gtk_text_view(
+            self.description_textview
+        )
+        spell_view.basic_setup()
+
+        self.code_entry.emit("changed")
+
+    def allow_ok_only(self) -> None:
+        for response in Response:
+            if response.name == "OK":
+                continue
+
+            widget = self.get_widget_for_response(response.value)
+            if widget:
+                widget.hide()
+
+    @property
+    def can_commit(self) -> bool:
+        modified = self.session.is_modified(self.model)
+        if not modified:
+            modified = any(
+                self.session.is_modified(i) for i in self.session.dirty
+            )
+
+        no_problems = not self.problems
+
+        return all((modified, no_problems))
+
+    def update(self) -> None:
+        default_dialog_update(self, self.can_commit)
+
+    @Gtk.Template.Callback()
+    def on_changed(self, _presenter: Gtk.Widget) -> None:
+        self.update()
+
+    @Gtk.Template.Callback()
+    def on_code_entry_changed(self, entry: Gtk.Entry) -> None:
+        code = entry.get_text()
+        existing = (
+            self.session.execute(select(Location).where(Location.code == code))
+            .scalars()
+            .first()
+        )
+        if existing and existing is not self.model:
+            logger.debug("found existing location with code %s", code)
+            GLib.idle_add(self.notify_existing_location, existing)
+
+        super().on_unique_text_entry_changed(entry)
+
+    def notify_existing_location(self, existing: Location) -> None:
+        def on_yes_clicked(_button: Gtk.Button) -> None:
+            self.revealer.set_reveal_child(False)
+            self.emit("response", Response.CANCEL)
+            edit_callback([existing])
+
+        def on_no_clicked(_button: Gtk.Button) -> None:
+            self.revealer.set_reveal_child(False)
+
+        msg = _(
+            "<b>%(location)s</b> already exists.\n\n"
+            "Would you like to edit the existing location instead?"
+        ) % {
+            "location": utils.xml_safe(existing),
+        }
+
+        message_box = YesNoMessageBox(msg, on_yes_clicked, on_no_clicked)
+
+        self.revealer.foreach(self.revealer.remove)
+        message_box.show_all()
+        self.revealer.add(message_box)
+        self.revealer.set_reveal_child(True)
+
+    @Gtk.Template.Callback()
+    def on_name_entry_changed(self, entry: Gtk.Entry) -> None:
+        super().on_text_entry_changed(entry)
+
+    @Gtk.Template.Callback()
+    def on_text_buffer_changed(self, buffer: Gtk.TextBuffer) -> None:
+        super().on_text_buffer_changed(buffer)
+
+    def do_commit(self) -> bool:
+        try:
+            self.session.commit()
+            self.session.close()
+            return True
+        except SQLAlchemyError as e:
+            msg = _("Error committing changes.\n\n%s") % utils.xml_safe(e)
+            dialogs.message_details_dialog(
+                msg,
+                traceback.format_exc(),
+                Gtk.MessageType.ERROR,
+                parent=self,
+            )
+            self.session.rollback()
+            self.model = self.session.merge(self.model)
+        return False
+
+    @Gtk.Template.Callback()
+    def on_response(
+        self,
+        dialog: Self,
+        response: Response,
+    ) -> bool:
+        if response in [Response.NEXT, Response.ADD, Response.OK]:
+            if self.do_commit() is False:
+                logger.debug("commit failed")
+                dialog.stop_emission_by_name("response")
+                return True
+
+        if response == Response.NEXT:
+            create_location()
+
+        elif response == Response.ADD:
+            add_plants_callback([self.model])
+
+        elif response == Response.CANCEL:
+            # most likely not needed
+            self.session.rollback()
+            self.session.close()
+
+        if not self.get_modal():
+            # allow chaining response signal
+            GLib.idle_add(self.destroy)
+
+        return False
+
+
+map_kml_callback = KMLMapCallbackFunctor(
+    prefs.prefs.get(LOC_KML_MAP_PREFS, str(parent / "loc.kml"))
+)
+
+edit_callback = EditCreateCallback(
+    LocationEditorDialog,
+    Location,
+)
+
+create_location = edit_callback
+
+
+def add_plants_callback(objs, **_kwargs):
+    # create a temporary session so that the temporary plant doesn't
+    # get added to the accession
+    from bauble import db
+
+    session = db.Session()
+    loc = session.merge(objs[0])
+    from bauble.plugins.garden.plant import Plant
+    from bauble.plugins.garden.plant import PlantEditor
+
+    e = PlantEditor(model=Plant(location=loc))
+    session.close()
+    return e.start() is not None

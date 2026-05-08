@@ -23,14 +23,14 @@ from gi.repository import Gtk
 
 from bauble import db
 from bauble import utils
-from bauble.plugins.plants.family import Family
-from bauble.plugins.plants.genus import Genus
 from bauble.test import BaubleTestCase
 from bauble.test import update_gui
 from bauble.ui.presenter import Response
 from bauble.ui.utils import set_widget_value
 from bauble.ui.widgets.message import YesNoMessageBox
 
+from ..family import Family
+from ..genus import Genus
 from ..ui.family_editor import FamilyEditorDialog
 from ..ui.family_editor import add_genera_callback
 from ..ui.family_editor import edit_callback

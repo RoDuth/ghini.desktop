@@ -1379,4 +1379,4 @@ from bauble.plugins.garden.location import Location
 from bauble.plugins.garden.location import LocationDocument
 from bauble.plugins.garden.location import LocationNote
 from bauble.plugins.garden.location import LocationPicture
-from bauble.plugins.garden.ui.location_view import map_kml_callback
+from bauble.plugins.garden.ui.location_editor import map_kml_callback

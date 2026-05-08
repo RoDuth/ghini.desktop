@@ -17,11 +17,19 @@
 """
 Location search view tests
 """
+from unittest import mock
+
+from gi.repository import Gtk
+from sqlalchemy import select
+from sqlalchemy.exc import SQLAlchemyError
+
+from bauble.test import BaubleTestCase
 
 from ..location import Location
 from ..test_garden import GardenTestCase
 from ..ui.location_view import DescriptionExpander
 from ..ui.location_view import GeneralLocationExpander
+from ..ui.location_view import remove_callback
 
 
 class InfoBoxTests(GardenTestCase):
@@ -61,3 +69,118 @@ class InfoBoxTests(GardenTestCase):
         expander.update(loc)
 
         self.assertFalse(expander.get_expanded())
+
+
+class FunctionTests(BaubleTestCase):
+
+    @mock.patch("bauble.ui.dialogs.yes_no_dialog")
+    def test_remove_callback_user_backs_out(self, mock_dlog):
+        location = Location(code="LOC1")
+        self.session.add(location)
+        self.session.commit()
+        mock_dlog.return_value = False
+
+        remove_callback([location])
+
+        mock_dlog.assert_called_once_with(
+            "Are you sure you want to remove the following locations "
+            "<b>LOC1</b>?"
+        )
+        self.assertEqual(
+            self.session.execute(
+                select(Location).where(Location.code == "LOC1")
+            )
+            .scalars()
+            .all(),
+            [location],
+        )
+
+    @mock.patch("bauble.ui.dialogs.yes_no_dialog")
+    def test_remove_callback_user_confirms(self, mock_dlog):
+        location = Location(code="LOC1")
+        self.session.add(location)
+        self.session.commit()
+        mock_dlog.return_value = True
+
+        remove_callback([location])
+
+        mock_dlog.assert_called_once_with(
+            "Are you sure you want to remove the following locations "
+            "<b>LOC1</b>?"
+        )
+        self.assertEqual(
+            self.session.execute(
+                select(Location).where(Location.code == "LOC1")
+            )
+            .scalars()
+            .all(),
+            [],
+        )
+
+    @mock.patch("bauble.ui.dialogs.message_dialog")
+    def test_remove_callback_with_plants(self, mock_dlog):
+        from bauble.plugins.plants import Family
+        from bauble.plugins.plants import Genus
+        from bauble.plugins.plants import Species
+
+        from ..accession import Accession
+        from ..plant import Plant
+
+        fam = Family(family="Asparagaceae")
+        gen = Genus(genus="Liriope", family=fam)
+        sp = Species(genus=gen, sp="muscari")
+        acc = Accession(code="XXXX", species=sp)
+        loc = Location(code="LOC1")
+        plt = Plant(code="1", accession=acc, location=loc, quantity=1)
+        self.session.add(plt)
+        self.session.commit()
+        mock_dlog.return_value = True
+
+        remove_callback([loc])
+
+        mock_dlog.assert_called_once_with(
+            "Please remove the plants from <b>LOC1</b> before deleting it.",
+            typ=Gtk.MessageType.WARNING,
+        )
+        self.assertEqual(
+            self.session.execute(
+                select(Location).where(Location.code == "LOC1")
+            )
+            .scalars()
+            .all(),
+            [loc],
+        )
+
+    @mock.patch("bauble.ui.dialogs.yes_no_dialog")
+    @mock.patch("bauble.ui.dialogs.message_details_dialog")
+    def test_remove_callback_commit_exception(self, mock_d_dlog, mock_yn_dlog):
+        mock_yn_dlog.return_value = True
+        mock_d_dlog.return_value = True
+        location = Location(code="LOC1")
+        self.session.add(location)
+        self.session.commit()
+
+        with (
+            mock.patch.object(
+                self.session, "commit", side_effect=SQLAlchemyError
+            ),
+            mock.patch.object(self.session, "rollback") as mock_rollback,
+        ):
+
+            self.assertFalse(remove_callback([location]))
+            mock_rollback.assert_called_once()
+            mock_d_dlog.assert_called_once()
+
+    def test_remove_callback_no_session(self):
+        location = Location(code="LOC1")
+
+        with self.assertLogs(
+            "bauble.plugins.garden.ui.location_view",
+            level="WARNING",
+        ) as logs:
+            remove_callback([location])
+
+            self.assertIn(
+                "Could not get session for location LOC1. Cannot delete.",
+                logs.output[0],
+            )

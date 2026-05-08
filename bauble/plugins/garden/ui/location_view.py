@@ -19,30 +19,36 @@
 """
 Location GUI search view components.
 """
+import logging
+
+logger = logging.getLogger(__name__)
+
+import traceback
+from collections.abc import Sequence
 from pathlib import Path
 from typing import cast
 
 from gi.repository import Gtk
 from sqlalchemy import select
+from sqlalchemy.orm import Session
+from sqlalchemy.orm import object_session
 
 from bauble import db
-from bauble import prefs
 from bauble import utils
 from bauble.i18n import _
+from bauble.ui import dialogs
 from bauble.ui.views import Action
 from bauble.ui.views import InfoBox
 from bauble.ui.views import InfoExpander
 from bauble.ui.views import LinksExpander
 from bauble.ui.views import PropertiesExpander
 from bauble.ui.views import on_clicked_search
-from bauble.utils.geo import KMLMapCallbackFunctor
 from bauble.utils.geo import get_approx_area_from_geojson_sqm
 
-from ..location import LOC_KML_MAP_PREFS
 from ..location import Location
-from ..location import add_plants_callback
-from ..location import edit_callback
-from ..location import remove_callback
+from .location_editor import add_plants_callback
+from .location_editor import edit_callback
+from .location_editor import map_kml_callback
 
 parent = Path(__file__).resolve().parent
 
@@ -131,9 +137,56 @@ class LocationInfoBox(InfoBox[Location]):
         self.add_expander(PropertiesExpander())
 
 
-map_kml_callback = KMLMapCallbackFunctor(
-    prefs.prefs.get(LOC_KML_MAP_PREFS, str(parent / "loc.kml"))
-)
+def remove_callback(
+    objs: Sequence[Location],
+    **_kwargs,
+) -> bool:
+    locations = objs
+    loc = locations[0]
+    loc_lst = []
+
+    session = object_session(loc)
+
+    if not isinstance(session, Session):
+        logger.warning(
+            "Could not get session for location %s. Cannot delete.",
+            loc,
+        )
+        return False
+
+    for loc in locations:
+        loc_lst.append(utils.xml_safe(loc))
+        if len(loc.plants) > 0:
+            msg = _(
+                "Please remove the plants from <b>%s</b> "
+                "before deleting it."
+            ) % utils.xml_safe(loc)
+            dialogs.message_dialog(msg, typ=Gtk.MessageType.WARNING)
+            return False
+
+    msg = _(
+        "Are you sure you want to remove the following locations <b>%s</b>?"
+    ) % ", ".join(i for i in loc_lst)
+
+    if not dialogs.yes_no_dialog(msg):
+        return False
+
+    for loc in locations:
+        session.delete(loc)
+    try:
+        session.commit()
+    except Exception as e:  # pylint: disable=broad-except
+        msg = _("Could not delete.\n\n%s") % utils.xml_safe(e)
+        dialogs.message_details_dialog(
+            msg,
+            traceback.format_exc(),
+            Gtk.MessageType.ERROR,
+        )
+        session.rollback()
+
+        return False
+
+    return True
 
 
 edit_action = Action(

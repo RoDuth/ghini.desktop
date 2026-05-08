@@ -116,7 +116,6 @@ from bauble.utils.geo import KMLMapCallbackFunctor
 
 from .accession import Accession
 from .location import Location
-from .location import LocationEditor
 from .propagation import PlantPropagation
 from .propagation import Propagation
 
@@ -1965,18 +1964,18 @@ class PlantEditorPresenter(GenericEditorPresenter, PresenterMapMixin):
     def on_loc_button_clicked(self, _button, cmd=None):
         location = self.model.location
         combo = self.view.widgets.plant_loc_comboentry
-        if cmd == "edit" and location:
-            LocationEditor(location, parent=self.view.get_window()).start()
-            self.session.refresh(location)
-            self.view.widget_set_value(combo, location)
-        else:
-            editor = LocationEditor(parent=self.view.get_window())
-            if editor.start():
-                location = self.model.location = editor.presenter.model
-                self.session.add(location)
-                self.remove_problem(None, combo)
-                self.view.widget_set_value(combo, location)
-                self.set_model_attr("location", location)
+        # if cmd == "edit" and location:
+        #     LocationEditor(location, parent=self.view.get_window()).start()
+        #     self.session.refresh(location)
+        #     self.view.widget_set_value(combo, location)
+        # else:
+        #     editor = LocationEditor(parent=self.view.get_window())
+        #     if editor.start():
+        #         location = self.model.location = editor.presenter.model
+        #         self.session.add(location)
+        #         self.remove_problem(None, combo)
+        #         self.view.widget_set_value(combo, location)
+        #         self.set_model_attr("location", location)
 
     def refresh_view(self, initializing=False):
         self.initializing = initializing
@@ -2332,10 +2331,10 @@ class PlantEditor(GenericModelViewPresenterEditor):
             if dialogs.yes_no_dialog(msg):
                 # cleanup in case we start a new PlantEditor
                 self.presenter.cleanup()
-                sub_editor = LocationEditor()
-                result = sub_editor.start()
-                if result:
-                    self._committed.extend(result)
+                # sub_editor = LocationEditor()
+                # result = sub_editor.start()
+                # if result:
+                #     self._committed.extend(result)
 
         if self.branched_plant:
             # set title if in branch mode

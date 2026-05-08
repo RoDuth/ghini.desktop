@@ -23,13 +23,9 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-import os
-import traceback
 from datetime import datetime
-from pathlib import Path
 from typing import TYPE_CHECKING
 
-from gi.repository import Gtk
 from sqlalchemy import Column
 from sqlalchemy import Unicode
 from sqlalchemy import UnicodeText
@@ -38,7 +34,6 @@ from sqlalchemy import func
 from sqlalchemy import literal
 from sqlalchemy import select
 from sqlalchemy import union
-from sqlalchemy.exc import DBAPIError
 from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.orm import Session
 from sqlalchemy.orm import backref
@@ -48,81 +43,14 @@ from sqlalchemy.orm import validates
 from sqlalchemy.orm.session import object_session
 from sqlalchemy.sql.expression import ColumnElement
 
-import bauble
 from bauble import btypes as types
 from bauble import db
-from bauble import paths
 from bauble import prefs
 from bauble import utils
-from bauble.editor import DocumentsPresenter
-from bauble.editor import GenericEditorPresenter
-from bauble.editor import GenericEditorView
-from bauble.editor import GenericModelViewPresenterEditor
-from bauble.editor import NotesPresenter
-from bauble.editor import PicturesPresenter
-from bauble.editor import PresenterMapMixin
-from bauble.editor import StringOrNoneValidator
-from bauble.i18n import _
-from bauble.ui import dialogs
 
 if TYPE_CHECKING:
     from .accession import IntendedLocation
     from .plant import Plant
-
-
-def edit_callback(objs, **kwargs):
-    e = LocationEditor(model=objs[0])
-    return e.start() is not None
-
-
-def add_plants_callback(objs, **kwargs):
-    # create a temporary session so that the temporary plant doesn't
-    # get added to the accession
-    session = db.Session()
-    loc = session.merge(objs[0])
-    from bauble.plugins.garden.plant import Plant
-    from bauble.plugins.garden.plant import PlantEditor
-
-    e = PlantEditor(model=Plant(location=loc))
-    session.close()
-    return e.start() is not None
-
-
-def remove_callback(objs, **kwargs):
-    locations = objs
-    loc = locations[0]
-    loc_lst = []
-    for loc in locations:
-        loc_lst.append(utils.xml_safe(loc))
-        if len(loc.plants) > 0:
-            msg = _(
-                "Please remove the plants from <b>%s</b> "
-                "before deleting it."
-            ) % utils.xml_safe(loc)
-            dialogs.message_dialog(msg, typ=Gtk.MessageType.WARNING)
-            return False
-    msg = _(
-        "Are you sure you want to remove the following locations <b>%s</b>?"
-    ) % ", ".join(i for i in loc_lst)
-    if not dialogs.yes_no_dialog(msg):
-        return False
-    session = object_session(loc)
-    for loc in locations:
-        session.delete(loc)
-    try:
-        session.commit()
-    except Exception as e:  # pylint: disable=broad-except
-        msg = _("Could not delete.\n\n%s") % utils.xml_safe(e)
-        dialogs.message_details_dialog(
-            msg, traceback.format_exc(), Gtk.MessageType.ERROR
-        )
-    finally:
-        session.rollback()
-    return True
-
-
-LOC_KML_MAP_PREFS = "kml_templates.location"
-"""pref for path to a custom mako kml template."""
 
 
 LocationNote = db.make_note_class("Location")
@@ -220,8 +148,9 @@ class Location(db.Domain, db.WithNotes):
             )
         return utils.xml_safe(str(self)), type(self).__name__
 
+    @staticmethod
     @validates("code", "name")
-    def validate_stripping(self, _key, value):
+    def validate_stripping(_key, value):
         if value is None:
             return None
         return value.strip()
@@ -350,224 +279,3 @@ class Location(db.Domain, db.WithNotes):
         if prefs.prefs.get(prefs.exclude_inactive_pref):
             query = query.filter(cls.active.is_(True))
         return query.count()
-
-
-class LocationEditorView(GenericEditorView):
-    _tooltips = {
-        "loc_name_entry": _(
-            "The name that you will use later to refer to this location."
-        ),
-        "loc_desc_textview": _(
-            "Any information that might be relevant to "
-            "the location such as where it is or what's "
-            "its purpose"
-        ),
-    }
-
-    def __init__(self, parent=None):
-        super().__init__(
-            os.path.join(
-                paths.lib_dir(), "plugins", "garden", "loc_editor.glade"
-            ),
-            parent=parent,
-            root_widget_name="location_dialog",
-        )
-        self.use_ok_and_add = True
-        self.set_accept_buttons_sensitive(False)
-        self.widgets.notebook.set_current_page(0)
-        # if the parent isn't the main bauble window then we assume
-        # that the LocationEditor was opened from the PlantEditor and
-        # so we shouldn't enable adding more plants...this is a bit of
-        # a hack but it serves our purposes
-        if bauble.gui and parent != bauble.gui.window:
-            self.use_ok_and_add = False
-
-    def get_window(self):
-        return self.widgets.location_dialog
-
-    def set_accept_buttons_sensitive(self, sensitive):
-        self.widgets.loc_ok_button.set_sensitive(sensitive)
-        self.widgets.loc_ok_and_add_button.set_sensitive(
-            self.use_ok_and_add and sensitive
-        )
-        self.widgets.loc_next_button.set_sensitive(sensitive)
-
-
-class LocationEditorPresenter(GenericEditorPresenter, PresenterMapMixin):
-    widget_to_field_map = {
-        "loc_name_entry": "name",
-        "loc_code_entry": "code",
-        "loc_desc_textview": "description",
-    }
-
-    def __init__(self, model, view):
-        """
-        model: should be an instance of class Accession
-        view: should be an instance of AccessionEditorView
-        """
-        super().__init__(model, view)
-        self.session = object_session(model)
-        self._dirty = False
-
-        notes_parent = self.view.widgets.notes_parent_box
-        notes_parent.foreach(notes_parent.remove)
-        self.notes_presenter = NotesPresenter(self, "notes", notes_parent)
-        pictures_parent = self.view.widgets.pictures_parent_box
-        pictures_parent.foreach(pictures_parent.remove)
-        self.pictures_presenter = PicturesPresenter(
-            self, "_pictures", pictures_parent
-        )
-        documents_parent = self.view.widgets.documents_parent_box
-        documents_parent.foreach(documents_parent.remove)
-        self.documents_presenter = DocumentsPresenter(
-            self, "documents", documents_parent
-        )
-
-        # initialize widgets
-        self.refresh_view()  # put model values in view
-
-        # connect signals
-        self.assign_simple_handler(
-            "loc_name_entry", "name", StringOrNoneValidator()
-        )
-        self.assign_simple_handler(
-            "loc_code_entry", "code", StringOrNoneValidator()
-        )
-        self.assign_simple_handler(
-            "loc_desc_textview", "description", StringOrNoneValidator()
-        )
-        self.refresh_sensitivity()
-        if self.model not in self.session.new:
-            self.view.widgets.loc_ok_and_add_button.set_sensitive(True)
-
-        self.kml_template = prefs.prefs.get(
-            LOC_KML_MAP_PREFS, str(Path(__file__).resolve().parent / "loc.kml")
-        )
-
-    def cleanup(self):
-        super().cleanup()
-        self.notes_presenter.cleanup()
-        self.pictures_presenter.cleanup()
-        self.remove_map_action_group()
-
-    def refresh_sensitivity(self):
-        sensitive = False
-        ignore = "id"
-        if self.is_dirty() and not utils.get_invalid_columns(
-            self.model, ignore_columns=ignore
-        ):
-            sensitive = True
-        self.view.set_accept_buttons_sensitive(sensitive)
-
-    def set_model_attr(self, attr, value, validator=None):
-        super().set_model_attr(attr, value, validator)
-        self._dirty = True
-        self.refresh_sensitivity()
-
-    def is_dirty(self):
-        return (
-            self._dirty
-            or self.notes_presenter.is_dirty()
-            or self.pictures_presenter.is_dirty()
-        )
-
-    def refresh_view(self):
-        for widget, field in self.widget_to_field_map.items():
-            value = getattr(self.model, field)
-            self.view.widget_set_value(widget, value)
-
-
-class LocationEditor(GenericModelViewPresenterEditor):
-    # these have to correspond to the response values in the view
-    RESPONSE_OK_AND_ADD = 11
-    RESPONSE_NEXT = 22
-    ok_responses = (RESPONSE_OK_AND_ADD, RESPONSE_NEXT)
-
-    def __init__(self, model=None, parent=None):
-        """
-        :param model: Location instance or None
-        :param parent: the parent widget or None
-        """
-        # view and presenter are created in self.start()
-        self.view = None
-        self.presenter = None
-        if model is None:
-            model = Location()
-        super().__init__(model, parent)
-        # NOTE model is now modified for first time due to it having been
-        # merged yet the geojson has already been loaded in the searchview
-        if not parent and bauble.gui:
-            parent = bauble.gui.window
-        self.parent = parent
-        self._committed = []
-
-        view = LocationEditorView(parent=self.parent)
-        self.presenter = LocationEditorPresenter(self.model, view)
-
-    def handle_response(self, response):
-        """handle the response from self.presenter.start() in self.start()"""
-        not_ok_msg = "Are you sure you want to lose your changes?"
-        if response == Gtk.ResponseType.OK or response in self.ok_responses:
-            try:
-                if self.presenter.is_dirty():
-                    self.commit_changes()
-                self._committed.append(self.model)
-            except DBAPIError as e:
-                msg = _("Error committing changes.\n\n%s") % utils.xml_safe(
-                    e.orig
-                )
-                dialogs.message_details_dialog(
-                    msg, str(e), Gtk.MessageType.ERROR
-                )
-                self.session.rollback()
-                return False
-            except Exception as e:
-                msg = _(
-                    "Unknown error when committing changes. See the "
-                    "details for more information.\n\n%s"
-                ) % utils.xml_safe(e)
-                dialogs.message_details_dialog(
-                    msg, traceback.format_exc(), Gtk.MessageType.ERROR
-                )
-                self.session.rollback()
-                return False
-        elif (
-            self.presenter.is_dirty()
-            and dialogs.yes_no_dialog(not_ok_msg)
-            or not self.presenter.is_dirty()
-        ):
-            self.session.rollback()
-            return True
-        else:
-            return False
-
-        # respond to responses
-        more_committed = None
-        if response == self.RESPONSE_NEXT:
-            self.presenter.cleanup()
-            editor = LocationEditor(parent=self.parent)
-            more_committed = editor.start()
-        elif response == self.RESPONSE_OK_AND_ADD:
-            from bauble.plugins.garden.plant import Plant
-            from bauble.plugins.garden.plant import PlantEditor
-
-            editor = PlantEditor(Plant(location=self.model), self.parent)
-            more_committed = editor.start()
-        if more_committed is not None:
-            if isinstance(more_committed, list):
-                self._committed.extend(more_committed)
-            else:
-                self._committed.append(more_committed)
-
-        return True
-
-    def start(self):
-        """Start the LocationEditor and return the committed objects."""
-        while True:
-            response = self.presenter.start()
-            self.presenter.view.save_state()
-            if self.handle_response(response):
-                break
-        self.session.close()
-        self.presenter.cleanup()
-        return self._committed

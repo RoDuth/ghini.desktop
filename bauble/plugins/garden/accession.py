@@ -1409,7 +1409,7 @@ class IntendedLocationPresenter(editor.GenericEditorPresenter):
 
         from mako.template import Template  # type: ignore [import-untyped]
 
-        from .location import LOC_KML_MAP_PREFS
+        from .ui.location_editor import LOC_KML_MAP_PREFS
 
         kml_template = prefs.prefs.get(
             LOC_KML_MAP_PREFS, str(Path(__file__).resolve().parent / "loc.kml")
