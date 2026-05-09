@@ -59,10 +59,8 @@ from .institution import start_institution_editor
 from .location import Location
 from .plant import Plant
 from .plant import PlantEditor
-from .plant import PlantInfoBox
 from .plant import PlantSearch
 from .plant import edit_callback as plant_edit_callback
-from .plant import plant_context_menu
 from .plant import set_code_format
 from .source import Collection
 from .source import Source
@@ -79,6 +77,8 @@ from .ui.location_editor import create_location
 from .ui.location_editor import edit_callback as loc_edit_callback
 from .ui.location_view import LocationInfoBox
 from .ui.location_view import loc_context_menu
+from .ui.plant_view import PlantInfoBox
+from .ui.plant_view import plant_context_menu
 
 # other ideas:
 # - cultivation table

@@ -18,12 +18,14 @@
 # You should have received a copy of the GNU General Public License
 # along with ghini.desktop. If not, see <http://www.gnu.org/licenses/>.
 #
-
 """
 Defines the plant table and handled editing plants
 """
 
 import logging
+
+logger = logging.getLogger(__name__)
+
 import os
 import traceback
 from collections.abc import Generator
@@ -31,9 +33,6 @@ from collections.abc import Sequence
 from datetime import datetime
 from functools import lru_cache
 from pathlib import Path
-from typing import cast as t_cast
-
-logger = logging.getLogger(__name__)
 
 from gi.repository import Gtk
 from pyparsing import CaselessKeyword
@@ -106,13 +105,6 @@ from bauble.search.strategies import UseStrategy
 from bauble.ui import dialogs
 from bauble.ui.utils import clear_model
 from bauble.ui.utils import set_widget_value
-from bauble.ui.views import Action
-from bauble.ui.views import InfoBox
-from bauble.ui.views import InfoExpander
-from bauble.ui.views import LinksExpander
-from bauble.ui.views import PropertiesExpander
-from bauble.ui.views import on_clicked_select
-from bauble.utils.geo import KMLMapCallbackFunctor
 
 from .accession import Accession
 from .location import Location
@@ -196,42 +188,6 @@ def remove_callback(objs, **kwargs):
         )
         session.rollback()
     return True
-
-
-edit_action = Action(
-    "plant_edit", _("_Edit"), callback=edit_callback, accelerator="<ctrl>e"
-)
-
-branch_action = Action(
-    "plant_branch",
-    _("_Split"),
-    callback=branch_callback,
-    accelerator="<ctrl>b",
-)
-
-remove_action = Action(
-    "plant_remove",
-    _("_Delete"),
-    callback=remove_callback,
-    accelerator="<ctrl>Delete",
-    multiselect=True,
-)
-
-map_kml_callback = KMLMapCallbackFunctor(
-    prefs.prefs.get(
-        PLANT_KML_MAP_PREFS, str(Path(__file__).resolve().parent / "plant.kml")
-    )
-)
-
-map_action = Action(
-    "plant_show_in_map",
-    _("Show in _map"),
-    callback=map_kml_callback,
-    accelerator="<ctrl>m",
-    multiselect=True,
-)
-
-plant_context_menu = [edit_action, branch_action, remove_action, map_action]
 
 
 def get_next_aplha_lower_code(codes: Sequence[tuple[str]]) -> str:
@@ -629,7 +585,7 @@ class PlantChange(db.Base):
     # the name of the person who made the change
     person = Column(Unicode(64), default=utils.get_user_display_name())
 
-    quantity = Column(Integer, autoincrement=False, nullable=False)
+    quantity: int = Column(Integer, autoincrement=False, nullable=False)
     note_id = Column(Integer, ForeignKey("plant_note.id"))
 
     reason = Column(
@@ -2364,288 +2320,6 @@ class PlantEditor(GenericModelViewPresenterEditor):
         self.session.close()  # cleanup session
         self.presenter.cleanup()
         return self._committed
-
-
-@Gtk.Template(
-    filename=str(Path(__file__).resolve().parent / "plant_expander.ui")
-)
-class GeneralPlantExpander(
-    InfoExpander[Plant],
-    Gtk.Expander,
-):
-    """general expander for the PlantInfoBox"""
-
-    __gtype_name__ = "GeneralPlantExpander"
-
-    acc_code_label = t_cast(Gtk.Label, Gtk.Template.Child())
-    plant_code_label = t_cast(Gtk.Label, Gtk.Template.Child())
-    name_label = t_cast(Gtk.Label, Gtk.Template.Child())
-    location_label = t_cast(Gtk.Label, Gtk.Template.Child())
-    quantity_label = t_cast(Gtk.Label, Gtk.Template.Child())
-    status_label = t_cast(Gtk.Label, Gtk.Template.Child())
-    type_label = t_cast(Gtk.Label, Gtk.Template.Child())
-    geojson_type_label = t_cast(Gtk.Label, Gtk.Template.Child())
-    memorial_image = t_cast(Gtk.Image, Gtk.Template.Child())
-
-    def __init__(self) -> None:
-        super().__init__(label=_("General"))
-        self.connect("notify::expanded", self.on_expanded)
-
-    def update(self, row: Plant) -> None:
-        acc_code = str(row.accession)
-        plant_code = str(row)
-        head, tail = plant_code[: len(acc_code)], plant_code[len(acc_code) :]
-
-        self.acc_code_label.set_markup(f"<big>{utils.xml_safe(head)}</big>")
-        self.plant_code_label.set_markup(f"<big>{utils.xml_safe(tail)}</big>")
-        self.name_label.set_markup(row.accession.species_str(markup=True))
-        self.location_label.set_label(utils.xml_safe(row.location))
-        self.quantity_label.set_label(str(row.quantity))
-
-        # NOTE don't load geojson from the row or history will always record
-        # an update and _last_updated will always change when a relationship
-        # (note, propagation, etc.) is edited. (e.g. `shape = row.geojson...`
-        # instead use a temp session)
-        with db.engine.begin() as connection:
-            table = Plant.__table__
-            stmt = select(table.c.geojson).where(table.c.id == row.id)
-            geojson = connection.execute(stmt).scalar()
-
-        shape = geojson.get("type", "") if geojson else ""
-        self.geojson_type_label.set_label(shape)
-
-        status_str = _("Alive")
-        if row.quantity <= 0:
-            status_str = _("Dead")
-
-        self.status_label.set_label(status_str)
-        self.type_label.set_label(acc_type_values[row.acc_type])
-
-        icon = None
-        if row.memorial:
-            icon = "object-select-symbolic"
-
-        self.memorial_image.set_from_icon_name(icon, Gtk.IconSize.MENU)
-
-        utils.make_label_clickable(
-            self.acc_code_label,
-            on_clicked_select,
-            row.accession,
-        )
-
-        from ..plants.ui.misc import on_taxa_clicked
-
-        utils.make_label_clickable(
-            self.name_label,
-            on_taxa_clicked,
-            row.accession.species,
-        )
-        utils.make_label_clickable(
-            self.location_label,
-            on_clicked_select,
-            row.location,
-        )
-
-
-class ChangesExpander(
-    InfoExpander[Plant],
-    Gtk.Expander,
-):
-    """ChangesExpander"""
-
-    def __init__(self) -> None:
-        super().__init__(label=_("Changes"))
-        self.connect("notify::expanded", self.on_expanded)
-        self.add_change_grid()
-
-    def add_change_grid(self) -> None:
-        self.change_grid = Gtk.Grid()
-        self.change_grid.set_column_spacing(3)
-        self.change_grid.set_row_spacing(3)
-        self.add(self.change_grid)
-
-    def update(self, row: Plant) -> None:
-        self.remove(self.change_grid)
-        self.add_change_grid()
-
-        if not row.changes:
-            return
-
-        self.set_sensitive(True)
-
-        frmt = prefs.prefs[prefs.date_format_pref]
-        count = 0
-        for change in sorted(
-            row.changes, key=lambda x: (x.date, x.id), reverse=True
-        ):
-            date = change.date.strftime(frmt)
-            date_lbl = Gtk.Label()
-            if change.reason == "PLTD":
-                date_lbl.set_markup(f"<b>{date}</b> (Planted)")
-            else:
-                date_lbl.set_markup(f"<b>{date}</b>")
-            date_lbl.set_xalign(0.0)
-            date_lbl.set_yalign(0.0)
-            self.change_grid.attach(date_lbl, 0, count, 1, 1)
-            count += 1
-
-            if change.to_location and change.from_location:
-                summary = (
-                    f"{change.quantity} Transferred from "
-                    f"{change.from_location} to {change.to_location}"
-                )
-            elif change.quantity < 0:
-                summary = (
-                    f"{-change.quantity} Removed from "
-                    f"{change.from_location}"
-                )
-            elif change.quantity > 0:
-                txt = "Added to"
-                if change.reason == "PLTD":
-                    txt = "Planted in"
-                if change.reason == "ESTM":
-                    txt = "Planted (estm.) in"
-                if change.reason in ["NTRL", "PRIR"]:
-                    txt = "Captured in"
-                summary = f"{change.quantity} {txt} {change.to_location}"
-            else:
-                summary = (
-                    f"{change.quantity}: {change.from_location} -> "
-                    f"{change.to_location}"
-                )
-            summary_lbl = Gtk.Label()
-            summary_lbl.set_text(summary)
-            summary_lbl.set_xalign(0.0)
-            summary_lbl.set_yalign(0.0)
-            summary_lbl.set_line_wrap(True)
-            self.change_grid.attach(summary_lbl, 0, count, 1, 1)
-            count += 1
-
-            if change.reason and not change.reason == "PLTD":
-                reason_lbl = Gtk.Label()
-                reason_lbl.set_text(change_reasons.get(change.reason, ""))
-                reason_lbl.set_xalign(0.0)
-                reason_lbl.set_yalign(0.0)
-                self.change_grid.attach(reason_lbl, 0, count, 1, 1)
-                count += 1
-
-            if change.parent_plant:
-                parent_lbl = Gtk.Label()
-                parent_lbl.set_markup(
-                    f"<i>Split from {utils.xml_safe(change.parent_plant)}</i>"
-                )
-                eventbox = Gtk.EventBox()
-                eventbox.add(parent_lbl)
-                self.change_grid.attach(eventbox, 0, count, 1, 1)
-                count += 1
-
-                utils.make_label_clickable(
-                    parent_lbl, on_clicked_select, change.parent_plant
-                )
-
-            if change.child_plant:
-                div_lbl = Gtk.Label()
-                div_lbl.set_markup(
-                    f"<i>Split as {utils.xml_safe(change.child_plant)}</i>"
-                )
-                eventbox = Gtk.EventBox()
-                eventbox.add(div_lbl)
-                self.change_grid.attach(eventbox, 0, count, 1, 1)
-                count += 1
-
-                utils.make_label_clickable(
-                    div_lbl, on_clicked_select, change.child_plant
-                )
-
-        # trigger resize
-        self.get_preferred_size()
-
-
-class PropagationExpander(
-    InfoExpander[Plant],
-    Gtk.Expander,
-):
-    """Propagation Expander"""
-
-    def __init__(self) -> None:
-        super().__init__(label=_("Propagations"))
-        self.connect("notify::expanded", self.on_expanded)
-        self.add_prop_grid()
-
-    def add_prop_grid(self) -> None:
-        self.prop_grid = Gtk.Grid()
-        self.prop_grid.set_column_spacing(3)
-        self.prop_grid.set_row_spacing(3)
-        self.add(self.prop_grid)
-
-    def update(self, row: Plant) -> None:
-        self.remove(self.prop_grid)
-        self.add_prop_grid()
-
-        if not row.propagations:
-            self.set_sensitive(False)
-            return
-
-        self.set_sensitive(True)
-
-        self.set_sensitive(True)
-        frmt = prefs.prefs[prefs.date_format_pref]
-        count = 0
-
-        for prop in row.propagations:
-            date_lbl = Gtk.Label()
-            date = prop.date.strftime(frmt)
-            date_lbl.set_markup(f"<b>{date}</b>")
-            date_lbl.set_xalign(0.0)
-            date_lbl.set_yalign(0.0)
-            self.prop_grid.attach(date_lbl, 0, count, 2, 1)
-            count += 1
-
-            if prop.accessions:
-                used_lbl = Gtk.Label()
-                used_lbl.set_text("Parent of: ")
-                used_lbl.set_xalign(1.0)
-                used_lbl.set_yalign(0.0)
-                self.prop_grid.attach(used_lbl, 0, count, 1, 1)
-                for acc in prop.accessions:
-                    accession_lbl = Gtk.Label()
-                    eventbox = Gtk.EventBox()
-                    eventbox.add(accession_lbl)
-                    accession_lbl.set_xalign(0.0)
-                    accession_lbl.set_yalign(0.0)
-                    accession_lbl.set_text(acc.code)
-
-                    utils.make_label_clickable(
-                        accession_lbl,
-                        on_clicked_select,
-                        acc,
-                    )
-                    self.prop_grid.attach(eventbox, 1, count, 2, 1)
-                    count += 1
-
-            summary_label = Gtk.Label()
-            self.prop_grid.attach(summary_label, 0, count, 2, 1)
-
-            summary_label.set_text(prop.get_summary(partial=2))
-            summary_label.set_line_wrap(True)
-            summary_label.set_xalign(0.0)
-            summary_label.set_yalign(0.0)
-            summary_label.set_size_request(-1, -1)
-            count += 1
-        # trigger resize
-        self.get_preferred_size()
-
-
-class PlantInfoBox(InfoBox[Plant]):
-    """an InfoBox for a Plants table row"""
-
-    def __init__(self):
-        super().__init__()
-        self.add_expander(GeneralPlantExpander())
-        self.add_expander(ChangesExpander())
-        self.add_expander(PropagationExpander())
-        self.add_expander(LinksExpander("notes"))
-        self.add_expander(PropertiesExpander())
 
 
 def plant_to_string_matcher(plant: Plant, text: str) -> bool:
