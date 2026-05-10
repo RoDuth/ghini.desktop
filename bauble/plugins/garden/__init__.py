@@ -37,9 +37,9 @@ from bauble import db
 from bauble import editor
 from bauble import pluginmgr
 from bauble import prefs
-from bauble import search
 from bauble import utils
 from bauble.i18n import _
+from bauble.search import strategies
 from bauble.ui.utils import format_combo_entry_text
 from bauble.ui.utils import search_tree_model
 from bauble.ui.views import HistoryView
@@ -59,9 +59,9 @@ from .institution import start_institution_editor
 from .location import Location
 from .plant import Plant
 from .plant import PlantEditor
-from .plant import PlantSearch
 from .plant import edit_callback as plant_edit_callback
 from .plant import set_code_format
+from .search import PlantSearch
 from .source import Collection
 from .source import Source
 from .source import SourceDetail
@@ -134,7 +134,7 @@ class GardenPlugin(pluginmgr.Plugin):
     def init(cls):
         from bauble.plugins.plants import Species
 
-        mapper_search = search.strategies.get_strategy("MapperSearch")
+        mapper_search = strategies.get_strategy("MapperSearch")
 
         from functools import partial
 
@@ -178,7 +178,7 @@ class GardenPlugin(pluginmgr.Plugin):
 
         mapper_search.add_meta(("plant", "planting"), Plant, ["code"])
         # special search value strategy
-        search.strategies.add_strategy(PlantSearch)
+        strategies.add_strategy(PlantSearch)
 
         mapper_search.completion_funcs["plant"] = get_plant_completions
 

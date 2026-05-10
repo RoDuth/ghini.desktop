@@ -221,7 +221,7 @@ class ChangeBox(Gtk.Box):
 
     def add_child_label(self) -> None:
         child_label = Gtk.Label()
-        text = _("Split as %s") % utils.xml_safe(self.change.parent_plant)
+        text = _("Split as %s") % utils.xml_safe(self.change.child_plant)
         child_label.set_markup(f"<i>{text}</i>")
         eventbox = Gtk.EventBox()
         eventbox.add(child_label)

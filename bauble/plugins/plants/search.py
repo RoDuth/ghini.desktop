@@ -19,7 +19,7 @@
 # along with ghini.desktop. If not, see <http://www.gnu.org/licenses/>.
 #
 """
-Taxanomic search strategies and associated
+Taxonomic search strategies and associated
 """
 
 import logging
