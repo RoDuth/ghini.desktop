@@ -309,7 +309,7 @@ class FunctionTests(BaubleTestCase):
             description="First location.",
         )
         self.session.add(location)
-        self.session.flush()
+        self.session.commit()
 
         with mock.patch.object(edit_callback, "dialog_class") as mock_editor:
 
@@ -325,7 +325,7 @@ class FunctionTests(BaubleTestCase):
             description="First location.",
         )
         self.session.add(location)
-        self.session.flush()
+        self.session.commit()
 
         from ...garden import Plant
         from ..ui.location_editor import add_plants_callback
