@@ -1,3 +1,5 @@
+# pylint: disable=too-few-public-methods,too-many-locals,too-many-statements
+# pylint: disable=protected-access,unused-variable,no-self-use
 # Copyright 2008-2010 Brett Adams
 # Copyright 2015 Mario Frasca <mario@anche.no>.
 # Copyright 2021-2024 Ross Demuth <rossdemuth123@gmail.com>
@@ -16,6 +18,9 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with ghini.desktop. If not, see <http://www.gnu.org/licenses/>.
+"""
+database related tests.
+"""
 
 from unittest import mock
 
@@ -454,6 +459,12 @@ class BaseTests(BaubleTestCase):
             def __str__(self):
                 return "Test"
 
+            def has_children(self):
+                return False
+
+            def count_children(self):
+                return 0
+
         TestTableCustom.__table__.create(bind=db.engine)
         t = TestTableCustom()
         self.assertEqual(
@@ -662,10 +673,22 @@ class GlobalFunctionsTests(BaubleTestCase):
             parent = relationship("TestParent", back_populates="kids")
             active = Column(btypes.Boolean, default=False)
 
+            def has_children(self):
+                return False
+
+            def count_children(self):
+                return 0
+
         class TestParent(db.Domain):
             __tablename__ = "test_parent"
 
             kids = relationship(TestKid, back_populates="parent")
+
+            def has_children(self):
+                return False
+
+            def count_children(self):
+                return 0
 
         TestParent.__table__.create(bind=db.engine)
         TestKid.__table__.create(bind=db.engine)
@@ -859,6 +882,12 @@ class GlobalFunctionsTests(BaubleTestCase):
         class TestTableCustom(db.Domain):
             # very unique table name to avoid clobbering from other tests
             __tablename__ = "spam_250606_table"
+
+            def has_children(self):
+                return False
+
+            def count_children(self):
+                return 0
 
         self.assertFalse(inspect(db.engine).has_table("spam_250606_table"))
 
