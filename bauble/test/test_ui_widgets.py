@@ -29,6 +29,7 @@ from unittest import mock
 from gi.repository import Gtk
 from PIL import Image
 
+from bauble import db
 from bauble import prefs
 from bauble import utils
 from bauble.error import BaubleError
@@ -36,6 +37,7 @@ from bauble.plugins.plants.family import Family
 from bauble.plugins.plants.geography import Geography
 from bauble.plugins.plants.ui.family_editor import FAMILY_WEB_BUTTON_DEFS_PREFS
 from bauble.test import BaubleClassTestCase
+from bauble.test import update_gui
 from bauble.ui.widgets.date import DatePickerBox
 from bauble.ui.widgets.map import MapMenuButton
 from bauble.ui.widgets.notes import DocumentBox
@@ -465,6 +467,8 @@ class NotesPresenterTests(BaubleClassTestCase):
         self.assertTrue(presenter.can_commit)
 
         note_boxes = presenter.expander_box.get_children()
+        note_boxes[1].expander.set_expanded(True)
+        update_gui()
         note_boxes[1].date_entry.set_text("BOOM")
 
         self.assertFalse(presenter.can_commit)
@@ -485,12 +489,28 @@ class NotesPresenterTests(BaubleClassTestCase):
 
         presenter.destroy()
 
+    def test_update_label_truncates_long(self):
+        doc_box = DocumentBox(
+            LocationNote(
+                date=datetime(2024, 1, 1).date(),
+                note="a very long string requiring truncation.doc",
+            )
+        )
+        self.assertEqual(
+            doc_box.expander.get_label(),
+            "01-01-2024 : a very long string req …",
+        )
+        doc_box.destroy()
+
 
 TEMP_ROOT = mkdtemp()
 
 
 class PicturesPresenterTests(BaubleClassTestCase):
     def setUp(self):
+        with db.engine.connect() as conn:
+            conn.execute("DELETE FROM location_picture")
+            conn.execute("DELETE FROM location")
 
         prefs.prefs[prefs.root_directory_pref] = TEMP_ROOT
 
@@ -550,8 +570,6 @@ class PicturesPresenterTests(BaubleClassTestCase):
         presenter = NotesPresenter()
         self.assertRaises(BaubleError, presenter.init, Geography())
 
-        self.session.delete(loc)
-        self.session.commit()
         presenter.destroy()
 
     def test_add_button_clicked(self):
@@ -597,6 +615,8 @@ class PicturesPresenterTests(BaubleClassTestCase):
         self.assertTrue(presenter.can_commit)
 
         pic_boxes = presenter.expander_box.get_children()
+        pic_boxes[1].expander.set_expanded(True)
+        update_gui()
         pic_boxes[1].date_entry.set_text("BOOM")
 
         self.assertFalse(presenter.can_commit)
@@ -611,6 +631,9 @@ class PicturesPresenterTests(BaubleClassTestCase):
         presenter = NotesPresenter()
         presenter.init(loc, "_pictures", PictureBox)
         pic_boxes = presenter.expander_box.get_children()
+        pic_boxes[0].set_expanded(True)
+        pic_boxes[1].set_expanded(True)
+        update_gui()
 
         self.assertEqual(pic_boxes[0].file_entry.get_text(), "Test2.jpg")
         self.assertEqual(pic_boxes[1].file_entry.get_text(), "Test1.jpg")
@@ -634,6 +657,9 @@ class PicturesPresenterTests(BaubleClassTestCase):
         presenter = NotesPresenter()
         presenter.init(loc, "_pictures", PictureBox)
         pic_boxes = presenter.expander_box.get_children()
+        pic_boxes[0].set_expanded(True)
+        pic_boxes[1].set_expanded(True)
+        update_gui()
 
         self.assertEqual(pic_boxes[0].file_entry.get_text(), "Test2.jpg")
         self.assertEqual(pic_boxes[1].file_entry.get_text(), "Test1.jpg")
@@ -667,6 +693,9 @@ class PicturesPresenterTests(BaubleClassTestCase):
         presenter = NotesPresenter()
         presenter.init(loc, "_pictures", PictureBox)
         pic_boxes = presenter.expander_box.get_children()
+        pic_boxes[0].set_expanded(True)
+        pic_boxes[1].set_expanded(True)
+        update_gui()
 
         self.assertEqual(pic_boxes[0].file_entry.get_text(), "Test2.jpg")
         self.assertEqual(pic_boxes[1].file_entry.get_text(), "Test1.jpg")
@@ -698,6 +727,9 @@ class PicturesPresenterTests(BaubleClassTestCase):
         presenter = NotesPresenter()
         presenter.init(loc, "_pictures", PictureBox)
         pic_boxes = presenter.expander_box.get_children()
+        pic_boxes[0].set_expanded(True)
+        pic_boxes[1].set_expanded(True)
+        update_gui()
 
         self.assertEqual(pic_boxes[0].file_entry.get_text(), "Test2.jpg")
         self.assertEqual(pic_boxes[1].file_entry.get_text(), "Test1.jpg")
@@ -723,8 +755,6 @@ class PicturesPresenterTests(BaubleClassTestCase):
         self.assertEqual(len(loc._pictures), 1)
         self.assertEqual(len(presenter.expander_box.get_children()), 1)
 
-        self.session.delete(loc2)
-        self.session.commit()
         presenter.destroy()
 
     @mock.patch("bauble.ui.dialogs.yes_no_dialog")
@@ -740,6 +770,8 @@ class PicturesPresenterTests(BaubleClassTestCase):
         presenter = NotesPresenter()
         presenter.init(loc, "_pictures", PictureBox)
         pic_boxes = presenter.expander_box.get_children()
+        pic_boxes[0].set_expanded(True)
+        update_gui()
 
         self.assertEqual(pic_boxes[0].file_entry.get_text(), "Test1.jpg")
 
@@ -767,6 +799,9 @@ class PicturesPresenterTests(BaubleClassTestCase):
         presenter = NotesPresenter()
         presenter.init(loc, "_pictures", PictureBox)
         pic_boxes = presenter.expander_box.get_children()
+        pic_boxes[0].set_expanded(True)
+        update_gui()
+        mock_loader.assert_called_once()
 
         self.assertEqual(
             pic_boxes[0].file_entry.get_text(),
@@ -784,6 +819,8 @@ class PicturesPresenterTests(BaubleClassTestCase):
         presenter = NotesPresenter()
         presenter.init(loc, "_pictures", PictureBox)
         pic_boxes = presenter.expander_box.get_children()
+        pic_boxes[0].set_expanded(True)
+        update_gui()
 
         self.assertEqual(
             pic_boxes[0].file_entry.get_text(),
@@ -803,6 +840,8 @@ class PicturesPresenterTests(BaubleClassTestCase):
         presenter = NotesPresenter()
         presenter.init(loc, "_pictures", PictureBox)
         pic_boxes = presenter.expander_box.get_children()
+        pic_boxes[0].set_expanded(True)
+        update_gui()
 
         self.assertEqual(pic_boxes[0].file_entry.get_text(), "Bad.jpg")
         self.assertEqual(
@@ -821,6 +860,8 @@ class PicturesPresenterTests(BaubleClassTestCase):
         presenter = NotesPresenter()
         presenter.init(loc, "_pictures", PictureBox)
         pic_boxes = presenter.expander_box.get_children()
+        pic_boxes[0].set_expanded(True)
+        update_gui()
 
         self.assertEqual(pic_boxes[0].file_entry.get_text(), "Bad.jpg")
         self.assertEqual(
@@ -850,7 +891,11 @@ class PicturesPresenterTests(BaubleClassTestCase):
         presenter.init(loc, "_pictures", PictureBox)
         presenter.on_add_button_clicked(None)
         pic_boxes = presenter.expander_box.get_children()
+        pic_boxes[0].set_expanded(True)
+        update_gui()
         pic_boxes[0].on_file_btnbrowse_clicked(None)
+        mock_file_chooser.assert_called()
+        update_gui()
         pic_boxes = presenter.expander_box.get_children()
 
         self.assertEqual(len(loc._pictures), 2)
@@ -940,6 +985,8 @@ class PicturesPresenterTests(BaubleClassTestCase):
         presenter = NotesPresenter()
         presenter.init(loc, "_pictures", PictureBox)
         pic_boxes = presenter.expander_box.get_children()
+        pic_boxes[0].set_expanded(True)
+        update_gui()
 
         self.assertEqual(len(pic_boxes), 1)
         self.assertIsInstance(
@@ -957,13 +1004,16 @@ class PicturesPresenterTests(BaubleClassTestCase):
         )
         self.assertEqual(
             pic_box.expander.get_label(),
-            " : a very long string re …",
+            ": a very long string req …",
         )
         pic_box.destroy()
 
 
 class DocumentsPresenterTests(BaubleClassTestCase):
     def setUp(self):
+        with db.engine.connect() as conn:
+            conn.execute("DELETE FROM location_document")
+            conn.execute("DELETE FROM location")
 
         prefs.prefs[prefs.root_directory_pref] = TEMP_ROOT
 
@@ -1000,6 +1050,8 @@ class DocumentsPresenterTests(BaubleClassTestCase):
 
         presenter.init(loc, "documents", DocumentBox)
         doc_boxes = presenter.expander_box.get_children()
+        doc_boxes[0].set_expanded(True)
+        update_gui()
 
         self.assertIs(presenter.note_cls, LocationDocument)
         self.assertEqual(len(doc_boxes), 1)
@@ -1020,8 +1072,6 @@ class DocumentsPresenterTests(BaubleClassTestCase):
         presenter = NotesPresenter()
         self.assertRaises(BaubleError, presenter.init, Geography())
 
-        self.session.delete(loc)
-        self.session.commit()
         presenter.destroy()
 
     def test_add_button_clicked(self):
@@ -1067,6 +1117,8 @@ class DocumentsPresenterTests(BaubleClassTestCase):
         self.assertTrue(presenter.can_commit)
 
         doc_boxes = presenter.expander_box.get_children()
+        doc_boxes[1].expander.set_expanded(True)
+        update_gui()
         doc_boxes[1].date_entry.set_text("BOOM")
 
         self.assertFalse(presenter.can_commit)
@@ -1097,6 +1149,8 @@ class DocumentsPresenterTests(BaubleClassTestCase):
         presenter = NotesPresenter()
         presenter.init(loc, "documents", DocumentBox)
         doc_boxes = presenter.expander_box.get_children()
+        doc_boxes[0].set_expanded(True)
+        update_gui()
 
         self.assertEqual(doc_boxes[0].file_entry.get_text(), "foo.bar")
 
@@ -1127,6 +1181,8 @@ class DocumentsPresenterTests(BaubleClassTestCase):
         presenter = NotesPresenter()
         presenter.init(loc, "documents", DocumentBox)
         doc_boxes = presenter.expander_box.get_children()
+        doc_boxes[0].set_expanded(True)
+        update_gui()
 
         self.assertEqual(doc_boxes[0].file_entry.get_text(), "foo.bar")
         self.assertEqual(len(loc.documents), 1)
@@ -1157,6 +1213,8 @@ class DocumentsPresenterTests(BaubleClassTestCase):
         presenter = NotesPresenter()
         presenter.init(loc, "documents", DocumentBox)
         doc_boxes = presenter.expander_box.get_children()
+        doc_boxes[0].set_expanded(True)
+        update_gui()
 
         self.assertEqual(doc_boxes[0].file_entry.get_text(), "foo.bar")
 
@@ -1181,8 +1239,6 @@ class DocumentsPresenterTests(BaubleClassTestCase):
         self.assertEqual(len(loc.documents), 0)
         self.assertEqual(len(presenter.expander_box.get_children()), 0)
 
-        self.session.delete(loc2)
-        self.session.commit()
         presenter.destroy()
 
     @mock.patch("bauble.ui.dialogs.yes_no_dialog")
@@ -1197,6 +1253,8 @@ class DocumentsPresenterTests(BaubleClassTestCase):
         presenter = NotesPresenter()
         presenter.init(loc, "documents", DocumentBox)
         doc_boxes = presenter.expander_box.get_children()
+        doc_boxes[0].set_expanded(True)
+        update_gui()
 
         self.assertEqual(doc_boxes[0].file_entry.get_text(), "foo.bar")
 
@@ -1223,6 +1281,9 @@ class DocumentsPresenterTests(BaubleClassTestCase):
         presenter = NotesPresenter()
         presenter.init(loc, "documents", DocumentBox)
         doc_boxes = presenter.expander_box.get_children()
+        doc_boxes[0].set_expanded(True)
+        doc_boxes[1].set_expanded(True)
+        update_gui()
 
         self.assertEqual(doc_boxes[0].file_entry.get_text(), "ham.eggs")
         self.assertFalse(doc_boxes[0].file_menu_btn.get_sensitive())
@@ -1264,7 +1325,10 @@ class DocumentsPresenterTests(BaubleClassTestCase):
         presenter.init(loc, "documents", DocumentBox)
         presenter.on_add_button_clicked(None)
         doc_boxes = presenter.expander_box.get_children()
+        doc_boxes[0].expander.set_expanded(True)
+        update_gui()
         doc_boxes[0].on_file_btnbrowse_clicked(None)
+        update_gui()
         doc_boxes = presenter.expander_box.get_children()
 
         self.assertEqual(len(loc.documents), 2)
@@ -1363,13 +1427,12 @@ class DocumentsPresenterTests(BaubleClassTestCase):
         self.session.add(loc1)
         self.session.commit()
         doc_box = DocumentBox(LocationDocument())
+        doc_box.init()
+        update_gui()
         # pylint: disable=not-an-iterable
         categories = [row[0] for row in doc_box.category_liststore]
 
         self.assertCountEqual(categories, ["Test", "Other", "Another"])
-
-        self.session.delete(loc1)
-        self.session.commit()
 
         doc_box.destroy()
 

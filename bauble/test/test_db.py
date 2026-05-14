@@ -460,6 +460,27 @@ class BaseTests(BaubleTestCase):
             t.search_view_markup_pair(), ("Test", "TestTableCustom")
         )
 
+    def test_notes_str_fallback(self):
+
+        class TestNote(db.Note):
+            __tablename__ = "test_note"
+
+            date = Column(btypes.Date, nullable=False)
+            user = Column(Unicode)
+            category = Column(Unicode)
+            note = Column(Unicode)
+
+        note = TestNote(
+            note="a note",
+            user="Jade Green",
+            category="test",
+            date="2024-01-01",
+        )
+        self.assertEqual(
+            str(note),
+            "Jade Green on 2024-01-01 (test) : test_note",
+        )
+
 
 class GlobalFunctionsTests(BaubleTestCase):
     def test_get_related_class(self):

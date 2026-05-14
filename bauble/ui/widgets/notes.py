@@ -91,6 +91,14 @@ class NoteBox(GenericPresenter[db.Note], Gtk.Box):
 
         super().__init__(model, self)
 
+        self.update_label()
+
+        self.initialised = False
+
+        self.date_entry: Gtk.Entry
+
+    def init(self) -> None:
+
         self.date_picker.init()
         self.date_entry = self.date_picker.entry
 
@@ -102,6 +110,12 @@ class NoteBox(GenericPresenter[db.Note], Gtk.Box):
         }
         self.refresh_all_widgets_from_model()
         self.populate_categories()
+
+        GLib.idle_add(self.setup_spell_checker)
+
+        self.initialised = True
+
+    def setup_spell_checker(self) -> None:
         spell_view = Gspell.TextView.get_from_gtk_text_view(self.note_textview)
         spell_view.basic_setup()
 
@@ -120,6 +134,18 @@ class NoteBox(GenericPresenter[db.Note], Gtk.Box):
 
     def set_expanded(self, expanded: bool) -> None:
         self.expander.set_expanded(expanded)
+
+    @Gtk.Template.Callback()
+    def on_expanded(
+        self,
+        _expander: Gtk.Expander,
+        _expanded: bool,
+    ) -> None:
+        # delay set up until required
+        if self.initialised:
+            return
+
+        self.init()
 
     @Gtk.Template.Callback()
     def on_date_entry_changed(self, date_picker: DatePickerBox) -> None:
@@ -150,38 +176,7 @@ class NoteBox(GenericPresenter[db.Note], Gtk.Box):
         self.emit("changed")
 
     def update_label(self) -> None:
-        label = []
-        date_str = self.date_entry.get_text()
-        user_str = self.user_entry.get_text()
-        if date_str and user_str:
-            label.append(
-                _("%(user)s on %(date)s")
-                % {"user": utils.xml_safe(self.model.user), "date": date_str}
-            )
-        elif date_str:
-            label.append(date_str)
-        elif user_str:
-            label.append(user_str)
-
-        category = cast(Gtk.Entry, self.category_combo.get_child()).get_text()
-        if category:
-            label.append(f"({category})")
-
-        note = self.note_textbuffer.get_text(
-            *self.note_textbuffer.get_bounds(),
-            False,
-        )
-
-        if note:
-            note_str = " : "
-            note_str += utils.xml_safe(note).replace("\n", "  ")
-            max_length = 25
-            if len(note) > max_length:
-                label.append(f"{note_str[0:max_length - 1]} …")
-            else:
-                label.append(note_str)
-
-        self.expander.set_label(" ".join(label))
+        self.expander.set_label(str(self.model))
 
 
 @Gtk.Template(filename=str(parent / "picture_box.ui"))
@@ -224,6 +219,14 @@ class PictureBox(GenericPresenter[db.Note], Gtk.Box):
 
         super().__init__(model, self)
 
+        self.update_label()
+
+        self.initialised = False
+
+        self.date_entry: Gtk.Entry
+
+    def init(self) -> None:
+
         self.date_picker.init()
         self.date_entry = self.date_picker.entry
 
@@ -236,8 +239,10 @@ class PictureBox(GenericPresenter[db.Note], Gtk.Box):
         self.refresh_all_widgets_from_model()
         self.populate_categories()
 
-        if not getattr(model, "picture"):
-            self.set_content("")
+        if not self.file_entry.get_text():
+            self.file_entry.emit("changed")
+
+        self.initialised = True
 
     def get_presenter(self) -> NotesPresenter[PictureBox]:
 
@@ -320,6 +325,18 @@ class PictureBox(GenericPresenter[db.Note], Gtk.Box):
 
         self.picture_box.add(img)
         self.picture_box.show()
+
+    @Gtk.Template.Callback()
+    def on_expanded(
+        self,
+        _expander: Gtk.Expander,
+        _expanded: bool,
+    ) -> None:
+        # delay set up until required
+        if self.initialised:
+            return
+
+        self.init()
 
     @Gtk.Template.Callback()
     def on_date_entry_changed(self, date_picker: DatePickerBox) -> None:
@@ -464,47 +481,22 @@ class PictureBox(GenericPresenter[db.Note], Gtk.Box):
                 self._copy_picture(box, path.name)
 
     def _copy_picture(
-        self, box: Self, name: str, rename: str | None = None
+        self,
+        box: Self,
+        name: str,
+        rename: str | None = None,
     ) -> None:
         utils.copy_picture_with_thumbnail(self.last_folder, name, rename)
         set_widget_value(box.category_combo, self.model.category or "")
-        box.file_entry.set_text(rename or name)
         box.set_expanded(True)
+        box.file_entry.set_text(rename or name)
 
     def update(self) -> None:
         self.update_label()
         self.emit("changed")
 
     def update_label(self) -> None:
-        label = []
-        date_str = self.date_entry.get_text()
-        user_str = self.user_entry.get_text()
-        if date_str and user_str:
-            label.append(
-                _("%(user)s on %(date)s")
-                % {"user": utils.xml_safe(self.model.user), "date": date_str}
-            )
-        elif date_str:
-            label.append(date_str)
-        elif user_str:
-            label.append(user_str)
-
-        category = cast(Gtk.Entry, self.category_combo.get_child()).get_text()
-        if category:
-            label.append(f"({category})")
-
-        pic = self.file_entry.get_text()
-
-        if pic:
-            note_str = " : "
-            note_str += utils.xml_safe(pic)
-            max_length = 25
-            if len(pic) > max_length:
-                label.append(f"{note_str[0:max_length - 1]} …")
-            else:
-                label.append(note_str)
-
-        self.expander.set_label(" ".join(label))
+        self.expander.set_label(str(self.model))
 
 
 @Gtk.Template(filename=str(parent / "document_box.ui"))
@@ -547,6 +539,14 @@ class DocumentBox(GenericPresenter[db.Note], Gtk.Box):
 
         super().__init__(model, self)
 
+        self.update_label()
+
+        self.initialised = False
+
+        self.date_entry: Gtk.Entry
+
+    def init(self) -> None:
+
         self.date_picker.init()
         self.date_entry = self.date_picker.entry
 
@@ -559,6 +559,12 @@ class DocumentBox(GenericPresenter[db.Note], Gtk.Box):
         }
         self.refresh_all_widgets_from_model()
         self.populate_categories()
+
+        GLib.idle_add(self.setup_spell_checker)
+
+        self.initialised = True
+
+    def setup_spell_checker(self) -> None:
         spell_view = Gspell.TextView.get_from_gtk_text_view(self.note_textview)
         spell_view.basic_setup()
 
@@ -585,6 +591,18 @@ class DocumentBox(GenericPresenter[db.Note], Gtk.Box):
 
     def set_expanded(self, expanded: bool) -> None:
         self.expander.set_expanded(expanded)
+
+    @Gtk.Template.Callback()
+    def on_expanded(
+        self,
+        _expander: Gtk.Expander,
+        _expanded: bool,
+    ) -> None:
+        # delay set up until required
+        if self.initialised:
+            return
+
+        self.init()
 
     @Gtk.Template.Callback()
     def on_date_entry_changed(self, date_picker: DatePickerBox) -> None:
@@ -625,6 +643,7 @@ class DocumentBox(GenericPresenter[db.Note], Gtk.Box):
         file_chooser_dialog.set_current_folder(self.last_folder)
         file_chooser_dialog.run()
         filenames = file_chooser_dialog.get_filenames()
+        logger.debug("selected files: %s", filenames)
 
         try:
             self.add_from_files(filenames)
@@ -746,43 +765,15 @@ class DocumentBox(GenericPresenter[db.Note], Gtk.Box):
     ) -> None:
         shutil.copy(source, destination)
         set_widget_value(box.category_combo, self.model.category or "")
-        box.file_entry.set_text(destination.name)
         box.set_expanded(True)
+        box.file_entry.set_text(destination.name)
 
     def update(self) -> None:
         self.update_label()
         self.emit("changed")
 
     def update_label(self) -> None:
-        label = []
-        date_str = self.date_entry.get_text()
-        user_str = self.user_entry.get_text()
-        if date_str and user_str:
-            label.append(
-                _("%(user)s on %(date)s")
-                % {"user": utils.xml_safe(self.model.user), "date": date_str}
-            )
-        elif date_str:
-            label.append(date_str)
-        elif user_str:
-            label.append(user_str)
-
-        category = cast(Gtk.Entry, self.category_combo.get_child()).get_text()
-        if category:
-            label.append(f"({category})")
-
-        doc = self.file_entry.get_text()
-
-        if doc:
-            note_str = ": "
-            note_str += utils.xml_safe(doc)
-            max_length = 25
-            if len(doc) > max_length:
-                label.append(f"{note_str[0:max_length - 1]} …")
-            else:
-                label.append(note_str)
-
-        self.expander.set_label(" ".join(label))
+        self.expander.set_label(str(self.model))
 
 
 @Gtk.Template(filename=str(parent / "notes_presenter.ui"))
@@ -852,8 +843,10 @@ class NotesPresenter[T: (NoteBox, PictureBox, DocumentBox)](Gtk.Box):
         self.prop = prop
         self.box_cls = box_cls
         self.note_cls = object_mapper(model).get_property(prop).mapper.class_
+        self.populate()
 
-        for note in getattr(model, prop):
+    def populate(self) -> None:
+        for note in getattr(self.model, self.prop):
             self.add_note(note)
 
     @Gtk.Template.Callback()

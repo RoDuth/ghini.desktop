@@ -35,6 +35,7 @@
           <object class="GtkExpander" id="expander">
             <property name="visible">True</property>
             <property name="can-focus">True</property>
+            <signal name="notify::expanded" handler="on_expanded" swapped="no"/>
             <child>
               <object class="GtkBox">
                 <property name="visible">True</property>

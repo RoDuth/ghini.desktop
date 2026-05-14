@@ -887,14 +887,56 @@ def verify_connection(new_engine, show_error_dialogs=False):
     return True
 
 
-class Note(Base):
+class Note(Base):  # pylint: disable=too-few-public-methods
 
     __abstract__ = True
 
-    date: datetime.datetime
+    __table_name__: str
+
+    date: datetime.date
     user: str
     category: str
     owner: sa_synonym
+
+    def get_note(self) -> str:
+        # default in case of errors
+        return self.__tablename__
+
+    def __str__(self) -> str:
+        label = []
+
+        date_str = ""
+        if isinstance(self.date, str):
+            date_str = self.date or ""
+        else:
+            date_str = utils.date_string(self.date)
+
+        user_str = self.user or ""
+        if date_str and user_str:
+            label.append(
+                _("%(user)s on %(date)s")
+                % {"user": utils.xml_safe(self.user), "date": date_str}
+            )
+        elif date_str:
+            label.append(date_str)
+        elif user_str:
+            label.append(user_str)
+
+        if self.category:
+            label.append(f"({self.category})")
+
+        note = self.get_note()
+
+        if note:
+            note_str = ": "
+            note_str += utils.xml_safe(note).replace("\n", "  ")
+            max_length = 25
+            if len(note) > max_length:
+                label.append(f"{note_str[0:max_length - 1]} …")
+            else:
+                label.append(note_str)
+
+        return " ".join(label)
 
 
 def make_note_class(name, cls_type="note", extra_columns=None):
@@ -905,6 +947,9 @@ def make_note_class(name, cls_type="note", extra_columns=None):
     cls_type_name = cls_type.strip("_")
     class_name = name + cls_type_name.capitalize()
     table_name = name.lower() + "_" + cls_type_name
+
+    def get_note(self):
+        return getattr(self, cls_type_name)
 
     obj_dict = {
         "__tablename__": table_name,
@@ -926,6 +971,7 @@ def make_note_class(name, cls_type="note", extra_columns=None):
             ),
         ),
         "owner": sa_synonym(name.lower()),
+        "get_note": get_note,
     }
 
     if extra_columns:
