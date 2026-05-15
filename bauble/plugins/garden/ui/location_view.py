@@ -110,7 +110,7 @@ class DescriptionExpander(
 
     def __init__(self) -> None:
         super().__init__(label=_("Description"))
-        scrolled_window = Gtk.ScrolledWindow()
+        scrolled_window = Gtk.ScrolledWindow(border_width=5)
         self.description_text_view = Gtk.TextView(wrap_mode=Gtk.WrapMode.WORD)
         scrolled_window.add(self.description_text_view)
         self.add(scrolled_window)

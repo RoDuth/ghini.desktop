@@ -7,7 +7,7 @@
   </object>
   <template class="LocationEditorDialog" parent="GtkDialog">
     <property name="can-focus">True</property>
-    <property name="title">Location Editor</property>
+    <property name="title" translatable="yes">Location Editor</property>
     <property name="destroy-with-parent">True</property>
     <property name="type-hint">dialog</property>
     <signal name="response" handler="on_response" swapped="no"/>

@@ -241,7 +241,11 @@ class ChangesExpander(
 ):
     def __init__(self) -> None:
         super().__init__(label=_("Changes"))
-        self.vbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=6)
+        self.vbox = Gtk.Box(
+            orientation=Gtk.Orientation.VERTICAL,
+            spacing=6,
+            border_width=5,
+        )
         self.add(self.vbox)
 
     def update(self, row: Plant) -> None:
@@ -329,7 +333,11 @@ class PropagationExpander(
     def __init__(self) -> None:
         super().__init__(label=_("Propagations"))
         self.connect("notify::expanded", self.on_expanded)
-        self.vbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=6)
+        self.vbox = Gtk.Box(
+            orientation=Gtk.Orientation.VERTICAL,
+            spacing=6,
+            border_width=5,
+        )
         self.add(self.vbox)
 
     def update(self, row: Plant) -> None:
