@@ -1171,7 +1171,7 @@
                             <signal name="changed" handler="on_habit_comboentry_changed" swapped="no"/>
                             <signal name="format-entry-text" handler="on_comboentry_format" swapped="no"/>
                             <child internal-child="entry">
-                              <object class="GtkEntry" id="habit_entry">
+                              <object class="GtkEntry">
                                 <property name="can-focus">True</property>
                                 <property name="hexpand">True</property>
                                 <property name="completion">habit_completion</property>

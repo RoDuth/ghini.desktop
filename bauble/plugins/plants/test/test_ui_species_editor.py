@@ -76,6 +76,7 @@ class SpeciesEditorDialogTests(BaubleTestCase):
     def test_init_new(self):
         species = Species()
         editor = SpeciesEditorDialog(species, self.session)
+        habit_entry = editor.habit_comboentry.get_child()
 
         self.assertTrue(editor.links_menu_btn.model)
         self.assertTrue(editor.synonyms_presenter.model)
@@ -85,7 +86,7 @@ class SpeciesEditorDialogTests(BaubleTestCase):
         self.assertEqual(editor.cv_epithet_entry.get_text(), "")
         self.assertEqual(editor.cv_group_entry.get_text(), "")
         self.assertEqual(editor.tradename_entry.get_text(), "")
-        self.assertEqual(editor.habit_entry.get_text(), "")
+        self.assertEqual(habit_entry.get_text(), "")
         self.assertFalse(editor.infragen_expander.get_expanded())
         self.assertFalse(editor.cv_extras_grid.get_visible())
         self.assertEqual(len(editor.problems), 1)
@@ -178,7 +179,8 @@ class SpeciesEditorDialogTests(BaubleTestCase):
             editor.label_markup_entry.get_text(),
             "<i>Musa</i> 'Cavendish'",
         )
-        self.assertEqual(editor.habit_entry.get_text(), "Herbaceous (HER)")
+        habit_entry = editor.habit_comboentry.get_child()
+        self.assertEqual(habit_entry.get_text(), "Herbaceous (HER)")
         self.assertEqual(len(editor.problems), 0)
 
         editor.destroy()
@@ -767,11 +769,12 @@ class SpeciesEditorDialogTests(BaubleTestCase):
         )
         importer.start([os.path.join(default_path, "habit.csv")], force=True)
         editor = SpeciesEditorDialog(Species(), self.session)
-        editor.habit_entry.set_text("Tre")
+        habit_entry = editor.habit_comboentry.get_child()
+        habit_entry.set_text("Tre")
 
         self.assertIsNone(editor.model.habit)
 
-        editor.habit_entry.set_text("Tree (TRE)")
+        habit_entry.set_text("Tree (TRE)")
 
         self.assertEqual(editor.model.habit.name, "Tree")
 

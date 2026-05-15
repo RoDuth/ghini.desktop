@@ -243,7 +243,6 @@ class SpeciesEditorDialog(
     habit_liststore = cast(Gtk.ListStore, Gtk.Template.Child())
     habit_cell = cast(Gtk.CellRendererText, Gtk.Template.Child())
     habit_completion = cast(Gtk.EntryCompletion, Gtk.Template.Child())
-    habit_entry = cast(Gtk.Entry, Gtk.Template.Child())
     _sp_custom1_label = cast(Gtk.Label, Gtk.Template.Child())
     _sp_custom1_combo = cast(Gtk.ComboBoxText, Gtk.Template.Child())
     _sp_custom2_label = cast(Gtk.Label, Gtk.Template.Child())

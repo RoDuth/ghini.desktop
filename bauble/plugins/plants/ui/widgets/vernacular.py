@@ -251,7 +251,8 @@ class VernacularNamePresenter(Gtk.Frame):
         val = model[treeiter][0]
         try:
             cell.set_property(
-                "active", val == val.species.default_vernacular_name
+                "active",
+                val == val.species.default_vernacular_name,
             )
             return
         except (AttributeError, DetachedInstanceError) as e:
