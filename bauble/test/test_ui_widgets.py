@@ -1,4 +1,4 @@
-# pylint: disable=no-self-use,protected-access
+# pylint: disable=no-self-use,protected-access,too-many-lines
 # Copyright (c) 2026 Ross Demuth <rossdemuth123@gmail.com>
 #
 # This file is part of ghini.desktop.
@@ -37,10 +37,12 @@ from bauble.plugins.plants.family import Family
 from bauble.plugins.plants.geography import Geography
 from bauble.plugins.plants.ui.family_editor import FAMILY_WEB_BUTTON_DEFS_PREFS
 from bauble.test import BaubleClassTestCase
+from bauble.test import BaubleTestCase
 from bauble.test import update_gui
 from bauble.ui.widgets.date import DatePickerBox
 from bauble.ui.widgets.map import MapMenuButton
 from bauble.ui.widgets.notes import DocumentBox
+from bauble.ui.widgets.notes import NoteBox
 from bauble.ui.widgets.notes import NotesPresenter
 from bauble.ui.widgets.notes import PictureBox
 from bauble.ui.widgets.web import LinksMenuButton
@@ -288,7 +290,9 @@ class MapMenuButtonTests(BaubleClassTestCase):
             <Document>
                 <Placemark>
                     <Point>
-                        <coordinates>152.970337051314,-27.4764063330072,0</coordinates>
+                        <coordinates>
+                            152.970337051314,-27.4764063330072,0
+                        </coordinates>
                     </Point>
                 </Placemark>
             </Document>
@@ -397,7 +401,7 @@ class DatePickerBoxTests(TestCase):
         box.destroy()
 
 
-class NotesPresenterTests(BaubleClassTestCase):
+class NotesPresenterTests(BaubleTestCase):
     def test_init(self):
         # without notes
         presenter = NotesPresenter()
@@ -418,9 +422,16 @@ class NotesPresenterTests(BaubleClassTestCase):
         presenter = NotesPresenter()
 
         presenter.init(loc)
+        note_boxes = presenter.expander_box.get_children()
+        note_boxes[0].set_expanded(True)
+        update_gui()
 
         self.assertIs(presenter.note_cls, LocationNote)
-        self.assertEqual(len(presenter.expander_box.get_children()), 1)
+        self.assertEqual(len(note_boxes), 1)
+        self.assertEqual(
+            note_boxes[0].category_combo.get_child().get_text(),
+            "Test",
+        )
 
         presenter.destroy()
 
@@ -490,17 +501,45 @@ class NotesPresenterTests(BaubleClassTestCase):
         presenter.destroy()
 
     def test_update_label_truncates_long(self):
-        doc_box = DocumentBox(
+        note_box = NoteBox(
             LocationNote(
                 date=datetime(2024, 1, 1).date(),
                 note="a very long string requiring truncation.doc",
             )
         )
         self.assertEqual(
-            doc_box.expander.get_label(),
+            note_box.expander.get_label(),
             "01-01-2024 : a very long string req …",
         )
-        doc_box.destroy()
+        note_box.destroy()
+
+    def test_populate_categories(self):
+        loc1 = Location(code="Loc1")
+        loc1.notes.append(LocationNote(note="ham.eggs", category="Test"))
+        loc1.notes.append(LocationNote(note="spam.eggs", category="Test"))
+        loc1.notes.append(LocationNote(note="spam.spam", category="Other"))
+        loc1.notes.append(LocationNote(note="spam.spam", category="Another"))
+        self.session.add(loc1)
+        self.session.commit()
+        note_box = NoteBox(LocationNote())
+        note_box.init()
+        update_gui()
+        # pylint: disable=not-an-iterable
+        categories = [row[0] for row in note_box.category_liststore]
+
+        self.assertCountEqual(categories, ["Test", "Other", "Another"])
+
+        note_box.destroy()
+
+    def test_inits_once_multiple_set_expanded(self):
+        note_box = NoteBox(LocationNote())
+        note_box.init()
+        with mock.patch.object(note_box, "init") as mock_init:
+            note_box.set_expanded(True)
+            note_box.set_expanded(False)
+            note_box.set_expanded(True)
+
+            mock_init.assert_not_called()
 
 
 TEMP_ROOT = mkdtemp()
@@ -560,9 +599,16 @@ class PicturesPresenterTests(BaubleClassTestCase):
         presenter = NotesPresenter()
 
         presenter.init(loc, "_pictures", PictureBox)
+        pic_boxes = presenter.expander_box.get_children()
+        pic_boxes[0].set_expanded(True)
+        update_gui()
 
         self.assertIs(presenter.note_cls, LocationPicture)
-        self.assertEqual(len(presenter.expander_box.get_children()), 1)
+        self.assertEqual(len(pic_boxes), 1)
+        self.assertEqual(
+            pic_boxes[0].category_combo.get_child().get_text(),
+            "Test",
+        )
 
         presenter.destroy()
 
@@ -1008,6 +1054,42 @@ class PicturesPresenterTests(BaubleClassTestCase):
         )
         pic_box.destroy()
 
+    def test_populate_categories(self):
+        loc1 = Location(code="Loc1")
+        loc1._pictures.append(
+            LocationPicture(picture="ham.eggs", category="Test")
+        )
+        loc1._pictures.append(
+            LocationPicture(picture="spam.eggs", category="Test")
+        )
+        loc1._pictures.append(
+            LocationPicture(picture="spam.spam", category="Other")
+        )
+        loc1._pictures.append(
+            LocationPicture(picture="spam.spam", category="Another")
+        )
+        self.session.add(loc1)
+        self.session.commit()
+        pic_box = PictureBox(LocationPicture())
+        pic_box.init()
+        update_gui()
+        # pylint: disable=not-an-iterable
+        categories = [row[0] for row in pic_box.category_liststore]
+
+        self.assertCountEqual(categories, ["Test", "Other", "Another"])
+
+        pic_box.destroy()
+
+    def test_inits_once_multiple_set_expanded(self):
+        pic_box = PictureBox(LocationPicture())
+        pic_box.init()
+        with mock.patch.object(pic_box, "init") as mock_init:
+            pic_box.set_expanded(True)
+            pic_box.set_expanded(False)
+            pic_box.set_expanded(True)
+
+            mock_init.assert_not_called()
+
 
 class DocumentsPresenterTests(BaubleClassTestCase):
     def setUp(self):
@@ -1439,6 +1521,16 @@ class DocumentsPresenterTests(BaubleClassTestCase):
         self.assertCountEqual(categories, ["Test", "Other", "Another"])
 
         doc_box.destroy()
+
+    def test_inits_once_multiple_set_expanded(self):
+        doc_box = DocumentBox(LocationDocument())
+        doc_box.init()
+        with mock.patch.object(doc_box, "init") as mock_init:
+            doc_box.set_expanded(True)
+            doc_box.set_expanded(False)
+            doc_box.set_expanded(True)
+
+            mock_init.assert_not_called()
 
 
 # avoid circular imports
