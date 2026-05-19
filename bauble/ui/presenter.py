@@ -340,6 +340,7 @@ class Response(IntEnum):
     NEXT = 22
     OK = -5
     CANCEL = -6
+    SAVE = 33
 
 
 class EditorDialog(Protocol):
@@ -444,5 +445,10 @@ class EditCreateCallback:
         _dialog: EditorDialog,
         response: Response,
     ) -> None:
-        if response in [Response.NEXT, Response.ADD, Response.OK]:
+        if response in [
+            Response.NEXT,
+            Response.ADD,
+            Response.OK,
+            Response.SAVE,
+        ]:
             get_search_view().update()

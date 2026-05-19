@@ -258,7 +258,7 @@ class SpeciesEditorDialogTests(BaubleTestCase):
             widget = editor.get_widget_for_response(response.value)
             if response == Response.OK:
                 self.assertTrue(widget.get_visible())
-            else:
+            elif widget:
                 self.assertFalse(widget.get_visible())
 
         editor.destroy()
@@ -361,14 +361,15 @@ class SpeciesEditorDialogTests(BaubleTestCase):
             widget = editor.get_widget_for_response(response.value)
             if response == Response.CANCEL:
                 self.assertTrue(widget.get_sensitive())
-            else:
+            elif widget:
                 self.assertFalse(widget.get_sensitive())
 
         editor.species_entry.set_text("luehmannii")
 
         for response in Response:
             widget = editor.get_widget_for_response(response.value)
-            self.assertTrue(widget.get_sensitive())
+            if widget:
+                self.assertTrue(widget.get_sensitive())
 
         # set to existing (validate_unique, check_existing)
         editor.species_entry.set_text("australe")

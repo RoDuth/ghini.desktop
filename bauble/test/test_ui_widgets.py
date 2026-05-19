@@ -1025,6 +1025,10 @@ class DocumentsPresenterTests(BaubleClassTestCase):
         if not empty_doc.is_file():
             empty_doc.touch()
 
+        # avoids - SAWarning: Identity map already had an identity for ...
+        # replacing it with newly flushed object
+        self.session.rollback()
+
     def test_init(self):
         # without documents
         presenter = NotesPresenter()

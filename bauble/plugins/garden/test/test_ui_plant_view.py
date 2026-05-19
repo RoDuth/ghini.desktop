@@ -19,6 +19,10 @@
 Plant search view parts.
 """
 from datetime import datetime
+from unittest import mock
+
+from sqlalchemy import select
+from sqlalchemy.exc import SQLAlchemyError
 
 from bauble.plugins.plants.family import Family
 from bauble.plugins.plants.genus import Genus
@@ -35,6 +39,7 @@ from ..test_garden import GardenTestCase
 from ..ui.plant_view import ChangeBox
 from ..ui.plant_view import GeneralPlantExpander
 from ..ui.plant_view import PropagationBox
+from ..ui.plant_view import remove_callback
 
 
 class InfoBoxTests(GardenTestCase):
@@ -319,3 +324,267 @@ class PropagationBoxTests(BaubleTestCase):
         )
 
         box.destroy()
+
+
+class FunctionTests(BaubleTestCase):
+    def test_remove_callback_no_confirm(self):
+        family = Family(epithet="Austrobaileyaceae")
+        genus = Genus(epithet="Austrobaileya", family=family)
+        species = Species(genus=genus, epithet="scandens")
+        accession = Accession(code="2001.0001", species=species)
+        location = Location(
+            code="LOC1",
+            name="Location One",
+            description="First location.",
+        )
+        plant = Plant(
+            accession=accession,
+            location=location,
+            code="1",
+            quantity=1,
+        )
+        plant2 = Plant(
+            accession=accession,
+            location=location,
+            code="2",
+            quantity=1,
+        )
+        self.session.add_all([plant, plant2])
+        self.session.commit()
+
+        with mock.patch("bauble.ui.dialogs.yes_no_dialog") as mock_dlog:
+            mock_dlog.return_value = False
+            result = remove_callback([plant, plant2])
+            mock_dlog.assert_called_once_with(
+                "Are you sure you want to remove the following plants?\n\n"
+                "2001.0001.1, 2001.0001.2\n\n<small>Note that deleting a "
+                "plant can destroy related data.  If the plant has died set "
+                "its quantity to zero rather than delete it.</small>",
+            )
+
+        self.assertFalse(result)
+        self.assertCountEqual(
+            self.session.scalars(
+                select(Plant).where(Plant.accession == accession)
+            ).all(),
+            [plant, plant2],
+        )
+
+    def test_remove_callback_confirm(self):
+        family = Family(epithet="Austrobaileyaceae")
+        genus = Genus(epithet="Austrobaileya", family=family)
+        species = Species(genus=genus, epithet="scandens")
+        accession = Accession(code="2001.0001", species=species)
+        location = Location(
+            code="LOC1",
+            name="Location One",
+            description="First location.",
+        )
+        plant = Plant(
+            accession=accession,
+            location=location,
+            code="1",
+            quantity=1,
+        )
+        self.session.add(plant)
+        self.session.flush()
+
+        with mock.patch("bauble.ui.dialogs.yes_no_dialog") as mock_dlog:
+            mock_dlog.return_value = True
+            result = remove_callback([plant])
+            mock_dlog.assert_called_once_with(
+                "Are you sure you want to remove the following plants?\n\n"
+                "2001.0001.1\n\n<small>Note that deleting a plant "
+                "can destroy related data.  If the plant has died set its "
+                "quantity to zero rather than delete it.</small>",
+            )
+
+        self.assertTrue(result)
+        self.assertCountEqual(
+            self.session.scalars(
+                select(Plant).where(Plant.accession == accession)
+            ).all(),
+            [],
+        )
+
+    @mock.patch("bauble.ui.dialogs.yes_no_dialog")
+    def test_remove_callback_with_branches_asks(self, mock_dlog):
+        family = Family(epithet="Austrobaileyaceae")
+        genus = Genus(epithet="Austrobaileya", family=family)
+        species = Species(genus=genus, epithet="scandens")
+        accession = Accession(code="2001.0001", species=species)
+        location = Location(
+            code="LOC1",
+            name="Location One",
+            description="First location.",
+        )
+        plant = Plant(
+            accession=accession,
+            location=location,
+            code="1",
+            quantity=2,
+        )
+        self.session.add(plant)
+        self.session.commit()
+        plant.quantity = 1
+        plant2 = Plant(
+            accession=accession,
+            location=location,
+            code="2",
+            quantity=1,
+        )
+        plant.changes.append(
+            PlantChange(
+                date=datetime(2026, 1, 1),
+                reason="PLTD",
+                quantity=-1,
+                child_plant=plant2,
+            )
+        )
+        plant2.changes.append(
+            PlantChange(
+                date=datetime(2026, 1, 1),
+                reason="PLTD",
+                quantity=1,
+                parent_plant=plant,
+            )
+        )
+        self.session.add(plant2)
+        self.session.commit()
+
+        mock_dlog.side_effect = [True, False]
+        result = remove_callback([plant])
+        mock_dlog.assert_has_calls(
+            [
+                mock.call(
+                    "Are you sure you want to remove the following plants?\n\n"
+                    "2001.0001.1\n\n<small>Note that deleting a plant can "
+                    "destroy related data.  If the plant has died set its "
+                    "quantity to zero rather than delete it.</small>",
+                ),
+                mock.call(
+                    "2001.0001.1 has plant(s) split from it.  Removing this "
+                    "plant will destroy their link back.  Are you sure you "
+                    "want to want to delete it?"
+                ),
+            ]
+        )
+
+        self.assertFalse(result)
+        self.assertCountEqual(
+            self.session.scalars(
+                select(Plant).where(Plant.accession == accession)
+            ).all(),
+            [plant, plant2],
+        )
+
+    @mock.patch("bauble.ui.dialogs.yes_no_dialog")
+    def test_remove_callback_with_propagations_asks(self, mock_dlog):
+        family = Family(epithet="Austrobaileyaceae")
+        genus = Genus(epithet="Austrobaileya", family=family)
+        species = Species(genus=genus, epithet="scandens")
+        accession = Accession(code="2001.0001", species=species)
+        location = Location(
+            code="LOC1",
+            name="Location One",
+            description="First location.",
+        )
+        plant = Plant(
+            accession=accession,
+            location=location,
+            code="1",
+            quantity=2,
+        )
+        plant.propagations.append(
+            Propagation(
+                prop_type="Other",
+                notes="Spam spam spam spam",
+                date=datetime(2026, 1, 1),
+            )
+        )
+        self.session.add(plant)
+        self.session.commit()
+
+        mock_dlog.side_effect = [True, False]
+        result = remove_callback([plant])
+        mock_dlog.assert_has_calls(
+            [
+                mock.call(
+                    "Are you sure you want to remove the following plants?\n\n"
+                    "2001.0001.1\n\n<small>Note that deleting a plant can "
+                    "destroy related data.  If the plant has died set its "
+                    "quantity to zero rather than delete it.</small>",
+                ),
+                mock.call(
+                    "2001.0001.1 has propagations.  Removing this plant will "
+                    "destroy these propagations and possibly the source data "
+                    "for any accessions created from them.  Are you sure you "
+                    "want to want to delete it?"
+                ),
+            ]
+        )
+
+        self.assertFalse(result)
+        self.assertCountEqual(
+            self.session.scalars(
+                select(Plant).where(Plant.accession == accession)
+            ).all(),
+            [plant],
+        )
+
+    def test_remove_callback_bails_not_session(self):
+        family = Family(epithet="Austrobaileyaceae")
+        genus = Genus(epithet="Austrobaileya", family=family)
+        species = Species(genus=genus, epithet="scandens")
+        accession = Accession(code="2001.0001", species=species)
+        location = Location(
+            code="LOC1",
+            name="Location One",
+            description="First location.",
+        )
+        plant = Plant(
+            accession=accession,
+            location=location,
+            code="1",
+            quantity=1,
+        )
+        self.session.add(plant)
+        self.session.flush()
+
+        with mock.patch("bauble.plugins.garden.ui.plant_view.object_session"):
+            self.assertFalse(remove_callback([plant]))
+
+    @mock.patch("bauble.ui.dialogs.yes_no_dialog")
+    @mock.patch("bauble.ui.dialogs.message_details_dialog")
+    def test_remove_callback_commit_exception(
+        self,
+        mock_d_dlog,
+        _mock_yn_dlog,
+    ):
+        family = Family(epithet="Austrobaileyaceae")
+        genus = Genus(epithet="Austrobaileya", family=family)
+        species = Species(genus=genus, epithet="scandens")
+        accession = Accession(code="2001.0001", species=species)
+        location = Location(
+            code="LOC1",
+            name="Location One",
+            description="First location.",
+        )
+        plant = Plant(
+            accession=accession,
+            location=location,
+            code="1",
+            quantity=1,
+        )
+        self.session.add(plant)
+        self.session.commit()
+
+        with (
+            mock.patch.object(
+                self.session, "commit", side_effect=SQLAlchemyError("BOOM")
+            ),
+            mock.patch.object(self.session, "rollback") as mock_rollback,
+        ):
+            self.assertFalse(remove_callback([plant]))
+            mock_rollback.assert_called_once()
+            mock_d_dlog.assert_called_once()

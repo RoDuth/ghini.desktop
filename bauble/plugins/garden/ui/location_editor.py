@@ -117,6 +117,10 @@ class LocationEditorDialog(
 
         self.code_entry.emit("changed")
 
+        if self.model.code:
+            current = self.get_title()
+            self.set_title(f"{current} - {self.model.code}")
+
     def allow_ok_only(self) -> None:
         for response in Response:
             if response.name == "OK":
@@ -247,6 +251,8 @@ edit_callback = EditCreateCallback(
 )
 
 create_location = edit_callback
+
+# add_plant_callback = AddCallback(PlantEditorDialog, Plant, "plants")
 
 
 def add_plants_callback(objs, **_kwargs):

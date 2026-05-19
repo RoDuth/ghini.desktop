@@ -302,76 +302,86 @@ PlantNote = db.make_note_class("Plant")
 PlantPicture = db.make_note_class("Plant", cls_type="picture")
 
 
-change_reasons = {
-    "NTRL": _("Capture naturalised or original"),
-    "DEAD": _("Dead"),
-    "DELE": _("Deleted, yr. dead. unknown"),
-    "DNGM": _("Did not germinate"),
-    "DISC": _("Discarded"),
-    "DISN": _("Discarded, seedling in nursery"),
-    "DISW": _("Discarded, weedy"),
-    "DIST": _("Distributed elsewhere"),
-    "ERRO": _("Error correction"),
-    "ESTM": _("Estimated planting date"),
-    "GIVE": _("Given away (specify person)"),
-    "HOSP": _("Hospitalised"),
-    "LOST": _("Lost, whereabouts unknown"),
-    "PLTD": _("New planting"),
-    "OTHR": _("Other"),
-    "QUAR": _("Quarantined"),
-    "SLFS": _("Self seeded"),
-    "STOL": _("Stolen"),
-    "SUMK": _("Summer Kill"),
-    "TBAC": _("Transferred back"),
-    "ASS#": _("Transferred to another acc.no."),
-    "TRAN": _("Transplanted to another area"),
-    "PRIR": _("Unrecorded prior planting"),
-    "VAND": _("Vandalised"),
-    "VPIP": _("Vegetative propagated (in place)"),
-    "WETH": _("Weather or natural event"),
-    "WINK": _("Winter kill"),
-    None: "",
-}
-
-common_reasons = ["ERRO", "OTHR", None]
-new_plt_reasons = ["PLTD", "NTRL", "PRIR", "ESTM"]
-added_reasons = ["TBAC", "SLFS", "VPIP"]
-transfer_reasons = ["HOSP", "QUAR", "TRAN", "DIST", "TBAC"]
-split_reasons = ["PLTD"] + added_reasons + transfer_reasons + common_reasons
-
-
-def _sort_by_val(dic):
+def _sort_by_val[K, V: str](dic: dict[K, V]) -> dict[K, V]:
     return dict(sorted(dic.items(), key=lambda x: x[1]))
 
 
-deleted_reasons = {
-    k: v
-    for k, v in change_reasons.items()
-    if k not in added_reasons + new_plt_reasons
+common_reasons: dict[str | None, str] = _sort_by_val(
+    {
+        "ERRO": _("Error correction"),
+        "OTHR": _("Other"),
+        None: "",
+    }
+)
+
+pltd: dict[str | None, str] = {
+    "PLTD": _("New planting"),
 }
-new_plt_reasons = _sort_by_val(
+
+new_plt_reasons: dict[str | None, str] = _sort_by_val(
     {
-        k: v
-        for k, v in change_reasons.items()
-        if k in new_plt_reasons + common_reasons
+        "NTRL": _("Capture naturalised or original"),
+        "PRIR": _("Unrecorded prior planting"),
+        "ESTM": _("Estimated planting date"),
+    }
+    | common_reasons
+    | pltd
+)
+
+tbac: dict[str | None, str] = {
+    "TBAC": _("Transferred back"),
+}
+
+added_reasons: dict[str | None, str] = _sort_by_val(
+    {
+        "SLFS": _("Self seeded"),
+        "VPIP": _("Vegetative propagated (in place)"),
+    }
+    | common_reasons
+    | tbac
+)
+
+transfer_reasons: dict[str | None, str] = _sort_by_val(
+    {
+        "HOSP": _("Hospitalised"),
+        "QUAR": _("Quarantined"),
+        "TRAN": _("Transplanted to another area"),
+        "DIST": _("Distributed elsewhere"),
+    }
+    | common_reasons
+    | tbac
+)
+
+deleted_reasons: dict[str | None, str] = _sort_by_val(
+    common_reasons
+    | {
+        "DEAD": _("Dead"),
+        "DELE": _("Deleted, yr. dead. unknown"),
+        "DNGM": _("Did not germinate"),
+        "DISC": _("Discarded"),
+        "DISN": _("Discarded, seedling in nursery"),
+        "DISW": _("Discarded, weedy"),
+        "GIVE": _("Given away (specify person)"),
+        "LOST": _("Lost, whereabouts unknown"),
+        "STOL": _("Stolen"),
+        "SUMK": _("Summer Kill"),
+        "ASS#": _("Transferred to another acc.no."),
+        "VAND": _("Vandalised"),
+        "WETH": _("Weather or natural event"),
+        "WINK": _("Winter kill"),
     }
 )
-added_reasons = _sort_by_val(
-    {
-        k: v
-        for k, v in change_reasons.items()
-        if k in added_reasons + common_reasons
-    }
+
+split_reasons: dict[str | None, str] = (
+    pltd | added_reasons | transfer_reasons | common_reasons
 )
-transfer_reasons = _sort_by_val(
-    {
-        k: v
-        for k, v in change_reasons.items()
-        if k in transfer_reasons + common_reasons
-    }
-)
-split_reasons = _sort_by_val(
-    {k: v for k, v in change_reasons.items() if k in split_reasons}
+
+change_reasons: dict[str | None, str] = (
+    common_reasons
+    | new_plt_reasons
+    | added_reasons
+    | transfer_reasons
+    | deleted_reasons
 )
 
 
@@ -569,7 +579,7 @@ class Plant(db.Domain, db.WithNotes):
     __table_args__: tuple = (UniqueConstraint("code", "accession_id"), {})
 
     # columns
-    code = Column(Unicode(6), nullable=False)
+    code: str = Column(Unicode(6), nullable=False)
 
     acc_type = Column(
         types.Enum(

@@ -20,37 +20,39 @@ Plant GUI search view components.
 """
 
 import logging
+from collections.abc import Sequence
 
 logger = logging.getLogger(__name__)
 
+import traceback
 from pathlib import Path
 from typing import cast
 
 from gi.repository import Gtk
 from sqlalchemy import select
+from sqlalchemy.orm import Session
+from sqlalchemy.orm import object_session
 
 from bauble import db
-from bauble import prefs
 from bauble import utils
 from bauble.i18n import _
 from bauble.plugins.plants.ui.misc import on_taxa_clicked
+from bauble.ui import dialogs
 from bauble.ui.views import Action
 from bauble.ui.views import InfoBox
 from bauble.ui.views import InfoExpander
 from bauble.ui.views import LinksExpander
 from bauble.ui.views import PropertiesExpander
 from bauble.ui.views import on_clicked_select
-from bauble.utils.geo import KMLMapCallbackFunctor
 
-from ..plant import PLANT_KML_MAP_PREFS
 from ..plant import Plant
 from ..plant import PlantChange
 from ..plant import acc_type_values
 from ..plant import branch_callback
 from ..plant import change_reasons
-from ..plant import edit_callback
-from ..plant import remove_callback
 from ..propagation import Propagation
+from .plant_editor import edit_callback
+from .plant_editor import map_kml_callback
 
 parent = Path(__file__).resolve().parent
 
@@ -370,6 +372,73 @@ class PlantInfoBox(InfoBox[Plant]):
         self.add_expander(PropertiesExpander())
 
 
+def remove_callback(
+    objs: Sequence[Plant],
+    **_kwargs,
+) -> bool:
+
+    plants = list(objs)
+    plant = plants[0]
+    session = object_session(plant)
+
+    if not isinstance(session, Session):
+        logger.warning(
+            "Could not get session for location %s. Cannot delete.",
+            plant,
+        )
+        return False
+
+    p_str = ", ".join([str(p) for p in plants])
+    msg = _(
+        "Are you sure you want to remove the following plants?\n\n%s\n\n"
+        "<small>Note that deleting a plant can destroy related data.  If "
+        "the plant has died set its quantity to zero rather than delete "
+        "it.</small>"
+    ) % utils.xml_safe(p_str)
+    if not dialogs.yes_no_dialog(msg):
+        return False
+
+    for plant in plants:
+        if plant.branches:
+            msg = _(
+                "%s has plant(s) split from it.  Removing this plant "
+                "will destroy their link back.  Are you sure you want to "
+                "want to delete it?"
+            ) % utils.xml_safe(plant)
+            if not dialogs.yes_no_dialog(msg):
+                plants.remove(plant)
+                continue
+        if plant.propagations:
+            msg = _(
+                "%s has propagations.  Removing this plant will destroy "
+                "these propagations and possibly the source data for any "
+                "accessions created from them.  Are you sure you want to "
+                "want to delete it?"
+            ) % utils.xml_safe(plant)
+            if not dialogs.yes_no_dialog(msg):
+                plants.remove(plant)
+                continue
+
+        session.delete(plant)
+
+    if not plants:
+        return False
+
+    try:
+        session.commit()
+    except Exception as e:  # pylint: disable=broad-except
+        msg = _("Could not delete.\n\n%s") % utils.xml_safe(e)
+        logger.debug("remove_callback - (%s(%s)", type(e).__name__, e)
+        dialogs.message_details_dialog(
+            msg,
+            traceback.format_exc(),
+            Gtk.MessageType.ERROR,
+        )
+        session.rollback()
+        return False
+    return True
+
+
 edit_action = Action(
     "plant_edit",
     _("_Edit"),
@@ -390,12 +459,6 @@ remove_action = Action(
     callback=remove_callback,
     accelerator="<ctrl>Delete",
     multiselect=True,
-)
-
-map_kml_callback = KMLMapCallbackFunctor(
-    prefs.prefs.get(
-        PLANT_KML_MAP_PREFS, str(Path(__file__).resolve().parent / "plant.kml")
-    )
 )
 
 map_action = Action(

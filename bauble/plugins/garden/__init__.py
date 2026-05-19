@@ -58,8 +58,6 @@ from .institution import InstitutionTool
 from .institution import start_institution_editor
 from .location import Location
 from .plant import Plant
-from .plant import PlantEditor
-from .plant import edit_callback as plant_edit_callback
 from .plant import set_code_format
 from .search import PlantSearch
 from .source import Collection
@@ -77,6 +75,8 @@ from .ui.location_editor import create_location
 from .ui.location_editor import edit_callback as loc_edit_callback
 from .ui.location_view import LocationInfoBox
 from .ui.location_view import loc_context_menu
+from .ui.plant_editor import create_plant
+from .ui.plant_editor import edit_callback as plant_edit_callback
 from .ui.plant_view import PlantInfoBox
 from .ui.plant_view import plant_context_menu
 
@@ -246,7 +246,7 @@ class GardenPlugin(pluginmgr.Plugin):
 
         if bauble.gui is not None:
             bauble.gui.add_to_insert_menu(AccessionEditor, _("Accession"))
-            bauble.gui.add_to_insert_menu(PlantEditor, _("Planting"))
+            bauble.gui.add_to_insert_menu(create_plant, _("Planting"))
             bauble.gui.add_to_insert_menu(create_location, _("Location"))
             bauble.gui.add_to_insert_menu(create_source_detail, _("Source"))
 

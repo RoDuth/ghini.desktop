@@ -143,7 +143,7 @@ class FamilyEditorDialogTests(BaubleTestCase):
             widget = editor.get_widget_for_response(response.value)
             if response == Response.OK:
                 self.assertTrue(widget.get_visible())
-            else:
+            elif widget:
                 self.assertFalse(widget.get_visible())
 
         editor.destroy()
@@ -209,14 +209,15 @@ class FamilyEditorDialogTests(BaubleTestCase):
             widget = editor.get_widget_for_response(response.value)
             if response == Response.CANCEL:
                 self.assertTrue(widget.get_sensitive())
-            else:
+            elif widget:
                 self.assertFalse(widget.get_sensitive())
 
         editor.family_entry.set_text("Myrtaceae")
 
         for response in Response:
             widget = editor.get_widget_for_response(response.value)
-            self.assertTrue(widget.get_sensitive())
+            if widget:
+                self.assertTrue(widget.get_sensitive())
 
         editor.destroy()
 

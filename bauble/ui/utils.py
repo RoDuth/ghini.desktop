@@ -156,7 +156,7 @@ def set_combo_from_value(
 
 
 @singledispatch
-def get_widget_value(widget: GObject.Object) -> str | None | bool:
+def get_widget_value(widget: GObject.Object):
     """Get the value of a widget.
 
     :param widget: an instance of a Gtk.Widget.

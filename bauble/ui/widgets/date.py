@@ -135,6 +135,7 @@ class DatePickerBox(Gtk.Box):
             "day-selected-double-click",
             self.on_date_selected,
         )
+        self.show_all()
 
     def on_entry_changed(self, entry: Gtk.Entry) -> None:
         text = entry.get_text()

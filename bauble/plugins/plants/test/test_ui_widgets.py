@@ -171,8 +171,8 @@ class SynonymsPresenterTests(BaubleTestCase):
         syns_presenter.destroy()
 
     def test_on_entry_changed(self):
-        for func in get_setUp_data_funcs():
-            func()
+        for setup_func in get_setUp_data_funcs():
+            setup_func()
 
         family = Family()
         syns_presenter = SynonymsPresenter()
@@ -312,8 +312,8 @@ class SynonymsPresenterTests(BaubleTestCase):
         syns_presenter.destroy()
 
     def test_on_add_button_clicked(self):
-        for func in get_setUp_data_funcs():
-            func()
+        for setup_func in get_setUp_data_funcs():
+            setup_func()
 
         myrtaceae = self.session.execute(
             select(Family).where(Family.epithet == "Myrtaceae")
@@ -2530,7 +2530,7 @@ class DistributionMapTests(BaubleClassTestCase):
         self.assertIsNone(dist._world_pixbuf)
         self.assertIsNone(dist._image)
         # trigger creation
-        dist.world
+        dist.world  # pylint: disable=pointless-statement
         # initially the same (Blank)
         self.assertEqual(dist._world_pixbuf, dist.as_image().get_pixbuf())
         self.assertIsNotNone(dist._image)

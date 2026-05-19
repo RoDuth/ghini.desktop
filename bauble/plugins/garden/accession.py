@@ -556,7 +556,7 @@ class Accession(db.Domain, db.WithNotes):
 
     __tablename__ = "accession"
 
-    code = Column(Unicode(20), nullable=False, unique=True)
+    code: str = Column(Unicode(20), nullable=False, unique=True)
 
     code_format = BAUBLE_ACC_CODE_FORMAT
     """The default format for Accession.code field, change to use another
