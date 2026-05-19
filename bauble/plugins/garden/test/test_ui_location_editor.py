@@ -29,7 +29,9 @@ from bauble.ui.presenter import Response
 from bauble.ui.widgets.message import YesNoMessageBox
 
 from ..location import Location
+from ..plant import Plant
 from ..ui.location_editor import LocationEditorDialog
+from ..ui.location_editor import add_plants_callback
 from ..ui.location_editor import edit_callback
 
 
@@ -326,27 +328,16 @@ class FunctionTests(BaubleTestCase):
             description="First location.",
         )
         self.session.add(location)
-        self.session.commit()
+        self.session.flush()
 
-        from ...garden import Plant
-        from ..ui.location_editor import add_plants_callback
-
-        with mock.patch(
-            "bauble.plugins.garden.plant.PlantEditor"
-        ) as mock_edit:
-            mock_edit().start.return_value = None
+        with mock.patch.object(
+            add_plants_callback,
+            "dialog_class",
+        ) as mock_editor:
 
             self.assertFalse(add_plants_callback([location]))
-            plt = mock_edit.call_args.kwargs["model"]
-            plt = self.session.merge(plt)
-            self.assertIsInstance(plt, Plant)
-            self.assertEqual(plt.location, location)
-            mock_edit.reset_mock()
-
-            mock_edit().start.return_value = True
-
-            self.assertTrue(add_plants_callback([location]))
-            plt = mock_edit.call_args.kwargs["model"]
+            mock_editor.assert_called_once()
+            plt = mock_editor.call_args.kwargs["model"]
             plt = self.session.merge(plt)
             self.assertIsInstance(plt, Plant)
             self.assertEqual(plt.location, location)

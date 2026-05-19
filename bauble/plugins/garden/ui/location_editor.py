@@ -39,6 +39,7 @@ from bauble import prefs
 from bauble import utils
 from bauble.i18n import _
 from bauble.ui import dialogs
+from bauble.ui.presenter import AddCallback
 from bauble.ui.presenter import EditCreateCallback
 from bauble.ui.presenter import GenericPresenter
 from bauble.ui.presenter import Response
@@ -52,6 +53,8 @@ from bauble.ui.widgets.message import YesNoMessageBox
 from bauble.utils.geo import KMLMapCallbackFunctor
 
 from ..location import Location
+from ..plant import Plant
+from .plant_editor import PlantEditorDialog
 
 LOC_KML_MAP_PREFS = "kml_templates.location"
 """pref for path to a custom mako kml template."""
@@ -252,19 +255,4 @@ edit_callback = EditCreateCallback(
 
 create_location = edit_callback
 
-# add_plant_callback = AddCallback(PlantEditorDialog, Plant, "plants")
-
-
-def add_plants_callback(objs, **_kwargs):
-    # create a temporary session so that the temporary plant doesn't
-    # get added to the accession
-    from bauble import db
-
-    session = db.Session()
-    loc = session.merge(objs[0])
-    from bauble.plugins.garden.plant import Plant
-    from bauble.plugins.garden.plant import PlantEditor
-
-    e = PlantEditor(model=Plant(location=loc))
-    session.close()
-    return e.start() is not None
+add_plants_callback = AddCallback(PlantEditorDialog, Plant, "location")

@@ -231,16 +231,6 @@ def edit_callback(objs, **kwargs):
     return acc_editor.start()
 
 
-def add_plants_callback(objs, **kwargs):
-    # create a temporary session so that the temporary plant doesn't
-    # get added to the accession
-    session = db.Session()
-    acc = session.merge(objs[0])
-    plt_editor = PlantEditor(model=Plant(accession=acc))
-    session.close()
-    return plt_editor.start()
-
-
 def remove_callback(objs, **kwargs):
     accessions = objs
     a_lst = []

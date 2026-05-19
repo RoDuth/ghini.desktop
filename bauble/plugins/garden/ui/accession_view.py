@@ -38,7 +38,6 @@ from bauble.ui.views import on_clicked_select
 from bauble.utils.geo import KMLMapCallbackFunctor
 
 from ..accession import Accession
-from ..accession import add_plants_callback
 from ..accession import edit_callback
 from ..accession import latitude_to_dms
 from ..accession import longitude_to_dms
@@ -48,6 +47,7 @@ from ..accession import remove_callback
 from ..accession import wild_prov_status_values
 from ..source import COLLECTION_KML_MAP_PREF
 from ..source import Collection
+from .accession_editor import add_plants_callback
 
 parent = Path(__file__).resolve().parent
 

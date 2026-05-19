@@ -83,7 +83,7 @@ def collection_edit_callback(objs, **kwargs):
 
 
 def collection_add_plants_callback(objs, **kwargs):
-    from bauble.plugins.garden.accession import add_plants_callback
+    from .ui.accession_editor import add_plants_callback
 
     return add_plants_callback([objs[0].source.accession])
 
