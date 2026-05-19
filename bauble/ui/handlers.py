@@ -272,8 +272,8 @@ class HandlerMethodDescriptor[T: GObject.Object](ABC):
 class EntryHandler(HandlerMethodDescriptor[Gtk.Entry]):
     """HandlerMethodDescriptor for Gtk.Entry widgets.
 
-    If validation/conversion is needed provide a ValidatorConverter instance
-    and a problem string as parameters.
+    If validation or conversion is needed provide a list of ``Validator``s and
+    a ``Converter`` callback as required.
     """
 
     def get_value(self, widget: Gtk.Entry) -> str:
@@ -457,19 +457,29 @@ class ComboBoxHandler(HandlerMethodDescriptor[Gtk.ComboBox]):
         widget: Gtk.ComboBox,
         **kwargs: Any,
     ) -> None:
+        problem_widget: Gtk.Widget = widget
+
+        if widget.get_has_entry():
+            problem_widget = cast(Gtk.Entry, widget.get_child())
+
         if self.must_match and self.get_value(widget) is NOTFOUND:
             # just log and mark the problem
-            super().match_handler(instance, widget, **kwargs)
+            super().match_handler(
+                instance,
+                widget,
+                problem_widget=problem_widget,
+                **kwargs,
+            )
         else:
-            instance.remove_problem(self.match_problem, widget)
+            instance.remove_problem(self.match_problem, problem_widget)
             super().handler(instance, widget, **kwargs)
 
 
 class ToggleButtonHandler(HandlerMethodDescriptor[Gtk.ToggleButton]):
     """HandlerMethodDescriptor for Gtk.ToggleButton and related widgets.
 
-    If validation/conversion is needed provide a ValidatorConverter instance
-    and a problem string as parameters.
+    If validation or conversion is needed provide a list of ``Validator``s and
+    a ``Converter`` callback as required.
     """
 
     def get_value(self, widget: Gtk.ToggleButton) -> bool:

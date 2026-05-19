@@ -138,7 +138,10 @@ class PlantEditorDialogTests(BaubleTestCase):
         for problem, widget in editor.problems:
             self.assertIn(
                 widget,
-                [editor.location_comboentry, editor.accession_entry],
+                [
+                    editor.location_comboentry.get_child(),
+                    editor.accession_entry,
+                ],
             )
             self.assertTrue(
                 problem.startswith(
