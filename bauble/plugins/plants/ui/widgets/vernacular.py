@@ -205,7 +205,7 @@ class VernacularNamePresenter(Gtk.Frame):
         """
         self.handlers.append((widget, widget.connect(signal, handler, *args)))
 
-    def on_destroy(self, *_args):
+    def on_destroy(self, *_args) -> None:
         while self.handlers:
             widget, handler = self.handlers.pop()
             widget.disconnect(handler)

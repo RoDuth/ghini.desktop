@@ -172,7 +172,7 @@ def contains_query(session: Session, vals: list[str]) -> Query:
 
 
 def in_query(session: Session, vals: list[str]) -> Query:
-    val_list = []
+    val_list: list[tuple[str, str]] = []
     for val in vals:
         acc_code, plant_code = split_code(val)
         val_list.append((acc_code, plant_code))
