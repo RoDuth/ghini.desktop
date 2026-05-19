@@ -606,28 +606,27 @@ class SpeciesEntryTests(TestCase):
         self.assertEqual(entry.get_text(), "t (T")
 
 
-class SpeciesCompletionTests(BaubleTestCase):
-    def setUp(self):
-        super().setUp()
+class SpeciesCompletionTests(BaubleClassTestCase):
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
         setup_plants_data()
-        self.family = Family(family="Myrtaceae")
-        self.genus = Genus(family=self.family, genus="Syzygium")
-        self.sp1 = Species(genus=self.genus, epithet="australe")
-        self.sp2 = Species(genus=self.genus, epithet="luehmannii")
-        self.sp3 = Species(genus=self.genus, epithet="aqueum")
-        self.session.add_all(
-            [self.family, self.genus, self.sp1, self.sp2, self.sp3]
-        )
-        self.session.commit()
-        self.sp4 = self.session.get(Species, 9)
-        self.sp5 = self.session.get(Species, 25)
-        self.session.commit()
+        cls.family = Family(family="Myrtaceae")
+        cls.genus = Genus(family=cls.family, genus="Syzygium")
+        cls.sp1 = Species(genus=cls.genus, epithet="australe")
+        cls.sp2 = Species(genus=cls.genus, epithet="luehmannii")
+        cls.sp3 = Species(genus=cls.genus, epithet="aqueum")
+        cls.session.add_all([cls.family, cls.genus, cls.sp1, cls.sp2, cls.sp3])
+        cls.session.commit()
+        cls.sp4 = cls.session.get(Species, 9)
+        cls.sp5 = cls.session.get(Species, 25)
+        cls.session.commit()
 
-        self.completion = Gtk.EntryCompletion()
+        cls.completion = Gtk.EntryCompletion()
         completion_model = Gtk.ListStore(object)
-        for val in [self.sp1, self.sp2, self.sp3, self.sp4, self.sp5]:
+        for val in [cls.sp1, cls.sp2, cls.sp3, cls.sp4, cls.sp5]:
             completion_model.append([val])
-        self.completion.set_model(completion_model)
+        cls.completion.set_model(completion_model)
 
     def test_species_match_func_full_name(self):
         key = "Syzygium australe"

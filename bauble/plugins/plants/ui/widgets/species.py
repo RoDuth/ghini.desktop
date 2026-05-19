@@ -119,7 +119,7 @@ def update_all_full_names_handler(*_args):
 
 def species_completions(text: str) -> Select:
     """Given text to search for return an appropriate statement to retrieve
-    matching genera.
+    matching species.
     """
     query = select(Species).join(Genus)
     hybrid = ""
