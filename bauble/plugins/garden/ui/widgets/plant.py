@@ -79,7 +79,6 @@ class PlantHistoryPresenter(Gtk.ScrolledWindow):
     liststore = cast(Gtk.ListStore, Gtk.Template.Child())
     reason_liststore = Gtk.ListStore(str, str)
     reason_liststore = cast(Gtk.ListStore, Gtk.Template.Child())
-    treeview = cast(Gtk.TreeView, Gtk.Template.Child())
     selection = cast(Gtk.TreeSelection, Gtk.Template.Child())
     date_column = cast(Gtk.TreeViewColumn, Gtk.Template.Child())
     date_cell = cast(Gtk.CellRendererText, Gtk.Template.Child())
@@ -103,6 +102,7 @@ class PlantHistoryPresenter(Gtk.ScrolledWindow):
         self.model: Plant
         self.session: Session
         self.revealer: Gtk.Revealer
+        self.handlers: list[tuple[GObject.Object, int]] = []
 
     def init(
         self,
@@ -110,7 +110,29 @@ class PlantHistoryPresenter(Gtk.ScrolledWindow):
     ) -> None:
         self.model = model
 
+        self.connect("destroy", self.on_destroy)
+
         self.init_treeview()
+
+    def connect_w_ref(
+        self,
+        widget: GObject.Object,
+        signal: str,
+        handler: Callable,
+        *args: Any,
+    ) -> None:
+        """Connects a widget to a handler and keeps a copy of the handler ID.
+
+        Use when the handler maintains a reference to the widget that needs
+        to be disconnected before garbage collection.  Handlers are
+        disconnected in ``on_destroy``.
+        """
+        self.handlers.append((widget, widget.connect(signal, handler, *args)))
+
+    def on_destroy(self, *_args) -> None:
+        while self.handlers:
+            widget, handler = self.handlers.pop()
+            widget.disconnect(handler)
 
     def init_treeview(self) -> None:
 
@@ -118,6 +140,7 @@ class PlantHistoryPresenter(Gtk.ScrolledWindow):
             self.date_cell,
             self.date_cell_data_func,
         )
+        self.connect_w_ref(self.date_cell, "edited", self.on_date_edited)
 
         self.quantity_column.set_cell_data_func(
             self.quantity_cell,
@@ -151,11 +174,13 @@ class PlantHistoryPresenter(Gtk.ScrolledWindow):
             self.reason_cell,
             self.reason_cell_data_func,
         )
+        self.connect_w_ref(self.reason_cell, "changed", self.on_reason_changed)
 
         self.user_column.set_cell_data_func(
             self.user_cell,
             self.user_cell_data_func,
         )
+        self.connect_w_ref(self.user_cell, "edited", self.on_user_edited)
 
         self.user_cell.connect("editing-started", self._user_edit_start)
 
@@ -333,7 +358,6 @@ class PlantHistoryPresenter(Gtk.ScrolledWindow):
         for key, val in reasons.items():
             self.reason_liststore.append((key, val))
 
-    @Gtk.Template.Callback()
     def on_date_edited(
         self,
         _cell: Gtk.CellRendererText,
@@ -352,7 +376,6 @@ class PlantHistoryPresenter(Gtk.ScrolledWindow):
 
         self.emit("changed")
 
-    @Gtk.Template.Callback()
     def on_reason_changed(
         self,
         _cell: Gtk.CellRendererText,
@@ -367,7 +390,6 @@ class PlantHistoryPresenter(Gtk.ScrolledWindow):
 
         self.emit("changed")
 
-    @Gtk.Template.Callback()
     def on_user_edited(
         self,
         _cell: Gtk.CellRendererText,

@@ -43,7 +43,6 @@ Date changes in particular may confuse the plants history.</property>
             <child>
               <object class="GtkCellRendererText" id="date_cell">
                 <property name="editable">True</property>
-                <signal name="edited" handler="on_date_edited" swapped="no"/>
               </object>
             </child>
           </object>
@@ -103,7 +102,6 @@ Date changes in particular may confuse the plants history.</property>
                 <property name="has-entry">False</property>
                 <property name="text-column">1</property>
                 <property name="model">reason_liststore</property>
-                <signal name="changed" handler="on_reason_changed" swapped="no"/>
               </object>
             </child>
           </object>
@@ -115,7 +113,6 @@ Date changes in particular may confuse the plants history.</property>
             <child>
               <object class="GtkCellRendererText" id="user_cell">
                 <property name="editable">True</property>
-                <signal name="edited" handler="on_user_edited" swapped="no"/>
               </object>
             </child>
           </object>
