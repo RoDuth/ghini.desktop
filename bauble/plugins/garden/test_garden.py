@@ -28,7 +28,6 @@ from functools import partial
 
 from gi.repository import Gtk
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import object_session
 
 from bauble import db
@@ -42,6 +41,7 @@ from bauble.test import mockfunc
 from bauble.test import update_gui
 from bauble.test import wait_on_threads
 from bauble.ui import dialogs
+from bauble.ui.presenter import Response
 from bauble.ui.utils import set_combo_from_value
 from bauble.ui.utils import set_widget_value
 
@@ -83,11 +83,9 @@ from .plant import DEFAULT_PLANT_CODE_FORMAT
 from .plant import PLANT_CODE_FORMAT_KEY
 from .plant import Plant
 from .plant import PlantChange
-from .plant import PlantEditor
 from .plant import PlantNote
 from .plant import PlantPicture
 from .plant import get_next_code
-from .plant import is_code_unique
 from .plant import set_code_format
 from .propagation import PlantPropagation
 from .propagation import Propagation
@@ -569,32 +567,6 @@ class PlantTests(GardenTestCase):
             ),
         )
 
-    @unittest.mock.patch("bauble.ui.dialogs.yes_no_dialog")
-    def test_remove_callback(self, mock_dialog):
-        # action
-        from bauble.plugins.garden.plant import remove_callback
-
-        result = remove_callback([self.plant])
-        self.assertTrue(result)
-        self.session.flush()
-
-        # effect
-        mock_dialog.assert_called()
-        match = (
-            self.session.query(Plant).filter_by(accession=self.accession).all()
-        )
-        self.assertEqual(match, [])
-
-    def test_is_code_unique(self):
-        """
-        Test bauble.plugins.garden.plant.is_code_unique()
-        """
-        self.assertFalse(is_code_unique(self.plant, "1"))
-        self.assertTrue(is_code_unique(self.plant, "01"))
-        self.assertFalse(is_code_unique(self.plant, "1-2"))
-        self.assertFalse(is_code_unique(self.plant, "01-2"))
-        self.assertFalse(is_code_unique(self.plant, "10-2"))
-
     def test_living_plant_has_no_death(self):
         self.assertIsNone(self.plant.death)
 
@@ -873,31 +845,6 @@ class PlantTests(GardenTestCase):
         )
 
         self.assertEqual(str(Plant.top_level_count([1, 2], True)), expected)
-
-    def test_on_save_clicked(self):
-        mock_self = unittest.mock.Mock()
-        PlantEditor.on_save_clicked(mock_self)
-        mock_self.commit_changes.assert_called()
-        self.assertFalse(mock_self.presenter._dirty)
-        self.assertFalse(mock_self.presenter.pictures_presenter._dirty)
-        self.assertFalse(mock_self.presenter.notes_presenter._dirty)
-        self.assertFalse(mock_self.presenter.prop_presenter._dirty)
-        mock_self.session.rollback.assert_not_called()
-        mock_self.presenter.refresh_view.assert_called()
-        mock_self.presenter.reset_change.assert_called()
-        mock_self.presenter.refresh_view.assert_called()
-
-        mock_self = unittest.mock.Mock()
-        mock_self.commit_changes.side_effect = SQLAlchemyError
-        PlantEditor.on_save_clicked(mock_self)
-        mock_self.commit_changes.assert_called()
-        self.assertTrue(mock_self.presenter._dirty)
-        self.assertTrue(mock_self.presenter.pictures_presenter._dirty)
-        self.assertTrue(mock_self.presenter.notes_presenter._dirty)
-        self.assertTrue(mock_self.presenter.prop_presenter._dirty)
-        mock_self.presenter.refresh_view.assert_called()
-        mock_self.presenter.reset_change.not_assert_called()
-        mock_self.presenter.refresh_view.assert_called()
 
 
 class PlantUpdatedTests(BaubleTestCase):
@@ -3596,7 +3543,7 @@ class IntendedLocationsTests(GardenTestCase):
         presenter.cleanup()
 
     @unittest.mock.patch("bauble.ui.dialogs.yes_no_dialog")
-    @unittest.mock.patch("bauble.plugins.garden.accession.PlantEditor")
+    @unittest.mock.patch("bauble.plugins.garden.accession.PlantEditorDialog")
     def test_on_add_plant_asks_to_commit(self, mockeditor, mock_dialog):
         sp = self.session.query(Species).first()
         acc = Accession(code="2023", species=sp)
@@ -3634,14 +3581,14 @@ class IntendedLocationsTests(GardenTestCase):
         self.session.commit()
         mock_dialog.reset_mock()
 
-        # should not ask to commit just open PlantEditor
+        # should not ask to commit just open PlantEditorDialog
         presenter.on_add_plant()
         mockeditor.assert_called()
         mock_dialog.assert_not_called()
 
         presenter.cleanup()
 
-    @unittest.mock.patch("bauble.plugins.garden.accession.PlantEditor")
+    @unittest.mock.patch("bauble.plugins.garden.accession.PlantEditorDialog")
     def test_on_add_plant_can_add_plants_without_effecting_current(
         self, mockeditor
     ):
@@ -3667,7 +3614,7 @@ class IntendedLocationsTests(GardenTestCase):
         presenter.view.widgets.intended_loc_treeview.set_cursor(
             Gtk.TreePath.new_first()
         )
-        mockeditor.start.return_value = True
+        mockeditor().run.return_value = Response.OK
 
         # add the NEW plant
         presenter.on_add_plant()
@@ -3676,7 +3623,7 @@ class IntendedLocationsTests(GardenTestCase):
         # the editor when OK selected NOTE a bit dodgy! Emulating the presenter
         # ...But it does prove that the supplied object is not associated to
         # it's original session.
-        model = mockeditor.call_args.kwargs["model"]
+        model = mockeditor.call_args.args[0]
         model.code = "1"  # next available value
         session = db.Session()
         session.merge(model)

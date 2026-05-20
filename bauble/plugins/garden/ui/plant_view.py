@@ -45,10 +45,10 @@ from bauble.ui.views import LinksExpander
 from bauble.ui.views import PropertiesExpander
 from bauble.ui.views import on_clicked_select
 
+# from ..plant import branch_callback
 from ..plant import Plant
 from ..plant import PlantChange
 from ..plant import acc_type_values
-from ..plant import branch_callback
 from ..plant import change_reasons
 from ..propagation import Propagation
 from .plant_editor import edit_callback
@@ -446,12 +446,12 @@ edit_action = Action(
     accelerator="<ctrl>e",
 )
 
-branch_action = Action(
-    "plant_branch",
-    _("_Split"),
-    callback=branch_callback,
-    accelerator="<ctrl>b",
-)
+# branch_action = Action(
+#     "plant_branch",
+#     _("_Split"),
+#     callback=branch_callback,
+#     accelerator="<ctrl>b",
+# )
 
 remove_action = Action(
     "plant_remove",
@@ -469,4 +469,5 @@ map_action = Action(
     multiselect=True,
 )
 
-plant_context_menu = [edit_action, branch_action, remove_action, map_action]
+# plant_context_menu = [edit_action, branch_action, remove_action, map_action]
+plant_context_menu = [edit_action, remove_action, map_action]

@@ -72,14 +72,16 @@ from bauble import utils
 from bauble.error import check
 from bauble.i18n import _
 from bauble.ui import dialogs
+from bauble.ui.presenter import AddCallback
+from bauble.ui.presenter import Response
 from bauble.ui.utils import clear_model
 from bauble.ui.utils import format_combo_entry_text
 from bauble.ui.utils import search_tree_model
 from bauble.ui.utils import set_widget_value
 from bauble.utils import safe_int
 
-from ..plants.ui.species_editor import species_cell_data_func
-from ..plants.ui.species_editor import species_match_func
+from ..plants.ui.widgets.species import species_cell_data_func
+from ..plants.ui.widgets.species import species_match_func
 from ..plants.ui.widgets.species import species_to_string_matcher
 from .location import Location
 from .propagation import Propagation
@@ -1045,7 +1047,13 @@ class Accession(db.Domain, db.WithNotes):
 
 # late import after Accession is defined
 from .plant import Plant
-from .plant import PlantEditor
+from .ui.plant_editor import PlantEditorDialog
+
+add_plant_callback = AddCallback(
+    PlantEditorDialog,
+    Plant,
+    "accession",
+)
 
 
 class AccessionEditorView(editor.GenericEditorView):
@@ -1445,27 +1453,35 @@ class IntendedLocationPresenter(editor.GenericEditorPresenter):
             self.session.commit()
 
         intended = model[treeiter][0]
+
         # using a temporary session and refreshing from the database prevents
         # attaching to the accession here and possibly committing changes twice
-        session = db.Session()
-        acc = session.merge(self.model)
-        session.refresh(acc)
-        loc = session.merge(intended.location)
-        session.refresh(loc)
-        plt_editor = PlantEditor(
-            model=Plant(
-                accession=acc, location=loc, quantity=int(intended.quantity)
+        with db.Session() as session:
+            acc = session.merge(self.model)
+            session.refresh(acc)
+            loc = session.merge(intended.location)
+            session.refresh(loc)
+            plant = Plant(
+                accession=acc,
+                location=loc,
+                quantity=int(intended.quantity),
             )
-        )
+            dialog = PlantEditorDialog(
+                plant,
+                session,
+                transient_for=self.view.widgets.accession_dialog,
+            )
+            dialog.allow_ok_only()
 
-        session.close()
-        if plt_editor.start():
+            if dialog.run() != Response.OK:
+                dialog.destroy()
+                return
+
+            dialog.destroy()
+
+            selection = self.view.widgets.intended_loc_treeview.get_selection()
             intended.planted = True
-            (
-                self.view.widgets.intended_loc_treeview.get_selection().emit(
-                    "changed"
-                )
-            )
+            selection.emit("changed")
             self.refresh(intended)
 
     def init_menu(self):
@@ -3325,8 +3341,7 @@ class AccessionEditor(editor.GenericModelViewPresenterEditor):
 
             more_committed = acc_editor.start()
         elif response == self.RESPONSE_OK_AND_ADD:
-            plt_editor = PlantEditor(Plant(accession=self.model), self.parent)
-            more_committed = plt_editor.start()
+            add_plant_callback([self.model])
 
         if more_committed is not None:
             if isinstance(more_committed, list):
