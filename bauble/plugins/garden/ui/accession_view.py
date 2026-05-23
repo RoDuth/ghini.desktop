@@ -45,6 +45,7 @@ from ..accession import prov_type_values
 from ..accession import recvd_type_values
 from ..accession import remove_callback
 from ..accession import wild_prov_status_values
+from ..location import Location
 from ..source import COLLECTION_KML_MAP_PREF
 from ..source import Collection
 from .accession_editor import add_plants_callback
@@ -122,7 +123,7 @@ class GeneralAccessionExpander(
         self.update_locations(row)
 
     def update_locations(self, row: Accession) -> None:
-        plant_locations: dict[str, int] = {}
+        plant_locations: dict[Location, int] = {}
         for plant in row.plants:
             if plant.quantity == 0:
                 continue
