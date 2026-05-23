@@ -270,17 +270,21 @@ class Application(Gtk.Application):
 class WidgetCounter:  # pylint: disable=too-few-public-methods
     def __init__(self) -> None:
         self.count = 0
+        self.start_objs: list[str] = []
 
     def __call__(self) -> bool:
         import gc
 
         objs = [o for o in gc.get_objects() if isinstance(o, Gtk.Widget)]
+        if not self.start_objs:
+            self.start_objs = [str(o) for o in objs]
 
         count = len(objs)
         if self.count != count:
             print("widget count:", count)
             logger.debug("widget count: %s", count)
             self.count = count
+            # print([str(i) for i in objs if str(i) not in self.start_objs])
 
         return True
 
