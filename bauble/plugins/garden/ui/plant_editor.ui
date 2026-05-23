@@ -19,19 +19,24 @@
       <object class="GtkCellRendererText" id="accession_cell"/>
     </child>
   </object>
-  <object class="GtkListStore" id="location_liststore">
-    <columns>
-      <!-- column-name gchararray -->
-      <column type="gchararray"/>
-      <!-- column-name pyobject -->
-      <column type="PyObject"/>
-    </columns>
-  </object>
   <object class="GtkListStore" id="type_liststore">
     <columns>
       <!-- column-name gchararray -->
       <column type="gchararray"/>
     </columns>
+  </object>
+  <object class="GtkListStore" id="location_liststore">
+    <columns>
+      <!-- column-name pyobject -->
+      <column type="PyObject"/>
+    </columns>
+  </object>
+  <object class="GtkEntryCompletion" id="location_completion">
+    <property name="model">location_liststore</property>
+    <property name="popup-single-match">False</property>
+    <child>
+      <object class="GtkCellRendererText" id="location_cell"/>
+    </child>
   </object>
   <object class="GtkListStore" id="reason_liststore">
     <columns>
@@ -40,17 +45,6 @@
       <!-- column-name gchararray -->
       <column type="gchararray"/>
     </columns>
-  </object>
-  <object class="GtkEntryCompletion" id="location_completion">
-    <property name="model">location_liststore</property>
-    <property name="text-column">0</property>
-    <property name="popup-single-match">False</property>
-    <child>
-      <object class="GtkCellRendererText" id="location_cell"/>
-      <attributes>
-        <attribute name="text">0</attribute>
-      </attributes>
-    </child>
   </object>
   <template class="PlantEditorDialog" parent="GtkDialog">
     <property name="can-focus">False</property>
@@ -208,6 +202,7 @@
                             <property name="margin-end">4</property>
                             <property name="selectable">True</property>
                             <property name="xalign">1</property>
+                            <property name="tooltip-text" translatable="yes">The ID number for this record.</property>
                           </object>
                           <packing>
                             <property name="expand">True</property>
@@ -267,6 +262,12 @@
                             <property name="top-attach">0</property>
                           </packing>
                         </child>
+                        <child>
+                          <object class="GtkBox">
+                            <property name="visible">True</property>
+                            <property name="can-focus">False</property>
+                            <property name="hexpand">True</property>
+                            <property name="spacing">6</property>
                             <child>
                               <object class="GtkEntry" id="accession_entry">
                                 <property name="visible">True</property>
@@ -274,13 +275,111 @@
                                 <property name="completion">accession_completion</property>
                                 <property name="halign">start</property>
                                 <property name="width-chars">18</property>
+                                <property name="tooltip-text" translatable="yes">The accession must be selected from the list of completions.  You can use the 'add' button to a new create one.</property>
                                 <signal name="changed" handler="on_accession_entry_changed" swapped="no"/>
                               </object>
                               <packing>
-                                <property name="left-attach">1</property>
-                                <property name="top-attach">0</property>
+                                <property name="expand">False</property>
+                                <property name="fill">True</property>
+                                <property name="position">0</property>
                               </packing>
                             </child>
+                            <child>
+                              <object class="GtkButton" id="accession_add_button">
+                                <property name="visible">True</property>
+                                <property name="can-focus">True</property>
+                                <property name="receives-default">True</property>
+                                <child>
+                                  <object class="GtkBox">
+                                    <property name="visible">True</property>
+                                    <property name="can-focus">False</property>
+                                    <property name="spacing">2</property>
+                                    <child>
+                                      <object class="GtkImage">
+                                        <property name="visible">True</property>
+                                        <property name="can-focus">False</property>
+                                        <property name="icon-name">list-add-symbolic</property>
+                                      </object>
+                                      <packing>
+                                        <property name="expand">False</property>
+                                        <property name="fill">False</property>
+                                        <property name="position">0</property>
+                                      </packing>
+                                    </child>
+                                    <child>
+                                      <object class="GtkLabel">
+                                        <property name="visible">True</property>
+                                        <property name="can-focus">False</property>
+                                        <property name="label" translatable="yes">Add</property>
+                                        <property name="use-underline">True</property>
+                                      </object>
+                                      <packing>
+                                        <property name="expand">False</property>
+                                        <property name="fill">False</property>
+                                        <property name="position">1</property>
+                                      </packing>
+                                    </child>
+                                  </object>
+                                </child>
+                              </object>
+                              <packing>
+                                <property name="expand">False</property>
+                                <property name="fill">True</property>
+                                <property name="position">1</property>
+                              </packing>
+                            </child>
+                            <child>
+                              <object class="GtkButton" id="accession_edit_button">
+                                <property name="visible">True</property>
+                                <property name="can-focus">True</property>
+                                <property name="receives-default">True</property>
+                                <property name="sensitive">False</property>
+                                <property name="tooltip-text" translatable="yes">Edit the currently selected accession.</property>
+                                <child>
+                                  <object class="GtkBox">
+                                    <property name="visible">True</property>
+                                    <property name="can-focus">False</property>
+                                    <property name="spacing">2</property>
+                                    <child>
+                                      <object class="GtkImage">
+                                        <property name="visible">True</property>
+                                        <property name="can-focus">False</property>
+                                        <property name="icon-name">document-properties-symbolic</property>
+                                      </object>
+                                      <packing>
+                                        <property name="expand">False</property>
+                                        <property name="fill">False</property>
+                                        <property name="position">0</property>
+                                      </packing>
+                                    </child>
+                                    <child>
+                                      <object class="GtkLabel">
+                                        <property name="visible">True</property>
+                                        <property name="can-focus">False</property>
+                                        <property name="label" translatable="yes">Edit</property>
+                                        <property name="use-underline">True</property>
+                                      </object>
+                                      <packing>
+                                        <property name="expand">False</property>
+                                        <property name="fill">False</property>
+                                        <property name="position">1</property>
+                                      </packing>
+                                    </child>
+                                  </object>
+                                </child>
+                              </object>
+                              <packing>
+                                <property name="expand">False</property>
+                                <property name="fill">True</property>
+                                <property name="position">2</property>
+                              </packing>
+                            </child>
+                          </object>
+                          <packing>
+                            <property name="left-attach">1</property>
+                            <property name="top-attach">0</property>
+                          </packing>
+                        </child>
                         <child>
                           <object class="GtkBox">
                             <property name="visible">True</property>
@@ -324,6 +423,7 @@
                             <property name="can-focus">True</property>
                             <property name="halign">start</property>
                             <property name="width-chars">18</property>
+                            <property name="tooltip-text" translatable="yes">The planting code must be a unique code for the accession.  You may also use ranges like 1,2,7 or 1-3 to create multiple plants (opens multiple editors).</property>
                               <signal name="changed" handler="on_code_entry_changed" swapped="no"/>
                           </object>
                           <packing>
@@ -350,6 +450,7 @@
                             <property name="can-focus">False</property>
                             <property name="halign">start</property>
                             <property name="model">type_liststore</property>
+                            <property name="tooltip-text" translatable="yes">The type of the plant material.</property>
                             <signal name="changed" handler="on_combobox_changed" swapped="no"/>
                             <child>
                               <object class="GtkCellRendererText"/>
@@ -490,14 +591,17 @@
                                 <property name="model">location_liststore</property>
                                 <property name="has-entry">True</property>
                                 <property name="popup-fixed-width">False</property>
-                                <property name="entry-text-column">0</property>
+                                <property name="tooltip-text" translatable="yes">The location of the planting in your collection.</property>
                                 <signal name="changed" handler="on_location_comboentry_changed" swapped="no"/>
                                 <signal name="format-entry-text" handler="on_comboentry_format" swapped="no"/>
                                 <child internal-child="entry">
-                                  <object class="GtkEntry">
+                                  <object class="GtkEntry" id="location_entry">
                                     <property name="can-focus">True</property>
                                     <property name="completion">location_completion</property>
                                   </object>
+                                </child>
+                                <child>
+                                  <object class="GtkCellRendererText" id="location_combo_cell"/>
                                 </child>
                               </object>
                               <packing>
@@ -507,10 +611,12 @@
                               </packing>
                             </child>
                             <child>
-                              <object class="GtkButton" id="loction_add_button">
+                              <object class="GtkButton" id="location_add_button">
                                 <property name="visible">True</property>
                                 <property name="can-focus">True</property>
                                 <property name="receives-default">True</property>
+                                <property name="tooltip-text" translatable="yes">Create a new location.</property>
+                                <signal name="clicked" handler="on_location_add_button_clicked" swapped="no"/>
                                 <child>
                                   <object class="GtkBox">
                                     <property name="visible">True</property>
@@ -555,6 +661,8 @@
                                 <property name="visible">True</property>
                                 <property name="can-focus">True</property>
                                 <property name="receives-default">True</property>
+                                <property name="sensitive">False</property>
+                                <property name="tooltip-text" translatable="yes">Edit the currently selected location.</property>
                                 <child>
                                   <object class="GtkBox">
                                     <property name="visible">True</property>
@@ -635,6 +743,9 @@
                             <property name="can-focus">False</property>
                             <property name="row-spacing">5</property>
                             <property name="column-spacing">3</property>
+                            <property name="tooltip-text" translatable="yes">Changes are recorded for new entries and whenever the quantity or location is changed.
+
+The earliest recorded change becomes the "planted" change.  The last recorded change that reduces quantity to 0 becomes the "death"</property>
                             <child>
                               <object class="GtkLabel">
                                 <property name="visible">True</property>

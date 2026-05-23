@@ -113,6 +113,17 @@ def validate_unique_code(value: str, *args: Any) -> bool:
     return True
 
 
+def validate_new_not_zero(value: str, *args: Any) -> bool:
+    model = args[1]
+
+    with db.Session() as session:
+
+        model = session.merge(model)
+        if model in session.new and int(value) <= 0:
+            return False
+    return True
+
+
 @Gtk.Template(filename=str(parent / "plant_editor.ui"))
 class PlantEditorDialog(
     GenericPresenter[Plant],
@@ -132,6 +143,8 @@ class PlantEditorDialog(
     type_combo = cast(Gtk.ComboBox, Gtk.Template.Child())
     quantity_entry = cast(Gtk.SpinButton, Gtk.Template.Child())
     location_comboentry = cast(Gtk.ComboBox, Gtk.Template.Child())
+    location_entry = cast(Gtk.Entry, Gtk.Template.Child())
+    location_combo_cell = cast(Gtk.CellRendererText, Gtk.Template.Child())
     location_liststore = cast(Gtk.ListStore, Gtk.Template.Child())
     location_cell = cast(Gtk.CellRendererText, Gtk.Template.Child())
     location_completion = cast(Gtk.EntryCompletion, Gtk.Template.Child())
@@ -146,7 +159,7 @@ class PlantEditorDialog(
     history_presenter = cast(PlantHistoryPresenter, Gtk.Template.Child())
 
     on_completion_entry_matched = EntryWCompletionHandler(must_match=True)
-    on_location_combo_changed = ComboBoxHandler(column=1, must_match=True)
+    on_location_combo_changed = ComboBoxHandler(must_match=True)
     on_unique_code_entry_changed = EntryHandler(
         [
             Validator(validate_non_empty, "empty"),
@@ -155,7 +168,10 @@ class PlantEditorDialog(
         lambda value, *_args: value.strip() or None,
     )
     on_spin_button_changed = EntryHandler(
-        [Validator(validate_non_empty, "empty")],
+        [
+            Validator(validate_non_empty, "empty"),
+            Validator(validate_new_not_zero, "new_zero_qty"),
+        ],
         lambda value, *_args: int(value or 0),
     )
 
@@ -186,11 +202,19 @@ class PlantEditorDialog(
             default_completion_cell_data_func,
         )
         self.location_completion.set_match_func(location_match_func)
+        self.location_comboentry.set_cell_data_func(
+            self.location_combo_cell,
+            default_completion_cell_data_func,
+        )
+        self.entry_sid = self.location_entry.connect(
+            "changed",
+            self.on_location_entry_changed,
+        )
 
         for loc in self.session.execute(
             select(Location).order_by(Location.code)
         ).scalars():
-            self.location_liststore.append((str(loc), loc))
+            self.location_liststore.append((loc,))
 
         for k, v in change_reasons.items():
             self.reason_liststore.append((k, v))
@@ -224,6 +248,7 @@ class PlantEditorDialog(
 
         self.location_comboentry.emit("changed")
         self.accession_entry.emit("changed")
+        self.quantity_entry.emit("changed")
 
         if self.model.code:
             current = self.get_title()
@@ -429,31 +454,59 @@ class PlantEditorDialog(
 
     @Gtk.Template.Callback()
     def on_location_comboentry_changed(self, combo: Gtk.ComboBox) -> None:
-        entry = cast(Gtk.Entry, combo.get_child())
+        self.on_location_combo_changed(combo)
+
+    def on_location_entry_changed(self, entry: Gtk.Entry) -> None:
         text = entry.get_text()
 
         def _cmp(row, data):
-            if row[0].lower().startswith(data.lower()):
+            loc = row[0]
+            if str(loc).lower().startswith(data.lower()):
                 return True
 
-            if row[1].code.lower().startswith(data.lower()):
+            if loc.code.lower().startswith(data.lower()):
                 return True
 
-            if row[1].name and row[1].name.lower().startswith(data.lower()):
+            if loc.name and loc.name.lower().startswith(data.lower()):
                 return True
 
             return False
 
         matches = search_tree_model(self.location_liststore, text, _cmp)
+
         if len(matches) == 1:
             completion = entry.get_completion()
+            self.location_entry.handler_block(self.entry_sid)
             completion.emit(
                 "match-selected",
                 self.location_liststore,
                 matches[0],
             )
+            self.location_entry.handler_unblock(self.entry_sid)
 
-        self.on_location_combo_changed(combo)
+    @Gtk.Template.Callback()
+    def on_location_add_button_clicked(self, _button: Gtk.Button) -> None:
+
+        from .location_editor import LocationEditorDialog
+
+        with db.Session() as session:
+            dialog = LocationEditorDialog(
+                Location(),
+                session,
+                transient_for=self,
+            )
+            # dialog.allow_ok_only()
+
+            if dialog.run() != Response.OK:
+                dialog.destroy()
+                return
+
+            location = self.session.merge(dialog.model)
+            dialog.destroy()
+
+        self.model.location = location
+        self.location_liststore.append((location,))
+        set_widget_value(self.location_comboentry, location)
 
     def do_commit(self) -> bool:
         try:

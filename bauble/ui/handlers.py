@@ -188,7 +188,7 @@ class HandlerMethodDescriptor[T: GObject.Object](ABC):
         field_name = instance.widgets_to_model_map[widget]
         current = getattr(instance.model, field_name)
         logger.debug(
-            "%s.%s(%s) called for field %s - values: %s -> %s",
+            "%s.%s(%s) called for field %s - values: %s >> %s",
             self.class_name,
             self.name,
             widget,
@@ -343,7 +343,7 @@ class EntryWCompletionHandler(EntryHandler):
             field_name = instance.widgets_to_model_map[widget]
             obj = liststore[tree_iter][0]
             widget.set_text(str(obj))
-            instance.remove_problem(self.match_problem, widget)
+            instance.remove_problem(self.match_problem, problem_widget)
 
             if not self.validate(instance, problem_widget, field_name, obj):
                 return True
@@ -403,13 +403,22 @@ class TextBufferHandler(HandlerMethodDescriptor[Gtk.TextBuffer]):
         return widget.get_text(*widget.get_bounds(), False)
 
 
-NOTFOUND = object()
+class NOTFOUND:  # pylint: disable=all
+    # sentinal value for logging etc. purely for a better repr, use the class,
+    # don't instanciate
+    # in python 3.15 we will have: `NOTFOUND = sentinal("NOTFOUND")`
+    pass
 
 
 class ComboBoxHandler(HandlerMethodDescriptor[Gtk.ComboBox]):
     """HandlerMethodDescriptor for Gtk.ComboBox widgets.
 
     If the model handles non-string values set ``must_match=True``.
+
+    If the combobox also has an entry with a ``Gtk.EntryCompletion`` then, to
+    make it work for both string or object values the default "match-selected"
+    behaviour is overriden to update the entry widget with the string of the
+    object and set the model's value to the object.
 
     If validation or conversion is needed provide a list of ``Validator``s and
     a ``Converter`` callback as required.
@@ -430,6 +439,7 @@ class ComboBoxHandler(HandlerMethodDescriptor[Gtk.ComboBox]):
     ) -> None:
         self.column = column
         self.must_match = must_match
+        self.connected: list[int] = []
 
         super().__init__(validators, converter)
 
@@ -439,7 +449,11 @@ class ComboBoxHandler(HandlerMethodDescriptor[Gtk.ComboBox]):
 
         if not iter_ and widget.get_has_entry():
             text = cast(Gtk.Entry, widget.get_child()).get_text()
-            iter_ = combo_get_value_iter(widget, text)
+            iter_ = combo_get_value_iter(
+                widget,
+                text,
+                cmp=lambda row, val: str(row[0]) == val,
+            )
 
             if not iter_:
                 return NOTFOUND if self.must_match else text
@@ -458,9 +472,52 @@ class ComboBoxHandler(HandlerMethodDescriptor[Gtk.ComboBox]):
         **kwargs: Any,
     ) -> None:
         problem_widget: Gtk.Widget = widget
+        completion_id = 0
+        entry: Gtk.Entry | None = None
 
         if widget.get_has_entry():
-            problem_widget = cast(Gtk.Entry, widget.get_child())
+            entry = cast(Gtk.Entry, widget.get_child())
+            problem_widget = entry
+
+            completion = problem_widget.get_completion()
+            if completion:
+                completion_id = id(completion)
+
+        def on_match_selected(
+            _completion: Gtk.EntryCompletion,
+            liststore: Gtk.ListStore,
+            tree_iter: Gtk.TreeIter,
+        ) -> bool:
+            """Overrides default behaviour as can not set_text to an object.
+
+            This handler runs last.
+            """
+            field_name = instance.widgets_to_model_map[widget]
+            obj = liststore[tree_iter][0]
+
+            if entry:
+                entry.set_text(str(obj))
+
+            instance.remove_problem(self.match_problem, problem_widget)
+
+            if not self.validate(instance, problem_widget, field_name, obj):
+                return True
+
+            self.set_model_value(instance, problem_widget, field_name, obj)
+
+            if hasattr(instance, "update"):
+                instance.update()
+
+            return True
+
+        if completion_id and completion_id not in self.connected:
+            # connect once, on first run
+            # (several widgets can use the same handler)
+            self.connected.append(completion_id)
+            completion.connect(
+                "match-selected",
+                on_match_selected,
+            )
 
         if self.must_match and self.get_value(widget) is NOTFOUND:
             # just log and mark the problem

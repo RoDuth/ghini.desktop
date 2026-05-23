@@ -312,20 +312,23 @@ def _set_combo_value(
         cast(Gtk.Entry, widget.get_child()).set_text(_string(value))
         return
 
-    treeiter = None
     if not widget.get_model():
         logger.warning(
             "ui.utils.set_widget_value(): combo doesn't have a model: %s",
             Gtk.Buildable.get_name(widget),
         )
+        return
+
+    treeiter = combo_get_value_iter(
+        widget,
+        value,
+        cmp=lambda row, value: row[index] == value,
+    )
+
+    if treeiter:
+        widget.set_active_iter(treeiter)
     else:
-        treeiter = combo_get_value_iter(
-            widget, value, cmp=lambda row, value: row[index] == value
-        )
-        if treeiter:
-            widget.set_active_iter(treeiter)
-        else:
-            widget.set_active(-1)
+        widget.set_active(-1)
 
 
 @set_widget_value.register

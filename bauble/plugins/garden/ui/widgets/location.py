@@ -39,11 +39,10 @@ def location_match_func(
     if not tree_model:
         raise AttributeError(f"can't get TreeModel from {completion}")
 
-    string = tree_model[treeiter][0]
-    if string.lower().startswith(key.lower()):
+    loc = tree_model[treeiter][0]
+    if str(loc).lower().startswith(key.lower()):
         return True
 
-    loc = tree_model[treeiter][1]
     if loc.code.lower().startswith(key.lower()):
         return True
 

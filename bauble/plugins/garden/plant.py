@@ -488,6 +488,7 @@ class Plant(db.Domain, db.WithNotes):
         "Accession", lazy="subquery", uselist=False, back_populates="plants"
     )
 
+    location: Location
     location_id = Column(Integer, ForeignKey("location.id"), nullable=False)
     # spatial data deferred mainly to avoid comparison issues in union search
     # (i.e. reports)  NOTE that deferring can lead to the instance becoming

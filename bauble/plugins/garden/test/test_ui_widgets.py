@@ -817,9 +817,9 @@ class LocationCompletionTests(BaubleClassTestCase):
         )
 
         cls.completion = Gtk.EntryCompletion()
-        completion_model = Gtk.ListStore(str, object)
+        completion_model = Gtk.ListStore(object)
         for val in (cls.loc1, cls.loc2, cls.other1, cls.other2):
-            completion_model.append((str(val), val))
+            completion_model.append((val,))
         cls.completion.set_model(completion_model)
 
     def test_match_func_full_code(self):

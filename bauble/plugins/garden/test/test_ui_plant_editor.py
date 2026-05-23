@@ -134,13 +134,14 @@ class PlantEditorDialogTests(BaubleTestCase):
         self.assertEqual(editor.pictures_presenter.prop, "pictures")
         self.assertEqual(editor.code_entry.get_text(), "")
         self.assertEqual(editor.accession_entry.get_text(), "")
-        self.assertEqual(len(editor.problems), 2)
+        self.assertEqual(len(editor.problems), 3)
         for problem, widget in editor.problems:
             self.assertIn(
                 widget,
                 [
                     editor.location_comboentry.get_child(),
                     editor.accession_entry,
+                    editor.quantity_entry,
                 ],
             )
             self.assertTrue(
@@ -149,6 +150,9 @@ class PlantEditorDialogTests(BaubleTestCase):
                 )
                 or problem.startswith(
                     "not_matched::on_location_combo_changed::PlantEditorD",
+                )
+                or problem.startswith(
+                    "new_zero_qty::on_spin_button_changed::PlantEditorD",
                 ),
                 problem,
             )
@@ -210,6 +214,7 @@ class PlantEditorDialogTests(BaubleTestCase):
 
         editor.accession_entry.set_text("2001.0001")
         editor.code_entry.set_text("1")
+        editor.quantity_entry.set_text("1")
         editor.location_comboentry.get_child().set_text("LOC1")
 
         self.assertTrue(editor.can_commit)
@@ -280,6 +285,7 @@ class PlantEditorDialogTests(BaubleTestCase):
         plant.accession = accession
         plant.location = location
         plant.code = "1"
+        plant.quantity = 1
         editor = PlantEditorDialog(plant, db.Session())
 
         ok_button = editor.get_widget_for_response(-5)
@@ -313,6 +319,7 @@ class PlantEditorDialogTests(BaubleTestCase):
 
         editor.code_entry.set_text("1")
         editor.accession_entry.set_text("2001.0001")
+        editor.quantity_entry.set_text("10")
         # also tests we can match on name
         editor.location_comboentry.get_child().set_text("Location One")
 
@@ -422,7 +429,10 @@ class PlantEditorDialogTests(BaubleTestCase):
         self.session.add(plant)
         self.session.commit()
 
-        editor = PlantEditorDialog(Plant(location=location), self.session)
+        editor = PlantEditorDialog(
+            Plant(location=location, quantity=1),
+            self.session,
+        )
 
         # no matched for accession
         self.assertEqual(len(editor.problems), 1)
@@ -581,6 +591,54 @@ class PlantEditorDialogTests(BaubleTestCase):
         update_gui()
 
         mock_callback.assert_called_once()
+
+        editor.destroy()
+
+    @mock.patch(
+        "bauble.plugins.garden.ui.location_editor.LocationEditorDialog"
+    )
+    def test_on_location_add_button_clicked(self, mock_loc_editor):
+        # test bails
+        mock_loc_editor().run.return_value = Gtk.ResponseType.CANCEL
+        mock_loc_editor.reset_mock()
+        family = Family(epithet="Austrobaileyaceae")
+        genus = Genus(epithet="Austrobaileya", family=family)
+        species = Species(genus=genus, epithet="scandens")
+        accession = Accession(code="2001.0001", species=species)
+        location = Location(
+            code="LOC1",
+            name="Location One",
+            description="First location.",
+        )
+        plant = Plant(
+            accession=accession,
+            code="1",
+            quantity=1,
+        )
+        self.session.add(plant)
+
+        editor = PlantEditorDialog(plant, self.session)
+        editor.on_location_add_button_clicked(None)
+
+        mock_loc_editor.assert_called_once()
+        self.assertEqual(editor.location_entry.get_text(), "")
+
+        # test success
+        mock_loc_editor.reset_mock()
+
+        editor.destroy()
+
+        editor = PlantEditorDialog(plant, self.session)
+        mock_loc_editor().run.return_value = Gtk.ResponseType.OK
+        mock_loc_editor().model = location
+        mock_loc_editor.reset_mock()
+        editor.on_location_add_button_clicked(None)
+
+        mock_loc_editor.assert_called_once()
+        self.assertEqual(
+            editor.location_entry.get_text(),
+            "(LOC1) Location One",
+        )
 
         editor.destroy()
 

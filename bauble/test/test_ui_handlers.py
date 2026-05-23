@@ -279,6 +279,61 @@ class HandlerTests(TestCase):
 
         presenter.destroy()
 
+    def test_combobox_handler_matching_w_entry_w_completion(self):
+        presenter = Presenter()
+        model = Gtk.ListStore(str)
+        model.append(["Foo"])
+        model.append(["Bar"])
+        model.append(["Baz"])
+        presenter.combo_w_entry.set_model(model)
+        completion = Gtk.EntryCompletion(text_column=0, model=model)
+        entry = presenter.combo_w_entry.get_child()
+        entry.set_completion(completion)
+        entry.set_text("Foo")
+
+        presenter.combobox_handler_match(presenter.combo_w_entry)
+
+        self.assertEqual(len(presenter.problems), 0)
+        self.assertEqual(presenter.model.value, "Foo")
+
+        presenter.combo_w_entry.set_active(1)
+        presenter.combobox_handler_match(presenter.combo_w_entry)
+
+        self.assertEqual(len(presenter.problems), 0)
+        self.assertEqual(presenter.model.value, "Bar")
+        presenter.update.assert_called()
+
+        entry = presenter.combo_w_entry.get_child()
+        entry.set_text("ham")
+        presenter.combobox_handler_match(presenter.combo_w_entry)
+        self.assertEqual(len(presenter.problems), 1)
+        self.assertTrue(
+            list(presenter.problems)[0][0].startswith("not_matched")
+        )
+        self.assertEqual(presenter.model.value, "Bar")
+
+        entry = presenter.combo_w_entry.get_child()
+        entry.set_text("Foo")
+        completion.emit("match-selected", model, model.get_iter_first())
+        self.assertEqual(len(presenter.problems), 0)
+        self.assertEqual(presenter.model.value, "Foo")
+
+        # exact match that doesn't validate
+        with mock.patch(
+            "bauble.ui.handlers.ComboBoxHandler.validate",
+            return_value=False,
+        ):
+            entry = presenter.combo_w_entry.get_child()
+            entry.set_text("Baz")
+            completion.emit("match-selected", model, model.get_iter(2))
+
+        self.assertEqual(entry.get_text(), "Baz")
+        # doesn't set
+        self.assertEqual(presenter.model.value, "Foo")
+        presenter.update.assert_called()
+
+        presenter.destroy()
+
     def test_text_buffer_handler(self):
         presenter = Presenter()
         presenter.buffer.set_text(" foo bar baz ")
