@@ -250,19 +250,6 @@ class SpeciesEditorDialogTests(BaubleTestCase):
         )
         del editor
 
-    def test_allow_ok_only(self):
-        editor = SpeciesEditorDialog(Species(), self.session)
-        editor.allow_ok_only()
-
-        for response in Response:
-            widget = editor.get_widget_for_response(response.value)
-            if response == Response.OK:
-                self.assertTrue(widget.get_visible())
-            elif widget:
-                self.assertFalse(widget.get_visible())
-
-        editor.destroy()
-
     def test_can_commit_new(self):
         family = Family(epithet="Myrtaceae")
         genus = Genus(epithet="Syzygium", family=family)

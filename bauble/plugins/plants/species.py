@@ -976,7 +976,7 @@ class Species(Taxon, db.WithNotes):
         if inspect(self).detached:
             with db.Session() as session:
                 session.enable_relationship_loading(self)
-        if genus is True:
+        if genus is True and self.genus:
             if qual_rank == "genus":
                 genus_str = str(qualifier) + " "
             if markup:

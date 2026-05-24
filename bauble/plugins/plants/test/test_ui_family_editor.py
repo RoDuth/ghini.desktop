@@ -135,19 +135,6 @@ class FamilyEditorDialogTests(BaubleTestCase):
             "FamilyEditorDialog not deleted",
         )
 
-    def test_allow_ok_only(self):
-        editor = FamilyEditorDialog(Family(), self.session)
-        editor.allow_ok_only()
-
-        for response in Response:
-            widget = editor.get_widget_for_response(response.value)
-            if response == Response.OK:
-                self.assertTrue(widget.get_visible())
-            elif widget:
-                self.assertFalse(widget.get_visible())
-
-        editor.destroy()
-
     def test_can_commit(self):
         # new
         editor = FamilyEditorDialog(Family(), self.session)
@@ -364,9 +351,7 @@ class FamilyEditorDialogTests(BaubleTestCase):
 
         editor.destroy()
 
-    @mock.patch(
-        "bauble.plugins.plants.ui.family_editor.dialogs.message_details_dialog"
-    )
+    @mock.patch("bauble.ui.dialogs.message_details_dialog")
     def test_on_response_ok(self, mock_dlog):
         editor = FamilyEditorDialog(Family(), self.session)
         # change epithet to None to force an error,

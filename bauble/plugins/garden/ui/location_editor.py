@@ -34,16 +34,14 @@ from sqlalchemy import select
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
-import bauble
 from bauble import prefs
 from bauble import utils
 from bauble.i18n import _
 from bauble.ui import dialogs
 from bauble.ui.presenter import AddCallback
+from bauble.ui.presenter import DomainEditorDialog
 from bauble.ui.presenter import EditCreateCallback
-from bauble.ui.presenter import GenericPresenter
 from bauble.ui.presenter import Response
-from bauble.ui.presenter import default_dialog_update
 from bauble.ui.widgets import DocumentBox
 from bauble.ui.widgets import MapMenuButton
 from bauble.ui.widgets import NoteBox
@@ -64,7 +62,7 @@ parent = Path(__file__).resolve().parent
 
 @Gtk.Template(filename=str(parent / "location_editor.ui"))
 class LocationEditorDialog(
-    GenericPresenter[Location],
+    DomainEditorDialog[Location],
     Gtk.Dialog,
 ):  # pylint: disable=not-callable,too-many-public-methods
 
@@ -90,15 +88,8 @@ class LocationEditorDialog(
         session: Session,
         transient_for: Gtk.Window | None = None,
     ) -> None:
-        self.session = session
 
-        if model not in self.session:
-            model = self.session.merge(model)
-
-        if bauble.gui and not transient_for:
-            transient_for = bauble.gui.window
-
-        super().__init__(model, self, transient_for=transient_for)
+        super().__init__(model, session, transient_for=transient_for)
 
         self.widgets_to_model_map = {
             self.code_entry: "code",
@@ -108,10 +99,10 @@ class LocationEditorDialog(
 
         self.refresh_all_widgets_from_model()
 
-        self.map_menu_btn.init(model, map_kml_callback)
-        self.notes_presenter.init(model)
-        self.pictures_presenter.init(model, "_pictures", PictureBox)
-        self.documents_presenter.init(model, "documents", DocumentBox)
+        self.map_menu_btn.init(self.model, map_kml_callback)
+        self.notes_presenter.init(self.model)
+        self.pictures_presenter.init(self.model, "_pictures", PictureBox)
+        self.documents_presenter.init(self.model, "documents", DocumentBox)
 
         spell_view = Gspell.TextView.get_from_gtk_text_view(
             self.description_textview
@@ -124,15 +115,6 @@ class LocationEditorDialog(
             current = self.get_title()
             self.set_title(f"{current} - {self.model.code}")
 
-    def allow_ok_only(self) -> None:
-        for response in Response:
-            if response.name == "OK":
-                continue
-
-            widget = self.get_widget_for_response(response.value)
-            if widget:
-                widget.hide()
-
     @property
     def can_commit(self) -> bool:
         modified = self.session.is_modified(self.model)
@@ -144,9 +126,6 @@ class LocationEditorDialog(
         no_problems = not self.problems
 
         return all((modified, no_problems))
-
-    def update(self) -> None:
-        default_dialog_update(self, self.can_commit)
 
     @Gtk.Template.Callback()
     def on_changed(self, _presenter: Gtk.Widget) -> None:
@@ -196,23 +175,6 @@ class LocationEditorDialog(
     @Gtk.Template.Callback()
     def on_text_buffer_changed(self, buffer: Gtk.TextBuffer) -> None:
         super().on_text_buffer_changed(buffer)
-
-    def do_commit(self) -> bool:
-        try:
-            self.session.commit()
-            self.session.close()
-            return True
-        except SQLAlchemyError as e:
-            msg = _("Error committing changes.\n\n%s") % utils.xml_safe(e)
-            dialogs.message_details_dialog(
-                msg,
-                traceback.format_exc(),
-                Gtk.MessageType.ERROR,
-                parent=self,
-            )
-            self.session.rollback()
-            self.model = self.session.merge(self.model)
-        return False
 
     @Gtk.Template.Callback()
     def on_response(

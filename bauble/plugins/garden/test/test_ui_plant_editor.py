@@ -176,19 +176,6 @@ class PlantEditorDialogTests(BaubleTestCase):
             "PlantEditorDialog not deleted",
         )
 
-    def test_allow_ok_only(self):
-        editor = PlantEditorDialog(Plant(), self.session)
-        editor.allow_ok_only()
-
-        for response in Response:
-            widget = editor.get_widget_for_response(response.value)
-            if response == Response.OK:
-                self.assertTrue(widget.get_visible())
-            elif widget:
-                self.assertFalse(widget.get_visible())
-
-        editor.destroy()
-
     def test_can_commit_new(self):
         family = Family(epithet="Austrobaileyaceae")
         genus = Genus(epithet="Austrobaileya", family=family)

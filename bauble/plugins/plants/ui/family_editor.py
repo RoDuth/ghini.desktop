@@ -22,7 +22,6 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-import traceback
 from pathlib import Path
 from typing import Self
 from typing import cast
@@ -31,21 +30,17 @@ from gi.repository import GLib
 from gi.repository import Gtk
 from sqlalchemy import select
 from sqlalchemy.engine import Row
-from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
-import bauble
 from bauble import db
 from bauble import utils
 from bauble.i18n import _
-from bauble.ui import dialogs
 from bauble.ui.handlers import EntryWCompletionHandler
 from bauble.ui.presenter import AddCallback
+from bauble.ui.presenter import DomainEditorDialog
 from bauble.ui.presenter import EditCreateCallback
-from bauble.ui.presenter import GenericPresenter
 from bauble.ui.presenter import Problem
 from bauble.ui.presenter import Response
-from bauble.ui.presenter import default_dialog_update
 from bauble.ui.utils import populate_enum_combo
 from bauble.ui.widgets import LinksMenuButton
 from bauble.ui.widgets import NoteBox
@@ -90,7 +85,7 @@ def validate_unique_family(
 
 @Gtk.Template(filename=str(parent / "family_editor.ui"))
 class FamilyEditorDialog(
-    GenericPresenter[Family],
+    DomainEditorDialog[Family],
     Gtk.Dialog,
 ):  # pylint: disable=not-callable
 
@@ -120,15 +115,8 @@ class FamilyEditorDialog(
         session: Session,
         transient_for: Gtk.Window | None = None,
     ) -> None:
-        self.session = session
 
-        if model not in self.session:
-            model = self.session.merge(model)
-
-        if bauble.gui and not transient_for:
-            transient_for = bauble.gui.window
-
-        super().__init__(model, self, transient_for=transient_for)
+        super().__init__(model, session, transient_for=transient_for)
 
         self.widgets_to_model_map = {
             self.family_entry: "epithet",
@@ -139,8 +127,8 @@ class FamilyEditorDialog(
             self.qualifier_combo: "qualifier",
         }
 
-        populate_enum_combo(self.qualifier_combo, model, "qualifier")
-        populate_enum_combo(self.cites_combo, model, "cites")
+        populate_enum_combo(self.qualifier_combo, self.model, "qualifier")
+        populate_enum_combo(self.cites_combo, self.model, "cites")
 
         self.refresh_all_widgets_from_model()
         self.family_entry.emit("changed")
@@ -155,8 +143,8 @@ class FamilyEditorDialog(
                 .order_by(Family.epithet)
             ),
         )
-        self.links_menu_btn.init(model, FAMILY_WEB_BUTTON_DEFS_PREFS)
-        self.notes_presenter.init(model)
+        self.links_menu_btn.init(self.model, FAMILY_WEB_BUTTON_DEFS_PREFS)
+        self.notes_presenter.init(self.model)
 
         if any(getattr(self.model, i) for i in ("order", "suborder")):
             self.suprafam_expander.set_expanded(True)
@@ -166,15 +154,6 @@ class FamilyEditorDialog(
         if self.model.epithet:
             current = self.get_title()
             self.set_title(f"{current} - {self.model.string(author=True)}")
-
-    def allow_ok_only(self) -> None:
-        for response in Response:
-            if response.name == "OK":
-                continue
-
-            widget = self.get_widget_for_response(response.value)
-            if widget:
-                widget.hide()
 
     @property
     def can_commit(self) -> bool:
@@ -192,9 +171,6 @@ class FamilyEditorDialog(
     @Gtk.Template.Callback()
     def on_changed(self, _presenter: Gtk.Widget) -> None:
         self.update()
-
-    def update(self) -> None:
-        default_dialog_update(self, self.can_commit)
 
     @Gtk.Template.Callback()
     def on_combobox_changed(self, combo: Gtk.ComboBox) -> None:
@@ -341,20 +317,6 @@ class FamilyEditorDialog(
         message_box.show_all()
         self.revealer.add(message_box)
         self.revealer.set_reveal_child(True)
-
-    def do_commit(self) -> bool:
-        try:
-            self.session.commit()
-            self.session.close()
-            return True
-        except SQLAlchemyError as e:
-            msg = _("Error committing changes.\n\n%s") % utils.xml_safe(e)
-            dialogs.message_details_dialog(
-                msg, traceback.format_exc(), Gtk.MessageType.ERROR
-            )
-            self.session.rollback()
-            self.model = self.session.merge(self.model)
-        return False
 
     @Gtk.Template.Callback()
     def on_response(

@@ -15,7 +15,7 @@
 # You should have received a copy of the GNU General Public License
 # along with ghini.desktop. If not, see <http://www.gnu.org/licenses/>.
 """
-GenericPresenter tests
+presenter tests
 """
 from types import FunctionType
 from unittest import TestCase
@@ -25,8 +25,10 @@ from gi.repository import Gtk
 from sqlalchemy.orm import Session
 
 from bauble.meta import BaubleMeta
+from bauble.plugins.plants.family import Family
 from bauble.test import BaubleTestCase
 from bauble.ui.handlers import EntryHandler
+from bauble.ui.presenter import DomainEditorDialog
 from bauble.ui.presenter import EditCreateCallback
 from bauble.ui.presenter import GenericPresenter
 from bauble.ui.presenter import Problem
@@ -627,6 +629,100 @@ class GenericPresenterWithDBTests(BaubleTestCase):
         self.assertEqual(model1.value, "test")
         self.assertEqual(presenter.problems, set())
         self.assertFalse(entry.get_style_context().has_class("problem"))
+
+
+dialog_xml = """\
+<interface>
+  <template class="DialogPresenter" parent="GtkDialog">
+    <child internal-child="vbox">
+      <object class="GtkBox">
+        <child internal-child="action_area">
+          <object class="GtkButtonBox">
+            <child>
+              <object class="GtkButton" id="cancel_button">
+                <property name="visible">True</property>
+                <property name="label" translatable="yes">Cancel</property>
+              </object>
+              <packing>
+                <property name="position">0</property>
+              </packing>
+            </child>
+            <child>
+              <object class="GtkButton" id="ok_button">
+                <property name="visible">True</property>
+                <property name="label" translatable="yes">OK</property>
+              </object>
+              <packing>
+                <property name="position">1</property>
+              </packing>
+            </child>
+            <child>
+              <object class="GtkButton" id="next_button">
+                <property name="visible">True</property>
+                <property name="label" translatable="yes">Next</property>
+              </object>
+              <packing>
+                <property name="position">3</property>
+              </packing>
+            </child>
+          </object>
+          <packing>
+            <property name="position">0</property>
+          </packing>
+        </child>
+      </object>
+    </child>
+    <action-widgets>
+      <action-widget response="-6">cancel_button</action-widget>
+      <action-widget response="-5">ok_button</action-widget>
+      <action-widget response="22">next_button</action-widget>
+    </action-widgets>
+  </template>
+</interface>
+"""
+
+
+@Gtk.Template(string=dialog_xml)
+class DialogPresenter(DomainEditorDialog, Gtk.Dialog):
+
+    __gtype_name__ = "DialogPresenter"
+
+    def __init__(self, model, session, transient_for=None):
+
+        super().__init__(model, session, transient_for=transient_for)
+
+    @property
+    def can_commit(self):
+        return True
+
+
+class DomainEditorDialogTests(BaubleTestCase):
+    def test_run(self):
+        family = Family()
+        editor = DialogPresenter(family, self.session)
+
+        with mock.patch("gi.repository.Gtk.Dialog.run") as mock_run:
+            editor.run()
+            mock_run.assert_called_once()
+
+        self.assertTrue(
+            editor.get_widget_for_response(Response.OK).get_visible()
+        )
+        self.assertTrue(
+            editor.get_widget_for_response(Response.CANCEL).get_visible()
+        )
+        self.assertFalse(
+            editor.get_widget_for_response(Response.NEXT).get_visible()
+        )
+
+    def test_connect_after(self):
+        family = Family()
+        editor = DialogPresenter(family, self.session)
+        mock_on_response = mock.Mock()
+
+        with mock.patch("gi.repository.Gtk.Dialog.connect_after") as mock_con:
+            editor.connect_after("response", mock_on_response)
+            mock_con.assert_called_once()
 
 
 class FunctionTests(BaubleTestCase):

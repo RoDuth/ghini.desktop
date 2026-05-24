@@ -22,7 +22,6 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-import traceback
 from pathlib import Path
 from typing import Any
 from typing import Self
@@ -34,25 +33,21 @@ from sqlalchemy import and_
 from sqlalchemy import or_
 from sqlalchemy import select
 from sqlalchemy.engine import Row
-from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 from sqlalchemy.orm.attributes import get_history
 
-import bauble
 from bauble import db
 from bauble import prefs
 from bauble import utils
 from bauble.i18n import _
 from bauble.plugins.plants.genus import Genus
 from bauble.plugins.plants.species import Species
-from bauble.ui import dialogs
 from bauble.ui.handlers import ComboBoxHandler
 from bauble.ui.handlers import EntryHandler
 from bauble.ui.handlers import EntryWCompletionHandler
+from bauble.ui.presenter import DomainEditorDialog
 from bauble.ui.presenter import EditCreateCallback
-from bauble.ui.presenter import GenericPresenter
 from bauble.ui.presenter import Response
-from bauble.ui.presenter import default_dialog_update
 from bauble.ui.utils import default_completion_cell_data_func
 from bauble.ui.utils import format_combo_entry_text
 from bauble.ui.utils import get_widget_value
@@ -126,7 +121,7 @@ def validate_new_not_zero(value: str, *args: Any) -> bool:
 
 @Gtk.Template(filename=str(parent / "plant_editor.ui"))
 class PlantEditorDialog(
-    GenericPresenter[Plant],
+    DomainEditorDialog[Plant],
     Gtk.Dialog,
 ):  # pylint: disable=not-callable,too-many-public-methods
 
@@ -181,15 +176,8 @@ class PlantEditorDialog(
         session: Session,
         transient_for: Gtk.Window | None = None,
     ) -> None:
-        self.session = session
 
-        if model not in self.session:
-            model = self.session.merge(model)
-
-        if bauble.gui and not transient_for:
-            transient_for = bauble.gui.window
-
-        super().__init__(model, self, transient_for=transient_for)
+        super().__init__(model, session, transient_for=transient_for)
 
         self.accession_completion.set_cell_data_func(
             self.accession_cell,
@@ -230,21 +218,21 @@ class PlantEditorDialog(
             self.quantity_entry: "quantity",
             self.location_comboentry: "location",
         }
-        populate_enum_combo(self.type_combo, model, "acc_type")
+        populate_enum_combo(self.type_combo, self.model, "acc_type")
 
         if self.model.id is None and self.model.acc_type is None:
             self.model.acc_type = "Plant"
 
-        if model.quantity == 0:
+        if self.model.quantity == 0:
             self.note_book.set_sensitive(False)
             GLib.idle_add(self.notify_is_dead)
 
         self.refresh_all_widgets_from_model()
 
-        self.map_menu_btn.init(model, map_kml_callback)
-        self.notes_presenter.init(model)
-        self.pictures_presenter.init(model, "pictures", PictureBox)
-        self.history_presenter.init(model)
+        self.map_menu_btn.init(self.model, map_kml_callback)
+        self.notes_presenter.init(self.model)
+        self.pictures_presenter.init(self.model, "pictures", PictureBox)
+        self.history_presenter.init(self.model)
 
         self.location_comboentry.emit("changed")
         self.accession_entry.emit("changed")
@@ -254,15 +242,6 @@ class PlantEditorDialog(
             current = self.get_title()
             self.set_title(f"{current} - {self.model}")
 
-    def allow_ok_only(self) -> None:
-        for response in Response:
-            if response.name == "OK":
-                continue
-
-            widget = self.get_widget_for_response(response.value)
-            if widget:
-                widget.hide()
-
     @property
     def can_commit(self) -> bool:
         modified = self.session.is_modified(self.model)
@@ -270,6 +249,7 @@ class PlantEditorDialog(
             modified = any(
                 self.session.is_modified(i) for i in self.session.dirty
             )
+
         notes_can_commit = self.notes_presenter.can_commit
         pics_can_commit = self.pictures_presenter.can_commit
 
@@ -289,7 +269,7 @@ class PlantEditorDialog(
         self.update()
 
     def update(self) -> None:
-        default_dialog_update(self, self.can_commit)
+        super().update()
 
         loc_history = get_history(self.model, "location")
         qty_history = get_history(self.model, "quantity")
@@ -495,7 +475,6 @@ class PlantEditorDialog(
                 session,
                 transient_for=self,
             )
-            # dialog.allow_ok_only()
 
             if dialog.run() != Response.OK:
                 dialog.destroy()
@@ -509,28 +488,14 @@ class PlantEditorDialog(
         set_widget_value(self.location_comboentry, location)
 
     def do_commit(self) -> bool:
-        try:
-            if self.change_frame.get_sensitive():
-                self.model.changes.append(
-                    PlantChange(
-                        reason=get_widget_value(self.reason_combo),
-                        date=self.change_date_entry.get_text(),
-                    )
+        if self.change_frame.get_sensitive():
+            self.model.changes.append(
+                PlantChange(
+                    reason=get_widget_value(self.reason_combo),
+                    date=self.change_date_entry.get_text(),
                 )
-            self.session.commit()
-            self.session.close()
-            return True
-        except SQLAlchemyError as e:
-            msg = _("Error committing changes.\n\n%s") % utils.xml_safe(e)
-            dialogs.message_details_dialog(
-                msg,
-                traceback.format_exc(),
-                Gtk.MessageType.ERROR,
-                parent=self,
             )
-            self.session.rollback()
-            self.model = self.session.merge(self.model)
-        return False
+        return super().do_commit()
 
     @Gtk.Template.Callback()
     def on_response(
@@ -538,6 +503,8 @@ class PlantEditorDialog(
         dialog: Self,
         response: Response,
     ) -> bool:
+        accession = self.model.accession
+        location = self.model.location
         if response in [
             Response.NEXT,
             Response.OK,
@@ -549,7 +516,7 @@ class PlantEditorDialog(
                 return True
 
         if response == Response.NEXT:
-            create_plant()
+            create_plant(accession=accession, location=location)
 
         if response == Response.SAVE:
             edit_callback([self.model])

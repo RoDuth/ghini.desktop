@@ -18,6 +18,7 @@
 Generic presenter, callbacks, etc..
 """
 import logging
+import traceback
 
 logger = logging.getLogger(__name__)
 
@@ -25,24 +26,29 @@ import gc
 from collections.abc import Callable
 from collections.abc import Sequence
 from enum import IntEnum
-from typing import Protocol
 from typing import Self
+from typing import cast
 
 from gi.repository import GLib
 from gi.repository import GObject
 from gi.repository import Gtk
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
+import bauble
 from bauble import db
-from bauble.ui import utils
-from bauble.ui.views import get_search_view
+from bauble.i18n import _
+from bauble.utils import xml_safe
 
+from . import dialogs
+from . import utils
 from .handlers import ComboBoxHandler
 from .handlers import EntryHandler
 from .handlers import TextBufferHandler
 from .validators import Validator
 from .validators import validate_non_empty
 from .validators import validate_unique
+from .views import get_search_view
 
 
 class Problem:  # pylint: disable=too-few-public-methods
@@ -69,8 +75,8 @@ class GenericPresenter[T]:
     """A presenter with a model that can be used with a Gtk.Template decorated
     class as the view.
 
-    Can be used either as a mixin on the Gtk.Template class itself or inherited
-    from to create a more conventional MVP style (composition).
+    Can be used either as a mixin on the ``Gtk.Template`` class itself or
+    inherited from to create a more conventional MVP style (composition).
 
     NOTE: The handlers provided here are the common ones, more can be defined
     as needed.  Either by using the ``HandlerMethodDescriptor`` base class or
@@ -304,7 +310,8 @@ class GenericPresenter[T]:
             self.view.emit("problems-changed", False)
 
     def has_problem(self, widget: Gtk.Widget) -> bool:
-        for _, w in self.problems:
+        """Is the widget in problems."""
+        for __, w in self.problems:
             if w is widget:
                 return True
         return False
@@ -343,17 +350,90 @@ class Response(IntEnum):
     SAVE = 33
 
 
-class EditorDialog(Protocol):
-    # pylint: disable=too-few-public-methods
+class DomainEditorDialog[T: db.Domain](GenericPresenter[T]):
+    """Editor dialogs base class for dialogs used in the insert menu, etc..
+
+    i.e. As required by ``AddCallback`` and ``EditCreateCallback``.
+    Use as a mixin for a ``Gtk.Template`` decorated ``Gtk.Dialog`` class.
+
+    A subclass of GenericPresenter that expects a ``db.Domain`` model.
+    """
 
     def __init__(
         self,
-        model: db.Domain,
+        model: T,
         session: Session,
-    ) -> None: ...
+        transient_for: Gtk.Window | None = None,
+    ) -> None:
+        self.session = session
 
-    def show(self) -> None: ...
-    def connect_after(self, signal: str, handler: Callable) -> int: ...
+        if model not in self.session:
+            model = self.session.merge(model)
+
+        if bauble.gui and not transient_for:
+            transient_for = bauble.gui.window
+
+        super().__init__(model, self, transient_for=transient_for)
+
+    @property
+    def can_commit(self) -> bool:
+        raise NotImplementedError
+
+    def run(self) -> Response:
+        # pylint: disable=no-member
+        for response in Response:
+            if response in [Response.OK, Response.CANCEL]:
+                continue
+
+            widget = cast(Gtk.Dialog, super()).get_widget_for_response(
+                response.value
+            )
+            if widget:
+                widget.hide()
+
+        return cast(Gtk.Dialog, super()).run()
+
+    def show(self) -> None:
+        logger.debug("%s.show", type(self).__name__)
+        cast(Gtk.Dialog, super()).show()  # pylint: disable=no-member
+
+    def connect_after(
+        self,
+        signal: str,
+        handler: Callable,
+    ) -> int:
+        logger.debug("%s.connect_after", type(self).__name__)
+        # pylint: disable=no-member
+        return cast(Gtk.Dialog, super()).connect_after(signal, handler)
+
+    def update(self) -> None:
+        for response in Response:
+            if response == Response.CANCEL:
+                continue
+
+            # pylint: disable=no-member
+            widget = cast(Gtk.Dialog, super()).get_widget_for_response(
+                response.value
+            )
+            if widget:
+                widget.set_sensitive(self.can_commit)
+
+    def do_commit(self) -> bool:
+        try:
+            self.session.commit()
+            self.session.close()
+            return True
+        except SQLAlchemyError as e:
+            msg = _("Error committing changes.\n\n%s") % xml_safe(e)
+            dialogs.message_details_dialog(
+                msg,
+                traceback.format_exc(),
+                Gtk.MessageType.ERROR,
+                parent=cast(Gtk.Dialog, self),
+            )
+            self.session.rollback()
+            self.model = self.session.merge(self.model)
+        return False
 
 
 class AddCallback:
@@ -361,7 +441,7 @@ class AddCallback:
 
     def __init__(
         self,
-        dialog_class: type[EditorDialog],
+        dialog_class: type[DomainEditorDialog],
         obj_class: type[db.Domain],
         parent_attr: str,
     ) -> None:
@@ -383,6 +463,8 @@ class AddCallback:
             model=model,
             session=db.Session(),
         )
+
+        dialog.connect_after("response", _on_domain_editor_response)
         dialog.show()
 
         if hasattr(dialog, f"lock_{self.parent_attr}"):
@@ -397,13 +479,13 @@ class EditCreateCallback:
 
     NOTE: these callbacks will not block the UI as they don't use
     ``dialog.run()``, instead using ``dialog.show()``.  This requires the
-    EditorDialog's themselves to handle responses, including calling
+    DomainEditorDialog's themselves to handle responses, including calling
     ``self.destroy()`` when complete.
     """
 
     def __init__(
         self,
-        dialog_class: type[EditorDialog],
+        dialog_class: type[DomainEditorDialog],
         obj_class: type[db.Domain],
     ) -> None:
         self.dialog_class = dialog_class
@@ -425,30 +507,34 @@ class EditCreateCallback:
         """
         if objs:
             # edit
-            obj = objs[0]
+            for obj in objs:
+                self.start_dialog(obj)
         else:
             # create
             obj = self.obj_class(**kwargs)
+            self.start_dialog(obj)
+
+        return False
+
+    def start_dialog(self, obj: db.Domain) -> None:
 
         dialog = self.dialog_class(
             model=obj,
             session=db.Session(),
         )
 
-        dialog.connect_after("response", self.update_search_view)
+        dialog.connect_after("response", _on_domain_editor_response)
         dialog.show()
 
-        return False
 
-    @staticmethod
-    def update_search_view(
-        _dialog: EditorDialog,
-        response: Response,
-    ) -> None:
-        if response in [
-            Response.NEXT,
-            Response.ADD,
-            Response.OK,
-            Response.SAVE,
-        ]:
-            get_search_view().update()
+def _on_domain_editor_response(
+    _dialog: DomainEditorDialog,
+    response: Response,
+) -> None:
+    if response in [
+        Response.NEXT,
+        Response.ADD,
+        Response.OK,
+        Response.SAVE,
+    ]:
+        get_search_view().update()

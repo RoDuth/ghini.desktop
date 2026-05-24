@@ -160,19 +160,6 @@ class GenusEditorDialogTests(BaubleTestCase):
             "GenusEditorDialog not deleted",
         )
 
-    def test_allow_ok_only(self):
-        editor = GenusEditorDialog(Genus(), self.session)
-        editor.allow_ok_only()
-
-        for response in Response:
-            widget = editor.get_widget_for_response(response.value)
-            if response == Response.OK:
-                self.assertTrue(widget.get_visible())
-            elif widget:
-                self.assertFalse(widget.get_visible())
-
-        editor.destroy()
-
     def test_can_commit(self):
         self.session.add(Family(epithet="Myrtaceae"))
         self.session.commit()
@@ -728,7 +715,7 @@ class GenusCompletionTests(PlantTestCase):
         genus_cell_data_func(None, mock_renderer, mock_model, 0)
 
         mock_renderer.set_property.assert_called_with(
-            "markup", "× <i>Butyagrus</i> Vorster  (<small>Arecaceae</small>)"
+            "markup", "× <i>Butyagrus</i> Vorster  <small>(Arecaceae)</small>"
         )
 
         gen = self.session.get(Genus, 2)
@@ -738,7 +725,7 @@ class GenusCompletionTests(PlantTestCase):
         genus_cell_data_func(None, mock_renderer, mock_model, 0)
 
         mock_renderer.set_property.assert_called_with(
-            "markup", "<i>Encyclia</i>  (<small>Orchidaceae</small>)"
+            "markup", "<i>Encyclia</i>  <small>(Orchidaceae)</small>"
         )
 
     def test_genus_match_func(self):

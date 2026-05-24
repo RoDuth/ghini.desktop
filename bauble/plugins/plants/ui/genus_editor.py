@@ -22,7 +22,6 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-import traceback
 from pathlib import Path
 from typing import Self
 from typing import cast
@@ -32,23 +31,19 @@ from gi.repository import Gtk
 from sqlalchemy import inspect
 from sqlalchemy import select
 from sqlalchemy.engine import Row
-from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 from sqlalchemy.sql import Select
 from sqlalchemy.sql import func
 
-import bauble
 from bauble import db
 from bauble import utils
 from bauble.i18n import _
-from bauble.ui import dialogs
 from bauble.ui.handlers import EntryWCompletionHandler
 from bauble.ui.presenter import AddCallback
+from bauble.ui.presenter import DomainEditorDialog
 from bauble.ui.presenter import EditCreateCallback
-from bauble.ui.presenter import GenericPresenter
 from bauble.ui.presenter import Problem
 from bauble.ui.presenter import Response
-from bauble.ui.presenter import default_dialog_update
 from bauble.ui.utils import default_completion_match_func
 from bauble.ui.utils import populate_enum_combo
 from bauble.ui.widgets import LinksMenuButton
@@ -169,13 +164,13 @@ def genus_cell_data_func(
     if inspect(value).persistent:
         renderer.set_property(
             "markup",
-            f"{value.markup(authors=True)}  (<small>{value.family}</small>)",
+            f"{value.markup(authors=True)}  <small>({value.family})</small>",
         )
 
 
 @Gtk.Template(filename=str(parent / "genus_editor.ui"))
 class GenusEditorDialog(
-    GenericPresenter[Genus],
+    DomainEditorDialog[Genus],
     Gtk.Dialog,
 ):  # pylint: disable=not-callable,too-many-public-methods
 
@@ -214,15 +209,8 @@ class GenusEditorDialog(
         session: Session,
         transient_for: Gtk.Window | None = None,
     ) -> None:
-        self.session = session
 
-        if model not in self.session:
-            model = self.session.merge(model)
-
-        if bauble.gui and not transient_for:
-            transient_for = bauble.gui.window
-
-        super().__init__(model, self, transient_for=transient_for)
+        super().__init__(model, session, transient_for=transient_for)
 
         self.family_completion.set_cell_data_func(
             self.family_cell,
@@ -242,9 +230,9 @@ class GenusEditorDialog(
             self.cites_combo: "_cites",
         }
 
-        populate_enum_combo(self.hybrid_combo, model, "hybrid")
-        populate_enum_combo(self.qualifier_combo, model, "qualifier")
-        populate_enum_combo(self.cites_combo, model, "_cites")
+        populate_enum_combo(self.hybrid_combo, self.model, "hybrid")
+        populate_enum_combo(self.qualifier_combo, self.model, "qualifier")
+        populate_enum_combo(self.cites_combo, self.model, "_cites")
 
         self.refresh_all_widgets_from_model()
         self.genus_entry.emit("changed")
@@ -276,15 +264,6 @@ class GenusEditorDialog(
         if self.model.epithet:
             current = self.get_title()
             self.set_title(f"{current} - {self.model.string(author=True)}")
-
-    def allow_ok_only(self) -> None:
-        for response in Response:
-            if response.name == "OK":
-                continue
-
-            widget = self.get_widget_for_response(response.value)
-            if widget:
-                widget.hide()
 
     @property
     def can_commit(self) -> bool:
@@ -388,7 +367,6 @@ class GenusEditorDialog(
                 session,
                 transient_for=self,
             )
-            dialog.allow_ok_only()
 
             if dialog.run() != Response.OK:
                 dialog.destroy()
@@ -483,7 +461,7 @@ class GenusEditorDialog(
 
     def update(self) -> None:
         self.refresh_cites_label()
-        default_dialog_update(self, self.can_commit)
+        super().update()
 
     def refresh_cites_label(self) -> None:
         fam_cites = "N/A"
@@ -623,23 +601,6 @@ class GenusEditorDialog(
         message_box.show_all()
         self.revealer.add(message_box)
         self.revealer.set_reveal_child(True)
-
-    def do_commit(self) -> bool:
-        try:
-            self.session.commit()
-            self.session.close()
-            return True
-        except SQLAlchemyError as e:
-            msg = _("Error committing changes.\n\n%s") % utils.xml_safe(e)
-            dialogs.message_details_dialog(
-                msg,
-                traceback.format_exc(),
-                Gtk.MessageType.ERROR,
-                parent=self,
-            )
-            self.session.rollback()
-            self.model = self.session.merge(self.model)
-        return False
 
     @Gtk.Template.Callback()
     def on_response(

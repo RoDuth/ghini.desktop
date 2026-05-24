@@ -48,7 +48,6 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 from sqlalchemy.sql import ColumnElement
 
-import bauble
 from bauble import db
 from bauble import utils
 from bauble.i18n import _
@@ -57,8 +56,8 @@ from bauble.ui import dialogs
 from bauble.ui.handlers import ComboBoxHandler
 from bauble.ui.handlers import EntryWCompletionHandler
 from bauble.ui.handlers import ToggleButtonHandler
+from bauble.ui.presenter import DomainEditorDialog
 from bauble.ui.presenter import EditCreateCallback
-from bauble.ui.presenter import GenericPresenter
 from bauble.ui.presenter import Problem
 from bauble.ui.presenter import Response
 from bauble.ui.presenter import default_dialog_update
@@ -199,7 +198,7 @@ class SpeciesFullName(TypedDict):
 
 @Gtk.Template(filename=str(parent / "species_editor.ui"))
 class SpeciesEditorDialog(
-    GenericPresenter[Species],
+    DomainEditorDialog[Species],
     Gtk.Dialog,
 ):  # pylint: disable=not-callable,too-many-public-methods
 
@@ -271,17 +270,10 @@ class SpeciesEditorDialog(
         session: Session,
         transient_for: Gtk.Window | None = None,
     ) -> None:
-        self.session = session
 
-        if model not in self.session:
-            model = self.session.merge(model)
+        super().__init__(model, session, transient_for=transient_for)
         # get the starting position
-        self.capture_start_sp(model)
-
-        if bauble.gui and not transient_for:
-            transient_for = bauble.gui.window
-
-        super().__init__(model, self, transient_for=transient_for)
+        self.capture_start_sp(self.model)
 
         self.genus_completion.set_cell_data_func(
             self.genus_cell,
@@ -320,9 +312,9 @@ class SpeciesEditorDialog(
         self._setup_custom_field("_sp_custom1", self._sp_custom1_combo)
         self._setup_custom_field("_sp_custom2", self._sp_custom2_combo)
 
-        populate_enum_combo(self.hybrid_combo, model, "hybrid")
-        populate_enum_combo(self.qualifier_combo, model, "sp_qual")
-        populate_enum_combo(self.cites_combo, model, "_cites")
+        populate_enum_combo(self.hybrid_combo, self.model, "hybrid")
+        populate_enum_combo(self.qualifier_combo, self.model, "sp_qual")
+        populate_enum_combo(self.cites_combo, self.model, "_cites")
 
         symbols = (
             self.session.execute(select(Species.trademark_symbol).distinct())
@@ -355,12 +347,12 @@ class SpeciesEditorDialog(
             species_match_func,
             species_cell_data_func,
         )
-        self.links_menu_btn.init(model, SPECIES_WEB_BUTTON_DEFS_PREFS)
-        self.infrasp_presenter.init(model)
-        self.dist_presenter.init(model, self.session)
-        self.vernacular_presenter.init(model, self.session, self.revealer)
-        self.notes_presenter.init(model)
-        self.pictures_presenter.init(model, "_pictures", PictureBox)
+        self.links_menu_btn.init(self.model, SPECIES_WEB_BUTTON_DEFS_PREFS)
+        self.infrasp_presenter.init(self.model)
+        self.dist_presenter.init(self.model, self.session)
+        self.vernacular_presenter.init(self.model, self.session, self.revealer)
+        self.notes_presenter.init(self.model)
+        self.pictures_presenter.init(self.model, "_pictures", PictureBox)
 
         if any(
             getattr(self.model, i)
@@ -390,15 +382,6 @@ class SpeciesEditorDialog(
             logger.debug("has label_markup expanding")
             self.label_markup_expander.set_expanded(True)
             self.label_markup_entry.emit("changed")
-
-    def allow_ok_only(self) -> None:
-        for response in Response:
-            if response.name == "OK":
-                continue
-
-            widget = self.get_widget_for_response(response.value)
-            if widget:
-                widget.hide()
 
     @property
     def can_commit(self) -> bool:
@@ -598,7 +581,6 @@ class SpeciesEditorDialog(
                 session,
                 transient_for=self,
             )
-            dialog.allow_ok_only()
 
             if dialog.run() != Response.OK:
                 dialog.destroy()
