@@ -111,6 +111,10 @@ def create_message_dialog(
         message_type=typ,
         buttons=buttons,
     )
+    if typ == Gtk.MessageType.WARNING:
+        # Not 100% reliable but better than not.
+        dialog.set_keep_above(True)
+
     dialog.set_position(Gtk.WindowPosition.CENTER)
     dialog.set_title("Ghini")
     dialog.set_markup(msg)

@@ -27,6 +27,8 @@ import bauble
 from bauble import pluginmgr
 from bauble import prefs
 from bauble import task
+from bauble.plugins.plants.family import Family
+from bauble.plugins.plants.ui.family_editor import FamilyEditorDialog
 from bauble.test import BaubleTestCase
 from bauble.test import update_gui
 from bauble.ui.gui import GUI
@@ -790,7 +792,7 @@ class GUITests(BaubleTestCase):
 
     @mock.patch("bauble.ui.dialogs.yes_no_dialog")
     @mock.patch("bauble.ui.gui.bauble.task.running")
-    def test_on_delete_event(self, mock_running, mock_dialog):
+    def test_on_delete_event_w_task(self, mock_running, mock_dialog):
         gui = GUI()
         # no tasks running
         mock_running.return_value = False
@@ -817,6 +819,41 @@ class GUITests(BaubleTestCase):
         self.assertTrue(gui.on_delete_event(None, None))
         self.assertEqual(mock_dialog.call_count, 2)
         mock_dialog.reset_mock()
+
+        gui.destroy()
+
+    @mock.patch("bauble.ui.dialogs.message_dialog")
+    def test_on_delete_event_w_open_dialogs(self, mock_dialog):
+        gui = GUI()
+        # no dialogs
+        self.assertFalse(gui.on_delete_event(None, None))
+
+        # wth dialog user backs out
+        dialog = FamilyEditorDialog(
+            Family(),
+            self.session,
+            transient_for=gui.window,
+        )
+        mock_dialog.return_value = Gtk.ResponseType.NO
+
+        self.assertTrue(gui.on_delete_event(None, None))
+        mock_dialog.assert_called_once()
+
+        mock_dialog.reset_mock()
+        dialog.destroy()
+
+        # with dialog user closes
+        dialog = FamilyEditorDialog(
+            Family(),
+            self.session,
+            transient_for=gui.window,
+        )
+        mock_dialog.return_value = Gtk.ResponseType.YES
+
+        self.assertFalse(gui.on_delete_event(None, None))
+        mock_dialog.assert_called_once()
+
+        dialog.destroy()
 
         gui.destroy()
 

@@ -115,13 +115,13 @@ class DialogTest(TestCase):
         metrics = mock_dialog().get_pango_context().get_metrics()
         metrics.get_approximate_char_width.return_value = 10
 
-        message_dialog(msg)
+        message_dialog(msg, typ=Gtk.MessageType.WARNING)
 
         mock_dialog.assert_called_with(
             modal=True,
             destroy_with_parent=True,
             transient_for=None,
-            message_type=Gtk.MessageType.INFO,
+            message_type=Gtk.MessageType.WARNING,
             buttons=Gtk.ButtonsType.OK,
         )
         mock_dialog().run.assert_called_once()

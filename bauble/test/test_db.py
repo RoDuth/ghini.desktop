@@ -894,3 +894,49 @@ class GlobalFunctionsTests(BaubleTestCase):
         db._create_all()
 
         self.assertTrue(inspect(db.engine).has_table("spam_250606_table"))
+
+    def test_is_modified(self):
+        self.assertFalse(db.is_modified(self.session))
+
+        # new
+        obj = meta.BaubleMeta(name="spam", value="value")
+        self.session.add(obj)
+
+        self.assertTrue(db.is_modified(self.session))
+
+        self.session.commit()
+
+        self.assertFalse(db.is_modified(self.session))
+
+        # delete
+        self.session.delete(obj)
+
+        self.assertTrue(db.is_modified(self.session))
+
+        self.session.commit()
+
+        self.assertFalse(db.is_modified(self.session))
+
+        family = Family(epithet="Sterculiacae")
+        genus = Genus(epithet="Sterculia", family=family)
+        self.session.add(genus)
+        # new
+        self.assertTrue(db.is_modified(self.session))
+
+        self.session.commit()
+
+        self.assertFalse(db.is_modified(self.session))
+
+        # dirty
+        genus.qualifier = "s. lat."
+
+        self.assertTrue(db.is_modified(self.session))
+
+        self.session.commit()
+
+        self.assertFalse(db.is_modified(self.session))
+
+        # dirty related
+        family.epithet = "Malvaceae"
+
+        self.assertTrue(db.is_modified(self.session))

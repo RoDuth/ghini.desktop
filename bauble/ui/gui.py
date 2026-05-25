@@ -60,6 +60,7 @@ from bauble.search.sql_search import SQLSearchDialog
 from bauble.search.stored_queries import StoredQueriesDialog
 from bauble.ui import dialogs
 from bauble.ui.connmgr import start_connection_manager
+from bauble.ui.presenter import DomainEditorDialog
 from bauble.ui.utils import clear_model
 from bauble.ui.views import SearchView
 from bauble.ui.views import get_search_view
@@ -1247,10 +1248,31 @@ class GUI:
         about.run()
         about.destroy()
 
-    @staticmethod
     def on_delete_event(
-        _window: Gtk.ApplicationWindow, _event: Gdk.Event
+        self,
+        _window: Gtk.ApplicationWindow,
+        _event: Gdk.Event,
     ) -> bool:
+        for win in self.window.list_toplevels():
+            win = cast(Gtk.Window, win)
+            if isinstance(win, DomainEditorDialog) and db.is_modified(
+                win.session
+            ):
+                win.present()
+                response = dialogs.message_dialog(
+                    _(
+                        "You have uncommitted changes of type %s, closing now "
+                        "will lose them!\n\nCLOSE ANYWAY?"
+                    )
+                    % type(win.model).__name__,
+                    Gtk.MessageType.WARNING,
+                    Gtk.ButtonsType.YES_NO,
+                )
+                if response == Gtk.ResponseType.YES:
+                    continue
+                # prevent close
+                return True
+
         if bauble.task.running():
             msg = _("Would you like to cancel the current tasks?")
             if not dialogs.yes_no_dialog(msg):
@@ -1264,6 +1286,7 @@ class GUI:
         return False
 
     def on_destroy(self, _window: Gtk.ApplicationWindow) -> None:
+
         active_view = self.get_view()
         if active_view:
             active_view.cancel_threads()

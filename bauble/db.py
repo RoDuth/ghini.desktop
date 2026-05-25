@@ -1326,3 +1326,15 @@ def post_gui():
 
     item = Gio.MenuItem.new(_("Create Missing Tables"), "win.db_create_all")
     bauble.gui.options_menu.append_item(item)
+
+
+def is_modified(session: SASession) -> bool:
+    """Has the supplied session got changes not yet committed."""
+    if session.new or session.deleted:
+        return True
+
+    for i in session.dirty:
+        if session.is_modified(i):
+            return True
+
+    return False
