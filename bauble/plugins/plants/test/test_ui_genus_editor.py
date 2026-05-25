@@ -319,6 +319,21 @@ class GenusEditorDialogTests(BaubleTestCase):
         child.get_children()[1].get_children()[0].emit("clicked")
 
         mock_callback.assert_called_once()
+        mock_callback.reset_mock()
+
+        editor.destroy()
+
+        # yes modal
+        editor = GenusEditorDialog(Genus(), self.session)
+        with mock.patch.object(editor, "get_modal") as mock_get_modal:
+            mock_get_modal.return_value = True
+            editor.genus_entry.set_text("Sterculia")
+            update_gui()
+            child = editor.revealer.get_child()
+            child.get_children()[1].get_children()[0].emit("clicked")
+            mock_callback.assert_not_called()
+
+        self.assertIs(editor.model, self.session.merge(genus))
 
         editor.destroy()
 

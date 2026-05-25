@@ -368,7 +368,7 @@ class GenusEditorDialog(
                 transient_for=self,
             )
 
-            if dialog.run() != Response.OK:
+            if dialog.run() not in [Response.OK, Response.RETURN]:
                 dialog.destroy()
                 return
 
@@ -508,26 +508,38 @@ class GenusEditorDialog(
             GLib.idle_add(self.notify_existing_genus, existing)
 
     def notify_existing_genus(self, existing: Genus) -> None:
+        modal = self.get_modal()
+
         def on_yes_clicked(_button: Gtk.Button) -> None:
             self.revealer.set_reveal_child(False)
+
+            if modal:
+                # just return with model in place, note if this genus is also a
+                # synonym the calling dialog should handle it.
+                self.session.expunge(self.model)
+                self.model = existing
+                self.emit("response", Response.RETURN)
+                return
+
             self.emit("response", Response.CANCEL)
             edit_callback([existing])
 
         def on_no_clicked(_button: Gtk.Button) -> None:
             self.revealer.set_reveal_child(False)
 
-        msg = _(
-            "<b>%(genus)s (%(family)s)</b> already exists.\n\n"
-            "Would you like to edit the existing genus instead?"
-        ) % {
-            "genus": utils.xml_safe(
-                existing.string(
-                    author=True,
-                    qualifier=True,
-                )
-            ),
-            "family": utils.xml_safe(existing.family),
-        }
+        genus = utils.xml_safe(existing.string(author=True, qualifier=True))
+        family = utils.xml_safe(existing.family)
+
+        if modal:
+            msg = _(
+                "<b>%(genus)s (%(family)s)</b> already exists.\n\n"
+                "Would you like to use this genus instead?"
+            ) % {"genus": genus, "family": family}
+        else:
+            msg = _(
+                "<b>%(genus)s (%(family)s)</b> already exists.\n\n"
+                "Would you like to edit the existing genus instead?"
+            ) % {"genus": genus, "family": family}
 
         message_box = YesNoMessageBox(msg, on_yes_clicked, on_no_clicked)
 
@@ -609,7 +621,19 @@ class GenusEditorDialog(
         response: Response,
     ) -> bool:
         family = self.model.family
+
+        name = str(response)
+        if response in Response:
+            name = Response(response).name
+
+        logger.debug("Response: %s", name)
+
+        if response == Response.RETURN:
+            logger.debug("plain return, no commit")
+            return False
+
         if response in [Response.NEXT, Response.ADD, Response.OK]:
+            logger.debug("committing")
             if self.do_commit() is False:
                 logger.debug("commit failed")
                 dialog.stop_emission_by_name("response")

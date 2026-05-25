@@ -348,6 +348,7 @@ class Response(IntEnum):
     OK = -5
     CANCEL = -6
     SAVE = 33
+    RETURN = 44
 
 
 class DomainEditorDialog[T: db.Domain](GenericPresenter[T]):
@@ -464,6 +465,7 @@ class AddCallback:
             session=db.Session(),
         )
 
+        # update searchview
         dialog.connect_after("response", _on_domain_editor_response)
         dialog.show()
 
@@ -523,6 +525,7 @@ class EditCreateCallback:
             session=db.Session(),
         )
 
+        # update searchview
         dialog.connect_after("response", _on_domain_editor_response)
         dialog.show()
 

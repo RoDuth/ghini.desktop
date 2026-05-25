@@ -36,7 +36,7 @@ class FunctionTests(BaubleTestCase):
         species = Species(genus=genus, epithet="scandens")
         accession = Accession(code="2001.0001", species=species)
         self.session.add(accession)
-        self.session.flush()
+        self.session.commit()
 
         with mock.patch.object(
             add_plants_callback,

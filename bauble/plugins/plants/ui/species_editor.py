@@ -582,7 +582,7 @@ class SpeciesEditorDialog(
                 transient_for=self,
             )
 
-            if dialog.run() != Response.OK:
+            if dialog.run() not in [Response.OK, Response.RETURN]:
                 dialog.destroy()
                 return
 

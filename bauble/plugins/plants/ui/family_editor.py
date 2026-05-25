@@ -196,25 +196,37 @@ class FamilyEditorDialog(
         self.on_family_author_entry_changed(entry)
 
     def notify_existing_family(self, existing: Family) -> None:
+        modal = self.get_modal()
+
         def on_yes_clicked(_button: Gtk.Button) -> None:
             self.revealer.set_reveal_child(False)
+
+            if modal:
+                # just return with model in place, note if this family is also
+                # a synonym the calling dialog should handle it.
+                self.session.expunge(self.model)
+                self.model = existing
+                self.emit("response", Response.RETURN)
+                return
+
             self.emit("response", Response.CANCEL)
             edit_callback([existing])
 
         def on_no_clicked(_button: Gtk.Button) -> None:
             self.revealer.set_reveal_child(False)
 
-        msg = _(
-            "<b>%(family)s</b> already exists.\n\n"
-            "Would you like to edit the existing family instead?"
-        ) % {
-            "family": utils.xml_safe(
-                existing.string(
-                    author=True,
-                    qualifier=True,
-                )
-            ),
-        }
+        family = utils.xml_safe(existing.string(author=True, qualifier=True))
+
+        if modal:
+            msg = _(
+                "<b>%(family)s</b> already exists.\n\n"
+                "Would you like to use this family instead?"
+            ) % {"family": family}
+        else:
+            msg = _(
+                "<b>%(family)s</b> already exists.\n\n"
+                "Would you like to edit the existing family instead?"
+            ) % {"family": family}
 
         message_box = YesNoMessageBox(msg, on_yes_clicked, on_no_clicked)
 
@@ -324,7 +336,18 @@ class FamilyEditorDialog(
         dialog: Self,
         response: Response,
     ) -> bool:
+        name = str(response)
+        if response in Response:
+            name = Response(response).name
+
+        logger.debug("Response: %s", name)
+
+        if response == Response.RETURN:
+            logger.debug("plain return, no commit")
+            return False
+
         if response in [Response.NEXT, Response.ADD, Response.OK]:
+            logger.debug("committing")
             if self.do_commit() is False:
                 logger.debug("commit failed")
                 dialog.stop_emission_by_name("response")
