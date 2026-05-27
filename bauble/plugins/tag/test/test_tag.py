@@ -41,13 +41,13 @@ tag_object_test_data = (
     {
         "id": 1,
         "obj_id": 1,
-        "obj_class": f"{Tag.__module__}.{Tag.__name__}",
+        "obj_class": Tag.__tablename__,
         "tag_id": 2,
     },
     {
         "id": 2,
         "obj_id": 5,
-        "obj_class": f"{Accession.__module__}.{Accession.__name__}",
+        "obj_class": Accession.__name__,
         "tag_id": 2,
     },
 )

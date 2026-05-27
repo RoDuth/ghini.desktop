@@ -2,14 +2,16 @@
 <!-- Generated with glade 3.40.0 -->
 <interface>
   <requires lib="gtk+" version="3.24"/>
-  <object class="GtkTextBuffer" id="tag_desc_textbuffer">
+  <object class="GtkTextBuffer" id="description_textbuffer">
     <signal name="changed" handler="on_text_buffer_changed" swapped="no"/>
   </object>
   <template class="TagEditorDialog" parent="GtkDialog">
     <property name="title" translatable="yes">Tag Editor</property>
-    <property name="can-focus">False</property>
+    <property name="can-focus">True</property>
+    <property name="destroy-with-parent">True</property>
     <property name="border-width">5</property>
     <property name="type-hint">dialog</property>
+    <signal name="response" handler="on_response" swapped="no"/>
     <child internal-child="vbox">
       <object class="GtkBox">
         <property name="visible">True</property>
@@ -22,7 +24,7 @@
             <property name="can-focus">False</property>
             <property name="layout-style">end</property>
             <child>
-              <object class="GtkButton" id="tag_cancel_button">
+              <object class="GtkButton" id="cancel_button">
                 <property name="label" translatable="yes">Cancel</property>
                 <property name="visible">True</property>
                 <property name="can-focus">True</property>
@@ -35,7 +37,7 @@
               </packing>
             </child>
             <child>
-              <object class="GtkButton" id="tag_ok_button">
+              <object class="GtkButton" id="ok_button">
                 <property name="label" translatable="yes">OK</property>
                 <property name="visible">True</property>
                 <property name="can-focus">True</property>
@@ -90,9 +92,10 @@
               </packing>
             </child>
             <child>
-              <object class="GtkEntry" id="tag_name_entry">
+              <object class="GtkEntry" id="name_entry">
                 <property name="visible">True</property>
                 <property name="can-focus">True</property>
+                <property name="has-focus">True</property>
                 <property name="hexpand">True</property>
                 <property name="invisible-char">•</property>
                 <property name="primary-icon-activatable">False</property>
@@ -112,13 +115,13 @@
                 <property name="border-width">2</property>
                 <property name="label-xalign">0</property>
                 <child>
-                  <object class="GtkTextView">
+                  <object class="GtkTextView" id="description_textview">
                     <property name="visible">True</property>
                     <property name="can-focus">True</property>
                     <property name="hexpand">True</property>
                     <property name="border-width">2</property>
                     <property name="wrap-mode">word</property>
-                    <property name="buffer">tag_desc_textbuffer</property>
+                    <property name="buffer">description_textbuffer</property>
                     <property name="accepts-tab">False</property>
                   </object>
                 </child>
@@ -138,8 +141,8 @@
       </object>
     </child>
     <action-widgets>
-      <action-widget response="-6">tag_cancel_button</action-widget>
-      <action-widget response="-5">tag_ok_button</action-widget>
+      <action-widget response="-6">cancel_button</action-widget>
+      <action-widget response="-5">ok_button</action-widget>
     </action-widgets>
   </template>
 </interface>

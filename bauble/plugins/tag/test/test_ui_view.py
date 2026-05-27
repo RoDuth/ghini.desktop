@@ -1,7 +1,7 @@
 # pylint: disable=no-self-use,protected-access,too-many-public-methods
 # Copyright (c) 2005,2006,2007,2008,2009 Brett Adams <brett@belizebotanic.org>
 # Copyright (c) 2012-2015 Mario Frasca <mario@anche.no>
-# Copyright (c) 2021-2025 Ross Demuth <rossdemuth123@gmail.com>
+# Copyright (c) 2021-2026 Ross Demuth <rossdemuth123@gmail.com>
 #
 # This file is part of ghini.desktop.
 #
@@ -29,6 +29,7 @@ from bauble.test import BaubleTestCase
 from .. import Tag
 from ..ui.view import TagInfoBox
 from ..ui.view import TagsScroller
+from ..ui.view import remove_callback
 
 
 class TagInfoBoxTest(BaubleTestCase):
@@ -114,3 +115,93 @@ class TagsScrollerTests(BaubleTestCase):
 
         tags_page.on_row_activated(None, 0, None, send_command=mock_send)
         mock_send.assert_called_with("tag='foo'")
+
+
+class GlobalFunctionsTests(BaubleTestCase):
+
+    @mock.patch("bauble.plugins.tag.menu_manager.reset")
+    @mock.patch("bauble.ui.dialogs.message_details_dialog")
+    @mock.patch("bauble.ui.dialogs.yes_no_dialog")
+    def test_remove_callback_no_confirm(self, mock_ynd, mock_mdd, mock_reset):
+        mock_ynd.return_value = False
+
+        tag = Tag(tag="Foo")
+        self.session.add(tag)
+        self.session.commit()
+
+        result = remove_callback([tag])
+        self.session.flush()
+
+        mock_mdd.assert_not_called()
+        # effect
+        mock_ynd.assert_called_with(
+            "Are you sure you want to remove Tag: Foo?"
+        )
+        mock_reset.assert_not_called()
+
+        self.assertFalse(result)
+        matching = self.session.query(Tag).filter_by(tag="Foo").all()
+        self.assertEqual(matching, [tag])
+
+    @mock.patch("bauble.plugins.tag.menu_manager.reset")
+    @mock.patch("bauble.ui.dialogs.message_details_dialog")
+    @mock.patch("bauble.ui.dialogs.yes_no_dialog")
+    def test_remove_callback_confirm(self, mock_ynd, mock_mdd, mock_reset):
+        mock_ynd.return_value = True
+
+        tag = Tag(tag="Foo")
+        self.session.add(tag)
+        self.session.flush()
+
+        result = remove_callback([tag])
+        self.session.flush()
+
+        mock_reset.assert_called()
+        mock_mdd.assert_not_called()
+        mock_ynd.assert_called_with(
+            "Are you sure you want to remove Tag: Foo?"
+        )
+        self.assertEqual(result, True)
+        matching = self.session.query(Tag).filter_by(tag="Foo").all()
+        self.assertEqual(matching, [])
+
+    @mock.patch("bauble.plugins.tag.menu_manager.reset")
+    @mock.patch("bauble.ui.dialogs.message_details_dialog")
+    @mock.patch("bauble.ui.dialogs.yes_no_dialog")
+    def test_remove_callback_no_object_session_bails(
+        self,
+        mock_ynd,
+        mock_mdd,
+        mock_reset,
+    ):
+        tag = Tag(tag="Foo")
+
+        with self.assertLogs(level="WARNING") as logs:
+            result = remove_callback([tag])
+
+        string = "no object session bailing."
+        self.assertTrue(any(string in i for i in logs.output))
+        mock_reset.assert_not_called()
+        mock_mdd.assert_not_called()
+        mock_ynd.assert_not_called()
+        self.assertEqual(result, False)
+
+    @mock.patch("bauble.plugins.tag.menu_manager.reset")
+    @mock.patch("bauble.ui.dialogs.message_details_dialog")
+    @mock.patch("bauble.ui.dialogs.yes_no_dialog")
+    def test_remove_callback_warns_if_exception(
+        self,
+        mock_ynd,
+        mock_mdd,
+        mock_reset,
+    ):
+        mock_ynd.return_value = True
+        tag = Tag()
+        self.session.add(tag)
+
+        result = remove_callback([tag])
+
+        mock_reset.assert_called()
+        mock_ynd.assert_called()
+        mock_mdd.assert_called()
+        self.assertEqual(result, True)

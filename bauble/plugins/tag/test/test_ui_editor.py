@@ -1,7 +1,7 @@
 # pylint: disable=no-self-use,protected-access
 # Copyright (c) 2005,2006,2007,2008,2009 Brett Adams <brett@belizebotanic.org>
 # Copyright (c) 2012-2015 Mario Frasca <mario@anche.no>
-# Copyright (c) 2021-2025 Ross Demuth <rossdemuth123@gmail.com>
+# Copyright (c) 2021-2026 Ross Demuth <rossdemuth123@gmail.com>
 #
 # This file is part of ghini.desktop.
 #
@@ -24,19 +24,24 @@ Tag editor tests
 from unittest import mock
 
 from gi.repository import Gtk
+from sqlalchemy import select
+from sqlalchemy.exc import SQLAlchemyError
 
 import bauble
+from bauble import db
+from bauble import utils
 from bauble.error import BaubleError
-from bauble.error import DatabaseError
 from bauble.plugins.plants import Family
 from bauble.test import BaubleTestCase
+from bauble.test import update_gui
 from bauble.ui.gui import GUI
+from bauble.ui.presenter import Response
+from bauble.ui.utils import set_widget_value
 
-from .. import Tag
+from ..model import Tag
 from ..ui.editor import TagEditorDialog
 from ..ui.editor import TagItemsDialog
 from ..ui.editor import edit_callback
-from ..ui.editor import remove_callback
 
 
 class TagEditorDialogTests(BaubleTestCase):
@@ -51,23 +56,24 @@ class TagEditorDialogTests(BaubleTestCase):
 
     def test_can_create_dialog(self):
         model = Tag()
-        dialog = TagEditorDialog(model)
+        self.session.add(model)
+        dialog = TagEditorDialog(model, self.session)
         self.assertEqual(dialog.model, model)
-        self.assertTrue(dialog.tag_name_entry.is_focus())
+        self.assertTrue(dialog.name_entry.is_focus())
         dialog.destroy()
 
     def test_populates(self):
         model = Tag(tag="Foo", description="Bar")
-        dialog = TagEditorDialog(model)
+        dialog = TagEditorDialog(model, self.session)
 
-        self.assertEqual(dialog.tag_name_entry.get_text(), "Foo")
-        buffer = dialog.tag_desc_textbuffer
+        self.assertEqual(dialog.name_entry.get_text(), "Foo")
+        buffer = dialog.description_textbuffer
         self.assertEqual(buffer.get_text(*buffer.get_bounds(), False), "Bar")
         dialog.destroy()
 
     def test_empty_name_is_a_problem(self):
         model = Tag()
-        dialog = TagEditorDialog(model)
+        dialog = TagEditorDialog(model, self.session)
 
         self.assertEqual(
             dialog.problems,
@@ -75,7 +81,7 @@ class TagEditorDialogTests(BaubleTestCase):
                 (
                     "empty::on_unique_text_entry_changed::"
                     f"TagEditorDialog::{id(dialog)}",
-                    dialog.tag_name_entry,
+                    dialog.name_entry,
                 )
             },
         )
@@ -89,7 +95,7 @@ class TagEditorDialogTests(BaubleTestCase):
         model = Tag(tag="Foo")
         self.session.add(model)
 
-        dialog = TagEditorDialog(model)
+        dialog = TagEditorDialog(model, self.session)
 
         self.assertEqual(
             dialog.problems,
@@ -97,7 +103,7 @@ class TagEditorDialogTests(BaubleTestCase):
                 (
                     "not_unique::on_unique_text_entry_changed::"
                     f"TagEditorDialog::{id(dialog)}",
-                    dialog.tag_name_entry,
+                    dialog.name_entry,
                 )
             },
         )
@@ -111,15 +117,16 @@ class TagEditorDialogTests(BaubleTestCase):
         model = Tag(tag="Bar")
         self.session.add(model)
 
-        dialog = TagEditorDialog(model)
+        dialog = TagEditorDialog(model, self.session)
 
         self.assertEqual(dialog.problems, set())
         dialog.destroy()
 
     def test_on_text_buffer_changed(self):
         model = Tag()
-        dialog = TagEditorDialog(model)
-        text_buffer = dialog.tag_desc_textbuffer
+        self.session.add(model)
+        dialog = TagEditorDialog(model, self.session)
+        text_buffer = dialog.description_textbuffer
 
         text_buffer.set_text("test")
         dialog.on_text_buffer_changed(text_buffer)
@@ -128,8 +135,9 @@ class TagEditorDialogTests(BaubleTestCase):
 
     def test_on_tag_entry_changed(self):
         model = Tag()
-        dialog = TagEditorDialog(model)
-        entry = dialog.tag_name_entry
+        self.session.add(model)
+        dialog = TagEditorDialog(model, self.session)
+        entry = dialog.name_entry
 
         entry.set_text("test")
         dialog.on_tag_entry_changed(entry)
@@ -138,8 +146,9 @@ class TagEditorDialogTests(BaubleTestCase):
 
     def test_on_tag_entry_changed_empty_is_a_problem(self):
         model = Tag()
-        dialog = TagEditorDialog(model)
-        entry = dialog.tag_name_entry
+        self.session.add(model)
+        dialog = TagEditorDialog(model, self.session)
+        entry = dialog.name_entry
 
         entry.set_text("")
         dialog.on_tag_entry_changed(entry)
@@ -150,11 +159,119 @@ class TagEditorDialogTests(BaubleTestCase):
                 (
                     "empty::on_unique_text_entry_changed::"
                     f"TagEditorDialog::{id(dialog)}",
-                    dialog.tag_name_entry,
+                    dialog.name_entry,
                 )
             },
         )
         dialog.destroy()
+
+    def test_editor_doesnt_leak(self):
+        editor = TagEditorDialog(
+            model=Tag(tag="Spam"),
+            session=db.Session(),
+        )
+        editor.show()
+        editor.emit("response", -6)
+
+        del editor
+        update_gui()
+
+        self.assertEqual(
+            utils.gc_objects_by_type("TagEditorDialog"),
+            [],
+            "TagEditorDialog not deleted",
+        )
+
+    def test_can_commit(self):
+        # new
+        editor = TagEditorDialog(
+            model=Tag(),
+            session=db.Session(),
+        )
+
+        self.assertFalse(editor.can_commit)
+        self.assertFalse(
+            editor.get_widget_for_response(Response.OK).get_sensitive()
+        )
+        self.assertTrue(
+            editor.get_widget_for_response(Response.CANCEL).get_sensitive()
+        )
+
+        editor.name_entry.set_text("Spam and Eggs")
+
+        self.assertTrue(editor.can_commit)
+        self.assertTrue(
+            editor.get_widget_for_response(Response.OK).get_sensitive()
+        )
+        self.assertTrue(
+            editor.get_widget_for_response(Response.CANCEL).get_sensitive()
+        )
+
+        editor.destroy()
+
+        # existing
+        tag = Tag(tag="Spam spam spam")
+        self.session.add(tag)
+        self.session.commit()
+
+        editor = TagEditorDialog(
+            model=tag,
+            session=db.Session(),
+        )
+
+        self.assertFalse(editor.can_commit)
+        self.assertFalse(
+            editor.get_widget_for_response(Response.OK).get_sensitive()
+        )
+        self.assertTrue(
+            editor.get_widget_for_response(Response.CANCEL).get_sensitive()
+        )
+
+        set_widget_value(editor.description_textbuffer, "and eggs")
+
+        self.assertTrue(editor.can_commit)
+        self.assertTrue(
+            editor.get_widget_for_response(Response.OK).get_sensitive()
+        )
+        self.assertTrue(
+            editor.get_widget_for_response(Response.CANCEL).get_sensitive()
+        )
+
+        editor.destroy()
+
+    @mock.patch("bauble.ui.dialogs.message_details_dialog")
+    def test_on_response_ok(self, mock_dlog):
+        editor = TagEditorDialog(
+            model=Tag(),
+            session=db.Session(),
+        )
+        # force an error, NOTE that the editor should never allow this.
+        editor.model.tag = None
+        # use emit here to avoid warning due to:
+        # `dialog.stop_emission_by_name("response")`
+        editor.emit("response", Response.OK)
+
+        update_gui()
+        mock_dlog.assert_called_once()
+        mock_dlog.reset_mock()
+
+        editor.name_entry.set_text("Eggs")
+        self.assertFalse(editor.on_response(editor, Response.OK))
+
+        update_gui()
+        mock_dlog.assert_not_called()
+
+        editor.destroy()
+
+    def test_on_response_cancel(self):
+        editor = TagEditorDialog(
+            model=Tag(),
+            session=db.Session(),
+        )
+
+        self.assertFalse(editor.on_response(editor, Response.CANCEL))
+
+        editor.destroy()
 
 
 class TagItemsDialogTests(BaubleTestCase):
@@ -169,81 +286,63 @@ class TagItemsDialogTests(BaubleTestCase):
 
     def test_can_create_dialog(self):
         fam = Family(epithet="Myrtaceae")
-        dialog = TagItemsDialog([fam])
+        dialog = TagItemsDialog([fam], self.session)
         dialog.destroy()
 
     def test_create_dialog_no_selection_raises_and_logs(self):
         with self.assertLogs(level="WARNING") as logs:
-            self.assertRaises(BaubleError, TagItemsDialog, [])
+            self.assertRaises(BaubleError, TagItemsDialog, [], self.session)
         string = "No selection provided."
         self.assertTrue(any(string in i for i in logs.output))
 
     def test_create_dialog_with_selected_set_label(self):
         fam = Family(epithet="Myrtaceae")
         fam2 = Family(epithet="Asteraceae")
+        self.session.add_all([fam, fam2])
+        self.session.commit()
 
-        dialog = TagItemsDialog([fam, fam2])
+        dialog = TagItemsDialog([fam, fam2], self.session)
 
         self.assertEqual(
             dialog.items_data_label.get_text(), "Myrtaceae,  Asteraceae"
         )
-        self.assertEqual(dialog.selected, [fam, fam2])
+        self.assertCountEqual(dialog.selected, [fam, fam2])
         dialog.destroy()
 
     def test_can_start_dialog(self):
         fam = Family(epithet="Myrtaceae")
-        self.session.add(fam)
-        dialog = TagItemsDialog([fam])
-        dialog.run = mock.Mock()
+        tag = Tag(tag="foo")
+        self.session.add_all([fam, tag])
+        self.session.commit()
+        dialog = TagItemsDialog([fam], self.session)
 
-        dialog.start()
+        with mock.patch.object(dialog, "show") as mock_show:
+            dialog.start()
 
-        dialog.run.assert_called()
-
-        dialog.destroy()
-
-    def test_start_dialog_no_tree_model_bails(self):
-        fam = Family(epithet="Myrtaceae")
-        self.session.add(fam)
-        dialog = TagItemsDialog([fam])
-        dialog.run = mock.Mock()
-        dialog.tag_tree = mock.Mock()
-        dialog.tag_tree.get_model.return_value = None
-
-        dialog.start()
-
-        dialog.run.assert_not_called()
+            mock_show.assert_called_once()
+        self.assertEqual(len(dialog.tag_tree.get_model()), 1)
 
         dialog.destroy()
 
-    def test_start_dialog_no_object_session_raises_and_logs(self):
+    @mock.patch("bauble.plugins.tag.ui.editor.TagEditorDialog")
+    def test_on_new_button_clicked_cancel_doesnt_append(self, mock_editor):
         fam = Family(epithet="Myrtaceae")
-        dialog = TagItemsDialog([fam])
+        dialog = TagItemsDialog([fam], self.session)
+        mock_editor().run.return_value = Response.CANCEL
 
-        with self.assertLogs(level="WARNING") as logs:
-            self.assertRaises(DatabaseError, dialog.start)
-
-        string = "no object session bailing."
-        self.assertTrue(any(string in i for i in logs.output))
-        dialog.destroy()
-
-    def test_on_new_button_clicked_cancel_doesnt_append(self):
-        fam = Family(epithet="Myrtaceae")
-        dialog = TagItemsDialog([fam])
-        mock_editor = mock.Mock(return_value=False)
-
-        dialog.on_new_button_clicked(edit_func=mock_editor)
+        dialog.on_new_button_clicked(None)
 
         self.assertEqual(len(dialog.tag_tree.get_model()), 0)
 
         dialog.destroy()
 
-    def test_on_new_button_clicked_ok_appends(self):
+    @mock.patch("bauble.plugins.tag.ui.editor.TagEditorDialog.run")
+    def test_on_new_button_clicked_ok_appends(self, mock_run):
         fam = Family(epithet="Myrtaceae")
-        dialog = TagItemsDialog([fam])
-        mock_editor = mock.Mock(return_value=True)
+        dialog = TagItemsDialog([fam], self.session)
+        mock_run.return_value = Response.OK
 
-        dialog.on_new_button_clicked(edit_func=mock_editor)
+        dialog.on_new_button_clicked(None)
 
         self.assertEqual(len(dialog.tag_tree.get_model()), 1)
 
@@ -254,8 +353,7 @@ class TagItemsDialogTests(BaubleTestCase):
         fam = Family(epithet="Myrtaceae")
         self.session.add_all([fam, tag])
         self.session.commit()
-        dialog = TagItemsDialog([fam])
-        dialog.run = mock.Mock()
+        dialog = TagItemsDialog([fam], self.session)
         dialog.start()
         self.assertFalse(tag.is_tagging(fam))
         mock_renderer = mock.Mock()
@@ -264,20 +362,24 @@ class TagItemsDialogTests(BaubleTestCase):
 
         dialog.on_tag_toggled(mock_renderer, "0")
 
-        self.assertTrue(tag.is_tagging(fam))
+        self.assertIn(
+            ("family", fam.id), [(i.obj_class, i.obj_id) for i in tag.objects_]
+        )
 
         # untag
         mock_renderer.get_active.return_value = True
 
         dialog.on_tag_toggled(mock_renderer, "0")
 
-        self.assertFalse(tag.is_tagging(fam))
+        self.assertNotIn(
+            ("family", fam.id), [(i.obj_class, i.obj_id) for i in tag.objects_]
+        )
 
         dialog.destroy()
 
     def test_on_tag_toggled_bails_no_model(self):
         fam = Family(epithet="Myrtaceae")
-        dialog = TagItemsDialog([fam])
+        dialog = TagItemsDialog([fam], self.session)
         dialog.tag_tree = mock.Mock()
         dialog.tag_tree.get_model.return_value = None
         mock_renderer = mock.Mock()
@@ -292,226 +394,170 @@ class TagItemsDialogTests(BaubleTestCase):
         fam = Family(epithet="Myrtaceae")
         self.session.add_all([fam, tag])
         self.session.commit()
-        dialog = TagItemsDialog([fam])
-        dialog.run = mock.Mock()
+        dialog = TagItemsDialog([fam], self.session)
         dialog.start()
         self.assertFalse(dialog.delete_button.get_sensitive())
         self.assertIsNone(dialog.selected_model_row)
 
-        dialog.tag_tree.get_selection().select_path(Gtk.TreePath.new_first())
+        dialog.tag_tree.get_selection().select_path(Gtk.TreePath().new_first())
 
         self.assertIsNotNone(dialog.selected_model_row)
         self.assertTrue(dialog.delete_button.get_sensitive())
 
         dialog.destroy()
 
-    def test_on_delete_button_clicked_deletes_selected_if_yes(self):
+    @mock.patch("bauble.plugins.tag.ui.editor.dialogs.yes_no_dialog")
+    def test_on_delete_button_clicked_deletes_selected_if_yes(
+        self,
+        mock_yn_dialog,
+    ):
         tag = Tag(tag="foo")
         fam = Family(epithet="Myrtaceae")
         self.session.add_all([fam, tag])
         self.session.commit()
-        dialog = TagItemsDialog([fam])
-        dialog.run = mock.Mock()
+        dialog = TagItemsDialog([fam], self.session)
         dialog.start()
         self.assertFalse(dialog.delete_button.get_sensitive())
         self.assertIsNone(dialog.selected_model_row)
-        dialog.tag_tree.get_selection().select_path(Gtk.TreePath.new_first())
+        dialog.tag_tree.get_selection().select_path(Gtk.TreePath().new_first())
         self.assertEqual(len(self.session.query(Tag).all()), 1)
-        mock_yn_dialog = mock.Mock()
         mock_yn_dialog.return_value = True
 
-        dialog.on_delete_button_clicked(None, yn_dialog=mock_yn_dialog)
+        dialog.on_delete_button_clicked(None)
+        self.session.commit()
 
         mock_yn_dialog.assert_called()
         self.assertEqual(len(self.session.query(Tag).all()), 0)
 
         dialog.destroy()
 
-    def test_on_delete_button_clicked_doesnt_delete_selected_if_no(self):
+    @mock.patch("bauble.plugins.tag.ui.editor.dialogs.yes_no_dialog")
+    def test_on_delete_button_clicked_doesnt_delete_selected_if_no(
+        self,
+        mock_yn_dialog,
+    ):
         tag = Tag(tag="foo")
         fam = Family(epithet="Myrtaceae")
         self.session.add_all([fam, tag])
         self.session.commit()
-        dialog = TagItemsDialog([fam])
-        dialog.run = mock.Mock()
+        dialog = TagItemsDialog([fam], self.session)
         dialog.start()
         self.assertFalse(dialog.delete_button.get_sensitive())
         self.assertIsNone(dialog.selected_model_row)
-        dialog.tag_tree.get_selection().select_path(Gtk.TreePath.new_first())
+        dialog.tag_tree.get_selection().select_path(Gtk.TreePath().new_first())
         self.assertEqual(len(self.session.query(Tag).all()), 1)
-        mock_yn_dialog = mock.Mock()
         mock_yn_dialog.return_value = False
 
-        dialog.on_delete_button_clicked(None, yn_dialog=mock_yn_dialog)
+        dialog.on_delete_button_clicked(None)
+        self.session.commit()
 
         mock_yn_dialog.assert_called()
         self.assertEqual(len(self.session.query(Tag).all()), 1)
 
         dialog.destroy()
 
-    def test_on_delete_button_clicked_bails_no_selected(self):
+    @mock.patch("bauble.plugins.tag.ui.editor.dialogs.yes_no_dialog")
+    def test_on_delete_button_clicked_bails_no_selected(
+        self,
+        mock_yn_dialog,
+    ):
         tag = Tag(tag="foo")
         fam = Family(epithet="Myrtaceae")
         self.session.add_all([fam, tag])
         self.session.commit()
-        dialog = TagItemsDialog([fam])
-        dialog.run = mock.Mock()
+        dialog = TagItemsDialog([fam], self.session)
         dialog.start()
         self.assertFalse(dialog.delete_button.get_sensitive())
         self.assertIsNone(dialog.selected_model_row)
-        mock_yn_dialog = mock.Mock()
 
-        dialog.on_delete_button_clicked(None, yn_dialog=mock_yn_dialog)
+        dialog.on_delete_button_clicked(None)
 
         mock_yn_dialog.assert_not_called()
         self.assertEqual(len(self.session.query(Tag).all()), 1)
 
         dialog.destroy()
 
+    def test_editor_doesnt_leak(self):
+        tag = Tag(tag="foo")
+        fam = Family(epithet="Myrtaceae")
+        self.session.add_all([fam, tag])
+        self.session.commit()
+        dialog = TagItemsDialog([fam], self.session)
+        dialog.start()
+        dialog.emit("response", -6)
+
+        del dialog
+        update_gui()
+
+        self.assertEqual(
+            utils.gc_objects_by_type("TagItemsDialog"),
+            [],
+            "TagItemsDialog not deleted",
+        )
+
+    @mock.patch("bauble.ui.dialogs.message_dialog")
+    def test_on_response_ok(self, mock_dlog):
+        tag = Tag(tag="foo")
+        fam = Family(epithet="Myrtaceae")
+        self.session.add_all([fam, tag])
+        self.session.commit()
+        tag.tag_objects([fam])
+        dialog = TagItemsDialog([fam], db.Session())
+        with mock.patch.object(dialog.session, "commit") as mock_commit:
+            dialog.start()
+            mock_commit.side_effect = SQLAlchemyError("BOOM")
+            # use emit here to avoid warning due to:
+            # `dialog.stop_emission_by_name("response")`
+            dialog.emit("response", Response.OK)
+
+        update_gui()
+        mock_dlog.assert_called_once()
+
+        dialog.destroy()
+
+        mock_dlog.reset_mock()
+        dialog = TagItemsDialog([fam], self.session)
+        tag.tag_objects([fam])
+        self.assertFalse(dialog.on_response(dialog, Response.OK))
+
+        update_gui()
+        tag = self.session.merge(tag)
+        fam = self.session.merge(fam)
+
+        mock_dlog.assert_not_called()
+        self.assertTrue(tag.is_tagging(fam))
+
+        dialog.destroy()
+
+    def test_on_response_cancel(self):
+        tag = Tag(tag="foo")
+        fam = Family(epithet="Myrtaceae")
+        self.session.add_all([fam, tag])
+        self.session.commit()
+        tag.tag_objects([fam])
+        mock_sess = mock.Mock()
+        dialog = TagItemsDialog([fam], mock_sess)
+
+        self.assertFalse(dialog.on_response(dialog, Response.CANCEL))
+
+        update_gui()
+        self.session.refresh(tag)
+
+        self.assertFalse(tag.is_tagging(fam))
+
+        dialog.destroy()
+
 
 class GlobalFunctionsTests(BaubleTestCase):
 
-    def test_remove_callback_no_confirm(self):
-        mock_ynd = mock.Mock(return_value=False)
-        mock_mdd = mock.Mock()
-        mock_reset = mock.Mock()
-
-        tag = Tag(tag="Foo")
-        self.session.add(tag)
-        self.session.flush()
-
-        result = remove_callback(
-            [tag],
-            yes_no_dialog=mock_ynd,
-            message_details_dialog=mock_mdd,
-            menu_reset=mock_reset,
-        )
-        self.session.flush()
-
-        mock_mdd.assert_not_called()
-        # effect
-        mock_ynd.assert_called_with(
-            "Are you sure you want to remove Tag: Foo?"
-        )
-        mock_reset.assert_not_called()
-
-        self.assertFalse(result)
-        matching = self.session.query(Tag).filter_by(tag="Foo").all()
-        self.assertEqual(matching, [tag])
-
-    def test_remove_callback_confirm(self):
-        mock_ynd = mock.Mock(return_value=True)
-        mock_mdd = mock.Mock()
-        mock_reset = mock.Mock()
-
-        tag = Tag(tag="Foo")
-        self.session.add(tag)
-        self.session.flush()
-
-        result = remove_callback(
-            [tag],
-            yes_no_dialog=mock_ynd,
-            message_details_dialog=mock_mdd,
-            menu_reset=mock_reset,
-        )
-        self.session.flush()
-
-        mock_reset.assert_called()
-        mock_mdd.assert_not_called()
-        mock_ynd.assert_called_with(
-            "Are you sure you want to remove Tag: Foo?"
-        )
-        self.assertEqual(result, True)
-        matching = self.session.query(Tag).filter_by(tag="Foo").all()
-        self.assertEqual(matching, [])
-
-    def test_remove_callback_no_object_session_bails(self):
-        mock_ynd = mock.Mock(return_value=True)
-        mock_mdd = mock.Mock()
-        mock_reset = mock.Mock()
-        tag = Tag(tag="Foo")
-
-        with self.assertLogs(level="WARNING") as logs:
-            result = remove_callback(
-                [tag],
-                yes_no_dialog=mock_ynd,
-                message_details_dialog=mock_mdd,
-                menu_reset=mock_reset,
-            )
-
-        string = "no object session bailing."
-        self.assertTrue(any(string in i for i in logs.output))
-        mock_reset.assert_not_called()
-        mock_mdd.assert_not_called()
-        mock_ynd.assert_not_called()
-        self.assertEqual(result, False)
-
-    def test_remove_callback_warns_if_exception(self):
-        mock_ynd = mock.Mock(return_value=True)
-        mock_mdd = mock.Mock()
-        mock_reset = mock.Mock()
-        tag = Tag()
-        self.session.add(tag)
-
-        result = remove_callback(
-            [tag],
-            yes_no_dialog=mock_ynd,
-            message_details_dialog=mock_mdd,
-            menu_reset=mock_reset,
-        )
-
-        mock_reset.assert_called()
-        mock_ynd.assert_called()
-        mock_mdd.assert_called()
-        self.assertEqual(result, True)
-
-    def test_edit_callback_ok(self):
-        mock_dialog = mock.Mock()
-        mock_dialog.run.return_value = Gtk.ResponseType.OK
-
-        def side_effect(tag):
-            tag.tag = "Bar"
-            return mock_dialog
-
-        mock_dialog.side_effect = side_effect
-
+    def test_edit_callback(self):
         tag = Tag(tag="Foo")
         self.session.add(tag)
         self.session.commit()
 
-        self.assertEqual(
-            edit_callback([tag], dialog_cls=mock_dialog),
-            True,
-        )
+        with mock.patch.object(edit_callback, "dialog_class") as mock_editor:
 
-        self.session.expire(tag)
-
-        self.assertEqual(tag.tag, "Bar")
-
-    def test_edit_callback_cancel(self):
-        mock_dialog = mock.Mock()
-        mock_dialog.run.return_value = Gtk.ResponseType.CANCEL
-
-        def side_effect(tag):
-            tag.tag = "Bar"
-            return mock_dialog
-
-        mock_dialog.side_effect = side_effect
-
-        tag = Tag(tag="Foo")
-        self.session.add(tag)
-        self.session.commit()
-
-        self.assertEqual(
-            edit_callback([tag], dialog_cls=mock_dialog),
-            False,
-        )
-
-        self.session.expire(tag)
-
-        self.assertEqual(tag.tag, "Foo")
-
-    def test_edit_callback_no_session_raises(self):
-        tag = Tag(tag="Foo")
-
-        self.assertRaises(DatabaseError, edit_callback, [tag])
+            self.assertFalse(edit_callback([tag]))
+            mock_editor.assert_called_once()
+            self.assertEqual(mock_editor.call_args.kwargs["model"], tag)
+            mock_editor().show.assert_called_once()

@@ -1,6 +1,6 @@
 # Copyright (c) 2005,2006,2007,2008,2009 Brett Adams <brett@belizebotanic.org>
 # Copyright (c) 2012-2017 Mario Frasca <mario@anche.no>
-# Copyright (c) 2021-2025 Ross Demuth <rossdemuth123@gmail.com>
+# Copyright (c) 2021-2026 Ross Demuth <rossdemuth123@gmail.com>
 #
 # This file is part of ghini.desktop.
 #
@@ -25,27 +25,27 @@ logger = logging.getLogger(__name__)
 
 from collections.abc import Callable
 from collections.abc import Sequence
-from typing import Protocol
 
 from gi.repository import Gio
 from gi.repository import GLib
 from gi.repository import Gtk
 from sqlalchemy import func
-from sqlalchemy.orm import Query
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 from sqlalchemy.orm.session import object_session
+from sqlalchemy.sql import Select
 
 import bauble
 from bauble import db
 from bauble.i18n import _
 from bauble.ui import dialogs
-from bauble.ui import idle_garbage_collect
-from bauble.ui.views import SearchView
+from bauble.ui.views import get_search_view
 from bauble.ui.views import get_search_view_selected
 
 from ..model import Tag
 from ..model import tag_objects
 from ..model import untag_objects
+from ..model import upgrade
 from . import editor
 
 
@@ -102,22 +102,21 @@ class _TagsMenuManager:
             active = None
 
             if self.active_tag_name:
-                active = (
-                    session.query(Tag)
-                    .filter_by(tag=self.active_tag_name)
-                    .first()
-                )
+                active = session.scalars(
+                    select(Tag).filter_by(tag=self.active_tag_name)
+                ).first()
 
             if not active:
-                sub_query = session.query(func.max(Tag.id)).scalar_subquery()
-                self.active_tag_name = (
-                    session.query(Tag.tag).filter(Tag.id == sub_query).scalar()
+                sub_query = select(func.max(Tag.id)).scalar_subquery()
+                self.active_tag_name = session.scalar(
+                    select(Tag.tag).where(Tag.id == sub_query)
                 )
 
     def refresh(self, selected_values: list[db.Domain] | None = None) -> None:
         """Refresh the tag menu, set the active tag and enable/disable menu
         items.
         """
+        upgrade()
         self.reset_active_tag_name()
 
         if self.select_tag_action and self.active_tag_name:
@@ -149,44 +148,39 @@ class _TagsMenuManager:
         action.set_state(tag_name)
         self.active_tag_name = tag_name.unpack()
         bauble.gui.send_command(f"tag={tag_name}")
-        view = bauble.gui.get_view()
 
-        if isinstance(view, SearchView):
-            GLib.idle_add(
-                view.results_view.expand_to_path, Gtk.TreePath().new_first()
-            )
+        GLib.idle_add(
+            get_search_view().results_view.expand_to_path,
+            Gtk.TreePath().new_first(),
+        )
 
         self.refresh()
 
     @staticmethod
     def on_context_menu_apply_activated(
-        _action, tag_name: GLib.Variant | None
+        _action,
+        tag_name: GLib.Variant | None,
     ) -> None:
-        view = bauble.gui.get_view()
 
-        if not isinstance(view, SearchView):
-            return
+        selected = get_search_view_selected()
 
-        selected = view.get_selected_values()
-        # unpack to python type
         if selected and tag_name:
+            # unpack to python type
             tag_objects(tag_name.unpack(), selected)
-            view.update_bottom_notebook(selected)
+            get_search_view().update()
 
     @staticmethod
     def on_context_menu_remove_activated(
-        _action, tag_name: GLib.Variant | None
+        _action,
+        tag_name: GLib.Variant | None,
     ) -> None:
-        view = bauble.gui.get_view()
 
-        if not isinstance(view, SearchView):
-            return
+        selected = get_search_view_selected()
 
-        selected = view.get_selected_values()
         if selected and tag_name:
             # unpack to python type
             untag_objects(tag_name.unpack(), selected)
-            view.update_bottom_notebook(selected)
+            get_search_view().update()
 
     def context_menu_callback(
         self, selected: Sequence[db.Domain]
@@ -210,13 +204,17 @@ class _TagsMenuManager:
         )
         section.append_item(tag_item)
 
-        query = session.query(Tag)
+        stmt = select(Tag)
         # bail early if no tags
-        if not query.first():
+        if not session.scalars(stmt).first():
             logger.debug("no tags, not creating submenus.")
             return section
 
-        apply_tags, remove_tags = self._apply_remove_tags(selected, query)
+        apply_tags, remove_tags = self._apply_remove_tags(
+            selected,
+            stmt,
+            session,
+        )
 
         if apply_tags:
             apply_submenu = Gio.Menu()
@@ -243,7 +241,9 @@ class _TagsMenuManager:
 
     @staticmethod
     def _apply_remove_tags(
-        selected: Sequence[db.Domain], query: Query
+        selected: Sequence[db.Domain],
+        stmt: Select,
+        session: Session,
     ) -> tuple[list[Tag], list[Tag]]:
         all_tagged = None
         remove_tags = set()
@@ -258,9 +258,9 @@ class _TagsMenuManager:
         apply_tags = set()
 
         if all_tagged:
-            query = query.filter(Tag.id.notin_([i.id for i in all_tagged]))
+            stmt = stmt.where(Tag.id.notin_([i.id for i in all_tagged]))
 
-        for tag in query:
+        for tag in session.scalars(stmt):
             apply_tags.add(tag)
 
         def lower(tag: Tag) -> str:
@@ -314,18 +314,23 @@ class _TagsMenuManager:
         tags_menu.append_item(add_tag_menu_item)
 
         with db.Session() as session:
-            query = session.query(Tag)
-            has_tags = query.first()
+            stmt = select(Tag)
+            has_tags = session.scalars(stmt).first()
             if has_tags:
                 self.set_selection_tag_action()
-                self.append_sections(tags_menu, query)
+                self.append_sections(tags_menu, stmt, session)
 
         return tags_menu
 
-    def append_sections(self, tags_menu: Gio.Menu, query: Query) -> None:
+    def append_sections(
+        self,
+        tags_menu: Gio.Menu,
+        stmt: Select,
+        session: Session,
+    ) -> None:
         section = Gio.Menu()
 
-        for tag in query.order_by(func.lower(Tag.tag)):
+        for tag in session.scalars(stmt.order_by(func.lower(Tag.tag))):
             menu_item = Gio.MenuItem.new(
                 tag.tag.replace("_", "__"),
                 f"win.{self.ACTIVATED_ACTION_NAME}::{tag.tag}",
@@ -372,26 +377,20 @@ class _TagsMenuManager:
     def toggle_tag(
         self,
         applying: Callable[[str, list], None],
-        *,
-        message_dialog: Callable = dialogs.message_dialog,
     ) -> None:
-        view = bauble.gui.get_view()
 
-        if not isinstance(view, SearchView):
-            return
-
-        selected = view.get_selected_values()
+        selected = get_search_view_selected()
 
         if not selected:
             return
 
         if self.active_tag_name is None:
             msg = _("Please make sure a tag is active.")
-            message_dialog(msg)
+            dialogs.message_dialog(msg)
             return
 
         applying(self.active_tag_name, selected)
-        view.update_bottom_notebook(selected)
+        get_search_view().update()
 
     def on_apply_active_tag_activated(self, _action, _param) -> None:
         logger.debug(
@@ -406,33 +405,17 @@ class _TagsMenuManager:
         self.toggle_tag(untag_objects)
 
 
-class ItemsDialog(Protocol):
-    def __init__(self, values: Sequence[db.Domain]) -> None: ...
-    def start(self) -> None: ...
-    def destroy(self) -> None: ...
-
-
 def _on_add_tag_activated(
     _action,
     _param,
-    *,
-    dialog_cls: type[ItemsDialog] = editor.TagItemsDialog,
 ) -> None:
-    # get the selection from the search view
-    view = bauble.gui.get_view()
-    if not isinstance(view, SearchView):
-        return
-
-    selected = view.get_selected_values()
+    selected = get_search_view_selected()
 
     if not selected:
         return
 
-    dialog = dialog_cls(selected)
+    dialog = editor.TagItemsDialog(selected, db.Session())
     dialog.start()
-    view.update_bottom_notebook(selected)
-    dialog.destroy()
-    idle_garbage_collect()
 
 
 # should not be needed outside of this plugin

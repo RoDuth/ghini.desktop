@@ -1,6 +1,6 @@
 # Copyright (c) 2005,2006,2007,2008,2009 Brett Adams <brett@belizebotanic.org>
 # Copyright (c) 2012-2017 Mario Frasca <mario@anche.no>
-# Copyright (c) 2021-2025 Ross Demuth <rossdemuth123@gmail.com>
+# Copyright (c) 2021-2026 Ross Demuth <rossdemuth123@gmail.com>
 #
 # This file is part of ghini.desktop.
 #
@@ -23,21 +23,29 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+import traceback
+from collections.abc import Sequence
 from pathlib import Path
 from typing import Callable
 from typing import cast
 
 from gi.repository import Gtk
+from sqlalchemy.orm import Session
+from sqlalchemy.orm.session import object_session
 
 import bauble
 from bauble import db
 from bauble import utils
 from bauble.i18n import _
+from bauble.ui import dialogs
+from bauble.ui.views import Action
 from bauble.ui.views import InfoBox
 from bauble.ui.views import InfoExpander
 from bauble.ui.views import PropertiesExpander
 
 from ..model import Tag
+from . import menu_manager
+from .editor import edit_callback
 
 
 @Gtk.Template(filename=str(Path(__file__).resolve().parent / "info_box.ui"))
@@ -151,3 +159,65 @@ class TagsScroller(Gtk.ScrolledWindow):
         tag = repr(self.liststore[path][0])
         logger.debug("tags bottom page row_activated: tag=%s", tag)
         send_command(f"tag={tag}")
+
+
+def remove_callback(
+    objs: Sequence[Tag],
+    **_kwargs,
+) -> bool:
+    """Remove the tags from selected items
+
+    Notify user of any problems, update SearchView and reset tags menu.
+    """
+
+    tags = objs
+    tag = tags[0]
+
+    session = object_session(tag)
+
+    if not isinstance(session, Session):
+        logger.warning("no object session bailing.")
+        return False
+
+    tlst = []
+
+    for tag in tags:
+        tlst.append(f"{tag.__class__.__name__}: {utils.xml_safe(tag)}")
+
+    msg = _("Are you sure you want to remove %s?") % ", ".join(i for i in tlst)
+    if not dialogs.yes_no_dialog(msg):
+        return False
+
+    try:
+        for tag in tags:
+            session.delete(tag)
+        session.commit()
+    except Exception as e:  # pylint: disable=broad-except
+        msg = _("Could not delete.\n\n%s") % utils.xml_safe(e)
+        dialogs.message_details_dialog(
+            msg, traceback.format_exc(), Gtk.MessageType.ERROR
+        )
+        session.rollback()
+
+    # reinitialize the tag menu
+    menu_manager.reset()
+    return True
+
+
+edit_action = Action(
+    "tag_edit",
+    _("_Edit"),
+    callback=edit_callback,
+    accelerator="<ctrl>e",
+    multiselect=True,
+)
+
+remove_action = Action(
+    "tag_remove",
+    _("_Delete"),
+    callback=remove_callback,
+    accelerator="<ctrl>Delete",
+    multiselect=True,
+)
+
+tag_context_menu = [edit_action, remove_action]

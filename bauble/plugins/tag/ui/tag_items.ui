@@ -8,17 +8,19 @@
       <column type="gboolean"/>
       <!-- column-name Some -->
       <column type="gboolean"/>
-      <!-- column-name Value -->
+      <!-- column-name Name -->
+      <column type="gchararray"/>
+      <!-- column-name Description -->
       <column type="gchararray"/>
     </columns>
   </object>
   <template class="TagItemsDialog" parent="GtkDialog">
     <property name="can-focus">False</property>
     <property name="title" translatable="yes">Tags</property>
-    <property name="modal">True</property>
     <property name="default-width">250</property>
     <property name="default-height">300</property>
     <property name="type-hint">dialog</property>
+    <signal name="response" handler="on_response" swapped="no"/>
     <child internal-child="vbox">
       <object class="GtkBox">
         <property name="visible">True</property>
@@ -122,6 +124,20 @@
               </packing>
             </child>
             <child>
+              <object class="GtkButton" id="cancel_button">
+                <property name="label" translatable="yes">Cancel</property>
+                <property name="visible">True</property>
+                <property name="can-focus">True</property>
+                <property name="can-default">True</property>
+                <property name="receives-default">False</property>
+              </object>
+              <packing>
+                <property name="expand">False</property>
+                <property name="fill">False</property>
+                <property name="position">2</property>
+              </packing>
+            </child>
+            <child>
               <object class="GtkButton" id="ok_button">
                 <property name="label" translatable="yes">OK</property>
                 <property name="visible">True</property>
@@ -132,7 +148,7 @@
               <packing>
                 <property name="expand">False</property>
                 <property name="fill">False</property>
-                <property name="position">2</property>
+                <property name="position">3</property>
               </packing>
             </child>
           </object>
@@ -209,7 +225,6 @@
                     <property name="visible">True</property>
                     <property name="can-focus">True</property>
                     <property name="border-width">1</property>
-                    <property name="hscrollbar-policy">never</property>
                     <property name="shadow-type">in</property>
                     <child>
                       <object class="GtkTreeView" id="tag_tree">
@@ -245,6 +260,16 @@
                             </child>
                           </object>
                         </child>
+                        <child>
+                          <object class="GtkTreeViewColumn">
+                            <child>
+                              <object class="GtkCellRendererText"/>
+                              <attributes>
+                                <attribute name="text">3</attribute>
+                              </attributes>
+                            </child>
+                          </object>
+                        </child>
                       </object>
                     </child>
                   </object>
@@ -275,6 +300,7 @@
       </object>
     </child>
     <action-widgets>
+      <action-widget response="-6">cancel_button</action-widget>
       <action-widget response="-5">ok_button</action-widget>
     </action-widgets>
   </template>

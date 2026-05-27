@@ -1,7 +1,7 @@
 # pylint: disable=no-self-use,protected-access
 # Copyright (c) 2005,2006,2007,2008,2009 Brett Adams <brett@belizebotanic.org>
 # Copyright (c) 2012-2015 Mario Frasca <mario@anche.no>
-# Copyright (c) 2021-2025 Ross Demuth <rossdemuth123@gmail.com>
+# Copyright (c) 2021-2026 Ross Demuth <rossdemuth123@gmail.com>
 #
 # This file is part of ghini.desktop.
 #
@@ -23,18 +23,23 @@ Tag model tests
 
 from time import sleep
 
+from sqlalchemy import select
+
 from bauble import db
 from bauble import error
+from bauble import version
+from bauble.meta import BaubleMeta
 from bauble.plugins.plants import Family
 from bauble.test import BaubleTestCase
 
+from ..model import VERSION_META_KEY
 from ..model import Tag
 from ..model import TaggedObj
-from ..model import _classname
 from ..model import _get_tagged_object_pair
 from ..model import get_tag_ids
 from ..model import tag_objects
 from ..model import untag_objects
+from ..model import upgrade
 
 
 class TagTests(BaubleTestCase):
@@ -70,10 +75,12 @@ class TagTests(BaubleTestCase):
         self.session.add_all([tag, obj])
         self.session.commit()
         tagged_obj = TaggedObj(
-            obj_id=obj.id, obj_class=_classname(obj), tag=tag
+            obj_id=obj.id,
+            obj_class=obj.__tablename__,
+            tag=tag,
         )
         tag.objects_.append(tagged_obj)
-        self.assertEqual(str(tagged_obj), f"{_classname(obj)}: {obj.id}")
+        self.assertEqual(str(tagged_obj), f"{obj.__tablename__}: {obj.id}")
 
     def test_tag_nothing(self):
         t = Tag(tag="some_tag", description="description")
@@ -326,9 +333,7 @@ class GlobalFunctionsTest(BaubleTestCase):
         obj = Family(epithet="Foo")
         self.session.add_all([tag, obj])
         self.session.commit()
-        tagged_obj = TaggedObj(
-            obj_id=obj.id, obj_class="bauble.plugins.plants.Family", tag=tag
-        )
+        tagged_obj = TaggedObj(obj_id=obj.id, obj_class="family", tag=tag)
         tag.objects_.append(tagged_obj)
 
         self.assertEqual(
@@ -348,22 +353,15 @@ class GlobalFunctionsTest(BaubleTestCase):
         with self.assertLogs(level="WARNING") as logs:
             self.assertIsNone(_get_tagged_object_pair(tagged_obj))
         string = (
-            f"get_tagged_object_pair ({tagged_obj}) error: ModuleNotFoundError"
+            f"_get_tagged_object_pair ({tagged_obj}) failed using "
+            "bauble.plugin.taxonomy.Family"
         )
         self.assertTrue(any(string in i for i in logs.output))
 
-        tagged_obj.obj_class = "bauble.plugins.plants.Taxon"
+        tagged_obj.obj_class = "taxon"
         with self.assertLogs(level="WARNING") as logs:
             self.assertIsNone(_get_tagged_object_pair(tagged_obj))
-        string = (
-            f"_get_tagged_object_pair ({tagged_obj}) error: AttributeError"
-        )
-        self.assertTrue(any(string in i for i in logs.output))
-
-        tagged_obj.obj_class = "Taxon"
-        with self.assertLogs(level="WARNING") as logs:
-            self.assertIsNone(_get_tagged_object_pair(tagged_obj))
-        string = f"_get_tagged_object_pair ({tagged_obj}) error: ValueError"
+        string = f"_get_tagged_object_pair ({tagged_obj}) failed using taxon"
         self.assertTrue(any(string in i for i in logs.output))
 
     def test_tag_object_no_object_session_logs(self):
@@ -394,9 +392,6 @@ class GlobalFunctionsTest(BaubleTestCase):
             untag_objects("test", [obj])
         string = "Can't remove non existing tag"
         self.assertTrue(any(string in i for i in logs.output))
-
-
-class GlobalFunctionsTests(BaubleTestCase):
 
     def test_tag_untag_objects(self):
         family1 = Family(epithet="family1")
@@ -433,3 +428,57 @@ class GlobalFunctionsTests(BaubleTestCase):
         # get object by tag
         tag = self.session.query(Tag).filter_by(tag="test").one()
         self.assertEqual(tag.objects, [])
+
+    def test_upgrade(self):
+        tag = Tag(tag="Foo")
+        tagged_obj1 = TaggedObj(
+            obj_id=1,
+            obj_class="bauble.plugins.garden.accession.Accession",
+        )
+        tagged_obj2 = TaggedObj(
+            obj_id=1,
+            obj_class="bauble.plugins.garden.source.Contact",
+        )
+        tagged_obj3 = TaggedObj(
+            obj_id=1,
+            obj_class="bauble.plugins.plants.species_model.Species",
+        )
+        tagged_obj4 = TaggedObj(
+            obj_id=1,
+            obj_class="bauble.plugins.plants.genus.Boom",
+        )
+        tag.objects_ = [tagged_obj1, tagged_obj2, tagged_obj3, tagged_obj4]
+        for i in range(20):
+            tag.objects_.append(
+                TaggedObj(
+                    obj_id=i,
+                    obj_class="bauble.plugins.plants.family.Family",
+                )
+            )
+        self.session.add(tag)
+        self.session.commit()
+        meta = self.session.scalar(
+            select(BaubleMeta).filter_by(name=VERSION_META_KEY)
+        )
+        if meta:
+            self.session.delete(meta)
+
+        upgrade()
+        self.session.refresh(tag)
+        self.assertEqual(tagged_obj1.obj_class, "accession")
+        self.assertEqual(tagged_obj2.obj_class, "source_detail")
+        self.assertEqual(tagged_obj3.obj_class, "species")
+        self.assertEqual(
+            tagged_obj4.obj_class,
+            "bauble.plugins.plants.genus.Boom",
+        )
+        for tagged_obj in self.session.scalars(
+            select(TaggedObj).where(TaggedObj.obj_id > 1)
+        ):
+            self.assertEqual(tagged_obj.obj_class, "family")
+
+        meta = self.session.scalar(
+            select(BaubleMeta).filter_by(name=VERSION_META_KEY)
+        )
+
+        self.assertEqual(meta.value, version)

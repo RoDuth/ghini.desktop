@@ -1,6 +1,6 @@
 # Copyright (c) 2005,2006,2007,2008,2009 Brett Adams <brett@belizebotanic.org>
 # Copyright (c) 2012-2017 Mario Frasca <mario@anche.no>
-# Copyright (c) 2021-2025 Ross Demuth <rossdemuth123@gmail.com>
+# Copyright (c) 2021-2026 Ross Demuth <rossdemuth123@gmail.com>
 #
 # This file is part of ghini.desktop.
 #
@@ -23,9 +23,9 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+import re
 import threading
 from collections.abc import Sequence
-from importlib import import_module
 from typing import Self
 
 from sqlalchemy import Column
@@ -48,7 +48,9 @@ from bauble import db
 from bauble import error
 from bauble import prefs
 from bauble import utils
+from bauble import version
 from bauble.i18n import _
+from bauble.meta import BaubleMeta
 
 
 class TaggedObj(db.Base):  # pylint: disable=too-few-public-methods
@@ -94,7 +96,7 @@ class Tag(db.Domain):
     def retrieve(cls, session: Session, keys: dict[str, str]) -> Self | None:
         parts = {k: v for k, v in keys.items() if k in cls.retrieve_cols}
         if parts:
-            return session.query(cls).filter_by(**parts).one_or_none()
+            return session.scalar(select(cls).filter_by(**parts))
         return None
 
     def __str__(self) -> str:
@@ -114,20 +116,21 @@ class Tag(db.Domain):
             return
 
         for obj in objects:
-            tagged = (
-                session.query(TaggedObj.id)
-                .filter(
+            tagged = session.scalars(
+                select(TaggedObj.id).where(
                     and_(
-                        TaggedObj.obj_class == _classname(obj),
+                        TaggedObj.obj_class == obj.__tablename__,
                         TaggedObj.obj_id == obj.id,
                         TaggedObj.tag_id == self.id,
                     )
                 )
-                .first()
-            )
+            ).first()
             if not tagged:
+                logger.debug("taging %s", obj)
                 tagged_obj = TaggedObj(
-                    obj_class=_classname(obj), obj_id=obj.id, tag=self
+                    obj_class=obj.__tablename__,
+                    obj_id=obj.id,
+                    tag=self,
                 )
                 session.add(tagged_obj)
 
@@ -142,7 +145,7 @@ class Tag(db.Domain):
 
         # NOTE tests may freeze here on MSSQL if flush.  Better to commit
         if db.engine:
-            with db.engine.begin() as connection:
+            with db.engine.connect() as connection:
                 table = db.History.__table__
                 stmt = select(func.max(table.c.id))
 
@@ -179,7 +182,7 @@ class Tag(db.Domain):
                 result = _get_tagged_object_pair(obj)
                 if result:
                     mapper, obj_id = result
-                    rec = session.query(mapper).filter_by(id=obj_id).first()
+                    rec = session.get(mapper, obj_id)
                     if rec:
                         items.append(rec)
                     else:
@@ -198,15 +201,13 @@ class Tag(db.Domain):
             logger.warning("no object session bailing.")
             return []
 
-        modname = type(obj).__module__
-        clsname = type(obj).__name__
-        full_cls_name = f"{modname}.{clsname}"
-        tags = (
-            session.query(Tag)
+        stmt = (
+            select(Tag)
             .join(TaggedObj)
-            .filter(TaggedObj.obj_class == full_cls_name)
-            .filter(TaggedObj.obj_id == obj.id)
+            .where(TaggedObj.obj_class == obj.__tablename__)
+            .where(TaggedObj.obj_id == obj.id)
         )
+        tags = session.scalars(stmt)
         return tags.all()
 
     def search_view_markup_pair(self) -> tuple[str, str]:
@@ -265,30 +266,32 @@ class Tag(db.Domain):
         return len(self.objects)
 
 
-def _classname(obj: db.Domain) -> str:
-    # classname as stored in the tagged_obj table
-    return f"{type(obj).__module__}.{type(obj).__name__}"
+PASCAL_RE = re.compile(r"(?<!^)(?=[A-Z])")
 
 
 def _get_tagged_object_pair(
     obj: TaggedObj,
 ) -> tuple[type[db.Domain], int] | None:
-    try:
-        module_name, _part, cls_name = str(obj.obj_class).rpartition(".")
-        module = import_module(module_name)
-        cls = getattr(module, cls_name)
-        return cls, obj.obj_id
-    except Exception as e:  # pylint: disable=broad-exception-caught
-        logger.warning(
-            "_get_tagged_object_pair (%s) error: %s(%s)",
-            obj,
-            type(e).__name__,
-            e,
-        )
+
+    tablename = obj.obj_class
+    cls_ = db.get_model_by_name(tablename, base=db.Domain)
+
+    if cls_:
+        return cls_, obj.obj_id
+
+    logger.warning(
+        "_get_tagged_object_pair (%s) failed using %s",
+        obj,
+        tablename,
+    )
     return None
 
 
-def untag_objects(name: str, objects: Sequence[db.Domain]) -> None:
+def untag_objects(
+    name: str,
+    objects: Sequence[db.Domain],
+    commit: bool = True,
+) -> None:
     """Remove the tag name from objects."""
 
     session = object_session(objects[0])
@@ -298,7 +301,7 @@ def untag_objects(name: str, objects: Sequence[db.Domain]) -> None:
         return
 
     try:
-        tag: Tag = session.query(Tag).filter_by(tag=name).one()
+        tag: Tag = session.scalars(select(Tag).where(Tag.tag == name)).one()
     except InvalidRequestError as e:
         logger.info(
             "Can't remove non existing tag from non-empty list of "
@@ -308,18 +311,28 @@ def untag_objects(name: str, objects: Sequence[db.Domain]) -> None:
         )
         return
 
-    objs_cls_id = {(_classname(obj), obj.id) for obj in objects}
+    objs_cls_id = {(obj.__tablename__, obj.id) for obj in objects}
 
     for item in tag.objects_:
         if (item.obj_class, item.obj_id) not in objs_cls_id:
             continue
-        obj = session.query(TaggedObj).filter_by(id=item.id).one()
+
+        if not item.id:
+            # not committed just remove
+            item.tag.objects_.remove(item)
+            continue
+        obj = session.get(TaggedObj, item.id)
         session.delete(obj)
 
-    session.commit()
+    if commit:
+        session.commit()
 
 
-def tag_objects(name: str, objects: Sequence[db.Domain]) -> None:
+def tag_objects(
+    name: str,
+    objects: Sequence[db.Domain],
+    commit: bool = True,
+) -> None:
     """Add the tag to objects."""
 
     session = object_session(objects[0])
@@ -328,14 +341,16 @@ def tag_objects(name: str, objects: Sequence[db.Domain]) -> None:
         logger.warning("no object session bailing.")
         return
 
-    tag: Tag | None = session.query(Tag).filter_by(tag=name).one_or_none()
+    tag: Tag | None = session.scalar(select(Tag).where(Tag.tag == name))
 
     if not tag:
         tag = Tag(tag=name)
         session.add(tag)
 
     tag.tag_objects(objects)
-    session.commit()
+
+    if commit:
+        session.commit()
 
 
 def get_tag_ids(objects: Sequence[db.Domain]) -> tuple[set[int], set[int]]:
@@ -358,7 +373,7 @@ def get_tag_ids(objects: Sequence[db.Domain]) -> tuple[set[int], set[int]]:
     for obj in objects:
         applied_tag_ids_select = tag_id_select.join(TaggedObj).where(
             and_(
-                TaggedObj.obj_class == _classname(obj),
+                TaggedObj.obj_class == obj.__tablename__,
                 TaggedObj.obj_id == obj.id,
             )
         )
@@ -372,3 +387,52 @@ def get_tag_ids(objects: Sequence[db.Domain]) -> tuple[set[int], set[int]]:
 
     s_some.difference_update(s_all)
     return (s_all, s_some)
+
+
+PASCAL_RE = re.compile(r"(?<!^)(?=[A-Z])")
+
+
+def _convert_to_tablemname(obj: TaggedObj) -> str | None:
+    _module_name, _part, cls_name = obj.obj_class.rpartition(".")
+
+    if cls_name == "Contact":
+        cls_name = "SourceDetail"
+
+    tablename = PASCAL_RE.sub("_", cls_name).lower()
+    cls_ = db.get_model_by_name(tablename, base=db.Domain)
+
+    if cls_:
+        logger.debug("convert %s >> %s", obj.obj_class, cls_.__tablename__)
+        return cls_.__tablename__
+
+    logger.warning("*** UPGRADING TAGS COULD NOT RESOLVE: %s", tablename)
+    return obj.obj_class
+
+
+VERSION_META_KEY = "tags_version"
+
+
+def upgrade() -> None:
+    # run once after upgrade, eventually this may be deprecated.
+    with db.Session() as session:
+        meta = session.scalar(
+            select(BaubleMeta).where(BaubleMeta.name == VERSION_META_KEY)
+        )
+        if not meta:
+            logger.debug("upgrading tags to: %s", version)
+            count = 0
+            for tagged_obj in session.scalars(select(TaggedObj)):
+
+                if "." in tagged_obj.obj_class:
+                    tagged_obj.obj_class = _convert_to_tablemname(tagged_obj)
+
+                count += 1
+                if count > 20:
+                    session.commit()
+                    count = 0
+
+            session.commit()
+
+            meta = BaubleMeta(name=VERSION_META_KEY, value=version)
+            session.add(meta)
+            session.commit()

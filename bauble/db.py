@@ -33,6 +33,7 @@ from dataclasses import dataclass
 from typing import Any
 from typing import Protocol
 from typing import cast
+from typing import overload
 
 logger = logging.getLogger(__name__)
 
@@ -1291,9 +1292,39 @@ class CurrentUserFunctor:
 current_user = CurrentUserFunctor()
 
 
-def get_model_by_name(name: str) -> type[Base] | None:
+@overload
+def get_model_by_name[T: type[Base]](
+    name: str,
+) -> type[Base] | None: ...
 
-    def _match(base: type[Base]) -> type[Base] | None:
+
+@overload
+def get_model_by_name[T: type[Base]](
+    name: str,
+    *,
+    base: T,
+) -> T | None: ...
+
+
+def get_model_by_name[T: type[Base]](
+    name: str,
+    *,
+    base=Base,
+) -> T | None:
+    """Get the database table ORM class from the table name string.
+
+    By defualt it searches all Base clesses but can be narrowed to a specific
+    subtype, e.g.::
+
+        get_model_by_name("species", base=Domain)
+
+        get_domain_by_name = partial(get_model_by_name, base=db.Domain)
+
+        get_model_by_name("genus_note", base=Note)
+
+    """
+
+    def _match(base: T) -> T | None:
         for model in base.__subclasses__():
             tablename = getattr(model, "__tablename__", None)
             if tablename == name:
@@ -1304,7 +1335,7 @@ def get_model_by_name(name: str) -> type[Base] | None:
 
         return None
 
-    return _match(Base)
+    return _match(base)
 
 
 def _create_all(*_args: Any) -> None:

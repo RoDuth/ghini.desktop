@@ -21,9 +21,10 @@ Tag plugin
 """
 
 import logging
-from functools import partial
 
 logger = logging.getLogger(__name__)
+
+from functools import partial
 
 import bauble
 from bauble import db
@@ -35,9 +36,9 @@ from bauble.ui.views import SearchView
 from .model import Tag
 from .ui import menu_manager
 from .ui.editor import edit_callback
-from .ui.editor import tag_context_menu
 from .ui.view import TagInfoBox
 from .ui.view import TagsScroller
+from .ui.view import tag_context_menu
 
 
 class TagPlugin(pluginmgr.Plugin):
