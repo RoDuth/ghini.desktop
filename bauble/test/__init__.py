@@ -1,3 +1,4 @@
+# pylint: disable=protected-access
 # Copyright (c) 2005,2006,2007,2008,2009 Brett Adams <brett@belizebotanic.org>
 # Copyright (c) 2012-2015 Mario Frasca <mario@anche.no>
 # Copyright (c) 2020-2024 Ross Demuth <rossdemuth123@gmail.com>
@@ -16,19 +17,24 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with ghini.desktop. If not, see <http://www.gnu.org/licenses/>.
+"""
+test base classes, helpers, etc.
+"""
 
 import logging
-import os
-import sys
-import unittest
-
-# from tempfile import NamedTemporaryFile
-from pathlib import Path
-from tempfile import mkstemp
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
 
+import os
+import sys
+import threading
+import unittest
+from pathlib import Path
+from tempfile import mkstemp
+from time import sleep
+
+from gi.repository import Gtk
 from sqlalchemy.engine import make_url
 from sqlalchemy.orm import close_all_sessions
 from sqlalchemy.pool import StaticPool
@@ -75,25 +81,37 @@ def run_app():
 
 
 def update_gui():
-    """
-    Flush any GTK Events.  Used for doing GUI testing.
-    """
-    import gi
+    """Flush any GTK Events.
 
-    gi.require_version("Gtk", "3.0")
-    from gi.repository import Gtk
+    Use in GUI tests."""
 
-    while Gtk.events_pending():
+    while Gtk.events_pending():  # pylint: disable=no-value-for-parameter
         Gtk.main_iteration()
 
 
 def wait_on_threads():
     """Wait for any still running threads to complete"""
-    import threading
-    from time import sleep
 
     while threading.active_count() > 1:
-        sleep(0.1)
+        sleep(0.03)
+
+
+def destroy_toplevels():
+    # pylint: disable=no-value-for-parameter
+    toplevels = Gtk.Window.list_toplevels()
+    print("toplevels:", len(toplevels))
+
+    # to periodically clear toplevels add this to test tearDown,
+    # running with `pytest -sv` will reveal issues with:
+    #     Gtk-CRITICAL .. gtk_widget_destroy: assertion
+    #     'GTK_IS_WIDGET (widget)' failed
+    # segmentation faults and similar
+
+    # comment out this block if you just want to check the number of toplevels
+    while toplevels:
+        window = toplevels.pop()
+
+        window.destroy()
 
 
 def check_dupids(filename):
@@ -102,7 +120,7 @@ def check_dupids(filename):
     """
     ids = set()
     duplicates = set()
-    import lxml.etree as etree
+    from lxml import etree
 
     tree = etree.parse(filename)
     for el in tree.getiterator():
@@ -252,12 +270,18 @@ class BaubleTestCase(unittest.TestCase):
         db.engine.dispose()
 
 
-def mockfunc(msg=None, name=None, caller=None, result=False, *args, **kwargs):
+def mockfunc(
+    msg=None,
+    name=None,
+    caller=None,
+    result=False,
+    **_kwargs,
+):
     caller.invoked.append((name, msg))
     return result
 
 
-def get_setUp_data_funcs():
+def get_setUp_data_funcs():  # pylint: disable=invalid-name
     """Search plugins directory for tests and return setUp_data functions."""
     from importlib import import_module
 
@@ -269,6 +293,6 @@ def get_setUp_data_funcs():
             mod = import_module(mod_path)
             func = getattr(mod, "setUp_data")
             funcs.append(func)
-        except Exception:
+        except Exception:  # pylint: disable=broad-exception-caught
             pass
     return sorted(funcs, key=lambda func: func.order)

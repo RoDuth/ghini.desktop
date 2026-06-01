@@ -194,7 +194,6 @@ class SynonymsPresenter(Gtk.Frame):
     cell_renderer = cast(Gtk.CellRendererText, Gtk.Template.Child())
     remove_button = cast(Gtk.Button, Gtk.Template.Child())
     add_button = cast(Gtk.Button, Gtk.Template.Child())
-    completion = cast(Gtk.EntryCompletion, Gtk.Template.Child())
     cell = cast(Gtk.CellRendererText, Gtk.Template.Child())
 
     def __init__(self, *args, **kwargs) -> None:
@@ -233,16 +232,15 @@ class SynonymsPresenter(Gtk.Frame):
         self.synonym_table = synonym_table
         self.session = session
         self.completions_seed = completions_seed
-        self.completion.set_cell_data_func(
+        completion = self.entry.get_completion()
+        completion.set_cell_data_func(
             self.cell,
             cell_data_func or taxon_completion_cell_data_func,
         )
-        self.completion.set_match_func(
-            match_func or default_completion_match_func
-        )
+        completion.set_match_func(match_func or default_completion_match_func)
 
-        self.completion.connect("match-selected", self.on_match_selected)
-        # self.completion.set_property("text-column", -1)
+        completion.connect("match-selected", self.on_match_selected)
+
         self.init_treeview()
 
         # prevent adding synonyms to synonyms

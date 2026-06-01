@@ -132,7 +132,6 @@ class PlantEditorDialog(
     species_label = cast(Gtk.Label, Gtk.Template.Child())
     id_label = cast(Gtk.Label, Gtk.Template.Child())
     accession_entry = cast(Gtk.Entry, Gtk.Template.Child())
-    accession_completion = cast(Gtk.EntryCompletion, Gtk.Template.Child())
     accession_cell = cast(Gtk.CellRendererText, Gtk.Template.Child())
     code_entry = cast(Gtk.Entry, Gtk.Template.Child())
     type_combo = cast(Gtk.ComboBox, Gtk.Template.Child())
@@ -142,7 +141,6 @@ class PlantEditorDialog(
     location_combo_cell = cast(Gtk.CellRendererText, Gtk.Template.Child())
     location_liststore = cast(Gtk.ListStore, Gtk.Template.Child())
     location_cell = cast(Gtk.CellRendererText, Gtk.Template.Child())
-    location_completion = cast(Gtk.EntryCompletion, Gtk.Template.Child())
     change_frame = cast(Gtk.Frame, Gtk.Template.Child())
     reason_combo = cast(Gtk.ComboBox, Gtk.Template.Child())
     reason_liststore = cast(Gtk.ListStore, Gtk.Template.Child())
@@ -179,17 +177,19 @@ class PlantEditorDialog(
 
         super().__init__(model, session, transient_for=transient_for)
 
-        self.accession_completion.set_cell_data_func(
+        accession_completion = self.accession_entry.get_completion()
+        accession_completion.set_cell_data_func(
             self.accession_cell,
             accession_completion_cell_data_func,
         )
-        self.accession_completion.set_match_func(accession_match_func)
+        accession_completion.set_match_func(accession_match_func)
 
-        self.location_completion.set_cell_data_func(
+        location_completion = self.location_entry.get_completion()
+        location_completion.set_cell_data_func(
             self.location_cell,
             default_completion_cell_data_func,
         )
-        self.location_completion.set_match_func(location_match_func)
+        location_completion.set_match_func(location_match_func)
         self.location_comboentry.set_cell_data_func(
             self.location_combo_cell,
             default_completion_cell_data_func,

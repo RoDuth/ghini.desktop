@@ -313,7 +313,7 @@ class PictureBox(GenericPresenter[db.Note], Gtk.Box):
                 img = Gtk.Label()
                 img.set_text(label)
             except Exception as e:  # pylint: disable=broad-except
-                logger.warning("(%s)%s", type(e), e)
+                logger.warning("%s(%s)", type(e), e)
                 img = Gtk.Label()
                 img.set_text(f"{type(e).__name__}: {e}")
         else:
@@ -430,7 +430,7 @@ class PictureBox(GenericPresenter[db.Note], Gtk.Box):
         try:
             self.add_from_files(filenames)
         except Exception as e:  # pylint: disable=broad-except
-            logger.warning("unhandled exception: (%s)%s", type(e).__name__, e)
+            logger.warning("unhandled exception: %s(%s)", type(e).__name__, e)
             dialogs.message_details_dialog(
                 _("%s trying to add the selected files.") % type(e).__name__,
                 str(e),
@@ -648,7 +648,7 @@ class DocumentBox(GenericPresenter[db.Note], Gtk.Box):
         try:
             self.add_from_files(filenames)
         except Exception as e:  # pylint: disable=broad-except
-            logger.warning("unhandled exception: (%s)%s", type(e).__name__, e)
+            logger.warning("unhandled exception: %s(%s)", type(e).__name__, e)
             dialogs.message_details_dialog(
                 _("%s trying to add the selected files.") % type(e).__name__,
                 str(e),

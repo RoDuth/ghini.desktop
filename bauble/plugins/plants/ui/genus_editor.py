@@ -178,7 +178,6 @@ class GenusEditorDialog(
 
     revealer = cast(Gtk.Revealer, Gtk.Template.Child())
     family_entry = cast(Gtk.Entry, Gtk.Template.Child())
-    family_completion = cast(Gtk.EntryCompletion, Gtk.Template.Child())
     family_cell = cast(Gtk.CellRendererText, Gtk.Template.Child())
     supragen_expander = cast(Gtk.Expander, Gtk.Template.Child())
     subfamily_entry = cast(Gtk.Entry, Gtk.Template.Child())
@@ -212,11 +211,12 @@ class GenusEditorDialog(
 
         super().__init__(model, session, transient_for=transient_for)
 
-        self.family_completion.set_cell_data_func(
+        family_completion = self.family_entry.get_completion()
+        family_completion.set_cell_data_func(
             self.family_cell,
             taxon_completion_cell_data_func,
         )
-        self.family_completion.set_match_func(default_completion_match_func)
+        family_completion.set_match_func(default_completion_match_func)
 
         self.widgets_to_model_map = {
             self.family_entry: "family",
@@ -315,13 +315,14 @@ class GenusEditorDialog(
     def notify_fam_is_synonym(self, family: Family) -> None:
         def on_yes_clicked(_button: Gtk.Button) -> None:
             self.revealer.set_reveal_child(False)
+            family_completion = self.family_entry.get_completion()
             completion_model = cast(
                 Gtk.ListStore,
-                self.family_completion.get_model(),
+                family_completion.get_model(),
             )
             completion_model.clear()
             completion_model.append([family.accepted])
-            self.family_completion.emit(
+            family_completion.emit(
                 "match-selected",
                 completion_model,
                 completion_model.get_iter_first(),

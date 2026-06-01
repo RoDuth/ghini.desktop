@@ -128,6 +128,7 @@ class SynonymsPresenterTests(BaubleTestCase):
         self.session.add(family)
         self.session.commit()
         syns_presenter = SynonymsPresenter()
+
         syns_presenter.init(
             family,
             FamilySynonym,
@@ -186,7 +187,8 @@ class SynonymsPresenterTests(BaubleTestCase):
                 .order_by(Family.epithet)
             ),
         )
-        model = syns_presenter.completion.get_model()
+        completion = syns_presenter.entry.get_completion()
+        model = completion.get_model()
         # without min_key_length set will populate
         syns_presenter.entry.set_text("M")
 
@@ -205,7 +207,7 @@ class SynonymsPresenterTests(BaubleTestCase):
         self.assertEqual(syns_presenter.additional, [])
 
         # set a minimum key length will not populate
-        syns_presenter.completion.set_minimum_key_length(3)
+        completion.set_minimum_key_length(3)
         syns_presenter.entry.set_text("My")
 
         self.assertEqual(len(model), 0)
@@ -308,8 +310,6 @@ class SynonymsPresenterTests(BaubleTestCase):
         syns_presenter.on_match_selected(None, liststore, 0)
         self.assertFalse(syns_presenter.add_button.get_sensitive())
         self.assertIsNone(syns_presenter._selected)
-
-        syns_presenter.destroy()
 
     def test_on_add_button_clicked(self):
         for setup_func in get_setUp_data_funcs():
@@ -627,6 +627,11 @@ class SpeciesCompletionTests(BaubleClassTestCase):
         for val in [cls.sp1, cls.sp2, cls.sp3, cls.sp4, cls.sp5]:
             completion_model.append([val])
         cls.completion.set_model(completion_model)
+
+    @classmethod
+    def tearDownClass(cls):
+        del cls.completion
+        return super().tearDownClass()
 
     def test_species_match_func_full_name(self):
         key = "Syzygium australe"
@@ -2571,8 +2576,6 @@ class DistributionMapTests(BaubleClassTestCase):
         self.assertTrue(dist_map)
         editor = SpeciesEditorDialog(self.sp, self.session)
         editor.emit("response", Response.OK)
-        update_gui()
-        editor.destroy()
 
         hist = self.session.scalars(
             select(db.History.values)

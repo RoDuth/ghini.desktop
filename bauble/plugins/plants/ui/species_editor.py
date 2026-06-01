@@ -211,7 +211,6 @@ class SpeciesEditorDialog(
     add_syn_chkbox = cast(Gtk.CheckButton, Gtk.Template.Child())
     revealer = cast(Gtk.Revealer, Gtk.Template.Child())
     genus_entry = cast(Gtk.Entry, Gtk.Template.Child())
-    genus_completion = cast(Gtk.EntryCompletion, Gtk.Template.Child())
     genus_cell = cast(Gtk.CellRendererText, Gtk.Template.Child())
     infragen_expander = cast(Gtk.Expander, Gtk.Template.Child())
     subgenus_entry = cast(Gtk.Entry, Gtk.Template.Child())
@@ -239,9 +238,9 @@ class SpeciesEditorDialog(
     label_markup_label = cast(Gtk.Label, Gtk.Template.Child())
     label_dist_entry = cast(Gtk.Entry, Gtk.Template.Child())
     habit_comboentry = cast(Gtk.ComboBox, Gtk.Template.Child())
+    habit_entry = cast(Gtk.Entry, Gtk.Template.Child())
     habit_liststore = cast(Gtk.ListStore, Gtk.Template.Child())
     habit_cell = cast(Gtk.CellRendererText, Gtk.Template.Child())
-    habit_completion = cast(Gtk.EntryCompletion, Gtk.Template.Child())
     _sp_custom1_label = cast(Gtk.Label, Gtk.Template.Child())
     _sp_custom1_combo = cast(Gtk.ComboBoxText, Gtk.Template.Child())
     _sp_custom2_label = cast(Gtk.Label, Gtk.Template.Child())
@@ -275,14 +274,16 @@ class SpeciesEditorDialog(
         # get the starting position
         self.capture_start_sp(self.model)
 
-        self.genus_completion.set_cell_data_func(
+        genus_completion = self.genus_entry.get_completion()
+        genus_completion.set_cell_data_func(
             self.genus_cell,
             taxon_completion_cell_data_func,
         )
-        self.genus_completion.set_match_func(default_completion_match_func)
+        genus_completion.set_match_func(default_completion_match_func)
 
-        self.habit_completion.set_match_func(default_completion_match_func)
-        self.habit_completion.set_cell_data_func(
+        habit_completion = self.habit_entry.get_completion()
+        habit_completion.set_match_func(default_completion_match_func)
+        habit_completion.set_cell_data_func(
             self.habit_cell,
             default_completion_cell_data_func,
         )
@@ -631,13 +632,14 @@ class SpeciesEditorDialog(
     def notify_genus_is_synonym(self, genus: Genus) -> None:
         def on_yes_clicked(_button: Gtk.Button) -> None:
             self.revealer.set_reveal_child(False)
+            genus_completion = self.genus_entry.get_completion()
             completion_model = cast(
                 Gtk.ListStore,
-                self.genus_completion.get_model(),
+                genus_completion.get_model(),
             )
             completion_model.clear()
             completion_model.append([genus.accepted])
-            self.genus_completion.emit(
+            genus_completion.emit(
                 "match-selected",
                 completion_model,
                 completion_model.get_iter_first(),

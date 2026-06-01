@@ -714,6 +714,11 @@ class AccessionCompletionTests(BaubleClassTestCase):
             completion_model.append(val)
         cls.completion.set_model(completion_model)
 
+    @classmethod
+    def tearDownClass(cls):
+        del cls.completion
+        return super().tearDownClass()
+
     def test_match_func_full_accession_code(self):
         key = "2001.1"
         self.assertTrue(accession_match_func(self.completion, key, 0))
@@ -821,6 +826,11 @@ class LocationCompletionTests(BaubleClassTestCase):
         for val in (cls.loc1, cls.loc2, cls.other1, cls.other2):
             completion_model.append((val,))
         cls.completion.set_model(completion_model)
+
+    @classmethod
+    def tearDownClass(cls):
+        del cls.completion
+        return super().tearDownClass()
 
     def test_match_func_full_code(self):
         key = "LOC1"

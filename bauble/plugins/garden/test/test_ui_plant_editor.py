@@ -74,6 +74,7 @@ class PlantEditorDialogTests(BaubleTestCase):
         self.assertEqual(editor.accession_entry.get_text(), "2001.0001")
         self.assertEqual(len(editor.problems), 0)
 
+        mock_gui.window.destroy()
         editor.destroy()
 
     def test_init_existing_dead(self):
@@ -451,6 +452,7 @@ class PlantEditorDialogTests(BaubleTestCase):
         with mock.patch.object(editor, "update") as mock_update:
             editor.history_presenter.emit("changed")
             mock_update.assert_called_once()
+        editor.destroy()
 
     def test_on_comboentry_format(self):
         location = Location(

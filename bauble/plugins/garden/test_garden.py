@@ -1396,6 +1396,10 @@ class PropagationTests(GardenTestCase):
             v = getattr(model.cutting, attr)
             self.assertTrue(v == value, "%s = %s(%s)" % (attr, value, v))
         editor.session.close()
+        cutting_presenter.view.get_window().destroy()
+        del cutting_presenter
+        del model
+        del editor
 
     def test_seed_editor_commit(self):
         loc = Location(name="name", code="code")
@@ -1432,6 +1436,11 @@ class PropagationTests(GardenTestCase):
         model_id = editor.model.id
         editor.commit_changes()
         editor.session.close()
+        view.get_window().destroy()
+        del seed_presenter
+        del widgets
+        del view
+        del editor
 
         s = db.Session()
         propagation = s.get(Propagation, model_id)
@@ -1466,8 +1475,7 @@ class PropagationTests(GardenTestCase):
         editor = PropagationEditor(model=propagation)
         widgets = editor.presenter.view.widgets
         seed_presenter = editor.presenter._seed_presenter
-        view = editor.presenter.view
-        self.assertTrue(view is not None)
+        self.assertTrue(editor.presenter.view is not None)
 
         update_gui()
 
@@ -1511,6 +1519,10 @@ class PropagationTests(GardenTestCase):
                 value == default, "%s = %s (%s)" % (attr, value, default)
             )
 
+        editor.presenter.view.get_window().destroy()
+        del widgets
+        del editor
+
     @unittest.mock.patch("gi.repository.Gtk.Dialog.run")
     def test_editor(self, mock_start):
         # Not sure this really tests much...
@@ -1528,6 +1540,7 @@ class PropagationTests(GardenTestCase):
         self.assertTrue(propagation.accessions)
         self.assertEqual(propagation.prop_type, "Other")
         self.assertEqual(propagation.notes, "TEST")
+        editor.presenter.view.get_window().destroy()
         del editor
         self.assertEqual(
             utils.gc_objects_by_type("PropagationEditor"),
@@ -3221,6 +3234,7 @@ class IntendedLocationsTests(GardenTestCase):
             )
         )
         self.assertTrue(presenter.is_dirty())
+        presenter.view.get_window().destroy()
 
     def test_refresh_sets_dirty_false_when_location_missing(self):
         presenter = IntendedLocationPresenter(
@@ -3830,6 +3844,7 @@ class VerificationTests(GardenTestCase):
         self.assertEqual(ver.species, sp)
         self.assertEqual(ver.prev_species, acc.species)
         self.assertEqual(ver.level, 1)
+        presenter.view.get_window().destroy()
 
     @unittest.mock.patch(
         "bauble.plugins.garden.accession.dialogs.yes_no_dialog"
@@ -3859,6 +3874,7 @@ class VerificationTests(GardenTestCase):
         ver_box.on_remove_button_clicked(None)
         mock_dialog.assert_called()
         self.assertEqual(acc.verifications, [])
+        presenter.view.get_window().destroy()
 
     @unittest.mock.patch(
         "bauble.plugins.garden.accession.dialogs.yes_no_dialog"
@@ -3890,6 +3906,7 @@ class VerificationTests(GardenTestCase):
         ver_box.on_remove_button_clicked(None)
         mock_dialog.assert_called()
         self.assertEqual(acc.verifications, [ver])
+        presenter.view.get_window().destroy()
 
     def test_ref_get_completions(self):
         acc1 = self.session.get(Accession, 1)
@@ -3920,6 +3937,7 @@ class VerificationTests(GardenTestCase):
         self.assertEqual(
             ver_box.ref_get_completions("flora"), [ver1.reference]
         )
+        presenter.view.get_window().destroy()
 
     def test_verifier_get_completions(self):
         acc1 = self.session.get(Accession, 1)
@@ -3948,6 +3966,7 @@ class VerificationTests(GardenTestCase):
         self.assertEqual(
             ver_box.verifier_get_completions("some"), [ver1.verifier]
         )
+        presenter.view.get_window().destroy()
 
     @unittest.mock.patch(
         "bauble.plugins.garden.accession.dialogs.yes_no_dialog"
@@ -3978,6 +3997,7 @@ class VerificationTests(GardenTestCase):
         ver_box.on_copy_to_taxon_general_clicked(None)
         mock_dialog.assert_called()
         self.assertEqual(acc.species, sp)
+        presenter.view.get_window().destroy()
 
     @unittest.mock.patch(
         "bauble.plugins.garden.accession.dialogs.yes_no_dialog"
@@ -4008,6 +4028,7 @@ class VerificationTests(GardenTestCase):
         ver_box.on_copy_to_taxon_general_clicked(None)
         mock_dialog.assert_called()
         self.assertNotEqual(acc.species, sp)
+        presenter.view.get_window().destroy()
 
 
 class LocationTests(GardenTestCase):

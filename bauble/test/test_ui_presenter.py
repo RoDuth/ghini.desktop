@@ -95,6 +95,7 @@ class GenericPresenterTests(TestCase):
         val2 = "TEST"
         presenter.bar_entry.set_text("TEST")
         self.assertEqual(presenter.bar_entry.get_text(), val2)
+        presenter.destroy()
 
     def test_can_use_as_presenter_class(self):
         gtype = "Foo2"
@@ -125,6 +126,8 @@ class GenericPresenterTests(TestCase):
         val2 = "TEST"
         view.bar_entry.set_text("TEST")
         self.assertEqual(view.bar_entry.get_text(), val2)
+
+        view.destroy()
 
     def test_can_use_as_stand_alone(self):
 
@@ -715,6 +718,8 @@ class DomainEditorDialogTests(BaubleTestCase):
             editor.get_widget_for_response(Response.NEXT).get_visible()
         )
 
+        editor.destroy()
+
     def test_connect_after(self):
         family = Family()
         editor = DialogPresenter(family, self.session)
@@ -723,6 +728,8 @@ class DomainEditorDialogTests(BaubleTestCase):
         with mock.patch("gi.repository.Gtk.Dialog.connect_after") as mock_con:
             editor.connect_after("response", mock_on_response)
             mock_con.assert_called_once()
+
+        editor.destroy()
 
 
 class FunctionTests(BaubleTestCase):
