@@ -190,7 +190,11 @@ def remove_callback(
 
 
 edit_action = Action(
-    "loc_edit", _("_Edit"), callback=edit_callback, accelerator="<ctrl>e"
+    "loc_edit",
+    _("_Edit"),
+    callback=edit_callback,
+    accelerator="<ctrl>e",
+    multiselect=True,
 )
 
 add_plant_action = Action(

@@ -289,6 +289,7 @@ edit_action = Action(
     _("_Edit"),
     callback=edit_callback,
     accelerator="<ctrl>e",
+    multiselect=True,
 )
 
 add_genus_action = Action(

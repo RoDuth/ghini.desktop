@@ -615,7 +615,11 @@ def remove_callback(
 
 
 edit_action = Action(
-    "species_edit", _("_Edit"), callback=edit_callback, accelerator="<ctrl>e"
+    "species_edit",
+    _("_Edit"),
+    callback=edit_callback,
+    accelerator="<ctrl>e",
+    multiselect=True,
 )
 
 add_accession_action = Action(

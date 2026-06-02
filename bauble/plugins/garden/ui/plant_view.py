@@ -444,6 +444,7 @@ edit_action = Action(
     _("_Edit"),
     callback=edit_callback,
     accelerator="<ctrl>e",
+    multiselect=True,
 )
 
 # branch_action = Action(
