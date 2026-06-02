@@ -22,13 +22,17 @@ Edit and store information about the institution in the bauble meta table
 """
 
 import logging
+
+logger = logging.getLogger(__name__)
+
+from collections.abc import Callable
+from copy import copy
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Self
 from typing import cast
 
-logger = logging.getLogger(__name__)
-
+from gi.repository import GLib
 from gi.repository import Gtk
 from sqlalchemy import Table
 from sqlalchemy import bindparam
@@ -41,6 +45,8 @@ from bauble import pluginmgr
 from bauble import utils
 from bauble.i18n import _
 from bauble.ui import GenericPresenter
+from bauble.ui.presenter import generic_notify_delete_event
+from bauble.ui.widgets import MessageBox
 
 
 @dataclass
@@ -120,61 +126,70 @@ class InstitutionDialog(
 
     __gsignals__ = GenericPresenter.gsignals
 
-    inst_name = cast(Gtk.Entry, Gtk.Template.Child())
-    inst_abbr = cast(Gtk.Entry, Gtk.Template.Child())
-    inst_code = cast(Gtk.Entry, Gtk.Template.Child())
-    inst_contact = cast(Gtk.Entry, Gtk.Template.Child())
-    inst_tech = cast(Gtk.Entry, Gtk.Template.Child())
-    inst_email = cast(Gtk.Entry, Gtk.Template.Child())
-    inst_tel = cast(Gtk.Entry, Gtk.Template.Child())
-    inst_fax = cast(Gtk.Entry, Gtk.Template.Child())
-    inst_addr_tb = cast(Gtk.TextBuffer, Gtk.Template.Child())
-    inst_geo_latitude = cast(Gtk.Entry, Gtk.Template.Child())
-    inst_geo_longitude = cast(Gtk.Entry, Gtk.Template.Child())
-    inst_geo_zoom = cast(Gtk.ComboBoxText, Gtk.Template.Child())
-    notify_revealer = cast(Gtk.Revealer, Gtk.Template.Child())
-    notify_message_label = cast(Gtk.Label, Gtk.Template.Child())
-    inst_ok = cast(Gtk.Button, Gtk.Template.Child())
+    name_entry = cast(Gtk.Entry, Gtk.Template.Child())
+    abbreviation_entry = cast(Gtk.Entry, Gtk.Template.Child())
+    code_entry = cast(Gtk.Entry, Gtk.Template.Child())
+    contact_entry = cast(Gtk.Entry, Gtk.Template.Child())
+    tech_contact_entry = cast(Gtk.Entry, Gtk.Template.Child())
+    email_entry = cast(Gtk.Entry, Gtk.Template.Child())
+    phone_entry = cast(Gtk.Entry, Gtk.Template.Child())
+    fax_entry = cast(Gtk.Entry, Gtk.Template.Child())
+    address_buffer = cast(Gtk.TextBuffer, Gtk.Template.Child())
+    geo_latitude_entry = cast(Gtk.Entry, Gtk.Template.Child())
+    geo_longitude_entry = cast(Gtk.Entry, Gtk.Template.Child())
+    geo_zoom_combo = cast(Gtk.ComboBoxText, Gtk.Template.Child())
+    revealer = cast(Gtk.Revealer, Gtk.Template.Child())
+    ok_button = cast(Gtk.Button, Gtk.Template.Child())
 
     message_box: utils.GenericMessageBox | None = None
 
     def __init__(self, model: Institution) -> None:
         super().__init__(model, self)
         self.widgets_to_model_map = {
-            self.inst_name: "name",
-            self.inst_abbr: "abbreviation",
-            self.inst_code: "code",
-            self.inst_contact: "contact",
-            self.inst_tech: "technical_contact",
-            self.inst_email: "email",
-            self.inst_tel: "tel",
-            self.inst_fax: "fax",
-            self.inst_addr_tb: "address",
-            self.inst_geo_latitude: "geo_latitude",
-            self.inst_geo_longitude: "geo_longitude",
-            self.inst_geo_zoom: "geo_zoom",
+            self.name_entry: "name",
+            self.abbreviation_entry: "abbreviation",
+            self.code_entry: "code",
+            self.contact_entry: "contact",
+            self.tech_contact_entry: "technical_contact",
+            self.email_entry: "email",
+            self.phone_entry: "tel",
+            self.fax_entry: "fax",
+            self.address_buffer: "address",
+            self.geo_latitude_entry: "geo_latitude",
+            self.geo_longitude_entry: "geo_longitude",
+            self.geo_zoom_combo: "geo_zoom",
         }
 
         if bauble.gui:
             self.set_transient_for(bauble.gui.window)
-            self.set_destroy_with_parent(True)
 
-        self.inst_name.grab_focus()
+        self.name_entry.grab_focus()
         self.refresh_all_widgets_from_model()
-        self.inst_name.emit("changed")
+
+        self.start = copy(self.model)
+
+        if not self.model.name:
+            GLib.idle_add(self.notify_no_institution)
+
+        self.name_entry.emit("changed")
+
+    def notify_no_institution(self) -> None:
+
+        self.revealer.foreach(self.revealer.remove)
+
+        msg = _("Please specify an institution name for this database.")
+
+        message_box = MessageBox(msg)
+        message_box.show_all()
+        self.revealer.add(message_box)
+        self.revealer.set_reveal_child(True)
 
     @Gtk.Template.Callback()
     def on_non_empty_text_entry_changed(self, entry: Gtk.Entry) -> None:
         super().on_non_empty_text_entry_changed(entry)
-        if not self.model.name:
-            msg = _("Please specify an institution name for this database.")
-            self.notify_message_label.set_label(msg)
-            self.notify_revealer.set_reveal_child(True)
-
-    @Gtk.Template.Callback()
-    def on_notify_close_button_clicked(self, _button) -> None:
-        """Close the notification revealer."""
-        self.notify_revealer.set_reveal_child(False)
+        if self.model.name:
+            self.revealer.set_reveal_child(False)
+            self.revealer.foreach(self.revealer.remove)
 
     @Gtk.Template.Callback()
     def on_text_buffer_changed(self, buffer: Gtk.TextBuffer) -> None:
@@ -190,15 +205,27 @@ class InstitutionDialog(
 
     @Gtk.Template.Callback()
     def on_problems_changed(self, _widget: Self, has_problems: bool) -> None:
-        self.inst_ok.set_sensitive(not has_problems)
+        self.ok_button.set_sensitive(not has_problems)
+
+    @Gtk.Template.Callback()
+    def on_response(self, dialog: Self, response: Gtk.ResponseType) -> None:
+        if response == Gtk.ResponseType.OK:
+            self.model.write()
+        dialog.destroy()
+
+    def has_pending_changes(self) -> bool:
+        if self.problems:
+            return True
+        return self.model != self.start
+
+    def notify_delete_event(self, remove: Callable[[int], None]) -> None:
+        generic_notify_delete_event(self, remove)
 
 
 def start_institution_editor() -> None:
     model = Institution()
     dialog = InstitutionDialog(model)
-    if dialog.run() == Gtk.ResponseType.OK:
-        model.write()
-    dialog.destroy()
+    dialog.show()
 
 
 class InstitutionCommand(pluginmgr.CommandHandler):
