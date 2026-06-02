@@ -21,6 +21,9 @@ Core user interface
 """
 
 import logging
+
+logger = logging.getLogger(__name__)
+
 import os
 import traceback
 from collections import deque
@@ -33,8 +36,7 @@ from typing import Literal
 from typing import Protocol
 from typing import TextIO
 from typing import cast
-
-logger = logging.getLogger(__name__)
+from typing import runtime_checkable
 
 from gi.repository import Gdk
 from gi.repository import GdkPixbuf
@@ -60,7 +62,7 @@ from bauble.search.sql_search import SQLSearchDialog
 from bauble.search.stored_queries import StoredQueriesDialog
 from bauble.ui import dialogs
 from bauble.ui.connmgr import start_connection_manager
-from bauble.ui.presenter import DomainEditorDialog
+from bauble.ui.utils import center_transient_window
 from bauble.ui.utils import clear_model
 from bauble.ui.views import SearchView
 from bauble.ui.views import get_search_view
@@ -93,6 +95,12 @@ class SimpleActionHandlerWArgs(Protocol):
 
 
 type SimpleActionHandler = SimpleActionHandlerNoArgs | SimpleActionHandlerWArgs
+
+
+@runtime_checkable
+class Editor(Protocol):
+    def notify_delete_event(self, remove: Callable[[int], None]) -> None: ...
+    def has_pending_changes(self) -> bool: ...
 
 
 class GUI:
@@ -161,6 +169,7 @@ class GUI:
         self.cmd_parser = (cmd + StringEnd()) | (cmd + "=" + arg) | arg
 
         self.save_history = True
+        self._pending_delete_dialogs: list[int] = []
 
         self.create_main_menu()
 
@@ -1019,28 +1028,8 @@ class GUI:
         if editor is None:
             return
 
-        presenter_cls = view_cls = None
-        if hasattr(editor, "presenter"):
-            presenter_cls = type(editor.presenter)
-            view_cls = type(editor.presenter.view)
-
         # delete the editor
         del editor
-
-        # check for leaks
-        obj = utils.gc_objects_by_type(editor_cls)
-        if obj != []:
-            logger.warning("%s leaked: %s", editor_cls.__name__, obj)
-
-        if presenter_cls:
-            obj = utils.gc_objects_by_type(presenter_cls)
-            if obj != []:
-                logger.warning("%s leaked: %s", presenter_cls.__name__, obj)
-
-        if view_cls:
-            obj = utils.gc_objects_by_type(view_cls)
-            if obj != []:
-                logger.warning("%s leaked: %s", view_cls.__name__, obj)
 
     def on_edit_menu_cut(
         self,
@@ -1253,25 +1242,29 @@ class GUI:
         _window: Gtk.ApplicationWindow,
         _event: Gdk.Event,
     ) -> bool:
-        for win in self.window.list_toplevels():
-            win = cast(Gtk.Window, win)
-            if isinstance(win, DomainEditorDialog) and db.is_modified(
-                win.session
-            ):
-                win.present()
-                response = dialogs.message_dialog(
-                    _(
-                        "You have uncommitted changes of type %s, closing now "
-                        "will lose them!\n\nCLOSE ANYWAY?"
-                    )
-                    % type(win.model).__name__,
-                    Gtk.MessageType.WARNING,
-                    Gtk.ButtonsType.YES_NO,
-                )
-                if response == Gtk.ResponseType.YES:
-                    continue
-                # prevent close
-                return True
+        self._pending_delete_dialogs = []
+        uncommitted = False
+        for win in cast(list[Gtk.Window], self.window.list_toplevels()):
+
+            if not isinstance(win, Editor):
+                continue
+
+            pending = win.has_pending_changes()
+
+            if pending:
+                logger.warning("Exit attempt, %s still open with changes", win)
+
+                self._pending_delete_dialogs.append(id(win))
+                win.deiconify()
+                center_transient_window(self.window, win)
+
+                win.notify_delete_event(self._on_notify_delete_event_response)
+
+                uncommitted = True
+
+        if uncommitted:
+            # prevent close, dialogs still open
+            return True
 
         if bauble.task.running():
             msg = _("Would you like to cancel the current tasks?")
@@ -1283,7 +1276,27 @@ class GUI:
             if not dialogs.yes_no_dialog(msg):
                 # don't close
                 return True
+
         return False
+
+    def _on_notify_delete_event_response(
+        self,
+        id_: int,
+    ) -> None:
+        self._pending_delete_dialogs.remove(id_)
+
+        if self._pending_delete_dialogs:
+            return
+
+        def _destroy():
+            # incase another set of windows has since been opened.
+            for win in self.window.list_toplevels():
+                if isinstance(win, Editor):
+                    return
+
+            self.window.destroy()
+
+        GLib.idle_add(_destroy)
 
     def on_destroy(self, _window: Gtk.ApplicationWindow) -> None:
 
@@ -1306,7 +1319,10 @@ class GUI:
         _action: Gio.SimpleAction,
         _param: GLib.Variant | None,
     ) -> None:
-        self.window.destroy()
+        self.window.emit(
+            "delete-event",
+            Gdk.Event.new(Gdk.EventType.DELETE),
+        )
 
 
 bauble.gui = GUI()

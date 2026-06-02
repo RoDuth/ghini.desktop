@@ -26,8 +26,9 @@ import gc
 from collections.abc import Callable
 from collections.abc import Sequence
 from enum import IntEnum
+from typing import TYPE_CHECKING
+from typing import Protocol
 from typing import Self
-from typing import cast
 
 from gi.repository import GLib
 from gi.repository import GObject
@@ -48,7 +49,6 @@ from .handlers import TextBufferHandler
 from .validators import Validator
 from .validators import validate_non_empty
 from .validators import validate_unique
-from .views import get_search_view
 
 
 class Problem:  # pylint: disable=too-few-public-methods
@@ -351,14 +351,26 @@ class Response(IntEnum):
     RETURN = 44
 
 
-class DomainEditorDialog[T: db.Domain](GenericPresenter[T]):
+if TYPE_CHECKING:
+
+    class _Dialog[T](GenericPresenter[T], Gtk.Dialog):
+        pass
+
+else:
+    _Dialog = GenericPresenter
+
+
+class DomainEditorDialog[T: db.Domain](_Dialog[T]):
     """Editor dialogs base class for dialogs used in the insert menu, etc..
 
     i.e. As required by ``AddCallback`` and ``EditCreateCallback``.
     Use as a mixin for a ``Gtk.Template`` decorated ``Gtk.Dialog`` class.
 
-    A subclass of GenericPresenter that expects a ``db.Domain`` model.
+    A subclass of GenericPresenter that expects a ``db.Domain`` model and must
+    be used as a mixin on a ``Gtk.Dialog`` subclass.
     """
+
+    revealer: Gtk.Revealer
 
     def __init__(
         self,
@@ -386,36 +398,18 @@ class DomainEditorDialog[T: db.Domain](GenericPresenter[T]):
             if response in [Response.OK, Response.CANCEL]:
                 continue
 
-            widget = cast(Gtk.Dialog, super()).get_widget_for_response(
-                response.value
-            )
+            widget = self.get_widget_for_response(response.value)
             if widget:
                 widget.hide()
 
-        return cast(Gtk.Dialog, super()).run()
-
-    def show(self) -> None:
-        logger.debug("%s.show", type(self).__name__)
-        cast(Gtk.Dialog, super()).show()  # pylint: disable=no-member
-
-    def connect_after(
-        self,
-        signal: str,
-        handler: Callable,
-    ) -> int:
-        logger.debug("%s.connect_after", type(self).__name__)
-        # pylint: disable=no-member
-        return cast(Gtk.Dialog, super()).connect_after(signal, handler)
+        return super().run()
 
     def update(self) -> None:
         for response in Response:
             if response == Response.CANCEL:
                 continue
 
-            # pylint: disable=no-member
-            widget = cast(Gtk.Dialog, super()).get_widget_for_response(
-                response.value
-            )
+            widget = self.get_widget_for_response(response.value)
             if widget:
                 widget.set_sensitive(self.can_commit)
 
@@ -430,11 +424,101 @@ class DomainEditorDialog[T: db.Domain](GenericPresenter[T]):
                 msg,
                 traceback.format_exc(),
                 Gtk.MessageType.ERROR,
-                parent=cast(Gtk.Dialog, self),
+                parent=self,
             )
             self.session.rollback()
             self.model = self.session.merge(self.model)
         return False
+
+    def has_pending_changes(self) -> bool:
+        """Check if the model has pending changes.
+
+        Used by GUI on delete-event to determine if the dialog has pending
+        changes.
+        """
+        if self.problems:
+            return True
+
+        return db.is_modified(self.session)
+
+    def notify_delete_event(self, remove: Callable[[int], None]) -> None:
+        """Respond to the GUI delete-event signal handler.
+
+        On GUI delete, if this dialog has pending changes the gui will call
+        this method supplying the ``remove`` callback which can be called to
+        remove close this dialog and remove it from the list of pending
+        responses (and hence accept the delete-event).
+
+        If all open dialogs accept the delete-event the app will close.
+        """
+        generic_notify_delete_event(self, remove)
+
+
+class RevealerDialog(Protocol):  # pylint: disable=too-few-public-methods
+    revealer: Gtk.Revealer
+
+    def emit(self, signal_name: str, *args) -> None: ...
+
+
+def generic_notify_delete_event(
+    dialog: RevealerDialog,
+    remove: Callable[[int], None],
+) -> None:
+    """Respond to the GUI delete-event signal handler.
+
+    Any ``Gtk.Dialog`` can use this if it has a revealer to display the
+    message and a ``notify_delete_event`` method.
+
+    On delete the GUI will look for open dialogs and if they have a truthy
+    ``problems`` property and/or a modified database ``session`` property, and
+    a ``notify_delete_event`` method is available, it will call it supplying
+    the ``remove`` callback.  Calling this callback will remove the dialog from
+    the list of pending responses (and hence accept the delete-event).
+
+    Usage example::
+
+        class Foo(Gtk.Dialog):
+            def __init__(self):
+                revealer = Gtk.Revealer()
+                ...
+
+            def notify_delete_event(self, remove):
+                generic_notify_delete_event(self, remove)
+
+    """
+    dialog.revealer.set_reveal_child(False)
+
+    def on_yes_clicked(_button: Gtk.Button) -> None:
+        dialog.revealer.set_reveal_child(False)
+        # pylint: disable=no-member
+        dialog.emit(
+            "response",
+            Gtk.ResponseType.DELETE_EVENT,
+        )
+        remove(id(dialog))
+
+    def on_no_clicked(_button: Gtk.Button) -> None:
+        dialog.revealer.set_reveal_child(False)
+
+    msg = _(
+        "You have UNFINISHED WORK HERE, are you sure you want to exit?\n\n"
+        "Only after all windows are closed can you exit."
+        "\n\n    <b>CLOSE and DON'T SAVE CHANGES?</b>\n"
+    )
+
+    message_box = OkCancelMessageBox(msg, on_yes_clicked, on_no_clicked)
+
+    dialog.revealer.foreach(dialog.revealer.remove)
+
+    def _reveal():
+        message_box.show_all()
+        dialog.revealer.add(message_box)
+        dialog.revealer.set_reveal_child(True)
+
+    # if replaceing existing in-app notifications allow them time to clear
+    # first so this one reveals again, makes this notification a little more
+    # prominent
+    GLib.timeout_add(50, _reveal)
 
 
 class AddCallback:
@@ -540,4 +624,9 @@ def _on_domain_editor_response(
         Response.OK,
         Response.SAVE,
     ]:
-        get_search_view().update()
+        for view in bauble.gui.views:
+            view.update(None)
+
+
+# avoid circular
+from .widgets import OkCancelMessageBox

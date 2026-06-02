@@ -627,3 +627,18 @@ def get_window_from_widget(widget: Gtk.Widget) -> Gtk.Window | None:
         return None
 
     return toplevel
+
+
+def center_transient_window(
+    parent_window: Gtk.Window,
+    transient_window: Gtk.Window,
+) -> None:
+    parent_x, parent_y = parent_window.get_position()
+    parent_w, parent_h = parent_window.get_size()
+
+    child_w, child_h = transient_window.get_size()
+
+    center_x = parent_x + (parent_w - child_w) // 2
+    center_y = parent_y + (parent_h - child_h) // 2
+
+    transient_window.move(center_x, center_y)

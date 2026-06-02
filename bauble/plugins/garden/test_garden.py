@@ -1,3 +1,4 @@
+# pylint: disable=no-self-use,protected-access
 # Copyright 2008-2010 Brett Adams
 # Copyright 2015,2017 Mario Frasca <mario@anche.no>.
 # Copyright 2017 Jardín Botánico de Quito
@@ -23,6 +24,7 @@ logger = logging.getLogger(__name__)
 
 import datetime
 import os
+import time
 import unittest
 from functools import partial
 
@@ -41,6 +43,7 @@ from bauble.test import mockfunc
 from bauble.test import update_gui
 from bauble.test import wait_on_threads
 from bauble.ui import dialogs
+from bauble.ui.gui import GUI
 from bauble.ui.presenter import Response
 from bauble.ui.utils import set_combo_from_value
 from bauble.ui.utils import set_widget_value

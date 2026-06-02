@@ -22,7 +22,6 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-import traceback
 from pathlib import Path
 from typing import Self
 from typing import cast
@@ -31,13 +30,11 @@ from gi.repository import GLib
 from gi.repository import Gspell
 from gi.repository import Gtk
 from sqlalchemy import select
-from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
 from bauble import prefs
 from bauble import utils
 from bauble.i18n import _
-from bauble.ui import dialogs
 from bauble.ui.presenter import AddCallback
 from bauble.ui.presenter import DomainEditorDialog
 from bauble.ui.presenter import EditCreateCallback

@@ -24,7 +24,6 @@ Tag editor tests
 from unittest import mock
 
 from gi.repository import Gtk
-from sqlalchemy import select
 from sqlalchemy.exc import SQLAlchemyError
 
 import bauble
@@ -270,6 +269,29 @@ class TagEditorDialogTests(BaubleTestCase):
         )
 
         self.assertFalse(editor.on_response(editor, Response.CANCEL))
+
+        editor.destroy()
+
+    @mock.patch("bauble.plugins.tag.ui.editor.generic_notify_delete_event")
+    def test_notify_delete_event(self, mock_notify):
+        editor = TagEditorDialog(
+            model=Tag(),
+            session=db.Session(),
+        )
+        editor.notify_delete_event(None)
+
+        mock_notify.assert_called_once()
+
+        editor.destroy()
+
+    def test_has_pending_changes(self):
+        editor = TagEditorDialog(
+            model=Tag(),
+            session=db.Session(),
+        )
+        editor.name_entry.set_text("Spam")
+
+        self.assertTrue(editor.has_pending_changes())
 
         editor.destroy()
 
@@ -544,6 +566,24 @@ class TagItemsDialogTests(BaubleTestCase):
         self.session.refresh(tag)
 
         self.assertFalse(tag.is_tagging(fam))
+
+        dialog.destroy()
+
+    @mock.patch("bauble.plugins.tag.ui.editor.generic_notify_delete_event")
+    def test_notify_delete_event(self, mock_notify):
+        fam = Family(epithet="Myrtaceae")
+        dialog = TagItemsDialog([fam], self.session)
+        dialog.notify_delete_event(None)
+
+        mock_notify.assert_called_once()
+
+        dialog.destroy()
+
+    def test_has_pending_changes(self):
+        fam = Family(epithet="Myrtaceae")
+        dialog = TagItemsDialog([fam], self.session)
+
+        self.assertTrue(dialog.has_pending_changes())
 
         dialog.destroy()
 

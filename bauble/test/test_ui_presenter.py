@@ -27,6 +27,7 @@ from sqlalchemy.orm import Session
 from bauble.meta import BaubleMeta
 from bauble.plugins.plants.family import Family
 from bauble.test import BaubleTestCase
+from bauble.test import update_gui
 from bauble.ui.handlers import EntryHandler
 from bauble.ui.presenter import DomainEditorDialog
 from bauble.ui.presenter import EditCreateCallback
@@ -718,6 +719,7 @@ class DomainEditorDialogTests(BaubleTestCase):
             editor.get_widget_for_response(Response.NEXT).get_visible()
         )
 
+        update_gui()
         editor.destroy()
 
     def test_connect_after(self):
@@ -739,19 +741,28 @@ class FunctionTests(BaubleTestCase):
 
         callback = EditCreateCallback(mock_dialog, mock_obj_class)
 
-        with mock.patch("bauble.ui.presenter.get_search_view") as mock_view:
+        with mock.patch("bauble.gui") as mock_gui:
+            mock_searchview = mock.Mock()
+            mock_homeview = mock.Mock()
+            mock_gui.views.__iter__.return_value = [
+                mock_searchview,
+                mock_homeview,
+            ]
             self.assertFalse(callback())
+            mock_dialog.assert_called_once()
             handler = mock_dialog().connect_after.call_args.args[1]
             handler(mock_dialog, Response.OK)
-            mock_view().update.assert_called_once()
+            mock_gui.views.__iter__.assert_called()
+            mock_searchview.update.assert_called_once()
+            mock_homeview.update.assert_called_once()
 
         mock_obj_class.assert_called_once()
-        mock_dialog.assert_called()
         self.assertEqual(
             mock_dialog.call_args_list[0].kwargs["model"],
             mock_obj_class(),
         )
         self.assertIsInstance(
-            mock_dialog.call_args_list[0].kwargs["session"], Session
+            mock_dialog.call_args_list[0].kwargs["session"],
+            Session,
         )
         mock_dialog().show.assert_called_once()

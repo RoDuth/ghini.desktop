@@ -23,6 +23,7 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+from collections.abc import Callable
 from collections.abc import Sequence
 from pathlib import Path
 from typing import Self
@@ -44,6 +45,7 @@ from bauble.ui import idle_garbage_collect
 from bauble.ui.presenter import DomainEditorDialog
 from bauble.ui.presenter import EditCreateCallback
 from bauble.ui.presenter import Response
+from bauble.ui.presenter import generic_notify_delete_event
 from bauble.ui.views import get_search_view
 from bauble.utils import xml_safe
 
@@ -62,6 +64,7 @@ class TagEditorDialog(
 
     __gtype_name__ = "TagEditorDialog"
 
+    revealer = cast(Gtk.Revealer, Gtk.Template.Child())
     name_entry = cast(Gtk.Entry, Gtk.Template.Child())
     description_textview = cast(Gtk.TextView, Gtk.Template.Child())
     description_textbuffer = cast(Gtk.TextBuffer, Gtk.Template.Child())
@@ -132,8 +135,12 @@ class TagEditorDialog(
         if not self.get_modal():
             # allow chaining response signal
             GLib.idle_add(self.destroy)
+            idle_garbage_collect()
 
         return False
+
+    def notify_delete_event(self, remove: Callable[[int], None]) -> None:
+        generic_notify_delete_event(self, remove)
 
 
 @Gtk.Template(filename=str(Path(__file__).resolve().parent / "tag_items.ui"))
@@ -141,6 +148,7 @@ class TagItemsDialog(Gtk.Dialog):
 
     __gtype_name__ = "TagItemsDialog"
 
+    revealer = cast(Gtk.Revealer, Gtk.Template.Child())
     tag_tree = cast(Gtk.TreeView, Gtk.Template.Child())
     items_data_label = cast(Gtk.Label, Gtk.Template.Child())
     delete_button = cast(Gtk.Button, Gtk.Template.Child())
@@ -309,6 +317,12 @@ class TagItemsDialog(Gtk.Dialog):
 
         model.remove(tree_iter)
         menu_manager.reset()
+
+    def has_pending_changes(self) -> bool:
+        return db.is_modified(self.session)
+
+    def notify_delete_event(self, remove: Callable[[int], None]) -> None:
+        generic_notify_delete_event(self, remove)
 
 
 edit_callback = EditCreateCallback(

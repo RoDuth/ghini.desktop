@@ -18,12 +18,14 @@
 """
 GUI tests
 """
+import time
 from unittest import mock
 
 from gi.repository import Gio
 from gi.repository import Gtk
 
 import bauble
+from bauble import db
 from bauble import pluginmgr
 from bauble import prefs
 from bauble import task
@@ -32,6 +34,7 @@ from bauble.plugins.plants.ui.family_editor import FamilyEditorDialog
 from bauble.test import BaubleTestCase
 from bauble.test import update_gui
 from bauble.ui.gui import GUI
+from bauble.ui.presenter import DomainEditorDialog
 from bauble.ui.views import HistoryView
 from bauble.ui.views import HomeView
 from bauble.ui.views import PrefsView
@@ -137,6 +140,7 @@ class GUITests(BaubleTestCase):
         gui.on_main_entry_activate(None)
         gui.destroy()
         mock_btn.emit.assert_called_with("clicked")
+        gui.destroy()
 
     @mock.patch("bauble.ui.gui.bauble.command_handler")
     def test_on_home_clicked(self, mock_handler):
@@ -502,7 +506,6 @@ class GUITests(BaubleTestCase):
         self.assertEqual(filtered, [])
 
     def test_title(self):
-        import bauble
 
         orig_conn = bauble.conn_name
         orig_version = bauble.version
@@ -625,8 +628,7 @@ class GUITests(BaubleTestCase):
         mock_tool.start.assert_called_once()
         gui.destroy()
 
-    @mock.patch("bauble.ui.gui.utils.gc_objects_by_type")
-    def test_on_insert_menu_item_activate(self, mock_gc_objects):
+    def test_on_insert_menu_item_activate(self):
         gui = GUI()
 
         # function no SearchView (minimal)
@@ -645,17 +647,11 @@ class GUITests(BaubleTestCase):
         mock_editor.assert_called_once()
 
         # class with SeachView
-        class Editor:
+        class Editor:  # pylint: disable=too-few-public-methods
             start = mock.Mock()
 
         with mock.patch.object(search_view, "expand_to_all_rows") as mock_expd:
-            # we know that mock_editor will not be garbage collected (mocking
-            # here avoids ReferenceError: weakly-referenced object no longer
-            # exists)
-            mock_gc_objects.assert_not_called()
-            mock_gc_objects.return_value = []
             gui.on_insert_menu_item_activate(None, None, Editor)
-            mock_gc_objects.assert_called()
             mock_expd.assert_called_once()
 
         # teardown
@@ -822,39 +818,207 @@ class GUITests(BaubleTestCase):
 
         gui.destroy()
 
-    @mock.patch("bauble.ui.dialogs.message_dialog")
-    def test_on_delete_event_w_open_dialogs(self, mock_dialog):
+    def test_on_delete_event_no_dialogs(self):
+        # if any other editor test fails to destroy its dialog, this test will
+        # fail
         gui = GUI()
-        # no dialogs
+
         self.assertFalse(gui.on_delete_event(None, None))
 
-        # wth dialog user backs out
-        dialog = FamilyEditorDialog(
-            Family(),
-            self.session,
-            transient_for=gui.window,
-        )
-        mock_dialog.return_value = Gtk.ResponseType.NO
+        gui.destroy()
+
+    def test_on_delete_event_w_single_dialog_ok(self):
+        # if any other editor test fails to destroy its dialog, this test will
+        # fail
+        gui = GUI()
+        dialog = FamilyEditorDialog(Family(), db.Session(), gui.window)
+        # set no problems with modified session
+        dialog.family_entry.set_text("Austrobaileyaceae")
+        id_ = id(dialog)
 
         self.assertTrue(gui.on_delete_event(None, None))
-        mock_dialog.assert_called_once()
+        self.assertEqual([id_], gui._pending_delete_dialogs)
 
-        mock_dialog.reset_mock()
-        dialog.destroy()
+        time.sleep(0.1)
+        update_gui()
 
-        # with dialog user closes
-        dialog = FamilyEditorDialog(
-            Family(),
-            self.session,
-            transient_for=gui.window,
-        )
-        mock_dialog.return_value = Gtk.ResponseType.YES
+        message_box = dialog.revealer.get_child()
+        button_box = message_box.get_children()[1]
+        ok_button = button_box.get_children()[0]
+        del message_box
+        del button_box
+        del dialog
+        ok_button.clicked()
+        del ok_button
+        update_gui()
 
+        self.assertEqual([], gui._pending_delete_dialogs)
         self.assertFalse(gui.on_delete_event(None, None))
-        mock_dialog.assert_called_once()
+        del gui
 
+    def test_on_delete_event_ok_subsequent_dialog_doesnt_destroy(self):
+        # if any other editor test fails to destroy its dialog, this test will
+        # fail
+        gui = GUI()
+        dialog = FamilyEditorDialog(Family(), db.Session(), gui.window)
+        id_ = id(dialog)
+
+        self.assertTrue(gui.on_delete_event(None, None))
+        self.assertEqual([id_], gui._pending_delete_dialogs)
+
+        time.sleep(0.1)
+        update_gui()
+
+        dialog2 = FamilyEditorDialog(Family(), db.Session(), gui.window)
+
+        message_box = dialog.revealer.get_child()
+        button_box = message_box.get_children()[1]
+        ok_button = button_box.get_children()[0]
+        del message_box
+        del button_box
+        with mock.patch.object(gui, "destroy") as mock_destroy:
+            ok_button.clicked()
+            update_gui()
+
+            mock_destroy.assert_not_called()
+
+        del ok_button
+        update_gui()
+
+        self.assertEqual([], gui._pending_delete_dialogs)
+        self.assertTrue(gui.on_delete_event(None, None))
+
+        gui.destroy()
         dialog.destroy()
+        dialog2.destroy()
+        del gui
 
+    def test_on_delete_event_w_single_dialog_cancel(self):
+        # if any other editor test fails to destroy its dialog, this test will
+        # fail
+        gui = GUI()
+        dialog = FamilyEditorDialog(Family(), db.Session(), gui.window)
+        id_ = id(dialog)
+
+        self.assertTrue(gui.on_delete_event(None, None))
+        self.assertEqual([id_], gui._pending_delete_dialogs)
+
+        time.sleep(0.05)
+        update_gui()
+
+        message_box = dialog.revealer.get_child()
+        button_box = message_box.get_children()[1]
+        cancel_button = button_box.get_children()[1]
+        del message_box
+        del button_box
+        cancel_button.clicked()
+        del cancel_button
+        update_gui()
+
+        self.assertEqual([id_], gui._pending_delete_dialogs)
+        self.assertTrue(gui.on_delete_event(None, None))
+        update_gui()
+        dialog.destroy()
+        del dialog
+        gui.destroy()
+
+    def test_on_delete_event_w_multiple_dialogs_ok(self):
+        # if any other editor test fails to destroy its dialog, this test will
+        # fail
+        gui = GUI()
+        # test most editors - wth dialog user accepts
+        dialogs = {}
+        for editor in DomainEditorDialog.__subclasses__():
+
+            model = editor.__init__.__annotations__.get("model")
+            if not model or isinstance(model, str):
+                # skips species_editor
+                continue
+            dialog = editor(model(), db.Session(), gui.window)
+            del model
+            dialogs[id(dialog)] = dialog
+
+        self.assertTrue(gui.on_delete_event(None, None))
+
+        self.assertCountEqual(dialogs.keys(), gui._pending_delete_dialogs)
+
+        time.sleep(0.05)
+        update_gui()
+
+        for id_ in list(dialogs):
+            dialog = dialogs.pop(id_)
+            self.assertIn(id(dialog), gui._pending_delete_dialogs)
+            message_box = dialog.revealer.get_child()
+            button_box = message_box.get_children()[1]
+            ok_button = button_box.get_children()[0]
+            del message_box
+            del button_box
+            del dialog
+            ok_button.clicked()
+            del ok_button
+            self.assertNotIn(id_, gui._pending_delete_dialogs)
+        update_gui()
+        del dialogs
+
+        self.assertEqual(gui._pending_delete_dialogs, [])
+        self.assertFalse(gui.on_delete_event(None, None))
+
+    def test_on_delete_event_w_multipl_dialogs_one_cancel(self):
+        # if any other editor test fails to destroy its dialog, this test will
+        # fail
+        gui = GUI()
+        # test most editors - wth dialog user accepts
+        dialogs = {}
+        for editor in DomainEditorDialog.__subclasses__():
+
+            model = editor.__init__.__annotations__.get("model")
+            if not model or isinstance(model, str):
+                # skips species_editor
+                continue
+            dialog = editor(model(), db.Session(), gui.window)
+            del model
+            dialogs[id(dialog)] = dialog
+
+        self.assertTrue(gui.on_delete_event(None, None))
+
+        self.assertCountEqual(dialogs.keys(), gui._pending_delete_dialogs)
+
+        time.sleep(0.1)
+        update_gui()
+
+        cancel = True
+        cancelled = 0
+
+        for id_, dialog in dialogs.items():
+            self.assertIn(id(dialog), gui._pending_delete_dialogs)
+            message_box = dialog.revealer.get_child()
+            button_box = message_box.get_children()[1]
+            if cancel:
+                cancel_button = button_box.get_children()[1]
+                cancel_button.clicked()
+                del cancel_button
+
+                cancelled = id_
+                cancel = False
+
+                self.assertIn(id_, gui._pending_delete_dialogs)
+                update_gui()
+            else:
+                ok_button = button_box.get_children()[0]
+                ok_button.clicked()
+                del ok_button
+
+                self.assertNotIn(id_, gui._pending_delete_dialogs)
+
+            del message_box
+            del button_box
+            del dialog
+        update_gui()
+
+        self.assertEqual(gui._pending_delete_dialogs, [cancelled])
+        self.assertTrue(gui.on_delete_event(None, None))
+        dialogs[cancelled].destroy()
+        del dialogs
         gui.destroy()
 
     def test_on_destroy(self):
@@ -879,7 +1043,10 @@ class GUITests(BaubleTestCase):
         gui = GUI()
         gui.window = mock.Mock()
         gui.on_quit(None, None)
-        gui.window.destroy.assert_called_once()
+        gui.window.emit.assert_called_once()
+
+        self.assertEqual(gui.window.emit.call_args[0][0], "delete-event")
+
         gui.destroy()
 
     @mock.patch("bauble.gui")

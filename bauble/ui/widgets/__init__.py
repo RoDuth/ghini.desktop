@@ -20,6 +20,7 @@ Custom widgets
 from .date import DatePickerBox
 from .map import MapMenuButton
 from .message import MessageBox
+from .message import OkCancelMessageBox
 from .message import YesNoMessageBox
 from .notes import DocumentBox
 from .notes import NoteBox
@@ -31,6 +32,7 @@ __all__ = [
     "DatePickerBox",
     "MapMenuButton",
     "MessageBox",
+    "OkCancelMessageBox",
     "YesNoMessageBox",
     "DocumentBox",
     "NoteBox",

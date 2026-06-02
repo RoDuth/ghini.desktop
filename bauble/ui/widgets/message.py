@@ -23,6 +23,8 @@ from typing import cast
 
 from gi.repository import Gtk
 
+from bauble.i18n import _
+
 
 class YesNoMessageBox(Gtk.Box):
     """Gtk.Box widget containing yes/no message dialog functionality.
@@ -34,6 +36,9 @@ class YesNoMessageBox(Gtk.Box):
     :param on_yes_response: Callback for when the "Yes" button is clicked.
     :param on_no_response: Callback for when the "No" button is clicked.
     """
+
+    YES = _("Yes")
+    NO = _("NO")
 
     def __init__(
         self,
@@ -50,8 +55,8 @@ class YesNoMessageBox(Gtk.Box):
         button_box = Gtk.ButtonBox(orientation=Gtk.Orientation.HORIZONTAL)
         button_box.set_layout(Gtk.ButtonBoxStyle.SPREAD)
 
-        yes_button = Gtk.Button(label="Yes")
-        no_button = Gtk.Button(label="No")
+        yes_button = Gtk.Button(label=self.YES)
+        no_button = Gtk.Button(label=self.NO)
 
         button_box.add(yes_button)
         button_box.add(no_button)
@@ -62,6 +67,24 @@ class YesNoMessageBox(Gtk.Box):
         self.get_style_context().add_class("app-notification")
 
         self.pack_start(button_box, False, False, 0)
+
+
+class OkCancelMessageBox(YesNoMessageBox):
+    """Gtk.Box widget containing ok/cancel message dialog functionality.
+
+    Intended to be added to Gtk.Revealer or similar.
+
+    A subclass of YesNoMessageBox, parameters and functionality is the same
+    just different labels on the buttons.
+
+    :param message: The message to display above the buttons. Must be a string
+        with Pango markup for styling.  Make xml_safe where needed.
+    :param on_yes_response: Callback for when the "OK" button is clicked.
+    :param on_no_response: Callback for when the "Cancel" button is clicked.
+    """
+
+    YES = _("OK")
+    NO = _("Cancel")
 
 
 class MessageBox(Gtk.Box):
