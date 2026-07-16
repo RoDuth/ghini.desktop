@@ -266,9 +266,6 @@ class Tag(db.Domain):
         return len(self.objects)
 
 
-PASCAL_RE = re.compile(r"(?<!^)(?=[A-Z])")
-
-
 def _get_tagged_object_pair(
     obj: TaggedObj,
 ) -> tuple[type[db.Domain], int] | None:

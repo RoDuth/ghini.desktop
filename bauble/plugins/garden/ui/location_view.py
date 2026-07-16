@@ -84,10 +84,10 @@ class GeneralLocationExpander(
         # NOTE don't load geojson from the row or history will always record
         # an unpdate and _last_updated will always change when a note is edited
         # (e.g. `shape = row.geojson...`) instead use a temp session
-        with db.engine.begin() as connection:
+        with db.engine.connect() as connection:
             table = Location.__table__
             stmt = select([table.c.geojson]).where(table.c.id == row.id)
-            geojson = connection.execute(stmt).scalar()
+            geojson = connection.scalar(stmt)
 
         shape = ""
         approx_area = ""

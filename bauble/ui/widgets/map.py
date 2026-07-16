@@ -51,8 +51,6 @@ class MapMenuButton(Gtk.MenuButton):
     ``KMLMapCallbackFunctor``. Connect to the ``changed`` signal to handle
     updates to the model's geojson. e.g.::
 
-        FOO_WEB_LINKS_PREFS = "web_button_defs.foo"
-
         @Gtk.Template(filename="/path/to/file.ui"))
         class Foo(Gtk.Dialog):
 
@@ -86,9 +84,7 @@ class MapMenuButton(Gtk.MenuButton):
         model: ModelWGeojson,
         kml_callback: geo_utils.KMLMapCallbackFunctor,
     ) -> None:
-        """Initialise the menu button adding any links with `editor_button` set
-        to True
-        """
+        """Initialise the menu button."""
         self.model = model
         self.kml_callback = kml_callback
 

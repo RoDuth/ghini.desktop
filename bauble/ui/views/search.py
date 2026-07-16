@@ -107,7 +107,6 @@ class ActionCallback[T: db.Domain](Protocol):
 
 class Action:
     # pylint: disable=too-few-public-methods
-    # pylint: disable-next=too-many-positional-arguments,too-many-arguments
     def __init__(
         self,
         name: str,

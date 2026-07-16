@@ -91,7 +91,7 @@ class SchemaMenu(Gtk.Menu):
     :param recurse: if True allow recusing (i.e. species.accessions.species)
     """
 
-    def __init__(  # pylint: disable=too-many-arguments
+    def __init__(
         self,
         mapper: Mapper,
         activate_callback: Callable[[Gtk.MenuItem, str, ColumnProperty], None],
@@ -101,6 +101,7 @@ class SchemaMenu(Gtk.Menu):
         recurse: bool = False,
         selectable_relations: bool = False,
     ) -> None:
+        # pylint: disable=too-many-arguments,too-many-positional-arguments
         super().__init__()
         self.mapper = mapper
         self.activate_callback = activate_callback
