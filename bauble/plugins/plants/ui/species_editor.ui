@@ -103,23 +103,17 @@
   </object>
   <object class="GtkListStore" id="habit_liststore">
     <columns>
-      <!-- column-name gchararray -->
-      <column type="gchararray"/>
       <!-- column-name pyobject -->
       <column type="PyObject"/>
     </columns>
   </object>
   <object class="GtkEntryCompletion" id="habit_completion">
     <property name="model">habit_liststore</property>
-    <property name="text-column">0</property>
     <property name="inline-completion">True</property>
     <property name="popup-single-match">False</property>
     <property name="inline-selection">True</property>
     <child>
       <object class="GtkCellRendererText" id="habit_cell"/>
-      <attributes>
-        <attribute name="text">0</attribute>
-      </attributes>
     </child>
   </object>
   <object class="GtkListStore" id="hybrid_liststore">
@@ -1167,7 +1161,6 @@
                             <property name="tooltip-text" translatable="yes">The habit of this species</property>
                             <property name="model">habit_liststore</property>
                             <property name="has-entry">True</property>
-                            <property name="entry-text-column">0</property>
                             <signal name="changed" handler="on_habit_comboentry_changed" swapped="no"/>
                             <signal name="format-entry-text" handler="on_comboentry_format" swapped="no"/>
                             <child internal-child="entry">

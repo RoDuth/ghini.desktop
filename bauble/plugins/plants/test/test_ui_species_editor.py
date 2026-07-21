@@ -768,6 +768,28 @@ class SpeciesEditorDialogTests(BaubleTestCase):
 
         editor.destroy()
 
+    def test_on_habit_combo_match_selected(self):
+        importer = CSVRestore()
+        from bauble import paths
+
+        default_path = os.path.join(
+            paths.lib_dir(), "plugins", "plants", "default"
+        )
+        importer.start([os.path.join(default_path, "habit.csv")], force=True)
+        editor = SpeciesEditorDialog(Species(), self.session)
+        habit_entry = editor.habit_comboentry.get_child()
+        habit_entry.set_text("Aq")
+        completion = habit_entry.get_completion()
+        model = completion.get_model()
+
+        self.assertIsNone(editor.model.habit)
+
+        completion.emit("match-selected", model, model.get_iter_first())
+
+        self.assertEqual(editor.model.habit.name, "Aquatic")
+
+        editor.destroy()
+
     def test_custom_fields(self):
         # pylint: disable=protected-access
         meta = BaubleMeta(

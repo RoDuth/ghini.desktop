@@ -493,7 +493,7 @@ class ComboBoxHandler(HandlerMethodDescriptor[Gtk.ComboBox]):
             This handler runs last.
             """
             field_name = instance.widgets_to_model_map[widget]
-            obj = liststore[tree_iter][0]
+            obj = liststore[tree_iter][self.column]
 
             if entry:
                 entry.set_text(str(obj))

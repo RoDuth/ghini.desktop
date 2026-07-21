@@ -256,7 +256,7 @@ class SpeciesEditorDialog(
 
     on_completion_entry_matched = EntryWCompletionHandler(must_match=True)
     on_completion_entry_changed = EntryWCompletionHandler()
-    on_habit_combo_changed = ComboBoxHandler(column=1, must_match=True)
+    on_habit_combo_changed = ComboBoxHandler(must_match=True)
     on_toggled = ToggleButtonHandler()
 
     PROBLEM_EMPTY = Problem("empty")
@@ -285,6 +285,10 @@ class SpeciesEditorDialog(
         habit_completion.set_match_func(default_completion_match_func)
         habit_completion.set_cell_data_func(
             self.habit_cell,
+            default_completion_cell_data_func,
+        )
+        self.habit_comboentry.set_cell_data_func(
+            self.habit_comboentry.get_cells()[0],
             default_completion_cell_data_func,
         )
 
@@ -328,9 +332,9 @@ class SpeciesEditorDialog(
             self.trademark_combo.append_text(v or "")
 
         for habit in self.session.execute(select(Habit)).scalars():
-            self.habit_liststore.append((str(habit), habit))
+            self.habit_liststore.append((habit,))
 
-        self.habit_liststore.append(("", None))
+        self.habit_liststore.append((None,))
 
         self.last_existing_notified = 0
 
