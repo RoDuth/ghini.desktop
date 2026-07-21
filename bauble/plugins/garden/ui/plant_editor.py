@@ -138,7 +138,6 @@ class PlantEditorDialog(
     quantity_entry = cast(Gtk.SpinButton, Gtk.Template.Child())
     location_comboentry = cast(Gtk.ComboBox, Gtk.Template.Child())
     location_entry = cast(Gtk.Entry, Gtk.Template.Child())
-    location_combo_cell = cast(Gtk.CellRendererText, Gtk.Template.Child())
     location_liststore = cast(Gtk.ListStore, Gtk.Template.Child())
     location_cell = cast(Gtk.CellRendererText, Gtk.Template.Child())
     change_frame = cast(Gtk.Frame, Gtk.Template.Child())
@@ -191,7 +190,7 @@ class PlantEditorDialog(
         )
         location_completion.set_match_func(location_match_func)
         self.location_comboentry.set_cell_data_func(
-            self.location_combo_cell,
+            self.location_comboentry.get_cells()[0],
             default_completion_cell_data_func,
         )
         self.entry_sid = self.location_entry.connect(

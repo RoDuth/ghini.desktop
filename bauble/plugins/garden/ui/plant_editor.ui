@@ -600,9 +600,6 @@
                                     <property name="completion">location_completion</property>
                                   </object>
                                 </child>
-                                <child>
-                                  <object class="GtkCellRendererText" id="location_combo_cell"/>
-                                </child>
                               </object>
                               <packing>
                                 <property name="expand">True</property>
