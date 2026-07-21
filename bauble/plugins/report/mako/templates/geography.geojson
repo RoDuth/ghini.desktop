@@ -1,4 +1,5 @@
 ## vim: set filetype=mako:
+## OPTION indent: (type: integer, default: '0', tooltip: 'Indentation level for the output GeoJSON. 0 means no indentation single line, >0 means pretty print with that many spaces of indentation.')
 ## This file is part of ghini.desktop.
 ##
 ## ghini.desktop is free software: you can redistribute it and/or modify
@@ -16,23 +17,29 @@
 ##
 <%!
 import json
-from bauble.plugins.report import get_geographies_pertinent_to
+from bauble.plugins.report import get_geographies_pertinent_to, options
 
 features = []
 
 %>\
-% for geo in get_geographies_pertinent_to(values):
+% for geo in get_geographies_pertinent_to(values, as_task=True):
 <%
-feature = {"type": "Feature",
-           "properties": {"code": geo.code,
-                          "level": geo.level,
-                          "iso_code": geo.iso_code,
-                          "parent_code": geo.parent.code if geo.parent else None},
-           "geometry": geo.geojson}
-features.append(feature)
+  if geo.geojson:
+    features.append(
+      {
+        "type": "Feature",
+        "properties": {"code": geo.code,
+        "level": geo.level,
+        "iso_code": geo.iso_code,
+        "parent_code": geo.parent.code if geo.parent else None},
+        "geometry": geo.geojson
+      }
+    )
 %>\
 % endfor
-<%
-collection = {"type": "FeatureCollection", "features": features}
-%>\
-${json.dumps(collection)}
+${
+json.dumps(
+  {"type": "FeatureCollection", "features": features},
+  indent=options.get("indent") or None
+)
+}

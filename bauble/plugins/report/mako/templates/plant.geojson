@@ -1,0 +1,52 @@
+## vim:set ft=mako:
+## OPTION indent: (type: integer, default: '0', tooltip: 'Indentation level for the output GeoJSON. 0 means no indentation single line, >0 means pretty print with that many spaces of indentation.')
+## This file is part of ghini.desktop.
+##
+## ghini.desktop is free software: you can redistribute it and/or modify
+## it under the terms of the GNU General Public License as published by
+## the Free Software Foundation, either version 3 of the License, or
+## (at your option) any later version.
+##
+## ghini.desktop is distributed in the hope that it will be useful,
+## but WITHOUT ANY WARRANTY; without even the implied warranty of
+## MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+## GNU General Public License for more details.
+##
+## You should have received a copy of the GNU General Public License
+## along with ghini.desktop. If not, see <http://www.gnu.org/licenses/>.
+##
+<%!
+from bauble.plugins.report import get_plants_pertinent_to, options
+from bauble.utils import date_string
+import json
+
+features = []
+%>\
+% for plt in get_plants_pertinent_to(values, as_task=True):
+<%
+  if plt.geojson:
+    features.append(
+      {
+        "type": "Feature",
+        "id": plt.id,
+        "geometry": plt.geojson,
+        "properties": {
+          "plt_id": plt.id,
+          "plant": str(plt),
+          "taxon": plt.accession.qualified_name,
+          "family": plt.accession.species.family_name,
+          "quantity": plt.quantity,
+          "bed": plt.location.code,
+          "planted": date_string(plt.planted.date),
+          "died": date_string(plt.death.date) if plt.death else None,
+        }
+      }
+    )
+%>\
+% endfor
+${
+json.dumps(
+  {"type": "FeatureCollection", "features": features},
+  indent=options.get("indent") or None
+)
+}
