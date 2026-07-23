@@ -650,9 +650,12 @@ class GeographyMenu(Gio.Menu):
 
     _geos_ordered: dict[int | None, list[tuple[int, str]]] = {}
 
+    _thread_lock = threading.Lock()
+
     def __init__(self) -> None:
         super().__init__()
-        self._populate()
+        self._thread_event = threading.Event()
+        self._thread: threading.Thread | None = None
 
     @classmethod
     def attach_new(
@@ -660,29 +663,50 @@ class GeographyMenu(Gio.Menu):
         handler: Callable[[Gio.SimpleAction, GLib.Variant], None],
         button: Gtk.Button,
     ) -> None:
+        logger.debug("new geography menu %s", str(button))
+        menu_model = cls()
 
-        threading.Thread(
-            target=cls._create,
-            args=(handler, button),
-            daemon=True,
-        ).start()
+        button.connect("destroy", menu_model.on_destroy)
 
-    @classmethod
+        with cls._thread_lock:
+            menu_model._thread = threading.Thread(
+                target=menu_model._create,
+                args=(handler, button),
+                daemon=True,
+            )
+            menu_model._thread.start()
+
     def _create(
-        cls,
+        self,
         handler: Callable[[Gio.SimpleAction, GLib.Variant], None],
         button: Gtk.Button,
     ) -> None:
 
-        logger.debug("new geography menu %s", button)
-        menu_model = cls()
-        GLib.idle_add(menu_model._attach, handler, button)
+        logger.debug("creating geography menu %s", str(button))
+        self._populate()
+
+        GLib.idle_add(self._attach, handler, button)
+
+    def on_destroy(self, _button: Gtk.Button) -> None:
+        logger.debug("destroying geography menu")
+
+        if self._thread and self._thread.is_alive():
+            self._thread_event.set()
+
+            logger.debug("waiting for geography menu thread to finish")
+
+            self._thread.join()
 
     def _attach(
         self,
         handler: Callable[[Gio.SimpleAction, GLib.Variant], None],
         button: Gtk.Button,
     ) -> None:
+
+        if self._thread_event.is_set():
+            logger.debug("geography menu thread event set, not attaching")
+            return
+
         self._attach_action_group(handler, button)
         menu = Gtk.Menu.new_from_model(self)
         menu.attach_to_widget(button)
@@ -708,14 +732,14 @@ class GeographyMenu(Gio.Menu):
             with db.engine.begin() as connection:
                 geos = connection.execute(stmt).all()
 
-            geos_ordered: dict[int | None, list[tuple[int, str]]] = {}
+            _ordered: dict[int | None, list[tuple[int, str]]] = {}
             for id_, name, parent_id in geos:
-                geos_ordered.setdefault(parent_id, []).append((id_, name))
+                _ordered.setdefault(parent_id, []).append((id_, name))
 
-            for kids in geos_ordered.values():
+            for kids in _ordered.values():
                 kids.sort(key=itemgetter(1))  # sort by name
 
-            type(self)._geos_ordered = geos_ordered
+            type(self)._geos_ordered = _ordered
         return self._geos_ordered
 
     def _attach_action_group(
@@ -763,6 +787,12 @@ class GeographyMenu(Gio.Menu):
         no_kids = []
 
         for geo_id, geo_name in self.geos_ordered[None]:
+
+            if self._thread_event.is_set():
+                logger.debug("geography menu thread event set, aborting")
+
+                return
+
             menu = self._build_menu(geo_id, geo_name)
 
             if isinstance(menu, Gio.Menu):
@@ -773,6 +803,8 @@ class GeographyMenu(Gio.Menu):
         for item in no_kids:
             # append to the end of the menu
             self.append_item(item)
+
+        logger.debug("geography menu populated")
 
     @classmethod
     def reset(cls) -> None:

@@ -22,6 +22,7 @@ Generic widgets tests
 import os
 from datetime import datetime
 from tempfile import mkstemp
+from time import sleep
 from unittest import TestCase
 from unittest import mock
 
@@ -2453,6 +2454,7 @@ class GeographyMenuTests(BaubleTestCase):
         self.session.commit()
 
         menu = GeographyMenu()
+        menu._populate()
 
         with mock.patch.object(menu, "append_submenu") as mock_append:
             self.assertEqual(len(menu.geos_ordered), 1)
@@ -2461,6 +2463,64 @@ class GeographyMenuTests(BaubleTestCase):
             mock_append.assert_not_called()
 
         menu.reset()
+
+    def test_destroying_button_early_aborts_and_doesnt_attach(self):
+        geo1 = Geography(
+            name="EUROPE",
+            code="1",
+            level=1,
+        )
+        self.session.add(geo1)
+        self.session.commit()
+        geo14 = Geography(
+            name="Eastern Europe",
+            code="14",
+            level=2,
+            parent_id=geo1.id,
+        )
+        self.session.add(geo14)
+        self.session.commit()
+        geo2 = Geography(
+            name="AFRICA",
+            code="2",
+            level=1,
+        )
+        self.session.add(geo2)
+        self.session.commit()
+        geo25 = Geography(
+            name="East Tropical Africa",
+            code="25",
+            level=2,
+            parent_id=geo2.id,
+        )
+        self.session.add(geo25)
+        self.session.commit()
+        geo3 = Geography(
+            name="ASIA-TEMPERATE",
+            code="3",
+            level=1,
+        )
+        self.session.add(geo3)
+        self.session.commit()
+
+        button = Gtk.Button(sensitive=False)
+
+        class SlowDict(dict):
+            def __getitem__(self, key):
+                sleep(0.3)
+                return super().__getitem__(key)
+
+        with mock.patch.object(
+            GeographyMenu,
+            "_geos_ordered",
+            new_callable=SlowDict,
+        ):
+            GeographyMenu.attach_new(lambda *_a: None, button)
+
+            button.destroy()
+            update_gui()
+
+        self.assertFalse(button.get_sensitive())
 
 
 class DistributionMapTests(BaubleClassTestCase):

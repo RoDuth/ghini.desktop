@@ -313,12 +313,14 @@ class SpeciesEditorDialogTests(BaubleTestCase):
         self.assertFalse(ok_button.get_sensitive())
 
         editor.destroy()
+        update_gui()
 
         species.sp_author = "C.T.White"
         editor = SpeciesEditorDialog(species, db.Session())
 
         ok_button = editor.get_widget_for_response(-5)
 
+        # can fail sporadically without update_gui above.
         self.assertTrue(ok_button.get_sensitive())
 
         editor.destroy()
