@@ -358,11 +358,11 @@ class EntryWCompletionHandler(EntryHandler):
         if completion_id not in self.connected:
             # connect once, on first run
             # (several widgets can use the same handler)
-            self.connected.append(completion_id)
             completion.connect(
                 "match-selected",
                 on_match_selected,
             )
+            self.connected.append(completion_id)
 
         if self.must_match:
             # just log and mark the problem

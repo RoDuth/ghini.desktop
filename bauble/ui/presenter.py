@@ -241,8 +241,16 @@ class GenericPresenter[T]:
             view.connect("destroy", idle_garbage_collect)
 
     def refresh_all_widgets_from_model(self) -> None:
+        logger.debug("%s.refresh_all_widgets_from_model", type(self).__name__)
+
         for widget, field in self.widgets_to_model_map.items():
             value = getattr(self.model, field)
+            logger.debug(
+                "refreshing %s from model.%s with value %s",
+                str(widget),
+                field,
+                value,
+            )
             utils.set_widget_value(widget, value)
 
     def add_problem(

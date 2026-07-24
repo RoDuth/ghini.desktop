@@ -22,6 +22,7 @@ Tests for bauble.ui.utils
 """
 import os
 from functools import partial
+from time import sleep
 from unittest import mock
 
 from gi.repository import Gtk
@@ -408,9 +409,17 @@ class ImageLoaderTests(BaubleTestCase):
         # does reuse existing
         self.assertIs(image, img)
 
+        attempts = 0
+
         while not mock_size_alloc.called:
             # WARNING this could deadlock if the signal hanlder doesn't call
-            # but is required for the nested idle_add
+            # but is required for the nested idle_add.
+            # Attempt 10 times then fail to avoid hanging
+            sleep(0.1)
+            attempts += 1
+            if attempts > 10:
+                self.fail("mock_size_alloc was never called")
+
             update_gui()
         # kind of redundant
         mock_size_alloc.assert_called()
@@ -450,9 +459,18 @@ class ImageLoaderTests(BaubleTestCase):
         wait_on_threads()
         update_gui()
         self.assertIsInstance(pic_box.get_children()[0], Gtk.Image)
+
+        attempts = 0
+
         while not mock_size_alloc.called:
             # WARNING this could deadlock if the signal hanlder doesn't call
-            # but is required for the nested idle_add
+            # but is required for the nested idle_add.
+            # Attempt 10 times then fail to avoid hanging
+            sleep(0.1)
+            attempts += 1
+            if attempts > 10:
+                self.fail("mock_size_alloc was never called")
+
             update_gui()
         # kind of redundant
         mock_size_alloc.assert_called()
@@ -479,9 +497,18 @@ class ImageLoaderTests(BaubleTestCase):
         wait_on_threads()
         update_gui()
         self.assertIsInstance(pic_box.get_children()[0], Gtk.Label)
+
+        attempts = 0
+
         while not mock_size_alloc.called:
             # WARNING this could deadlock if the signal hanlder doesn't call
-            # but is required for the nested idle_add
+            # but is required for the nested idle_add.
+            # Attempt 10 times then fail to avoid hanging
+            sleep(0.1)
+            attempts += 1
+            if attempts > 10:
+                self.fail("mock_size_alloc was never called")
+
             update_gui()
         # kind of redundant
         mock_size_alloc.assert_called()
@@ -510,9 +537,18 @@ class ImageLoaderTests(BaubleTestCase):
         update_gui()
         image = pic_box.get_children()[0]
         self.assertIsInstance(image, Gtk.Image)
+
+        attempts = 0
+
         while not mock_size_alloc.called:
             # WARNING this could deadlock if the signal hanlder doesn't call
-            # but is required for the nested idle_add
+            # but is required for the nested idle_add.
+            # Attempt 10 times then fail to avoid hanging
+            sleep(0.1)
+            attempts += 1
+            if attempts > 10:
+                self.fail("mock_size_alloc was never called")
+
             update_gui()
         # kind of redundant
         mock_size_alloc.assert_called()
@@ -534,9 +570,18 @@ class ImageLoaderTests(BaubleTestCase):
         ).start()
         mock_size_alloc.assert_not_called()
         wait_on_threads()
+
+        attempts = 0
+
         while not mock_size_alloc.called:
             # WARNING this could deadlock if the signal hanlder doesn't call
-            # but is required for the nested idle_add
+            # but is required for the nested idle_add.
+            # Attempt 10 times then fail to avoid hanging
+            sleep(0.1)
+            attempts += 1
+            if attempts > 10:
+                self.fail("mock_size_alloc was never called")
+
             update_gui()
         self.assertIsInstance(pic_box.get_children()[0], Gtk.Label)
         mock_size_alloc.assert_called()
@@ -566,9 +611,18 @@ class ImageLoaderTests(BaubleTestCase):
         img_loader.start()
         mock_size_alloc.assert_not_called()
         wait_on_threads()
+
+        attempts = 0
+
         while not mock_size_alloc.called:
             # WARNING this could deadlock if the signal hanlder doesn't call
-            # but is required for the nested idle_add
+            # but is required for the nested idle_add.
+            # Attempt 10 times then fail to avoid hanging
+            sleep(0.1)
+            attempts += 1
+            if attempts > 10:
+                self.fail("mock_size_alloc was never called")
+
             update_gui()
         self.assertIsInstance(pic_box.get_children()[0], Gtk.Label)
         mock_size_alloc.assert_called()
@@ -613,7 +667,6 @@ class ImageLoaderTests(BaubleTestCase):
             return x
 
         cache = utils.ImageCache(2)
-        from time import sleep
 
         cache.get(1, partial(getter, 1))
         sleep(0.01)

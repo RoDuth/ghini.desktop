@@ -447,9 +447,11 @@ class ImageLoader(threading.Thread):
         else:
             image = Gtk.Image()
             self.box.pack_start(image, True, True, 0)
-        image.set_from_pixbuf(scaled_buf)
+
         if self.on_size_allocated:
             image.connect("size-allocate", self.on_allocate_size)
+
+        image.set_from_pixbuf(scaled_buf)
         self.box.show_all()
 
     def _add_widgets_to_box(self, *widgets: Gtk.Widget) -> None:

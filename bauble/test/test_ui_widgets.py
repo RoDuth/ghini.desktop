@@ -550,6 +550,9 @@ class PicturesPresenterTests(BaubleClassTestCase):
         with db.engine.connect() as conn:
             conn.execute("DELETE FROM location_picture")
             conn.execute("DELETE FROM location")
+        # clear the identity map to avoid reusing same ids i.e.:
+        # SAWarning: Identity map already had an identity...
+        self.session.close()
 
         prefs.prefs[prefs.root_directory_pref] = TEMP_ROOT
 
