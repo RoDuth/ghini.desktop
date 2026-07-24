@@ -154,7 +154,7 @@ class HandlerTests(TestCase):
         completion.set_text_column(0)
         presenter.entry.set_completion(completion)
         presenter.entry.set_text("Foo")
-        values = ["Foo bar", "Foo baz", "Baz foo bar"]
+        values = ["Foo bar", "Foo baz", "Baz foo bar", "Foo bar baz"]
 
         def values_getter(text):
             return [(i,) for i in values if i.startswith(text)]
@@ -164,7 +164,7 @@ class HandlerTests(TestCase):
             get_values=values_getter,
         )
 
-        self.assertEqual(len(list_store), 2)
+        self.assertEqual(len(list_store), 3)
         self.assertCountEqual(
             [i[0] for i in list_store],
             [i[0] for i in values_getter("Foo")],
@@ -180,7 +180,7 @@ class HandlerTests(TestCase):
             get_values=values_getter,
         )
 
-        self.assertEqual(len(list_store), 2)
+        self.assertEqual(len(list_store), 3)
         self.assertCountEqual(
             [i[0] for i in list_store],
             [i[0] for i in values_getter("Foo")],

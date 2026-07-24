@@ -374,16 +374,16 @@ class EntryWCompletionHandler(EntryHandler):
             return
 
         values = get_values(text)
+        exact_match: list[Gtk.TreeIter] = []
         for value in values:
-            completion_model.append(value)
+            tree_iter = completion_model.append(value)
 
-        # if an exact match select it
-        if len(values) == 1 and str(values[0][0]).lower() == text.lower():
-            completion.emit(
-                "match-selected",
-                completion_model,
-                completion_model.get_iter_first(),
-            )
+            if str(value[0]).lower() == text.lower():
+                exact_match.append(tree_iter)
+
+        # if one exact match exists select it
+        if len(exact_match) == 1:
+            completion.emit("match-selected", completion_model, exact_match[0])
             # force the popup to close
             completion_model.clear()
 
