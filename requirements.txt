@@ -8,4 +8,4 @@ pyshp == 2.3.1
 pyproj
 filelock
 python-dateutil
-dukpy
+dukpy == 0.5.1

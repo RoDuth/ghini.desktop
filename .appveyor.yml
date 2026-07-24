@@ -75,7 +75,7 @@ for:
     - bash -lc "python --version"
     - dir %WINDIR%\System32\msodbcsql*.dll
     # wheels cache
-    - bash -lc "pip wheel dukpy --wheel-dir wheels --find-links wheels"
+    - bash -lc "pip wheel dukpy==0.5.1 --wheel-dir wheels --find-links wheels"
     - bash -lc "pip wheel 'SQLAlchemy<2.0' --wheel-dir wheels --find-links wheels"
     - dir wheels
 
@@ -118,7 +118,7 @@ for:
     - bash -lc "python --version"
     - dir %WINDIR%\System32\msodbcsql*.dll
     # wheels cache
-    - bash -lc "pip wheel dukpy --wheel-dir wheels --find-links wheels"
+    - bash -lc "pip wheel dukpy==0.5.1 --wheel-dir wheels --find-links wheels"
     - bash -lc "pip wheel 'SQLAlchemy<2.0' --wheel-dir wheels --find-links wheels"
     - dir wheels
 
