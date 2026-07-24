@@ -197,8 +197,8 @@ class MakoFormatterSettingsBox(SettingsBox):
                 set_widget_value(entry, text)
 
     @staticmethod
-    def entry_set_option(widget, fname):
-        options[fname] = widget.get_text()
+    def entry_set_option(widget, fname, type_=str):
+        options[fname] = type_(widget.get_text())
 
     @staticmethod
     def toggle_set_option(widget, fname):
@@ -230,6 +230,15 @@ class MakoFormatterSettingsBox(SettingsBox):
             entry = Gtk.CheckButton()
             entry.set_active(active)
             entry.connect("toggled", self.toggle_set_option, fname)
+            return entry
+
+        if ftype == "integer":
+            entry = Gtk.SpinButton(numeric=True)
+            entry.set_range(-999999, 999999)
+            entry.set_increments(1, 10)
+            options.setdefault(fname, int(fdefault))
+            entry.set_value(int(fdefault))
+            entry.connect("value-changed", self.entry_set_option, fname, int)
             return entry
 
         if ftype.startswith("enum"):

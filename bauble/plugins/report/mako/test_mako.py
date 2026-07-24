@@ -231,6 +231,16 @@ class FormatterSettingsBoxTests(TestCase):
         set_box.combo_set_option(widget, "test_combo")
         self.assertEqual(options.get("test_combo"), "3")
 
+    def test_get_option_widget_integer(self):
+        set_box = MakoFormatterSettingsBox()
+        widget = set_box.get_option_widget("integer", "100", "test_int")
+        self.assertIsInstance(widget, Gtk.SpinButton)
+        self.assertEqual(widget.get_text(), "100")
+
+        self.assertEqual(options.get("test_int"), 100)
+        widget.set_value(15)
+        self.assertEqual(options.get("test_int"), 15)
+
     def test_get_option_widget_enum(self):
         set_box = MakoFormatterSettingsBox()
         widget = set_box.get_option_widget(
