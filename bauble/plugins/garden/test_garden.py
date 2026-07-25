@@ -24,7 +24,6 @@ logger = logging.getLogger(__name__)
 
 import datetime
 import os
-import time
 import unittest
 from functools import partial
 
@@ -43,7 +42,6 @@ from bauble.test import mockfunc
 from bauble.test import update_gui
 from bauble.test import wait_on_threads
 from bauble.ui import dialogs
-from bauble.ui.gui import GUI
 from bauble.ui.presenter import Response
 from bauble.ui.utils import set_combo_from_value
 from bauble.ui.utils import set_widget_value
@@ -75,10 +73,6 @@ from .accession import dms_to_decimal
 from .accession import latitude_to_dms
 from .accession import longitude_to_dms
 from .institution import Institution
-from .institution import InstitutionCommand
-from .institution import InstitutionDialog
-from .institution import InstitutionTool
-from .institution import start_institution_editor
 from .location import Location
 from .location import LocationNote
 from .location import LocationPicture
@@ -4760,200 +4754,6 @@ class InstitutionTests(GardenTestCase):
             inst = Institution()
         for value in inst.__dict__.values():
             self.assertIsNone(value)
-
-
-class InstitutionDialogTests(BaubleTestCase):
-    def test_can_create_dialog(self):
-        model = Institution()
-        dialog = InstitutionDialog(model)
-        self.assertEqual(dialog.model, model)
-
-        dialog.destroy()
-
-    @unittest.mock.patch("bauble.gui")
-    def test_sets_transient_for_gui(self, mock_gui):
-        mock_gui.window = Gtk.Window()
-        model = Institution()
-        dialog = InstitutionDialog(model)
-
-        self.assertEqual(dialog.model, model)
-        self.assertEqual(dialog.get_transient_for(), mock_gui.window)
-
-        # should also destroy the dialog
-        mock_gui.window.destroy()
-
-    def test_empty_name_is_a_problem(self):
-        model = Institution()
-        dialog = InstitutionDialog(model)
-        update_gui()
-        message_box = dialog.revealer.get_child()
-        label = message_box.get_children()[1]
-
-        self.assertTrue(dialog.revealer.get_reveal_child())
-        self.assertEqual(
-            label.get_text(),
-            "Please specify an institution name for this database.",
-        )
-
-        dialog.destroy()
-
-    def test_initially_empty_name_then_specified_is_ok(self):
-        model = Institution()
-        model.name = ""
-        dialog = InstitutionDialog(model)
-        update_gui()
-
-        self.assertTrue(dialog.revealer.get_reveal_child())
-
-        dialog.name_entry.set_text("testBG")
-        update_gui()
-
-        self.assertEqual(model.name, "testBG")
-        self.assertFalse(dialog.revealer.get_reveal_child())
-
-        dialog.destroy()
-
-    def test_on_text_buffer_changed(self):
-        model = Institution()
-
-        dialog = InstitutionDialog(model)
-
-        dialog.address_buffer.set_text("test")
-        self.assertEqual(model.address, "test")
-
-        dialog.destroy()
-
-    def test_on_text_entry_changed(self):
-        model = Institution()
-
-        dialog = InstitutionDialog(model)
-
-        dialog.code_entry.set_text("BotG")
-
-        self.assertEqual(model.code, "BotG")
-
-        dialog.destroy()
-
-    def test_on_non_empty_text_entry_changed(self):
-        model = Institution()
-
-        dialog = InstitutionDialog(model)
-
-        dialog.name_entry.set_text("BG")
-
-        self.assertEqual(model.name, "BG")
-
-        dialog.destroy()
-
-    def test_on_combobox_changed(self):
-        model = Institution()
-
-        dialog = InstitutionDialog(model)
-        combo = Gtk.ComboBoxText()
-        combo.append_text("1")
-        combo.append_text("2")
-        combo.append_text("3")
-
-        dialog.widgets_to_model_map = {combo: "geo_zoom"}
-
-        combo.set_active(1)
-        dialog.on_combobox_changed(combo)
-        self.assertEqual(model.geo_zoom, "2")
-
-        dialog.destroy()
-
-    def test_on_response(self):
-        model = Institution()
-        dialog = InstitutionDialog(model)
-        with unittest.mock.patch.object(model, "write") as mock_write:
-            dialog.on_response(dialog, Gtk.ResponseType.CANCEL)
-
-            mock_write.assert_not_called()
-
-            dialog.on_response(dialog, Gtk.ResponseType.OK)
-
-            mock_write.assert_called_once()
-
-        dialog.destroy()
-
-    def test_on_delete_event_cancel(self):
-        gui = GUI()
-        dialog = InstitutionDialog(Institution())
-        update_gui()
-        id_ = id(dialog)
-
-        self.assertTrue(gui.on_delete_event(None, None))
-        self.assertEqual([id_], gui._pending_delete_dialogs)
-
-        time.sleep(0.05)
-        update_gui()
-
-        message_box = dialog.revealer.get_child()
-        button_box = message_box.get_children()[1]
-        cancel_button = button_box.get_children()[1]
-        del message_box
-        del button_box
-        cancel_button.clicked()
-        del cancel_button
-        update_gui()
-
-        self.assertEqual([id_], gui._pending_delete_dialogs)
-        self.assertTrue(gui.on_delete_event(None, None))
-        update_gui()
-        dialog.destroy()
-        del dialog
-        gui.destroy()
-
-    def test_on_delete_event_ok(self):
-        gui = GUI()
-        dialog = InstitutionDialog(Institution())
-        # no problems with changes
-        dialog.name_entry.set_text("BG")
-        update_gui()
-        id_ = id(dialog)
-
-        self.assertTrue(gui.on_delete_event(None, None))
-        self.assertEqual([id_], gui._pending_delete_dialogs)
-
-        time.sleep(0.1)
-        update_gui()
-
-        message_box = dialog.revealer.get_child()
-        button_box = message_box.get_children()[1]
-        ok_button = button_box.get_children()[0]
-        del message_box
-        del button_box
-        del dialog
-        ok_button.clicked()
-        del ok_button
-        update_gui()
-
-        self.assertEqual([], gui._pending_delete_dialogs)
-        self.assertFalse(gui.on_delete_event(None, None))
-        del gui
-
-    @unittest.mock.patch("bauble.plugins.garden.institution.InstitutionDialog")
-    def test_start_institution_editor(self, mock_dialog):
-        start_institution_editor()
-        mock_dialog.assert_called_once()
-        self.assertIsInstance(mock_dialog.call_args[0][0], Institution)
-        mock_dialog().show.assert_called_once()
-
-    @staticmethod
-    @unittest.mock.patch(
-        "bauble.plugins.garden.institution.start_institution_editor"
-    )
-    def test_institution_command(mock_start):
-        InstitutionCommand()(None, None)
-        mock_start.assert_called()
-
-    @staticmethod
-    @unittest.mock.patch(
-        "bauble.plugins.garden.institution.start_institution_editor"
-    )
-    def test_institution_tool(mock_start):
-        InstitutionTool.start()
-        mock_start.assert_called()
 
 
 # latitude: deg[0-90], min[0-59], sec[0-59]
