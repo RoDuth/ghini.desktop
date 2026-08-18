@@ -352,9 +352,11 @@ class TestGardenMap(BaubleTestCase):
         self.assertEqual(map_.map_.props.map_source, 1)
         mock_combo = mock.Mock()
         mock_combo.get_active_text.return_value = "Google Maps"
+        pref_value = map_.tile_options["Google Maps"]
         map_.on_tiles_combo_changed(mock_combo)
-        self.assertEqual(prefs.prefs.get(MAP_TILES_PREF_KEY), 7)
-        self.assertEqual(map_.map_.props.map_source, 7)
+
+        self.assertEqual(prefs.prefs.get(MAP_TILES_PREF_KEY), pref_value)
+        self.assertEqual(map_.map_.props.map_source, pref_value)
 
     def test_set_colour_prefs_from_combo(self):
         map_ = GardenMap(Map())
