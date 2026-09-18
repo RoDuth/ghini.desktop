@@ -133,11 +133,8 @@ class MapMenuButton(Gtk.MenuButton):
 
     def set_tooltip(self) -> None:
         tooltip = _(
-            "Links Menu - the items here are a selection of the Links "
-            "available in the search results view info box (right hand pane) "
-            "for the same type.  You can include others by adding:\n"
-            "\t'editor_button': True\n"
-            "to their definitions in the preferences."
+            "GeoJSON menu (spatial data)\n\nUse this menu to copy, paste, "
+            "delete or show as KML on your default KML viewer."
         )
         self.set_tooltip_text(tooltip)
 
