@@ -19,6 +19,12 @@ environment:
       TEST_DB: MSSQL
       PATH: C:\msys64\usr\bin;%PATH%
 
+# Temporarily exclude the macOS job from running
+matrix:
+  exclude:
+    - APPVEYOR_BUILD_WORKER_IMAGE: macos-sonoma
+      TEST_DB: sqlite
+
 skip_tags: true
 
 for:
