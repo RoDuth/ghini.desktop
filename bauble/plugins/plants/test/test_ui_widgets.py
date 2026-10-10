@@ -2507,7 +2507,7 @@ class GeographyMenuTests(BaubleTestCase):
 
         class SlowDict(dict):
             def __getitem__(self, key):
-                sleep(0.3)
+                sleep(0.4)
                 return super().__getitem__(key)
 
         with mock.patch.object(
