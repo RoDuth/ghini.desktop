@@ -214,13 +214,13 @@ class Source(db.Base):
 
     # relation to a Propagation that already exists and is attached
     # to a Plant
-    # i.e. a plant is propagation from to create a new accession
+    # i.e. a plant is propagated from to create a new accessions
     plant_propagation_id = Column(Integer, ForeignKey("propagation.id"))
     plant_propagation: "Propagation" = relationship(
         "Propagation",
         uselist=False,
         primaryjoin="Source.plant_propagation_id==Propagation.id",
-        backref=backref("used_source", uselist=True),
+        back_populates="used_source",
     )
     is_one_to_one = True
 
@@ -966,7 +966,7 @@ class PropagationChooserPresenter(editor.ChildPresenter):
         for plant in query:
             has_accessible = False
             for propagation in plant.propagations:
-                if propagation.accessible_quantity > 0:
+                if propagation.available_qty > 0:
                     has_accessible = True
             if has_accessible:
                 result.append(plant)
@@ -987,7 +987,7 @@ class PropagationChooserPresenter(editor.ChildPresenter):
         self.tree_model.clear()
         frmt = prefs.prefs.get(prefs.date_format_pref)
         for prop in value.propagations:
-            if prop.accessible_quantity == 0:
+            if prop.available_qty == 0:
                 continue
             self.tree_model.append(
                 [
@@ -1021,7 +1021,7 @@ class PropagationChooserPresenter(editor.ChildPresenter):
             self.parent_ref().parent_ref().refresh_id_qual_rank_combo()
             acc_view.widget_set_value(
                 "acc_quantity_recvd_entry",
-                utils.nstr(prop.accessible_quantity),
+                utils.nstr(prop.available_qty),
             )
             from .accession import recvd_type_values
             from .propagation import prop_type_results
@@ -1055,7 +1055,7 @@ class PropagationChooserPresenter(editor.ChildPresenter):
         for plant in query:
             has_accessible = False
             for propagation in plant.propagations:
-                if propagation.accessible_quantity > 0:
+                if propagation.available_qty > 0:
                     has_accessible = True
             if has_accessible:
                 results.append(plant)

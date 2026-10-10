@@ -64,7 +64,7 @@ from bauble.i18n import _
 
 from .accession import Accession
 from .location import Location
-from .propagation import PlantPropagation
+from .propagation import PlantPropSource
 from .propagation import Propagation
 
 # TODO: might be worthwhile to have a label or textview next to the
@@ -504,13 +504,16 @@ class Plant(db.Domain, db.WithNotes):
     propagations = association_proxy(
         "_plant_props",
         "propagation",
-        creator=lambda prop: PlantPropagation(propagation=prop),
+        creator=lambda prop: PlantPropSource(
+            propagation=prop,
+            source_type="1",
+        ),
     )
-    _plant_props: list["PlantPropagation"] = relationship(
-        "PlantPropagation",
+    _plant_props: list["PlantPropSource"] = relationship(
+        "PlantPropSource",
         cascade="all, delete-orphan",
         uselist=True,
-        backref=backref("plant", uselist=False),
+        back_populates="plant",
     )
 
     _pictures: db.Base = sa_synonym("pictures")
@@ -674,8 +677,8 @@ class Plant(db.Domain, db.WithNotes):
         prop_select = (
             select([Propagation._last_updated, cls.id])
             .join(
-                PlantPropagation,
-                PlantPropagation.propagation_id == Propagation.id,
+                PlantPropSource,
+                PlantPropSource.propagation_id == Propagation.id,
             )
             .join(cls)
         )

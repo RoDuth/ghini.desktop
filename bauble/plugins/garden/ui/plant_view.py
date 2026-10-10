@@ -292,7 +292,7 @@ class PropagationBox(Gtk.Box):
 
     def add_summary_label(self) -> None:
         summary_label = Gtk.Label()
-        summary_label.set_text(self.prop.get_summary(partial=2))
+        summary_label.set_text(str(self.prop))
         summary_label.set_line_wrap(True)
         summary_label.set_xalign(0.0)
         summary_label.set_yalign(0.0)

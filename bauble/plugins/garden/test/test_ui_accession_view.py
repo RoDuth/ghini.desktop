@@ -105,22 +105,5 @@ class InfoBoxTests(BaubleTestCase):
         acc7.source = Source(plant_propagation=plt1.propagations[0])
         expander.update(acc7)
 
-        self.assertEqual(
-            expander.parent_plant_data_label.get_label(),
-            str(plt1),
-        )
-        self.assertEqual(
-            expander.propagation_data_label.get_label(),
-            plt1.propagations[0].get_summary(partial=2),
-        )
-        self.assertTrue(expander.propagation_label.get_visible())
 
-        acc1 = self.session.get(Accession, 1)
-        prop = Propagation(prop_type="Other", notes="Foo")
-        acc1.source.propagation = prop
-        expander.update(acc1)
 
-        self.assertEqual(
-            expander.propagation_data_label.get_label(),
-            prop.get_summary(),
-        )

@@ -29,7 +29,6 @@ import os
 from sqlalchemy import func
 from sqlalchemy import select
 
-import bauble
 from bauble import db
 from bauble import pluginmgr
 from bauble.paths import lib_dir

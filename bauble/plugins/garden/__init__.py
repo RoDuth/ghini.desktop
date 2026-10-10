@@ -128,8 +128,19 @@ class GardenPlugin(pluginmgr.Plugin):
     location_infobox: LocationInfoBox | None = None
 
     @classmethod
-    def install(cls, *args, **kwargs):
-        pass
+    def install(cls, import_defaults=True) -> None:
+        """Do any setup and configuration required by this plugin like creating
+        tables, etc...
+        """
+        if not import_defaults:
+            return
+
+        from .propagation import populate_default_event_types
+        from .propagation import populate_default_prop_types
+
+        # create default propagation types if they don't exist
+        populate_default_prop_types()
+        populate_default_event_types()
 
     @classmethod
     def init(cls):

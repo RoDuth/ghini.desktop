@@ -34,6 +34,7 @@ from ..location import Location
 from ..plant import Plant
 from ..plant import PlantChange
 from ..propagation import Propagation
+from ..propagation import populate_default_prop_types
 from ..source import Source
 from ..test_garden import GardenTestCase
 from ..ui.plant_view import ChangeBox
@@ -278,6 +279,7 @@ class ChangeBoxTests(BaubleTestCase):
 
 class PropagationBoxTests(BaubleTestCase):
     def test_basic(self):
+        populate_default_prop_types()
         date = datetime(2001, 1, 1, 0)
         fam = Family(epithet="Myrtaceae")
         gen = Genus(epithet="Syzygium", family=fam)
@@ -292,9 +294,13 @@ class PropagationBoxTests(BaubleTestCase):
             _last_updated=date,
         )
         prop = Propagation(
-            prop_type="Other",
-            notes="Spam spam spam spam",
+            quantity=10,
+            media="potting mix",
+            container="140",
+            location="table 3",
+            prop_notes="spam, spam, spam and eggs",
             date=date,
+            propagator="Jade Green",
         )
         plt.propagations.append(prop)
         acc2 = Accession(code="2025.0001", species=sp)
@@ -312,7 +318,9 @@ class PropagationBoxTests(BaubleTestCase):
         )
         self.assertEqual(
             box.get_children()[1].get_label(),
-            "Other; Spam spam spam spam",
+            "Other; propagated by Jade Green on 01-01-2001; Quantity: 10; "
+            "Media: potting mix; Container: 140; Location: table 3; Notes: "
+            "spam, spam, spam and eggs",
         )
         self.assertEqual(
             box.get_children()[2].get_children()[0].get_label(),
@@ -480,6 +488,7 @@ class FunctionTests(BaubleTestCase):
 
     @mock.patch("bauble.ui.dialogs.yes_no_dialog")
     def test_remove_callback_with_propagations_asks(self, mock_dlog):
+        populate_default_prop_types()
         family = Family(epithet="Austrobaileyaceae")
         genus = Genus(epithet="Austrobaileya", family=family)
         species = Species(genus=genus, epithet="scandens")
@@ -497,8 +506,11 @@ class FunctionTests(BaubleTestCase):
         )
         plant.propagations.append(
             Propagation(
-                prop_type="Other",
-                notes="Spam spam spam spam",
+                quantity=10,
+                media="potting mix",
+                container="140",
+                location="table 3",
+                prop_notes="spam, spam, spam and eggs",
                 date=datetime(2026, 1, 1),
             )
         )

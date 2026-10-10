@@ -29,7 +29,6 @@ from functools import partial
 
 from gi.repository import Gtk
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy.orm import object_session
 
 from bauble import db
 from bauble import meta
@@ -84,12 +83,10 @@ from .plant import PlantNote
 from .plant import PlantPicture
 from .plant import get_next_code
 from .plant import set_code_format
-from .propagation import PlantPropagation
+from .propagation import PlantPropSource
 from .propagation import Propagation
-from .propagation import PropagationEditor
-from .propagation import PropCutting
-from .propagation import PropCuttingRooted
-from .propagation import PropSeed
+from .propagation import populate_default_event_types
+from .propagation import populate_default_prop_types
 from .source import Collection
 from .source import CollectionPresenter
 from .source import Source
@@ -203,13 +200,23 @@ plant_seedprop_test_data = (
 propagation_test_data = (
     {
         "id": 1,
-        "prop_type": "Seed",
-        "notes": "Some note",
+        "quantity": 10,
+        "media": "potting mix",
+        "container": "140mm pot",
+        "location": "greenhouse",
+        "prop_notes": "some notes",
         "date": datetime.date(2023, 1, 1),
     },
 )
 
-plant_propagation_test_data = ({"id": 1, "plant_id": 1, "propagation_id": 1},)
+plant_propagation_test_data = (
+    {
+        "id": 1,
+        "plant_id": 1,
+        "propagation_id": 1,
+        "source_material": "F",
+    },
+)
 
 location_test_data = (
     {
@@ -374,8 +381,7 @@ test_data_table_control = (
     (Plant, plant_test_data),
     (PlantChange, plant_change_test_data),
     (Propagation, propagation_test_data),
-    (PropSeed, plant_seedprop_test_data),
-    (PlantPropagation, plant_propagation_test_data),
+    (PlantPropSource, plant_propagation_test_data),
     (Collection, collection_test_data),
 )
 
@@ -389,8 +395,10 @@ def setUp_data():
     # will get an error about the test data rows already existing in the
     # database
     """
-    for cls, data in test_data_table_control:
-        table = cls.__table__
+    populate_default_event_types()
+    populate_default_prop_types()
+    for mapper, data in test_data_table_control:
+        table = mapper.__table__
         for row in data:
             table.insert().execute(row).close()
         for col in table.c:
@@ -963,6 +971,7 @@ class PlantUpdatedTests(BaubleTestCase):
         self.assertEqual(plt.updated, plt._last_updated)
 
     def test_updated_propagation(self):
+        populate_default_prop_types()
         date = datetime.datetime(2001, 1, 1, 0)
         fam = Family(epithet="Myrtaceae")
         gen = Genus(epithet="Syzygium", family=fam)
@@ -978,7 +987,13 @@ class PlantUpdatedTests(BaubleTestCase):
         )
         change = PlantChange(_last_updated=datetime.datetime(2000, 1, 1, 0))
         plt.changes.append(change)
-        prop = Propagation(prop_type="Other")
+        prop = Propagation(
+            quantity=10,
+            media="potting mix",
+            container="140",
+            location="table 3",
+            prop_notes="bulb division",
+        )
         plt.propagations.append(prop)
         self.session.add(plt)
         self.session.commit()
@@ -1043,507 +1058,6 @@ class PlantUpdatedTests(BaubleTestCase):
         self.assertEqual(plt.updated, plt._last_updated)
 
 
-class PropagationTests(GardenTestCase):
-    def __init__(self, *args):
-        super().__init__(*args)
-
-    def setUp(self):
-        super().setUp()
-        self.accession = self.create(Accession, species=self.species, code="1")
-        self.plants = []
-
-    def add_plants(self, plant_codes=[]):
-        loc = self.create(Location, name="name", code="code")
-        for pc in plant_codes:
-            self.plants.append(
-                self.create(
-                    Plant,
-                    accession=self.accession,
-                    location=loc,
-                    code=pc,
-                    quantity=1,
-                )
-            )
-        self.session.commit()
-
-    def add_propagations(self, propagation_types):
-        for i, pt in enumerate(propagation_types):
-            prop = Propagation()
-            prop.prop_type = pt
-            prop.plant = self.plants[i]
-            if pt == "Seed":
-                specifically = PropSeed(**default_seed_values)
-            elif pt == "UnrootedCutting":
-                specifically = PropCutting(**default_cutting_values)
-            else:
-                specifically = type("FooBar", (object,), {})()
-            specifically.propagation = prop
-        self.session.commit()
-
-    def test_propagation_cutting_quantity_new_zero(self):
-        self.add_plants(["1"])
-        prop = Propagation()
-        prop.prop_type = "UnrootedCutting"
-        prop.plant = self.plants[0]
-        spec = PropCutting(cutting_type="Nodal")
-        spec.propagation = prop
-        self.session.commit()
-        self.assertEqual(prop.accessible_quantity, 0)
-        prop = Propagation()
-        prop.prop_type = "UnrootedCutting"
-        prop.plant = self.plants[0]
-        spec = PropCutting(cutting_type="Nodal", rooted_pct=0)
-        spec.propagation = prop
-        self.session.commit()
-        self.assertEqual(prop.accessible_quantity, 0)
-
-    def test_propagation_seed_quantity_new_zero(self):
-        self.add_plants(["1"])
-        prop = Propagation()
-        prop.prop_type = "Seed"
-        prop.plant = self.plants[0]
-        spec = PropSeed(nseeds=30, date_sown=datetime.date(2017, 1, 1))
-        spec.propagation = prop
-        self.session.commit()
-        self.assertEqual(prop.accessible_quantity, 0)
-        prop = Propagation()
-        prop.prop_type = "Seed"
-        prop.plant = self.plants[0]
-        spec = PropSeed(
-            nseeds=30, date_sown=datetime.date(2017, 1, 1), nseedlings=0
-        )
-        spec.propagation = prop
-        self.session.commit()
-        self.assertEqual(prop.accessible_quantity, 0)
-
-    def test_propagation_seed_unaccessed_quantity(self):
-        self.add_plants(["1"])
-        prop = Propagation()
-        prop.prop_type = "Seed"
-        prop.plant = self.plants[0]
-        seed = PropSeed(**default_seed_values)
-        seed.propagation = prop
-        self.session.commit()
-        summary = prop.get_summary()
-        self.assertEqual(prop.accessible_quantity, 23)
-
-    def test_propagation_cutting_accessed_remaining_quantity(self):
-        self.add_plants(["1"])
-        self.add_propagations(["Seed"])
-        accession2 = self.create(
-            Accession, species=self.species, code="2", quantity_recvd=10
-        )
-        source2 = self.create(
-            Source, plant_propagation=self.plants[0].propagations[0]
-        )
-        accession2.source = source2
-        self.session.commit()
-        prop = self.plants[0].propagations[0]
-        self.assertEqual(prop.accessible_quantity, 13)
-
-    def test_propagation_other_unaccessed_remaining_quantity_1(self):
-        self.add_plants(["1"])
-        self.add_propagations(["Other"])
-        prop = self.plants[0].propagations[0]
-        self.assertEqual(prop.accessible_quantity, 1)
-
-    def test_propagation_other_accessed_remaining_quantity_1(self):
-        self.add_plants(["1"])
-        self.add_propagations(["Other"])
-        accession2 = self.create(
-            Accession, species=self.species, code="2", quantity_recvd=10
-        )
-        source2 = self.create(
-            Source, plant_propagation=self.plants[0].propagations[0]
-        )
-        accession2.source = source2
-        self.session.commit()
-        prop = self.plants[0].propagations[0]
-        self.assertEqual(prop.accessible_quantity, 1)
-
-    def test_accession_propagations_is_union_of_plant_propagations(self):
-        self.add_plants(["1", "2"])
-        self.add_propagations(["UnrootedCutting", "Seed"])
-        self.assertEqual(len(self.accession.plants), 2)
-        self.assertEqual(len(self.plants[0].propagations), 1)
-        self.assertEqual(len(self.plants[1].propagations), 1)
-        self.assertEqual(len(self.accession.propagations), 2)
-        p1, p2 = self.plants[0].propagations[0], self.plants[1].propagations[0]
-        self.assertTrue(p1 in self.accession.propagations)
-        self.assertTrue(p2 in self.accession.propagations)
-
-    def test_propagation_links_back_to_correct_plant(self):
-        self.add_plants(["1", "2", "3"])
-        self.add_propagations(["UnrootedCutting", "Seed", "Seed"])
-        for plant in self.plants:
-            self.assertEqual(len(plant.propagations), 1)
-            prop = plant.propagations[0]
-            self.assertEqual(prop.plant, plant)
-
-    def test_get_summary_cutting_complete(self):
-        self.add_plants(["1"])
-        prop = Propagation()
-        prop.prop_type = "UnrootedCutting"
-        prop.plant = self.plants[0]
-        cutting = PropCutting(**default_cutting_values)
-        cutting.propagation = prop
-        rooted = PropCuttingRooted()
-        rooted.cutting = cutting
-        self.session.commit()
-        summary = prop.get_summary()
-        self.assertEqual(
-            summary,
-            (
-                "Cutting; Cutting type: Nodal; Length: 2mm; Tip: "
-                "Intact; Leaves: Intact; Flower buds: None; Wounded:"
-                " Singled; Fungicide: Physan; Hormone treatment: "
-                'Auxin powder; Bottom heat: 65°F; Container: 4" pot;'
-                " Media: standard mix; Location: Mist frame; Cover:"
-                " Poly cover; Rooted: 90%"
-            ),
-        )
-
-    def test_get_summary_seed_complete(self):
-        self.add_plants(["1"])
-        prop = Propagation()
-        prop.prop_type = "Seed"
-        prop.plant = self.plants[0]
-        seed = PropSeed(**default_seed_values)
-        seed.propagation = prop
-        self.session.commit()
-        summary = prop.get_summary()
-        self.assertEqual(
-            summary,
-            (
-                "Seed; Pretreatment: Soaked in peroxide solution; # "
-                "of seeds: 24; Date sown: 01-01-2017; Container: "
-                "tray; Media: standard mix; Location: mist tent; "
-                "Germination date: 01-02-2017; # of seedlings: 23; "
-                "Germination rate: 99%; Date planted: 08-02-2017"
-            ),
-        )
-
-    def test_get_summary_seed_partial_1_still_unused(self):
-        self.add_plants(["1"])
-        self.add_propagations(["Seed"])
-        prop = self.plants[0].propagations[0]
-        self.assertEqual(prop.get_summary(partial=1), "")
-
-    def test_get_summary_seed_partial_2_still_unused(self):
-        self.add_plants(["1"])
-        self.add_propagations(["Seed"])
-        prop = self.plants[0].propagations[0]
-        self.assertEqual(prop.get_summary(partial=2), prop.get_summary())
-
-    def test_get_summary_seed_partial_1_used_once(self):
-        self.add_plants(["1"])
-        self.add_propagations(["Seed"])
-        accession2 = self.create(Accession, species=self.species, code="2")
-        source2 = self.create(
-            Source, plant_propagation=self.plants[0].propagations[0]
-        )
-        accession2.source = source2
-        self.session.commit()
-        prop = self.plants[0].propagations[0]
-        self.assertEqual(prop.get_summary(partial=1), accession2.code)
-
-    def test_get_summary_seed_partial_1_used_twice(self):
-        self.add_plants(["1"])
-        self.add_propagations(["Seed"])
-        using = ["2", "3"]
-        for c in using:
-            a = self.create(Accession, species=self.species, code=c)
-            s = self.create(
-                Source, plant_propagation=self.plants[0].propagations[0]
-            )
-            a.source = s
-        self.session.commit()
-        prop = self.plants[0].propagations[0]
-        self.assertEqual(
-            prop.get_summary(partial=1),
-            ";".join("%s" % a for a in prop.accessions),
-        )
-
-    def test_propagation_accessions_used_once(self):
-        self.add_plants(["1"])
-        self.add_propagations(["Seed"])
-        accession2 = self.create(Accession, species=self.species, code="2")
-        source2 = self.create(
-            Source, plant_propagation=self.plants[0].propagations[0]
-        )
-        accession2.source = source2
-        self.session.commit()
-        prop = self.plants[0].propagations[0]
-        self.assertEqual(prop.accessions, [accession2])
-
-    def test_propagation_accessions_used_twice(self):
-        self.add_plants(["1"])
-        self.add_propagations(["Seed"])
-        prop = self.plants[0].propagations[0]
-        using = ["2", "3"]
-        accs = []
-        for c in using:
-            a = self.create(Accession, species=self.species, code=c)
-            s = self.create(Source, plant_propagation=prop)
-            a.source = s
-            accs.append(a)
-        self.session.commit()
-        self.assertEqual(len(prop.accessions), 2)
-        self.assertEqual(
-            sorted(accs, key=utils.natsort_key),
-            sorted(prop.accessions, key=utils.natsort_key),
-        )
-
-    def test_accession_source_plant_propagation_points_at_parent_plant(self):
-        self.add_plants(["1"])
-        self.add_propagations(["Seed"])
-        prop = self.plants[0].propagations[0]
-        using = ["2", "3"]
-        for c in using:
-            a = self.create(Accession, species=self.species, code=c)
-            s = self.create(Source, plant_propagation=prop)
-            a.source = s
-        self.session.commit()
-        for a in prop.accessions:
-            self.assertEqual(a.source.plant_propagation.plant, self.plants[0])
-            self.assertEqual(a.parent_plant, self.plants[0])
-
-    def test_accession_without_parent_plant(self):
-        self.assertEqual(self.accession.parent_plant, None)
-
-    def test_cutting_property(self):
-        self.add_plants(["1"])
-        prop = Propagation()
-        prop.plant = self.plants[0]
-        prop.prop_type = "UnrootedCutting"
-        prop.accession = self.accession
-        cutting = PropCutting(**default_cutting_values)
-        cutting.propagation = prop
-        rooted = PropCuttingRooted()
-        rooted.cutting = cutting
-        self.session.add(rooted)
-        self.session.commit()
-
-        self.assertTrue(rooted in prop.cutting.rooted)
-
-        rooted_id = rooted.id
-        cutting_id = cutting.id
-        self.assertTrue(rooted_id, "no prop_rooted.id")
-
-        # setting the cutting property on Propagation should cause
-        # the cutting and its rooted children to be deleted
-        prop.cutting = None
-        self.session.commit()
-        self.assertTrue(not self.session.get(PropCutting, cutting_id))
-        self.assertTrue(not self.session.get(PropCuttingRooted, rooted_id))
-
-    def test_accession_links_to_parent_plant(self):
-        """we can reach the parent plant from an accession"""
-
-        self.add_plants(["1"])
-        pass
-
-    def test_seed_property(self):
-        loc = Location(name="name", code="code")
-        plant = Plant(
-            accession=self.accession, location=loc, code="1", quantity=1
-        )
-        prop = Propagation()
-        plant.propagations.append(prop)
-        prop.prop_type = "Seed"
-        prop.accession = self.accession
-        seed = PropSeed(**default_seed_values)
-        self.session.add(seed)
-        seed.propagation = prop
-        self.session.commit()
-
-        self.assertTrue(seed == prop.seed)
-        seed_id = seed.id
-
-        # this should cause the cutting and its rooted children to be deleted
-        prop.seed = None
-        self.session.commit()
-        self.assertTrue(not self.session.get(PropSeed, seed_id))
-
-    def test_cutting_editor(self):
-        loc = Location(name="name", code="code")
-        plant = Plant(
-            accession=self.accession, location=loc, code="1", quantity=1
-        )
-        propagation = Propagation()
-        plant.propagations.append(propagation)
-        editor = PropagationEditor(model=propagation)
-        widgets = editor.presenter.view.widgets
-        self.assertTrue(widgets is not None)
-        view = editor.presenter.view
-        view.widget_set_value("prop_type_combo", "UnrootedCutting")
-        view.widget_set_value("prop_date_entry", utils.today_str())
-        cutting_presenter = editor.presenter._cutting_presenter
-        for widget, attr in cutting_presenter.widget_to_field_map.items():
-            # debug('%s=%s' % (widget, default_cutting_values[attr]))
-            view.widget_set_value(widget, default_cutting_values[attr])
-        update_gui()
-        editor.handle_response(Gtk.ResponseType.OK)
-        editor.commit_changes()
-        model = editor.model
-        s = object_session(model)
-        s.expire(model)
-        self.assertTrue(model.prop_type == "UnrootedCutting")
-        for attr, value in default_cutting_values.items():
-            v = getattr(model.cutting, attr)
-            self.assertTrue(v == value, "%s = %s(%s)" % (attr, value, v))
-        editor.session.close()
-        cutting_presenter.view.get_window().destroy()
-        del cutting_presenter
-        del model
-        del editor
-
-    def test_seed_editor_commit(self):
-        loc = Location(name="name", code="code")
-        plant = Plant(
-            accession=self.accession, location=loc, code="1", quantity=1
-        )
-        propagation = Propagation()
-        plant.propagations.append(propagation)
-        editor = PropagationEditor(model=propagation)
-        widgets = editor.presenter.view.widgets
-        seed_presenter = editor.presenter._seed_presenter
-        view = editor.presenter.view
-
-        # set default values in editor widgets
-        view.widget_set_value("prop_type_combo", "Seed")
-        view.widget_set_value(
-            "prop_date_entry", default_propagation_values["date"]
-        )
-        view.widget_set_value(
-            "notes_textview", default_propagation_values["notes"]
-        )
-        for widget, attr in seed_presenter.widget_to_field_map.items():
-            w = widgets[widget]
-            if isinstance(w, Gtk.ComboBox) and not w.get_model():
-                widgets[widget].get_child().props.text = default_seed_values[
-                    attr
-                ]
-            view.widget_set_value(widget, default_seed_values[attr])
-
-        # update the editor, send the RESPONSE_OK signal and commit the changes
-        update_gui()
-        editor.handle_response(Gtk.ResponseType.OK)
-        editor.presenter.cleanup()
-        model_id = editor.model.id
-        editor.commit_changes()
-        editor.session.close()
-        view.get_window().destroy()
-        del seed_presenter
-        del widgets
-        del view
-        del editor
-
-        s = db.Session()
-        propagation = s.get(Propagation, model_id)
-
-        self.assertTrue(propagation.prop_type == "Seed")
-        # make sure the each value in default_seed_values matches the model
-        for attr, expected in default_seed_values.items():
-            v = getattr(propagation.seed, attr)
-            if isinstance(v, datetime.date):
-                format = prefs.prefs[prefs.date_format_pref]
-                v = v.strftime(format)
-                if isinstance(expected, datetime.date):
-                    expected = expected.strftime(format)
-            self.assertTrue(v == expected, "%s = %s(%s)" % (attr, expected, v))
-
-        for attr, expected in default_propagation_values.items():
-            v = getattr(propagation, attr)
-            self.assertTrue(v == expected, "%s = %s(%s)" % (attr, expected, v))
-
-        s.close()
-
-    def test_seed_editor_load(self):
-        loc = Location(name="name", code="code")
-        plant = Plant(
-            accession=self.accession, location=loc, code="1", quantity=1
-        )
-        propagation = Propagation(**default_propagation_values)
-        propagation.prop_type = "Seed"
-        propagation.seed = PropSeed(**default_seed_values)
-        plant.propagations.append(propagation)
-
-        editor = PropagationEditor(model=propagation)
-        widgets = editor.presenter.view.widgets
-        seed_presenter = editor.presenter._seed_presenter
-        self.assertTrue(editor.presenter.view is not None)
-
-        update_gui()
-
-        # check that the values loaded correctly from the model in the
-        # editor widget
-        def get_widget_text(w):
-            if isinstance(w, Gtk.TextView):
-                return w.get_buffer().props.text
-            elif isinstance(w, Gtk.Entry):
-                return w.props.text
-            elif isinstance(w, Gtk.ComboBox) and w.get_has_entry():
-                # ComboBox.with_entry
-                return w.get_child().get_text()
-            else:
-                raise ValueError("%s not supported" % type(w))
-
-        # make sure the default values match the values in the widgets
-        date_format = prefs.prefs[prefs.date_format_pref]
-        for widget, attr in editor.presenter.widget_to_field_map.items():
-            if not attr in default_propagation_values:
-                continue
-            default = default_propagation_values[attr]
-            if isinstance(default, datetime.date):
-                default = default.strftime(date_format)
-            value = get_widget_text(widgets[widget])
-            self.assertTrue(
-                value == default, "%s = %s (%s)" % (attr, value, default)
-            )
-
-        # check the default for the PropSeed and SeedPresenter
-        for widget, attr in seed_presenter.widget_to_field_map.items():
-            if not attr in default_seed_values:
-                continue
-            default = default_seed_values[attr]
-            if isinstance(default, datetime.date):
-                default = default.strftime(date_format)
-            if isinstance(default, int):
-                default = str(default)
-            value = get_widget_text(widgets[widget])
-            self.assertTrue(
-                value == default, "%s = %s (%s)" % (attr, value, default)
-            )
-
-        editor.presenter.view.get_window().destroy()
-        del widgets
-        del editor
-
-    @unittest.mock.patch("gi.repository.Gtk.Dialog.run")
-    def test_editor(self, mock_start):
-        # Not sure this really tests much...
-        mock_start.return_value = Gtk.ResponseType.OK
-        propagation = Propagation()
-        acc1 = self.session.query(Accession).first()
-        propagation.used_source = [acc1.source]
-        editor = PropagationEditor(model=propagation)
-        set_combo_from_value(
-            editor.presenter.view.widgets.prop_type_combo, "Other"
-        )
-        set_widget_value(editor.presenter.view.widgets.notes_textview, "TEST")
-        propagation = editor.start()
-        logger.debug(propagation)
-        self.assertTrue(propagation.accessions)
-        self.assertEqual(propagation.prop_type, "Other")
-        self.assertEqual(propagation.notes, "TEST")
-        editor.presenter.view.get_window().destroy()
-        del editor
-        self.assertEqual(
-            utils.gc_objects_by_type("PropagationEditor"),
-            [],
-            "PropagationEditor not deleted",
-        )
 
 
 class VoucherTests(GardenTestCase):
@@ -1676,74 +1190,6 @@ class SourceTests(GardenTestCase):
         super().setUp()
         self.accession = self.create(Accession, species=self.species, code="1")
 
-    def test_cutting_propagation_cascades(self):
-        source = Source()
-        self.accession.source = source
-        source.propagation = Propagation(prop_type="Seed")
-
-        cutting = PropCutting(**default_cutting_values)
-        cutting.propagation = source.propagation
-        self.session.commit()
-        prop_id = source.propagation.id
-        cutting_id = source.propagation.cutting.id
-        self.assertTrue(prop_id)
-        self.assertTrue(cutting_id)
-        # make sure the propagation gets cleaned up when we set the
-        # source.propagation attribute to None - and commit
-        source.propagation = None
-        self.session.commit()
-        self.assertFalse(self.session.get(PropCutting, cutting_id))
-        self.assertFalse(self.session.get(Propagation, prop_id))
-
-    def test_seed_propagation_cascades(self):
-        """
-        Test cascading for the Source.propagation relation
-        """
-        source = Source()
-        self.accession.source = source
-        source.propagation = Propagation(prop_type="Seed")
-
-        seed = PropSeed(**default_seed_values)
-        seed.propagation = source.propagation
-        self.session.commit()
-        prop_id = source.propagation.id
-        seed_id = source.propagation.seed.id
-        self.assertTrue(prop_id)
-        self.assertTrue(seed_id)
-        # make sure the propagation gets cleaned up when we set the
-        # source.propagation attribute to None - and commit
-        source.propagation = None
-        self.session.commit()
-        self.assertFalse(self.session.get(PropSeed, seed_id))
-        self.assertFalse(self.session.get(Propagation, prop_id))
-
-    def test_propagation_of_source_material_cascades(self):
-        # create a source object with a collection and propagation (this could
-        # be a expedition or a purchase of seed etc.)
-        source = Source()
-        source.source_detail = SourceDetail(name="name2")
-        source.sources_code = "1"
-        source.collection = Collection(locale="locale")
-        source.propagation = Propagation(prop_type="Seed")
-        # use it as a source for the accession
-        source.accession = self.accession
-        self.session.commit()
-
-        # test that cascading works properly
-        source_detail_id = source.source_detail.id
-        coll_id = source.collection.id
-        prop_id = source.propagation.id
-        # remove the accessions source
-        self.accession.source = None
-        self.session.commit()
-
-        # the Collection and Propagation should be
-        # deleted since they are specific to the source
-        self.assertFalse(self.session.get(Collection, coll_id))
-        self.assertFalse(self.session.get(Propagation, prop_id))
-
-        # the SourceDetail shouldn't be deleted as it is independent of the source
-        self.assertTrue(self.session.get(SourceDetail, source_detail_id))
 
     def test_plant_propagation_as_source_cascades(self):
         # create a source object
@@ -1752,9 +1198,20 @@ class SourceTests(GardenTestCase):
         # create a plant and propagation from it
         location = Location(code="1", name="site1")
         plant = Plant(
-            accession=self.accession, location=location, code="1", quantity=1
+            accession=self.accession,
+            location=location,
+            code="1",
+            quantity=1,
         )
-        plant.propagations.append(Propagation(prop_type="Seed"))
+        plant.propagations.append(
+            Propagation(
+                quantity=10,
+                media="potting mix",
+                container="140",
+                location="table 3",
+                prop_notes="bulb division",
+            )
+        )
         self.session.commit()
 
         # add plant propagation to the source and use it as the source for an
@@ -2249,87 +1706,6 @@ class AccessionTests(GardenTestCase):
             ),
         )
 
-    def test_accession_source_editor(self):
-        # create an accession, a location, a plant
-        parent = self.create(
-            Accession, species=self.species, code="parent", quantity_recvd=1
-        )
-        plant = self.create(
-            Plant,
-            accession=parent,
-            quantity=1,
-            location=Location(name="site", code="STE"),
-            code="1",
-        )
-        # create a propagation without a related seed/cutting
-        prop = self.create(
-            Propagation, prop_type="Seed", date=utils.utcnow_naive()
-        )
-        seed = PropSeed(
-            nseeds=10,
-            date_sown="11-01-2021",
-            nseedlings=9,
-            germ_date="21-02-2021",
-        )
-        prop.seed = seed
-        plant.propagations.append(prop)
-        # commit all the above to the database
-        self.session.commit()
-        self.assertTrue(prop.id > 0)  # we got a valid id after the commit
-        plant_prop_id = prop.id
-
-        acc = Accession(code="code", species=self.species, quantity_recvd=2)
-        editor = AccessionEditor(acc)
-        update_gui()
-        # normally called by editor.presenter.start() but we don't call it here
-        editor.presenter.source_presenter.start()
-        widgets = editor.presenter.view.widgets
-        update_gui()
-
-        # set the date so the presenter will be "dirty"
-        widgets.acc_date_recvd_entry.props.text = utils.today_str()
-
-        # set the source type as "Garden Propagation"
-        widgets.acc_source_comboentry.get_child().props.text = (
-            SourcePresenter.GARDEN_PROP_STR
-        )
-        self.assertFalse(editor.presenter.problems)
-
-        # set the source plant
-        widgets.source_prop_plant_entry.props.text = str(plant)
-        widgets.source_prop_plant_entry.emit("changed")
-        logger.debug("about to update the gui")
-        update_gui()
-
-        logger.debug("about to update the gui")
-        update_gui()  # ensures idle callback is called
-
-        # assert that the propagations were added to the treeview
-        treeview = widgets.source_prop_treeview
-        self.assertTrue(treeview.get_model())
-
-        # select the first propagation in the treeview
-        toggle_cell = widgets.prop_toggle_cell.emit("toggled", 0)
-        self.assertTrue(toggle_cell is None)
-
-        # commit the changes and cleanup
-        editor.handle_response(Gtk.ResponseType.OK)
-        editor.session.close()
-        editor.presenter.cleanup()
-
-        # open a separate session and make sure everything committed
-        session = db.Session()
-        acc = session.query(Accession).filter_by(code="code").first()
-        self.assertIsNotNone(acc)
-        logger.debug(acc.id)
-        parent = session.query(Accession).filter_by(code="parent")[0]
-        self.assertTrue(parent is not None)
-        logger.debug(parent.id)
-        logger.debug("acc plants : %s", [str(i) for i in acc.plants])
-        logger.debug("parent plants : %s", [str(i) for i in parent.plants])
-        logger.debug(acc.source.__dict__)
-        self.assertEqual(acc.source.plant_propagation_id, plant_prop_id)
-        del editor
 
     def test_accession_editor(self):
         acc = Accession(code="code", species=self.species)
@@ -3068,6 +2444,7 @@ class AccessionUpdatedTests(BaubleTestCase):
 
     def test_updated_source_propagation(self):
         # make sure the date is not now
+        populate_default_prop_types()
         date = datetime.datetime(2001, 1, 1, 0)
         fam = Family(epithet="Myrtaceae")
         gen = Genus(epithet="Syzygium", family=fam)
@@ -3076,9 +2453,17 @@ class AccessionUpdatedTests(BaubleTestCase):
         source_detail = SourceDetail(
             name="Jade Green", source_type="Individual"
         )
-        prop = Propagation(prop_type="Other")
+        prop = Propagation(
+            quantity=10,
+            media="potting mix",
+            container="140",
+            location="table 3",
+            prop_notes="bulb division",
+        )
         acc.source = Source(
-            source_detail=source_detail, propagation=prop, _last_updated=date
+            source_detail=source_detail,
+            propagation=prop,
+            _last_updated=date,
         )
         self.session.add(acc)
         self.session.commit()

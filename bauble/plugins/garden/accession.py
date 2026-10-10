@@ -85,7 +85,6 @@ from ..plants.ui.widgets.species import species_match_func
 from ..plants.ui.widgets.species import species_to_string_matcher
 from .location import Location
 from .propagation import Propagation
-from .propagation import SourcePropagationPresenter
 from .source import Collection
 from .source import CollectionPresenter
 from .source import PropagationChooserPresenter
@@ -2180,9 +2179,6 @@ class SourcePresenter(editor.GenericEditorPresenter):
 
         # presenter that allows us to create a new Propagation that is
         # specific to this Source and not attached to any Plant
-        self.source_prop_presenter = SourcePropagationPresenter(
-            self, self.propagation, view, session
-        )
 
         # presenter that allows us to select an existing propagation
         self.prop_chooser_presenter = PropagationChooserPresenter(
@@ -2291,14 +2287,12 @@ class SourcePresenter(editor.GenericEditorPresenter):
             self.problems
             | self.collection_presenter.problems
             | self.prop_chooser_presenter.problems
-            | self.source_prop_presenter.problems
         )
 
     def cleanup(self):
         super().cleanup()
         self.collection_presenter.cleanup()
         self.prop_chooser_presenter.cleanup()
-        self.source_prop_presenter.cleanup()
 
     def start(self):
         active = None
@@ -2312,7 +2306,6 @@ class SourcePresenter(editor.GenericEditorPresenter):
     def is_dirty(self):
         return (
             self._dirty
-            or self.source_prop_presenter.is_dirty()
             or self.prop_chooser_presenter.is_dirty()
             or self.collection_presenter.is_dirty()
         )
@@ -3380,7 +3373,6 @@ class AccessionEditor(editor.GenericModelViewPresenterEditor):
                     self.presenter.source_presenter.collection
                 )
 
-            self.presenter.source_presenter.propagation.clean()
             if not self.model.source.propagation:
                 utils.delete_or_expunge(
                     self.presenter.source_presenter.propagation

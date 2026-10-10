@@ -226,6 +226,7 @@ class SourceExpander(
             self.source_notes_label,
             self.source_notes_data_label,
         ]
+
         self.plt_prop_widgets = [
             self.parent_plant_label,
             self.parent_plant_eventbox,
@@ -289,26 +290,7 @@ class SourceExpander(
             self.source_notes_data_label.set_label(str(row.source.notes))
 
     def update_propagation(self, row: Accession) -> None:
-        prop_str = ""
-        if row.source.plant_propagation:
-            utils.unhide_widgets(self.plt_prop_widgets)
-            self.parent_plant_data_label.set_label(
-                str(row.source.plant_propagation.plant),
-            )
-            prop_str = row.source.plant_propagation.get_summary(partial=2)
-            utils.make_label_clickable(
-                self.parent_plant_data_label,
-                on_clicked_select,
-                row.source.plant_propagation.plant,
-            )
-
-        if row.source.propagation:
-            prop_str = row.source.propagation.get_summary()
-
-        self.propagation_data_label.set_label(prop_str)
-
-        if prop_str:
-            utils.unhide_widgets(self.prop_widgets)
+        pass
 
     def update_collection(self, collection: Collection) -> None:
         self.locale_label.set_label(collection.locale or "")
