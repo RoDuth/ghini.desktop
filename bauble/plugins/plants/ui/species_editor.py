@@ -224,6 +224,7 @@ class SpeciesEditorDialog(
     qualifier_combo = cast(Gtk.ComboBox, Gtk.Template.Child())
     cites_combo = cast(Gtk.ComboBox, Gtk.Template.Child())
     cites_label = cast(Gtk.Label, Gtk.Template.Child())
+    red_list_combo = cast(Gtk.ComboBox, Gtk.Template.Child())
     cv_epithet_entry = cast(Gtk.Entry, Gtk.Template.Child())
     expand_cv_btn = cast(Gtk.Button, Gtk.Template.Child())
     expand_btn_icon = cast(Gtk.Image, Gtk.Template.Child())
@@ -304,6 +305,7 @@ class SpeciesEditorDialog(
             self.author_entry: "sp_author",
             self.qualifier_combo: "sp_qual",
             self.cites_combo: "_cites",
+            self.red_list_combo: "red_list",
             self.cv_epithet_entry: "cultivar_epithet",
             self.pbr_checkbtn: "pbr_protected",
             self.cv_group_entry: "cv_group",
@@ -320,6 +322,7 @@ class SpeciesEditorDialog(
         populate_enum_combo(self.hybrid_combo, self.model, "hybrid")
         populate_enum_combo(self.qualifier_combo, self.model, "sp_qual")
         populate_enum_combo(self.cites_combo, self.model, "_cites")
+        populate_enum_combo(self.red_list_combo, self.model, "red_list")
 
         symbols = (
             self.session.execute(select(Species.trademark_symbol).distinct())

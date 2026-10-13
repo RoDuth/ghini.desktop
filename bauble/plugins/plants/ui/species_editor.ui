@@ -8,6 +8,14 @@
       <column type="gchararray"/>
     </columns>
   </object>
+  <object class="GtkListStore" id="red_list_liststore">
+    <columns>
+      <!-- column-name gchararray -->
+      <column type="gchararray"/>
+      <!-- column-name gchararray -->
+      <column type="gchararray"/>
+    </columns>
+  </object>
   <object class="GtkListStore" id="genus_liststore">
     <columns>
       <!-- column-name pyobject -->
@@ -1268,6 +1276,14 @@
                                 <property name="visible">True</property>
                                 <property name="can-focus">False</property>
                                 <property name="hexpand">True</property>
+                                <property name="model">red_list_liststore</property>
+                                <signal name="changed" handler="on_combobox_changed" swapped="no"/>
+                                <child>
+                                  <object class="GtkCellRendererText"/>
+                                  <attributes>
+                                    <attribute name="text">1</attribute>
+                                  </attributes>
+                                </child>
                               </object>
                               <packing>
                                 <property name="left-attach">3</property>

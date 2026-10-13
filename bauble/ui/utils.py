@@ -551,15 +551,28 @@ def populate_enum_combo(
 ) -> None:
     """Populate a ComboBox from a Enum Column's values.
 
+    If the ComboBox's ListStore has 2 columns, the first column is the database
+    value and the second column is the display string.
+
+    If the ComboBox's ListStore has only 1 columns, only the database value is
+    used.
+
     :param combo: a ``Gtk.ComboBox``
     :param model: an instance of ``db.Base``.
     :param field: the column name of the enum to use to populate the ComboBox.
     """
     mapper = object_mapper(model)
-    values = sorted(mapper.c[field].type.values, key=lambda v: str(v or ""))
+
     combo_model = cast(Gtk.ListStore, combo.get_model())
-    for value in values:
-        combo_model.append([value])
+    use_translations = combo_model.get_n_columns() > 1
+
+    values = mapper.c[field].type.translations.copy()
+
+    for key, value in values.items():
+        if use_translations:
+            combo_model.append((key, value))
+        else:
+            combo_model.append((key,))
 
 
 def default_completion_cell_data_func(
