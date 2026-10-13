@@ -278,10 +278,11 @@ class WidgetCounter:  # pylint: disable=too-few-public-methods
                 [
                     type(i).__name__
                     for i in bauble.gui.window.list_toplevels()
-                    if i.get_transient_for() is bauble.gui.window
+                    if cast(Gtk.Window, i).get_transient_for()
+                    is bauble.gui.window
                 ]
             )
-        print("toplevel windows:", len(Gtk.Window.list_toplevels()))
+        print("toplevel windows:", len(Gtk.Window().list_toplevels()))
 
         import gc
 
