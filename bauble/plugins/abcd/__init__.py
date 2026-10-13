@@ -52,6 +52,9 @@ from bauble import utils
 from bauble.i18n import _
 from bauble.plugins.garden import institution
 from bauble.plugins.garden.plant import Plant
+from bauble.plugins.garden.ui.institution_editor import (
+    start_institution_editor,
+)
 from bauble.ui import dialogs
 
 # NOTE: see biocase provider software for reading and writing ABCD data
@@ -591,7 +594,7 @@ class ABCDCreator:
                 "Code fields are filled in."
             )
             dialogs.message_dialog(msg)
-            institution.InstitutionTool().start()
+            start_institution_editor()
             self.inst = institution.Institution()
             return self._create_units_element()
 
