@@ -293,6 +293,14 @@ def get_setUp_data_funcs():  # pylint: disable=invalid-name
             mod = import_module(mod_path)
             func = getattr(mod, "setUp_data")
             funcs.append(func)
-        except Exception:  # pylint: disable=broad-exception-caught
+        except AttributeError:
             pass
+        except Exception as e:  # pylint: disable=broad-exception-caught
+            logger.warning(
+                "Error importing %s: %s(%s)",
+                mod_path,
+                type(e).__name__,
+                e,
+            )
+
     return sorted(funcs, key=lambda func: func.order)

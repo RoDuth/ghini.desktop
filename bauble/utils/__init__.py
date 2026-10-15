@@ -409,6 +409,7 @@ def setup_date_button(view, entry, button):
 
 
 def date_string(value: datetime.date | None) -> str:
+    """Return a string for a date according to the date format preference."""
     if not value:
         return ""
 

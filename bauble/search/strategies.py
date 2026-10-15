@@ -45,12 +45,12 @@ from collections.abc import Callable
 from enum import Enum
 from functools import lru_cache
 
+from pyparsing import DelimitedList
 from pyparsing import Forward
 from pyparsing import Group
 from pyparsing import Literal
 from pyparsing import OneOrMore
 from pyparsing import ParseException
-from pyparsing import DelimitedList
 from pyparsing import one_of
 from pyparsing import string_end
 from sqlalchemy import select

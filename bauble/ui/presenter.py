@@ -413,6 +413,7 @@ class DomainEditorDialog[T: db.Domain](_Dialog[T]):
         return super().run()
 
     def update(self) -> None:
+        """Set response buttons sensitive state based on self.can_commit."""
         for response in Response:
             if response == Response.CANCEL:
                 continue

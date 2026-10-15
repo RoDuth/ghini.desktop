@@ -1470,7 +1470,6 @@ class IntendedLocationPresenter(editor.GenericEditorPresenter):
                 session,
                 transient_for=self.view.widgets.accession_dialog,
             )
-            dialog.allow_ok_only()
 
             if dialog.run() != Response.OK:
                 dialog.destroy()

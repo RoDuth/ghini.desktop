@@ -43,6 +43,8 @@ from bauble.utils.web import link_button_factory
 INFOBOXPAGE_WIDTH_PREF = "infobox.page_width"
 """The preferences key for storing the InfoBoxPage width."""
 
+parent = Path(__file__).resolve().parent
+
 
 class ExpandedPref:  # pylint: disable=too-few-public-methods
     """A descriptor for the prefs key for storing the expanded state of an
@@ -270,9 +272,7 @@ class InfoBox[T: db.Domain](Gtk.Notebook):
             page.update(row)
 
 
-@Gtk.Template(
-    filename=str(Path(__file__).resolve().parent / "properties_expander.ui")
-)
+@Gtk.Template(filename=str(parent / "properties_expander.ui"))
 class PropertiesExpander(InfoExpander[db.Domain], Gtk.Expander):
     """Displays base properties all Domains have. Created, Updated, ID, Type"""
 
@@ -320,9 +320,7 @@ class PropertiesExpander(InfoExpander[db.Domain], Gtk.Expander):
         super().on_expanded(expander)
 
 
-@Gtk.Template(
-    filename=str(Path(__file__).resolve().parent / "links_expander.ui")
-)
+@Gtk.Template(filename=str(parent / "links_expander.ui"))
 class LinksExpander(InfoExpander[db.Domain], Gtk.Expander):
     """Provides the web link buttons section for this row.
 
