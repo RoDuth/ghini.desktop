@@ -56,6 +56,7 @@ from .institution import Institution
 from .location import Location
 from .plant import Plant
 from .plant import set_code_format
+from .propagation import Propagation
 from .search import PlantSearch
 from .source import Collection
 from .source import Source
@@ -79,6 +80,9 @@ from .ui.plant_editor import create_plant
 from .ui.plant_editor import edit_callback as plant_edit_callback
 from .ui.plant_view import PlantInfoBox
 from .ui.plant_view import plant_context_menu
+from .ui.propagation_editor import create_propagation
+from .ui.propagation_editor import edit_callback as propagation_edit_callback
+from .ui.propagation_view import PropagationInfoBox
 
 # other ideas:
 # - cultivation table
@@ -126,6 +130,7 @@ class GardenPlugin(pluginmgr.Plugin):
     source_detail_infobox: SourceDetailInfoBox | None = None
     plant_infobox: PlantInfoBox | None = None
     location_infobox: LocationInfoBox | None = None
+    propagation_infobox: PropagationInfoBox | None = None
 
     @classmethod
     def install(cls, import_defaults=True) -> None:
@@ -161,6 +166,8 @@ class GardenPlugin(pluginmgr.Plugin):
             cls.plant_infobox = PlantInfoBox()
         if cls.location_infobox is None:
             cls.location_infobox = LocationInfoBox()
+        if cls.propagation_infobox is None:
+            cls.propagation_infobox = PropagationInfoBox()
 
         # use full_sci_name in sorter as its more likely to exist, yet still
         # provide a fall back of the empty string.
@@ -253,12 +260,23 @@ class GardenPlugin(pluginmgr.Plugin):
             activated_callback=collection_edit_callback,
         )
 
+        mapper_search.add_meta(
+            ("propagation", "prop"), Propagation, ["propagator"]
+        )
+
+        SearchView.row_meta[Propagation].set(
+            children="accessions",
+            infobox=cls.propagation_infobox,
+            activated_callback=propagation_edit_callback,
+        )
+
         # done here b/c the Species table is not part of this plugin
         SearchView.row_meta[Species].child = "accessions"
 
         if bauble.gui is not None:
             bauble.gui.add_to_insert_menu(AccessionEditor, _("Accession"))
             bauble.gui.add_to_insert_menu(create_plant, _("Planting"))
+            bauble.gui.add_to_insert_menu(create_propagation, _("Propagation"))
             bauble.gui.add_to_insert_menu(create_location, _("Location"))
             bauble.gui.add_to_insert_menu(create_source_detail, _("Source"))
 

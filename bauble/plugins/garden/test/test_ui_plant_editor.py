@@ -434,6 +434,8 @@ class PlantEditorDialogTests(BaubleTestCase):
 
         editor.code_entry.set_text("1")
         editor.accession_entry.set_text("2001.0001")
+        # twice for coverage of already populated
+        editor.accession_entry.set_text("2001.0001")
 
         # accession matched but code not unique
         self.assertEqual(len(editor.problems), 1)

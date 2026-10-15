@@ -177,13 +177,14 @@ class HandlerMethodDescriptor[T: GObject.Object](ABC):
         widget: T,
         **kwargs: Any,
     ) -> None:
-        """Only adds ``match_problem`` to the widget and logs.
+        """Clear the value, adds ``match_problem`` to the widget and log.
 
         Subclasses that implement ``must_match=True`` can override ``handler``
         to run this instead where required (i.e. where setting the problem and
         logging is all thats needed).  These subclasses should remove
         ``match_problem`` later where appropriate.
         """
+        value = None
         # logger here as self.handler() is not called
         field_name = instance.widgets_to_model_map[widget]
         current = getattr(instance.model, field_name)
@@ -194,11 +195,13 @@ class HandlerMethodDescriptor[T: GObject.Object](ABC):
             widget,
             field_name,
             current,
-            self.get_value(widget),
+            value,
         )
 
         problem_widget = kwargs.get("problem_widget", widget)
         instance.add_problem(self.match_problem, problem_widget)
+
+        self.set_model_value(instance, problem_widget, field_name, value)
 
         if hasattr(instance, "update"):
             instance.update()
@@ -364,6 +367,8 @@ class EntryWCompletionHandler(EntryHandler):
             )
             self.connected.append(completion_id)
 
+        values = get_values(text)
+
         if self.must_match:
             # just log and mark the problem
             super().match_handler(instance, widget, **kwargs)
@@ -373,7 +378,6 @@ class EntryWCompletionHandler(EntryHandler):
         if len(text) < min_key_length:
             return
 
-        values = get_values(text)
         exact_match: list[Gtk.TreeIter] = []
         for value in values:
             tree_iter = completion_model.append(value)
@@ -459,7 +463,7 @@ class ComboBoxHandler(HandlerMethodDescriptor[Gtk.ComboBox]):
                 return NOTFOUND if self.must_match else text
 
         if model is None or iter_ is None:
-            return None
+            return NOTFOUND if self.must_match else None
 
         value = model[iter_][self.column]
 

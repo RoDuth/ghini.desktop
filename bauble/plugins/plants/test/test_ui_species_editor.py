@@ -1180,6 +1180,30 @@ class SpeciesEditorDialogTests(BaubleTestCase):
 
         editor.destroy()
 
+    def test_on_genus_entry_paste_is_homononym_populated(self):
+        # scenatio is editor is open with a genus already selected, there are
+        # 2 names with identical epithets but differing authors, if we paste in
+        # the epithet again the genus should remain the same.
+        genus = Genus(
+            epithet="Kniphofia",
+            author="Scop.",
+            family=Family(epithet="Combretaceae"),
+        )
+        homonym = Genus(
+            epithet="Kniphofia",
+            author="Moench",
+            family=Family(epithet="Asphodelaceae"),
+        )
+        self.session.add_all([genus, homonym])
+        self.session.commit()
+        editor = SpeciesEditorDialog(Species(genus=genus), self.session)
+
+        editor.genus_entry.set_text("Kniphofia")
+
+        self.assertEqual(editor.model.genus, genus)
+
+        editor.destroy()
+
     def test_on_genus_entry_paste(self):
         setup_plants_data()
         species = Species()

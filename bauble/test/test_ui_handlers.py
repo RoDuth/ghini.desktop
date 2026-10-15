@@ -189,7 +189,8 @@ class HandlerTests(TestCase):
         self.assertTrue(
             list(presenter.problems)[0][0].startswith("not_matched")
         )
-        self.assertEqual(presenter.model.value, "")
+        self.assertIsNone(presenter.model.value)
+        self.assertEqual(presenter.entry.get_text(), "Foo")
 
         # exact match
         presenter.entry.set_text("Foo bar")
@@ -216,8 +217,8 @@ class HandlerTests(TestCase):
                 get_values=values_getter,
             )
         self.assertEqual(presenter.entry.get_text(), "Foo baz")
-        # doesn't set
-        self.assertEqual(presenter.model.value, "Foo bar")
+        # sets None
+        self.assertIsNone(presenter.model.value)
         presenter.update.assert_called()
 
         presenter.destroy()
@@ -270,7 +271,8 @@ class HandlerTests(TestCase):
         self.assertTrue(
             list(presenter.problems)[0][0].startswith("not_matched")
         )
-        self.assertEqual(presenter.model.value, "Bar")
+        self.assertIsNone(presenter.model.value)
+        self.assertEqual(presenter.combo_w_entry.get_child().get_text(), "ham")
 
         presenter.combo_w_entry.get_child().set_text("Foo")
         presenter.combobox_handler_match(presenter.combo_w_entry)
@@ -310,7 +312,8 @@ class HandlerTests(TestCase):
         self.assertTrue(
             list(presenter.problems)[0][0].startswith("not_matched")
         )
-        self.assertEqual(presenter.model.value, "Bar")
+        self.assertIsNone(presenter.model.value)
+        self.assertEqual(entry.get_text(), "ham")
 
         entry = presenter.combo_w_entry.get_child()
         entry.set_text("Foo")

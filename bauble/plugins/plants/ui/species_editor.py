@@ -61,7 +61,7 @@ from bauble.ui.presenter import EditCreateCallback
 from bauble.ui.presenter import Problem
 from bauble.ui.presenter import Response
 from bauble.ui.presenter import default_dialog_update
-from bauble.ui.utils import default_completion_cell_data_func
+from bauble.ui.utils import default_cell_data_func
 from bauble.ui.utils import default_completion_match_func
 from bauble.ui.utils import format_combo_entry_text
 from bauble.ui.utils import populate_enum_combo
@@ -286,11 +286,11 @@ class SpeciesEditorDialog(
         habit_completion.set_match_func(default_completion_match_func)
         habit_completion.set_cell_data_func(
             self.habit_cell,
-            default_completion_cell_data_func,
+            default_cell_data_func,
         )
         self.habit_comboentry.set_cell_data_func(
             self.habit_comboentry.get_cells()[0],
-            default_completion_cell_data_func,
+            default_cell_data_func,
         )
 
         self.widgets_to_model_map = {

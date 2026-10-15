@@ -575,18 +575,68 @@ def populate_enum_combo(
             combo_model.append((key,))
 
 
-def default_completion_cell_data_func(
-    column: Gtk.TreeViewColumn,
-    renderer: Gtk.CellRenderer,
-    model: Gtk.ListStore,
+def enum_string_func(value: db.Base, prop: str) -> str:
+    """Return the string representation of a model using the translation of an
+    enum property.
+
+    Usage examples::
+
+        string = enum_string_func(model_instance, "enum_property_name")
+
+        column.set_cell_data_func(
+            cell_renderer,
+            default_cell_data_func,
+            partial(enum_string_func, prop="enum_property_name"),
+        )
+
+    :param value: the model instance
+    :param prop: the name of the property to get the string representation of
+
+    :return: str, the string representation of the enum property
+    """
+    enum_value = getattr(value, prop, None)
+    translations = value.__table__.c[prop].type.translations
+
+    if enum_value is None:
+        return ""
+
+    return translations.get(enum_value, "")
+
+
+def default_cell_data_func(
+    _column: Gtk.TreeViewColumn,
+    renderer: Gtk.CellRendererText,
+    model: Gtk.TreeModel,
     treeiter: Gtk.TreeIter,
-) -> None:
-    # pylint: disable=unused-argument
-    """The default completion cell data function for Gtk.EntryCompletion."""
+    *args,
+) -> Any:
+    """Provides a default cell data function.
+
+    Sets the text of the cell renderer to the string representation of the
+    value in column 0 of the list store model.
+
+    If an extra argument is provided, it will be used as the function to return
+    the string.
+
+    Usage example::
+
+        string_func = partial(enum_string_func, prop="enum_property_name")
+
+
+        column.set_cell_data_func(
+            cell_renderer,
+            default_cell_data_func,
+            string_func,
+        )
+
+    """
+
+    str_func = args[0] if args else str
+
     value = model[treeiter][0]
 
     try:
-        string = str(value)
+        string = str_func(value)
     except DetachedInstanceError as e:
         # object may be detached from the session when editor is destroyed
         logger.debug("%s(%s)", type(e).__name__, str(e))

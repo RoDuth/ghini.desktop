@@ -40,7 +40,6 @@ from sqlalchemy.ext.associationproxy import association_proxy
 from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.orm import Mapped
 from sqlalchemy.orm import relationship
-from sqlalchemy.orm import validates
 from sqlalchemy.sql.expression import ColumnElement
 from sqlalchemy.sql.selectable import ScalarSelect
 
@@ -58,7 +57,6 @@ SOURCE_TYPES = {
     "2": _("Secondary"),
     "3": _("Possible"),
     "4": _("Unlikely"),
-    None: "",
 }
 
 SOURCE_MATERIALS = {
@@ -217,6 +215,9 @@ class PropType(db.Base):  # pylint: disable=too-few-public-methods
     name: str = Column(String(20), unique=True, nullable=False)
     description = Column(String)
 
+    def __str__(self) -> str:
+        return self.name
+
 
 START_DEFAULT_PROP_TYPES = (
     (1, "other", _("Other"), _("Undefined propagation (add notes).")),
@@ -280,30 +281,14 @@ def populate_default_prop_types() -> None:
             )
 
 
+PropagationNote = db.make_note_class("Propagation")
+PropagationPicture = db.make_note_class("Propagation", cls_type="picture")
+
+
 class Propagation(db.Domain):
     """Propagation"""
 
     __tablename__ = "propagation"
-
-    prop_type_id = Column(
-        Integer,
-        ForeignKey("prop_type.id"),
-        nullable=False,
-        default=1,  # default to "other" if not specified
-    )
-
-    prop_type: PropType = relationship(
-        PropType,
-        uselist=False,
-    )
-
-    date = Column(types.Date, default=date.today())
-    propagator = Column(String(64), default=utils.get_user_display_name())
-    quantity = Column(Integer, nullable=False, autoincrement=False)
-    media = Column(String)
-    container = Column(String)
-    location = Column(String)
-    prop_notes = Column(String)
 
     plants = association_proxy(
         "plant_sources",
@@ -315,6 +300,23 @@ class Propagation(db.Domain):
         cascade="all, delete-orphan",
         back_populates="propagation",
     )
+
+    prop_type_id = Column(
+        Integer,
+        ForeignKey("prop_type.id"),
+        nullable=False,
+        default=1,  # default to "other" if not specified
+    )
+    prop_type: PropType = relationship(PropType, uselist=False)
+
+    date = Column(types.Date, default=date.today())
+    propagator = Column(String(64), default=utils.get_user_display_name())
+    quantity = Column(Integer, nullable=False, autoincrement=False)
+    media = Column(String(128))
+    container = Column(String(128))
+    location = Column(String(256))
+    prop_notes = Column(String)
+
     events: list[PropEvent] = relationship(
         "PropEvent",
         cascade="all, delete-orphan",

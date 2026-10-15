@@ -66,7 +66,7 @@ class GenusEditorDialogTests(BaubleTestCase):
         genus = Genus()
         editor = GenusEditorDialog(genus, self.session)
 
-        # can't compare models due to merge but can check they intialised
+        # can't compare models due to merge but can check they initialised
         self.assertTrue(editor.links_menu_btn.model)
         self.assertTrue(editor.synonyms_presenter.model)
         self.assertEqual(editor.family_entry.get_text(), "")
@@ -231,6 +231,24 @@ class GenusEditorDialogTests(BaubleTestCase):
         editor.family_entry.set_text("Malvaceae")
         child.get_children()[1].get_children()[0].emit("clicked")
         self.assertEqual(editor.family_entry.get_text(), "Malvaceae")
+
+        editor.destroy()
+
+    def test_on_family_entry_paste_is_homononym_populated(self):
+        # scenario is editor is open with a family already selected, there are
+        # 2 names with identical epithets but differing authors, if we paste in
+        # the epithet again the family should remain the same.
+        family = Family(epithet="Malvaceae", author="L.")
+        family2 = Family(epithet="Malvaceae", author="F.M.Muell.")
+        self.session.add(family)
+        self.session.add(family2)
+        self.session.commit()
+        editor = GenusEditorDialog(Genus(family=family), self.session)
+
+        editor.family_entry.set_text("Malvaceae")
+        update_gui()
+
+        self.assertEqual(editor.model.family, family)
 
         editor.destroy()
 

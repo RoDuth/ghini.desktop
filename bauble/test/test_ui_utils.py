@@ -300,29 +300,68 @@ class UIUtilsTests(BaubleTestCase):
 
         self.assertCountEqual(values, ["eggs", "ham", "spam", None])
 
-    def test_default_completion_cell_data_func_strings(self):
+    def test_default_cell_data_func_strings(self):
         list_store = Gtk.ListStore(str)
         list_store.append(["<Test>"])
         mock_renderer = mock.MagicMock()
 
-        utils.default_completion_cell_data_func(
-            None, mock_renderer, list_store, 0
-        )
+        utils.default_cell_data_func(None, mock_renderer, list_store, 0)
         mock_renderer.set_property.assert_called_once_with("text", "<Test>")
 
-    def test_default_completion_cell_data_func_objects(self):
+    def test_default_cell_data_func_objects(self):
         mock_obj = mock.MagicMock()
         mock_obj.__str__.return_value = "<Test>"
         list_store = Gtk.ListStore(object)
         list_store.append([mock_obj])
         mock_renderer = mock.MagicMock()
 
-        utils.default_completion_cell_data_func(
-            None, mock_renderer, list_store, 0
-        )
+        utils.default_cell_data_func(None, mock_renderer, list_store, 0)
         mock_renderer.set_property.assert_called_once_with("text", "<Test>")
 
-    def test_default_completion_cell_data_func_detached_instance(self):
+    def test_default_cell_data_func_enums(self):
+        translations = {"1": "One", "2": "Two", "": None}
+
+        class Model(db.Base):
+
+            __tablename__ = "test_enum"
+            value = Column(
+                btypes.Enum(
+                    values=list(translations.keys()),
+                    translations=translations,
+                )
+            )
+
+        value = Model(value="1")
+        list_store = Gtk.ListStore(object)
+        list_store.append([value])
+        mock_renderer = mock.MagicMock()
+
+        utils.default_cell_data_func(
+            None,
+            mock_renderer,
+            list_store,
+            0,
+            partial(utils.enum_string_func, prop="value"),
+        )
+
+        mock_renderer.set_property.assert_called_once_with("text", "One")
+
+        value = Model(value=None)
+        list_store = Gtk.ListStore(object)
+        list_store.append([value])
+        mock_renderer = mock.MagicMock()
+
+        utils.default_cell_data_func(
+            None,
+            mock_renderer,
+            list_store,
+            0,
+            partial(utils.enum_string_func, prop="value"),
+        )
+
+        mock_renderer.set_property.assert_called_once_with("text", "")
+
+    def test_default_cell_data_func_detached_instance(self):
         mock_obj = mock.MagicMock()
         mock_obj.__str__.side_effect = DetachedInstanceError
         list_store = Gtk.ListStore(object)
@@ -330,7 +369,7 @@ class UIUtilsTests(BaubleTestCase):
         mock_renderer = mock.MagicMock()
 
         with self.assertLogs("bauble.ui.utils", level="DEBUG") as logs:
-            utils.default_completion_cell_data_func(
+            utils.default_cell_data_func(
                 None,
                 mock_renderer,
                 list_store,

@@ -48,7 +48,7 @@ from bauble.ui.handlers import EntryWCompletionHandler
 from bauble.ui.presenter import DomainEditorDialog
 from bauble.ui.presenter import EditCreateCallback
 from bauble.ui.presenter import Response
-from bauble.ui.utils import default_completion_cell_data_func
+from bauble.ui.utils import default_cell_data_func
 from bauble.ui.utils import format_combo_entry_text
 from bauble.ui.utils import get_widget_value
 from bauble.ui.utils import populate_enum_combo
@@ -186,12 +186,12 @@ class PlantEditorDialog(
         location_completion = self.location_entry.get_completion()
         location_completion.set_cell_data_func(
             self.location_cell,
-            default_completion_cell_data_func,
+            default_cell_data_func,
         )
         location_completion.set_match_func(location_match_func)
         self.location_comboentry.set_cell_data_func(
             self.location_comboentry.get_cells()[0],
-            default_completion_cell_data_func,
+            default_cell_data_func,
         )
         self.entry_sid = self.location_entry.connect(
             "changed",
