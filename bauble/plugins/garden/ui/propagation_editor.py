@@ -32,7 +32,7 @@ from gi.repository import GLib
 from gi.repository import Gspell
 from gi.repository import Gtk
 from sqlalchemy import select
-from sqlalchemy.engine import Row
+from sqlalchemy.engine import Result
 from sqlalchemy.orm import Session
 
 from bauble import utils
@@ -135,7 +135,7 @@ class SourcePlantEditorDialog(
     def plant_get_completions(
         self,
         text: str,
-    ) -> list[Row] | list[tuple[Plant]]:
+    ) -> Result:
 
         from ...plants.species import Species
         from ..accession import Accession
@@ -162,10 +162,11 @@ class SourcePlantEditorDialog(
             .where(string_expr.ilike(with_wildcards))
             .where(Plant.quantity > 0)
             .where(Plant.id.not_in(current_plant_ids))
+            .limit(20)
+            .order_by(Accession.code, Plant.code)
         )
-        stmt = stmt.limit(20).distinct().order_by(Accession.code, Plant.code)
 
-        return self.session.execute(stmt).all()
+        return self.session.execute(stmt)
 
     def on_problems_changed(self, _foo: Self, has_problems: bool) -> None:
         # could use an `update` method instead, to prevent OK being sensitive
