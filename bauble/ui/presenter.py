@@ -214,7 +214,7 @@ class GenericPresenter[T]:
 
     def __init__(
         self,
-        model: T,
+        model: T | None,
         view: Self | Gtk.Widget,
         *args,
         **kwargs,
@@ -224,7 +224,10 @@ class GenericPresenter[T]:
         self.widgets_to_model_map: dict[GObject.Object, str]
         self.problems: set[tuple[str, Gtk.Widget]] = set()
 
-        self.model = model
+        # incase we need to delay until after init.
+        if model:
+            self.set_model(model)
+
         self.view = view
         # check this class has implimented gsignals
         signal_list = []
@@ -239,6 +242,9 @@ class GenericPresenter[T]:
 
         if hasattr(view, "connect"):
             view.connect("destroy", idle_garbage_collect)
+
+    def set_model(self, model: T) -> None:
+        self.model = model
 
     def refresh_all_widgets_from_model(self) -> None:
         logger.debug("%s.refresh_all_widgets_from_model", type(self).__name__)
