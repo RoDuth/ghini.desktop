@@ -69,10 +69,10 @@ class HandlerMethodDescriptor[T: GObject.Object](ABC):
     Intended to be used as class attributes in ``GenericPresenter`` subclasses
     to allow constructing the user interface signal handlers declaratively.
 
-    :param validators: an sequence of ``Validator``s or None. If None no
-        validation occurs.
-    :param converter: a ``Converter`` callback or None. If None no conversion
-        is performed.
+    :param validators: an sequence of ``Validator``s or ``None``. If ``None``
+        no validation occurs.
+    :param converter: a ``Converter`` callback or ``None``. If ``None`` no
+        conversion is performed.
     """
 
     def __init__(
@@ -80,7 +80,7 @@ class HandlerMethodDescriptor[T: GObject.Object](ABC):
         validators: Sequence[Validator] | None = None,
         converter: Converter | None = None,
     ) -> None:
-        validators = validators or []
+        validators = list(validators or [])
         self.validators = validators
         self.converter = converter
         self.problem_name_template: str
@@ -139,6 +139,26 @@ class HandlerMethodDescriptor[T: GObject.Object](ABC):
 
     @abstractmethod
     def get_value(self, widget: T) -> Any: ...
+
+    def validator(self, problem_name: str) -> Callable[[Callable], Callable]:
+        """Decorator for a ``Validator.checker`` method.
+
+        The ``problem_name`` should be supplied as an argument, the method
+        decorated becomes the ``Validator.checker``.  e.g.::
+
+            @handler.validator("invalid")
+            def validate(self, value, *args):
+                return value > self.value
+
+        """
+
+        def wrapper(func: Callable) -> Callable:
+            self.validators.append(
+                Validator(func, problem_name, is_method=True)
+            )
+            return func
+
+        return wrapper
 
     def handler(
         self,
@@ -218,7 +238,7 @@ class HandlerMethodDescriptor[T: GObject.Object](ABC):
             problem = self.problem_name_template.format(validator.problem_name)
 
             try:
-                validator(value, field_name, instance.model)
+                validator(value, field_name, instance.model, instance)
             except ValidatorError as e:
                 logger.debug("%s(%s)", type(e).__name__, str(e) or problem)
                 instance.add_problem(problem, problem_widget)

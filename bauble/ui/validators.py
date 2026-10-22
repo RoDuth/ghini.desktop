@@ -17,10 +17,13 @@
 """
 Validators for widget signal handlers.
 """
+from __future__ import annotations
+
 import logging
 
 logger = logging.getLogger(__name__)
 
+from typing import TYPE_CHECKING
 from typing import Any
 from typing import Protocol
 
@@ -28,8 +31,11 @@ from bauble import db
 from bauble.btypes import parse_str_date
 from bauble.error import BaubleError
 
+if TYPE_CHECKING:
+    from .presenter import GenericPresenter
 
-class ValidatorError(BaubleError):
+
+class ValidatorError(Exception):
     """Custom validation exception, raised when validation fails"""
 
 
@@ -53,18 +59,24 @@ class Validator:  # pylint: disable=too-few-public-methods
         self,
         checker: Checker,
         problem_name: str = "",
+        is_method: bool = False,
     ) -> None:
         self.checker = checker
         self.problem_name = problem_name
+        self.is_method = is_method
 
     def __call__(
         self,
         value: Any,
         field_name: str | None = None,
         model: Any = None,
+        instance: GenericPresenter | None = None,
     ) -> Any:
         try:
-            assert self.checker(value, field_name, model)
+            if self.is_method:
+                assert self.checker(instance, value, field_name, model)
+            else:
+                assert self.checker(value, field_name, model)
         except Exception as e:
             raise ValidatorError from e
 
@@ -78,7 +90,8 @@ def validate_non_empty(value: str, *_args: Any) -> bool:
 
 def validate_unique(value: str, *args: Any) -> bool:
     """Validator function to check uniqueness of a field value in the DB."""
-    field, model = args
+    field = args[0]
+    model = args[1]
     class_ = model.__class__
     column = getattr(class_, field)
 

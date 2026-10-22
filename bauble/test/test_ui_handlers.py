@@ -55,6 +55,7 @@ class Presenter(GenericPresenter, Gtk.Box):
         [Validator(validate_non_empty, "empty")],
         lambda value, *_args: value.strip(),
     )
+    entry_handler_method = EntryHandler()
 
     def __init__(self):
         self.model = mock.Mock()
@@ -77,6 +78,13 @@ class Presenter(GenericPresenter, Gtk.Box):
             self.buffer: "value",
         }
         self.update = mock.Mock()
+        self.min_length = 10
+
+    @entry_handler_method.validator(problem_name="too_short")
+    def method_handler(self, value, *_args):
+        if len(value) < self.min_length:
+            return False
+        return True
 
 
 class HandlerTests(TestCase):
@@ -357,3 +365,20 @@ class HandlerTests(TestCase):
         presenter.update.assert_called()
 
         presenter.destroy()
+
+    def test_method_handler(self):
+        presenter = Presenter()
+
+        presenter.entry.set_text("12345678910")
+        presenter.entry_handler_method(presenter.entry)
+
+        self.assertEqual(presenter.model.value, "12345678910")
+        self.assertEqual(len(presenter.problems), 0)
+
+        presenter.min_length = 15
+        presenter.entry.set_text("12345678910")
+        presenter.entry_handler_method(presenter.entry)
+
+        self.assertEqual(presenter.model.value, "12345678910")
+        self.assertEqual(len(presenter.problems), 1)
+        self.assertTrue(list(presenter.problems)[0][0].startswith("too_short"))
