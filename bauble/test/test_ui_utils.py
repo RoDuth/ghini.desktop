@@ -31,6 +31,7 @@ from sqlalchemy.orm.exc import DetachedInstanceError
 
 from bauble import btypes
 from bauble import db
+from bauble import meta
 from bauble import paths
 from bauble.test import BaubleTestCase
 from bauble.test import update_gui
@@ -308,6 +309,23 @@ class UIUtilsTests(BaubleTestCase):
         utils.default_cell_data_func(None, mock_renderer, list_store, 0)
         mock_renderer.set_property.assert_called_once_with("text", "<Test>")
 
+    def test_default_cell_data_func_markup(self):
+        list_store = Gtk.ListStore(str, str)
+        list_store.append(["Test", "<b>Test</>"])
+        mock_renderer = mock.MagicMock()
+
+        utils.default_cell_data_func(
+            None,
+            mock_renderer,
+            list_store,
+            0,
+            index=1,
+            markup=True,
+        )
+        mock_renderer.set_property.assert_called_once_with(
+            "markup", "&lt;b&gt;Test&lt;/&gt;"
+        )
+
     def test_default_cell_data_func_objects(self):
         mock_obj = mock.MagicMock()
         mock_obj.__str__.return_value = "<Test>"
@@ -318,10 +336,70 @@ class UIUtilsTests(BaubleTestCase):
         utils.default_cell_data_func(None, mock_renderer, list_store, 0)
         mock_renderer.set_property.assert_called_once_with("text", "<Test>")
 
+    def test_default_cell_data_func_objects_modified(self):
+        obj = meta.BaubleMeta()
+        self.session.add(obj)
+        obj.name = "<b>test</b>"
+        obj.value = "test value"
+
+        list_store = Gtk.ListStore(object)
+        treeiter = list_store.append([obj])
+        treeview = Gtk.TreeView(model=list_store)
+        renderer = Gtk.CellRendererText()
+        column = Gtk.TreeViewColumn()
+        cell_data_func = partial(
+            utils.default_cell_data_func,
+            markup=True,
+            render_func=utils.cell_indicate_modified,
+            str_func=lambda v: v.name,
+        )
+        column.set_cell_data_func(renderer, cell_data_func)
+        column.pack_start(renderer)
+        treeview.append_column(column)
+        context = treeview.get_style_context()
+
+        with mock.patch.object(renderer, "set_property") as mock_setter:
+            cell_data_func(column, renderer, list_store, treeiter)
+
+            args_list = mock_setter.call_args_list
+            self.assertEqual(args_list[0][0][0], "markup")
+            self.assertEqual(args_list[0][0][1], "&lt;b&gt;test&lt;/b&gt;")
+            self.assertEqual(args_list[-1][0][0], "foreground")
+            self.assertEqual(args_list[-1][0][1], "blue")
+            self.assertTrue(context.has_class("modified-selected"))
+
+            obj.name = "test"
+            self.session.commit()
+            mock_setter.reset_mock()
+
+            cell_data_func(column, renderer, list_store, treeiter)
+
+            args_list = mock_setter.call_args_list
+            self.assertEqual(args_list[0][0][0], "markup")
+            self.assertEqual(args_list[0][0][1], "test")
+            self.assertEqual(args_list[-1][0][0], "foreground")
+            self.assertEqual(args_list[-1][0][1], "black")
+            self.assertFalse(context.has_class("modified-selected"))
+
+            context.add_class("problem-selected")
+            obj.name = "<b>test</b>"
+            mock_setter.reset_mock()
+
+            cell_data_func(column, renderer, list_store, treeiter)
+
+            args_list = mock_setter.call_args_list
+            self.assertEqual(args_list[0][0][0], "markup")
+            self.assertEqual(args_list[0][0][1], "&lt;b&gt;test&lt;/b&gt;")
+            self.assertEqual(args_list[-1][0][0], "foreground")
+            self.assertEqual(args_list[-1][0][1], "blue")
+            self.assertFalse(context.has_class("modified-selected"))
+
+        self.session.delete(obj)
+
     def test_default_cell_data_func_enums(self):
         translations = {"1": "One", "2": "Two", "": None}
 
-        class Model(db.Base):
+        class Model(db.Base):  # pylint: disable=too-few-public-methods
 
             __tablename__ = "test_enum"
             value = Column(
@@ -376,7 +454,7 @@ class UIUtilsTests(BaubleTestCase):
                 0,
             )
         self.assertIn("DetachedInstanceError", logs.output[0])
-        mock_renderer.set_property.assert_called_once_with("text", "")
+        mock_renderer.set_property.assert_not_called()
 
     def test_default_completion_match_func(self):
         mock_obj = mock.MagicMock()

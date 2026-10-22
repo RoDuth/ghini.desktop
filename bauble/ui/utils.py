@@ -38,6 +38,7 @@ from gi.repository import GLib
 from gi.repository import GObject
 from gi.repository import Gtk
 from sqlalchemy.orm import object_mapper
+from sqlalchemy.orm import object_session
 from sqlalchemy.orm.exc import DetachedInstanceError
 
 from bauble import db
@@ -45,6 +46,7 @@ from bauble.i18n import _
 from bauble.utils import LRUCache
 from bauble.utils import date_string
 from bauble.utils import nstr
+from bauble.utils import xml_safe
 from bauble.utils.web import get_net_sess
 
 type TreeModelCompareFunc = Callable[[Gtk.TreeModelRow, Any], bool]
@@ -603,46 +605,106 @@ def enum_string_func(value: db.Base, prop: str) -> str:
     return translations.get(enum_value, "")
 
 
-def default_cell_data_func(
-    _column: Gtk.TreeViewColumn,
+def cell_indicate_modified(
+    column: Gtk.TreeViewColumn,
+    renderer: Gtk.CellRendererText,
+    value: Any,
+) -> None:
+    """Indicate modified (unsaved) ``session`` objects in a ``Gtk.TreeView``.
+
+    by changing their style to blue text and lightened background for selected
+    (unless the ``problem-selected`` style class is already present).
+    """
+    session = object_session(value)
+
+    tree_view = cast(Gtk.TreeView, column.get_tree_view())
+    context = tree_view.get_style_context()
+    context.remove_class("modified-selected")
+    renderer.set_property("foreground", "black")
+
+    has_problems = context.has_class("problem-selected")
+
+    if session and session.is_modified(value):
+        if not has_problems:
+            context.add_class("modified-selected")
+        renderer.set_property("foreground", "blue")
+
+
+def default_cell_data_func(  # pylint: disable=too-many-arguments
+    column: Gtk.TreeViewColumn,
     renderer: Gtk.CellRendererText,
     model: Gtk.TreeModel,
     treeiter: Gtk.TreeIter,
     *args,
-) -> Any:
+    index: int = 0,
+    str_func: Callable[[Any], str] = str,
+    markup: bool = False,
+    render_func: (
+        Callable[[Gtk.TreeViewColumn, Gtk.CellRendererText, Any], None] | None
+    ) = None,
+) -> None:
     """Provides a default cell data function.
 
-    Sets the text of the cell renderer to the string representation of the
-    value in column 0 of the list store model.
+    Sets the ``text`` or ``markup`` (dependant on value of ``markup``) of the
+    cell ``renderer`` to the string representation of the value in the
+    ``index`` column of the liststore ``model``.
 
     If an extra argument is provided, it will be used as the function to return
-    the string.
+    the string.  Alternatively it can be provided by ``str_func``.
+
+    Extra rendering functionality can be supplied by ``markup``.
 
     Usage example::
 
-        string_func = partial(enum_string_func, prop="enum_property_name")
-
-
+        # simplest case
         column.set_cell_data_func(
             cell_renderer,
             default_cell_data_func,
+        )
+
+        # more complex
+        string_func = partial(enum_string_func, prop="enum_property_name")
+
+        cell_data_func = partial(
+            default_cell_data_func,
+            markup=True,
+            render_func=cell_indicate_modified,
+        )
+
+        column.set_cell_data_func(
+            cell_renderer,
+            partial(cell_data_func, str_func=string_func),
+        )
+        # or
+        column.set_cell_data_func(
+            cell_renderer,
+            cell_data_func,
             string_func,
         )
 
+    :param index: the liststore column to find the value for the string.
+    :param str_func: alternative way to supply a string function
+    :param markup: if true set the renderers markup property to the
+        xml_safe string.
+    :render_func: a function for any extra rendering (e.g. setting style)
     """
+    str_func = args[0] if args else str_func
 
-    str_func = args[0] if args else str
-
-    value = model[treeiter][0]
+    value = model[treeiter][index]
 
     try:
         string = str_func(value)
     except DetachedInstanceError as e:
-        # object may be detached from the session when editor is destroyed
         logger.debug("%s(%s)", type(e).__name__, str(e))
-        string = ""
+        return
 
-    renderer.set_property("text", string)
+    if markup:
+        renderer.set_property("markup", xml_safe(string))
+    else:
+        renderer.set_property("text", string)
+
+    if render_func:
+        render_func(column, renderer, value)
 
 
 def default_completion_match_func(
