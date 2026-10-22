@@ -1211,7 +1211,6 @@ class GenericEditorPresenter:
             ):
                 if isinstance(widg, Gtk.Widget) and not prefs.testing:
                     widg.get_style_context().remove_class("problem")
-                    widg.get_style_context().remove_class("problem-bg")
                 self.problems.remove((prob, widg))
         logger.debug("problems now: %s", self.problems)
 
@@ -1239,11 +1238,7 @@ class GenericEditorPresenter:
         self.problems.add((problem_id, widget))
         # Should always be true (except some tests).
         if isinstance(widget, Gtk.Widget):
-            # THIS was in place for id_qual_rank, may be obsoete now
-            if isinstance(widget, Gtk.ComboBox):
-                widget.get_style_context().add_class("problem-bg")
-            else:
-                widget.get_style_context().add_class("problem")
+            widget.get_style_context().add_class("problem")
         logger.debug("problems now: %s", self.problems)
 
     def init_enum_combo(self, widget_name, field):

@@ -73,9 +73,9 @@ class SQLSearchDialog(Gtk.Dialog):
         self.domain = combo.get_active_text() or ""
 
         if self.domain:
-            combo.get_style_context().remove_class("problem-bg")
+            combo.get_style_context().remove_class("problem")
         else:
-            combo.get_style_context().add_class("problem-bg")
+            combo.get_style_context().add_class("problem")
 
         if not self.domain:
             logger.debug("no value for domain.")

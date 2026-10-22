@@ -274,9 +274,7 @@ class GenericPresenter[T]:
 
         self.problems.add((problem_id, widget))
 
-        if isinstance(widget, Gtk.ComboBox):
-            widget.get_style_context().add_class("problem-bg")
-        elif isinstance(widget, Gtk.Widget):
+        if isinstance(widget, Gtk.Widget):
             widget.get_style_context().add_class("problem")
 
         logger.debug("problems now: %s", self.problems)
@@ -313,7 +311,6 @@ class GenericPresenter[T]:
                 self.problems.remove((prob, widg))
                 if isinstance(widg, Gtk.Widget) and not self.has_problem(widg):
                     widg.get_style_context().remove_class("problem")
-                    widg.get_style_context().remove_class("problem-bg")
 
         logger.debug("problems now: %s", self.problems)
 

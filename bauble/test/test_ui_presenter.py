@@ -218,9 +218,7 @@ class GenericPresenterTests(TestCase):
         mock_widget = mock.Mock(spec=Gtk.ComboBox)
         presenter.add_problem("TEST", mock_widget)
         self.assertEqual(presenter.problems, {("TEST", mock_widget)})
-        mock_widget.get_style_context().add_class.assert_called_with(
-            "problem-bg"
-        )
+        mock_widget.get_style_context().add_class.assert_called_with("problem")
 
     def test_remove_problem_widget_and_problem_id(self):
         mock_model = mock.Mock()
@@ -286,9 +284,8 @@ class GenericPresenterTests(TestCase):
         mock_widget2.get_style_context().remove_class.assert_not_called()
         calls = mock_widget3.get_style_context().remove_class.call_args_list
         call_list = [j for i in calls for j in i.args]
-        self.assertIn("problem-bg", call_list)
         self.assertIn("problem", call_list)
-        self.assertEqual(len(call_list), 2)
+        self.assertEqual(len(call_list), 1)
         mock_widget4.get_style_context().remove_class.assert_not_called()
 
     def test_remove_problem_widget_only(self):
@@ -325,11 +322,9 @@ class GenericPresenterTests(TestCase):
         mock_widget3.get_style_context().remove_class.assert_not_called()
         calls = mock_widget4.get_style_context().remove_class.call_args_list
         call_list = [j for i in calls for j in i.args]
-        self.assertIn("problem-bg", call_list)
         self.assertIn("problem", call_list)
         # only removes when no problems remain
-        self.assertEqual(len(call_list), 2)
-        self.assertEqual(len(set(call_list)), 2)
+        self.assertEqual(len(call_list), 1)
 
     def test_handler_method_descriptor_get(self):
         mock_model = mock.Mock()

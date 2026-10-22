@@ -120,12 +120,16 @@ class GUI:
         b".inf-bg * {background-image: image(#B6DAF2);}"
         b".click-label {color: blue;}"
         b".problem {background-color: #FFDCDF;}"
+        b"combobox.problem box * {background-image: image(#FFDCDF);}"
+        b"combobox.problem window.popup menu menuitem:hover {"
+        b"    background-image: image(#FFDCDF);"
+        b"    color: blue;"
+        b"}"
         b".not-default {background-color: #FFF200;}"
-        b".problem-bg * {background-image: image(#FFDCDF);}"
         b".err-btn * {color: #FF9999;}"
         b"#unsaved-entry {color: blue;}"
     )
-    if screen := Gdk.Screen.get_default():
+    if screen := Gdk.Screen().get_default():
         Gtk.StyleContext.add_provider_for_screen(
             screen,
             _css,
