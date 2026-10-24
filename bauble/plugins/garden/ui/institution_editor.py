@@ -31,7 +31,6 @@ from gi.repository import Gtk
 
 import bauble
 from bauble import pluginmgr
-from bauble import utils
 from bauble.i18n import _
 from bauble.ui import GenericPresenter
 from bauble.ui.presenter import generic_notify_delete_event
@@ -67,7 +66,7 @@ class InstitutionDialog(
     revealer = cast(Gtk.Revealer, Gtk.Template.Child())
     ok_button = cast(Gtk.Button, Gtk.Template.Child())
 
-    message_box: utils.GenericMessageBox | None = None
+    message_box: MessageBox | None = None
 
     def __init__(self, model: Institution) -> None:
         super().__init__(model, self)
@@ -94,9 +93,6 @@ class InstitutionDialog(
 
         self.start = copy(self.model)
 
-        if not self.model.name:
-            GLib.idle_add(self.notify_no_institution)
-
         self.name_entry.emit("changed")
 
     def notify_no_institution(self) -> None:
@@ -113,9 +109,10 @@ class InstitutionDialog(
     @Gtk.Template.Callback()
     def on_non_empty_text_entry_changed(self, entry: Gtk.Entry) -> None:
         super().on_non_empty_text_entry_changed(entry)
-        if self.model.name:
+        if entry.get_text():
             self.revealer.set_reveal_child(False)
-            self.revealer.foreach(self.revealer.remove)
+        else:
+            GLib.idle_add(self.notify_no_institution)
 
     @Gtk.Template.Callback()
     def on_text_buffer_changed(self, buffer: Gtk.TextBuffer) -> None:

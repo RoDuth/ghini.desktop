@@ -73,6 +73,23 @@ class InstitutionDialogTests(BaubleTestCase):
 
         dialog.destroy()
 
+    def test_setting_name_empty_is_a_problem(self):
+        model = Institution()
+        model.name = "BG"
+        dialog = InstitutionDialog(model)
+        update_gui()
+
+        self.assertFalse(dialog.revealer.get_reveal_child())
+        self.assertFalse(dialog.has_problem(dialog.name_entry))
+
+        dialog.name_entry.set_text("")
+        update_gui()
+
+        self.assertTrue(dialog.revealer.get_reveal_child())
+        self.assertTrue(dialog.has_problem(dialog.name_entry))
+
+        dialog.destroy()
+
     def test_initially_empty_name_then_specified_is_ok(self):
         model = Institution()
         model.name = ""
