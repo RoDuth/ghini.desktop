@@ -131,7 +131,19 @@ class GUI:
         b"                             color: blue;}"
         b".not-default {background-color: #FFF200;}"
         b".err-btn * {color: #FF9999;}"
+        b"calendar {border: none;}"
         b"#unsaved-entry {color: blue;}"
+        b"#tiny-btn {padding: 2px 6px;"
+        b"           background-color: #FFFFFF;"
+        b"           background-image: none;"
+        b"           border: none;"
+        b"           box-shadow: none;"
+        b"           min-height: 0px;"
+        b"           min-width: 0px;"
+        b"           color: #575c5e;"
+        b"           font-size: 11px;}"
+        b"#tiny-btn:hover {color: #000000;}"
+        b"#tiny-btn:active {color: blue;}"
     )
     if screen := Gdk.Screen().get_default():
         Gtk.StyleContext.add_provider_for_screen(

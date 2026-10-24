@@ -373,9 +373,23 @@ class DatePickerBoxTests(TestCase):
         self.assertEqual(month + 1, 4)
         self.assertEqual(day, 4)
 
+        # resets to last_valid_date
+        with mock.patch.object(box, "emit") as mock_emit:
+
+            box.entry.set_text("")
+
+        year, month, day = box.button.calendar.get_date()
+
+        self.assertEqual(year, 2004)
+        self.assertEqual(month + 1, 4)
+        self.assertEqual(day, 4)
+        mock_emit.assert_called_once_with("changed")
+
         # resets to today
         with mock.patch.object(box, "emit") as mock_emit:
-            box.entry.set_text("")
+
+            box.last_valid_date = None
+            box.entry.set_text("0")
 
         year, month, day = box.button.calendar.get_date()
 
@@ -387,18 +401,168 @@ class DatePickerBoxTests(TestCase):
 
         box.destroy()
 
-    def test_on_selected(self):
+    def test_on_date_selected(self):
+        box = DatePickerBox()
+        box.init()
+        date = datetime(2002, 2, 2).date()
+        box.button.calendar.select_month(date.month - 1, date.year)
+        box.button.calendar.select_day(date.day)
+        self.assertEqual(box.last_valid_date, date)
+        self.assertEqual(box._first_click, date)
+
+        box.last_valid_date = datetime.today().date()
+        box.on_date_selected(box.button.calendar)
+
+        self.assertEqual(box.get_calendar_date(), date)
+        self.assertEqual(box.last_valid_date, date)
+        self.assertEqual(box._first_click, date)
+
+        # with constraint
+        start = datetime(2000, 6, 10).date()
+        end = datetime(2000, 7, 10).date()
+        box.constrain_range(start, end)
+
+        box.on_date_selected(box.button.calendar)
+
+        self.assertEqual(box.last_valid_date, end)
+        self.assertEqual(box._first_click, None)
+
+    @mock.patch("bauble.prefs.prefs")
+    def test_on_date_double_clicked(self, mock_prefs):
+        # mock only because this is the only test that requires it, rather than
+        # make the whole a BaubleTestCase
+        mock_prefs.get.return_value = "%d-%m-%Y"
         box = DatePickerBox()
         box.init()
         box.button.calendar.select_month(1, 2002)
         box.button.calendar.select_day(2)
         with mock.patch.object(box, "emit") as mock_emit:
+
             box.button.calendar.emit("day-selected-double-click")
 
         self.assertEqual(box.entry.get_text(), "02-02-2002")
         mock_emit.assert_called_once_with("changed")
+        self.assertIsNone(box._first_click)
+
+        # invalid date
+        box._first_click = None  # not really required
+        with mock.patch.object(box, "emit") as mock_emit:
+
+            box.button.calendar.emit("day-selected-double-click")
+
+        self.assertEqual(box.entry.get_text(), "02-02-2002")
+        mock_emit.assert_not_called()
 
         box.destroy()
+
+    def test_on_calendar_toggled(self):
+        box = DatePickerBox()
+        box.init()
+        box.entry.set_text("5/5/2005")
+        # out of sync
+        box.button.calendar.select_month(1, 2002)
+        box.button.calendar.select_day(2)
+        self.assertEqual(box.get_calendar_date(), datetime(2002, 2, 2).date())
+
+        box.button.set_active(True)
+
+        # reverts to entry
+        self.assertEqual(box.get_calendar_date(), datetime(2005, 5, 5).date())
+
+    def test_constrain_range_raises(self):
+        box = DatePickerBox()
+        box.init()
+        start = datetime(2000, 6, 10).date()
+        end = datetime(2000, 7, 10).date()
+
+        with self.assertRaises(BaubleError):
+            box.constrain_range(end, start)
+
+        box.destroy()
+
+    def test_constrain_range_too_early(self):
+        box = DatePickerBox()
+        box.init()
+        start = datetime(2000, 6, 10).date()
+        end = datetime(2000, 7, 10).date()
+
+        box.constrain_range(start, end)
+        # set to within next month early
+        box.set_selected_date(datetime(2000, 7, 2).date())
+        # change to month before, now too early
+        box.button.calendar.select_month(5, 2000)
+
+        self.assertEqual(box.get_calendar_date(), start)
+
+        box.destroy()
+
+    def test_constrain_range_too_late(self):
+        box = DatePickerBox()
+        box.init()
+        start = datetime(2000, 6, 10).date()
+        end = datetime(2000, 7, 10).date()
+
+        box.constrain_range(start, end)
+        # set to within prior month late
+        box.set_selected_date(datetime(2000, 6, 20).date())
+        # change to month after, now too late
+        box.button.calendar.select_month(6, 2000)
+
+        self.assertEqual(box.get_calendar_date(), end)
+
+        box.destroy()
+
+    def test_validate_date_in_range(self):
+        box = DatePickerBox()
+        box.init()
+        start = datetime(2010, 6, 10).date()
+        end = datetime(2010, 7, 10).date()
+        box.constrain_range(start, end)
+
+        # can't parse
+        self.assertFalse(box.validate_date_in_range("0"))
+        self.assertEqual(box.get_calendar_date(), end)
+
+        # too early
+        box.last_valid_date = None
+        self.assertFalse(box.validate_date_in_range("1/1/1999"))
+        self.assertEqual(box.get_calendar_date(), start)
+
+        # too late
+        box.last_valid_date = None
+        self.assertFalse(box.validate_date_in_range("1/1/2020"))
+        self.assertEqual(box.get_calendar_date(), end)
+
+        # in range, doesn't alter the date widget.
+        box.entry.set_text("15/6/2010")
+        self.assertTrue(box.validate_date_in_range("15/6/2010"))
+        self.assertEqual(box.get_calendar_date(), datetime(2010, 6, 15).date())
+        self.assertEqual(box.entry.get_text(), "15/6/2010")
+
+    def test_on_entry_activated(self):
+        box = DatePickerBox()
+        box.init()
+        box.entry.set_text("15")
+        date = datetime.today().replace(day=15).date()
+
+        self.assertEqual(box.get_calendar_date(), date)
+        self.assertEqual(box.entry.get_text(), "15")
+
+        box.entry.emit("activate")
+
+        self.assertEqual(box.get_calendar_date(), date)
+        self.assertEqual(box.entry.get_text(), utils.date_string(date))
+
+    def test_on_today_clicked(self):
+        box = DatePickerBox()
+        box.init()
+        box.entry.set_text("6th of April 2004")
+
+        self.assertEqual(box.get_calendar_date(), datetime(2004, 4, 6).date())
+
+        box.button.today_button.emit("clicked")
+
+        self.assertEqual(box.get_calendar_date(), datetime.today().date())
 
 
 class NotesPresenterTests(BaubleTestCase):
