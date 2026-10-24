@@ -251,7 +251,7 @@ class SynonymsPresenter(Gtk.Frame):
             self.set_sensitive(False)
 
     @Gtk.Template.Callback()
-    def on_entry_changed(self, entry) -> None:
+    def on_entry_changed(self, entry: Gtk.Entry) -> None:
         self.add_button.set_sensitive(False)
         self._selected = None
         text = entry.get_text()

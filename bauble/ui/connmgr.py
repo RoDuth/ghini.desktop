@@ -385,7 +385,7 @@ class ConnectionModel:
             prefs.prefs.save()
 
 
-def validate_readable_file(value: str, _field, _model) -> bool:
+def validate_readable_file(value: str, *_args) -> bool:
     if not value:
         return False
 
