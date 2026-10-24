@@ -30,9 +30,9 @@ from gi.repository import GObject
 from gi.repository import Gtk
 
 from bauble import error
-from bauble.btypes import parse_str_date
 from bauble.i18n import _
 from bauble.ui import utils
+from bauble.utils import parse_str_date
 
 
 class DatePickerButton(Gtk.MenuButton):

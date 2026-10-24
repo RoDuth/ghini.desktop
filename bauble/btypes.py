@@ -26,7 +26,6 @@ logger = logging.getLogger(__name__)
 
 from collections.abc import Callable
 from collections.abc import Sequence
-from datetime import date
 from datetime import datetime
 from datetime import timedelta
 from datetime import timezone
@@ -35,10 +34,7 @@ from operator import gt
 from operator import le
 from operator import lt
 from typing import Any
-from typing import Literal
-from typing import overload
 
-from dateutil import parser
 from sqlalchemy import types
 from sqlalchemy.engine import Dialect
 from sqlalchemy.sql.elements import ClauseElement
@@ -47,6 +43,7 @@ from sqlalchemy.sql.expression import case
 
 from bauble import error
 from bauble.i18n import _
+from bauble.utils import parse_str_date
 
 
 class EnumError(error.BaubleError):
@@ -273,55 +270,8 @@ def date_parser(value: str | float) -> datetime | None:
     if not isinstance(value, str):
         logger.debug("value is not a string: %s", value)
         return None
+
     return parse_str_date(value)
-
-
-@overload
-def parse_str_date(
-    value: str, as_date: Literal[False] = False
-) -> datetime | None: ...
-
-
-@overload
-def parse_str_date(
-    value: str, as_date: Literal[True] = True
-) -> date | None: ...
-
-
-def parse_str_date(
-    value: str,
-    as_date: bool = False,
-) -> datetime | date | None:
-    result = None
-
-    try:
-        # try parsing as iso8601 first
-        result = parser.isoparse(value)
-    except ValueError:
-        pass
-
-    if not result:
-        from bauble import prefs  # avoid circular imports
-
-        try:
-            result = parser.parse(
-                value,
-                dayfirst=prefs.prefs[prefs.parse_dayfirst_pref],
-                yearfirst=prefs.prefs[prefs.parse_yearfirst_pref],
-            )
-        except ValueError:
-            pass
-
-    if not result:
-        try:
-            result = parser.parse(str(value), fuzzy=True)
-        except ValueError:
-            pass
-
-    if result and as_date:
-        return result.date()
-
-    return result
 
 
 class DateTime(types.TypeDecorator):

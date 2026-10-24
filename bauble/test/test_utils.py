@@ -18,25 +18,28 @@
 # along with ghini.desktop. If not, see <http://www.gnu.org/licenses/>.
 
 import os
+from datetime import date
+from datetime import datetime
 from pathlib import Path
 from random import shuffle
 from tempfile import TemporaryDirectory
+from tempfile import mkstemp
 from unittest import TestCase
 from unittest import mock
 
-import gi
+from dateutil.relativedelta import TU
+from dateutil.relativedelta import relativedelta
 from sqlalchemy import Column
 from sqlalchemy import ForeignKey
 from sqlalchemy import Integer
 from sqlalchemy import MetaData
 from sqlalchemy import Table
 
-gi.require_version("Gtk", "3.0")
-
 from bauble import db
 from bauble import paths
 from bauble import prefs
 from bauble import utils
+from bauble.btypes import parse_str_date
 from bauble.error import CheckConditionError
 from bauble.test import BaubleTestCase
 
@@ -710,3 +713,142 @@ class TimedCacheTest(TestCase):
         mock_func.assert_called_with("test9")
 
         self.assertEqual(mock_func.call_count, 11)
+
+
+class DateStrParserTests(TestCase):
+    def setUp(self):
+        self.handler, self.temp = mkstemp(suffix=".cfg", text=True)
+        # reason not to use `from bauble.prefs import prefs`
+        prefs.default_prefs_file = self.temp
+        # pylint: disable=protected-access
+        prefs.prefs = prefs._prefs(filename=self.temp)
+        prefs.prefs.init()
+        os.close(self.handler)
+
+    def test_parse_str_date_full_dates(self):
+        self.assertEqual(
+            parse_str_date("1/1/2001"),
+            datetime(2001, 1, 1),
+        )
+        self.assertEqual(
+            parse_str_date("10/10/2010"),
+            datetime(2010, 10, 10),
+        )
+        self.assertEqual(
+            parse_str_date("10/11/12"),
+            datetime(2012, 11, 10),
+        )
+        self.assertEqual(
+            parse_str_date("10/11/0012"),
+            datetime(12, 11, 10),
+        )
+
+    def test_parse_str_date_full_dates_various_formats(self):
+        dates = (
+            ("1/1/2001", datetime(2001, 1, 1)),
+            ("10/10/2010", datetime(2010, 10, 10)),
+            ("10/11/12", datetime(2012, 11, 10)),
+            ("10/11/0012", datetime(12, 11, 10)),
+        )
+        for string, dt in dates:
+            self.assertEqual(parse_str_date(string), dt, string)
+            self.assertEqual(
+                parse_str_date(string.replace("/", ".")),
+                dt,
+                string,
+            )
+            self.assertEqual(
+                parse_str_date(string.replace("/", "-")),
+                dt,
+                string,
+            )
+
+    def test_parse_str_date_full_iso_dates(self):
+        self.assertEqual(
+            parse_str_date("2001-01-01"),
+            datetime(2001, 1, 1),
+        )
+        self.assertEqual(
+            parse_str_date("2010-10-10"),
+            datetime(2010, 10, 10),
+        )
+        self.assertEqual(
+            parse_str_date("0012-11-10"),
+            datetime(12, 11, 10),
+        )
+
+    def test_parse_str_date_full_dates_as_date(self):
+        self.assertEqual(
+            parse_str_date("1/1/2001", as_date=True),
+            date(2001, 1, 1),
+        )
+        self.assertEqual(
+            parse_str_date("10/10/2010", as_date=True),
+            date(2010, 10, 10),
+        )
+        self.assertEqual(
+            parse_str_date("10/11/12", as_date=True),
+            date(2012, 11, 10),
+        )
+        self.assertEqual(
+            parse_str_date("10/11/0012", as_date=True),
+            date(12, 11, 10),
+        )
+
+    def test_parse_str_date_edge_cases(self):
+        self.assertEqual(
+            parse_str_date("2001"),
+            datetime(2001, 1, 1),
+        )
+        self.assertEqual(
+            parse_str_date("2", as_date=True),
+            datetime.today().replace(day=2).date(),
+        )
+        self.assertEqual(
+            parse_str_date("25", as_date=True),
+            datetime.today().replace(day=25).date(),
+        )
+        self.assertEqual(
+            parse_str_date("11/10", as_date=True),
+            datetime.today().replace(month=10, day=11).date(),
+        )
+        self.assertEqual(
+            parse_str_date("10/2010"),
+            datetime(2010, 10, 1),
+        )
+        self.assertEqual(
+            parse_str_date("Tuesday", as_date=True),
+            datetime.today().date() + relativedelta(weekday=TU(-1)),
+        )
+        today = datetime.today().replace(
+            hour=0, minute=0, second=0, microsecond=0
+        )
+        self.assertEqual(
+            parse_str_date("Tuesday"),
+            today + relativedelta(weekday=TU(-1)),
+        )
+        self.assertEqual(
+            parse_str_date("April", as_date=True),
+            datetime.today().date().replace(month=4, day=1),
+        )
+        self.assertEqual(
+            parse_str_date("April 6th"),
+            today.replace(month=4, day=6),
+        )
+        self.assertEqual(
+            parse_str_date("the 21st of November 21``"),
+            datetime(2021, 11, 21),
+        )
+
+    def test_parse_str_date_bad_dates(self):
+        self.assertIsNone(parse_str_date("0-1-2001"))
+        self.assertIsNone(parse_str_date("40.10.2010"))
+        self.assertIsNone(parse_str_date("1/0/2001"))
+        self.assertIsNone(parse_str_date("1-0.2001"))
+        self.assertIsNone(parse_str_date("0"))
+
+    def test_parse_str_date_bad_dates_as_date(self):
+        self.assertIsNone(parse_str_date("0/1/2001", as_date=True))
+        self.assertIsNone(parse_str_date("40/10/2010", as_date=True))
+        self.assertIsNone(parse_str_date("1-0-2001", as_date=True))
+        self.assertIsNone(parse_str_date("1.40.2001", as_date=True))

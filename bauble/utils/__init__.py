@@ -47,6 +47,8 @@ from typing import overload
 from warnings import deprecated
 from xml.sax import saxutils
 
+from dateutil import parser
+from dateutil import relativedelta
 from gi.repository import Gtk
 from PIL import Image
 from PIL import ImageOps
@@ -408,7 +410,7 @@ def setup_date_button(view, entry, button):
         button.connect("clicked", on_clicked)
 
 
-def date_string(value: datetime.date | None) -> str:
+def date_string(value: datetime.date | datetime.datetime | None) -> str:
     """Return a string for a date according to the date format preference."""
     if not value:
         return ""
@@ -417,6 +419,103 @@ def date_string(value: datetime.date | None) -> str:
 
     date_format = prefs.prefs.get(prefs.date_format_pref, "%Y-%m-%d")
     return value.strftime(date_format)
+
+
+DAY_STRINGS = [j.lower() for i in parser.parserinfo.WEEKDAYS for j in i]
+_DELTA_DAYS = relativedelta.weekdays  # type: ignore
+WEEKDAYS = {DAY_STRINGS[i * 2 + 1]: _DELTA_DAYS[i] for i in range(7)}
+WEEKDAYS |= {DAY_STRINGS[i * 2]: _DELTA_DAYS[i] for i in range(7)}
+
+
+def parse_weekday(
+    value: str,
+    as_date: bool,
+) -> datetime.datetime | datetime.date:
+    """Given a day name or 3 letter abbreviated day name as a string return the
+    ``date`` or ``datetime`` object for the last day with that name.
+    """
+    value = value.lower()
+    day = WEEKDAYS[value](-1)
+
+    if as_date:
+        today = datetime.datetime.today().date()
+    else:
+        today = datetime.datetime.today().replace(
+            hour=0, minute=0, second=0, microsecond=0
+        )
+
+    result = today + relativedelta.relativedelta(weekday=day)
+    return result
+
+
+@overload
+def parse_str_date(
+    value: str,
+    as_date: Literal[False] = False,
+) -> datetime.datetime | None: ...
+
+
+@overload
+def parse_str_date(
+    value: str,
+    as_date: Literal[True] = True,
+) -> datetime.date | None: ...
+
+
+def parse_str_date(
+    value: str,
+    as_date: bool = False,
+) -> datetime.datetime | datetime.date | None:
+    """Given a string parse it as a date.
+
+    For missing portions defaults are used.  If the string looks like a day of
+    the month it will return the date within the current month.  If it looks
+    like a year it will return the first day of that year.
+
+    :param value: the string to parse.
+    :param as_date: return a datetime.date rather than a full datetime object.
+    """
+    value = value.strip()
+
+    result = None
+    if value.lower() in WEEKDAYS:
+        return parse_weekday(value, as_date)
+
+    try:
+        # try parsing as iso8601 first
+        result = parser.isoparse(value)
+        logger.debug("isoparse result %s", result)
+    except ValueError:
+        logger.debug("isoparse failed")
+
+    today = datetime.datetime.today()
+    this_month = datetime.datetime(today.year, today.month, 1)
+
+    if not result:
+        from bauble import prefs  # avoid circular imports
+
+        try:
+            result = parser.parse(
+                value,
+                dayfirst=prefs.prefs[prefs.parse_dayfirst_pref],
+                yearfirst=prefs.prefs[prefs.parse_yearfirst_pref],
+                default=this_month,
+            )
+            logger.debug("parse result %s", result)
+        except ValueError:
+            logger.debug("parse failed")
+
+    if not result:
+        try:
+            result = parser.parse(str(value), fuzzy=True)
+            logger.debug("fuzzy result %s", result)
+        except ValueError:
+            logger.debug("fuzzy parse failed")
+
+    if result and as_date:
+        return result.date()
+
+    return result
 
 
 def nstr(obj: Any) -> str | None:
