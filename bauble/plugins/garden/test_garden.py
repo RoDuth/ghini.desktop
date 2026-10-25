@@ -200,6 +200,7 @@ plant_seedprop_test_data = (
 propagation_test_data = (
     {
         "id": 1,
+        "prop_type_id": 1,
         "quantity": 10,
         "media": "potting mix",
         "container": "140mm pot",
@@ -988,11 +989,11 @@ class PlantUpdatedTests(BaubleTestCase):
         change = PlantChange(_last_updated=datetime.datetime(2000, 1, 1, 0))
         plt.changes.append(change)
         prop = Propagation(
-            quantity=10,
             media="potting mix",
             container="140",
             location="table 3",
             prop_notes="bulb division",
+            prop_type_id=1,
         )
         plt.propagations.append(prop)
         self.session.add(plt)
@@ -1056,8 +1057,6 @@ class PlantUpdatedTests(BaubleTestCase):
 
         # the python function
         self.assertEqual(plt.updated, plt._last_updated)
-
-
 
 
 class VoucherTests(GardenTestCase):
@@ -1190,7 +1189,6 @@ class SourceTests(GardenTestCase):
         super().setUp()
         self.accession = self.create(Accession, species=self.species, code="1")
 
-
     def test_plant_propagation_as_source_cascades(self):
         # create a source object
         source = Source()
@@ -1205,11 +1203,11 @@ class SourceTests(GardenTestCase):
         )
         plant.propagations.append(
             Propagation(
-                quantity=10,
                 media="potting mix",
                 container="140",
                 location="table 3",
                 prop_notes="bulb division",
+                prop_type_id=1,
             )
         )
         self.session.commit()
@@ -1705,7 +1703,6 @@ class AccessionTests(GardenTestCase):
                 '<span weight="light">(Cactaceae)</span>',
             ),
         )
-
 
     def test_accession_editor(self):
         acc = Accession(code="code", species=self.species)
@@ -2454,11 +2451,11 @@ class AccessionUpdatedTests(BaubleTestCase):
             name="Jade Green", source_type="Individual"
         )
         prop = Propagation(
-            quantity=10,
             media="potting mix",
             container="140",
             location="table 3",
             prop_notes="bulb division",
+            prop_type_id=1,
         )
         acc.source = Source(
             source_detail=source_detail,

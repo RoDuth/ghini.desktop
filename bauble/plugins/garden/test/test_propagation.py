@@ -17,7 +17,11 @@
 """
 Propagation models tests
 """
+from dataclasses import dataclass
+from datetime import datetime
+
 from sqlalchemy import select
+from sqlalchemy.orm import Session
 
 from bauble import utils
 from bauble.plugins.garden.source import Source
@@ -29,12 +33,87 @@ from ...plants.species import Species
 from ..accession import Accession
 from ..location import Location
 from ..plant import Plant
+from ..propagation import START_DEFAULT_EVENT_TYPES
+from ..propagation import START_DEFAULT_PROP_TYPES
 from ..propagation import Propagation
 from ..propagation import PropEvent
 from ..propagation import PropEventType
 from ..propagation import PropType
 from ..propagation import populate_default_event_types
 from ..propagation import populate_default_prop_types
+
+SELECT_STMTS = {
+    "quantity": select(Propagation.quantity),
+    "total_quantity": select(Propagation.total_quantity),
+    "culled_quantity": select(Propagation.culled_quantity),
+    "success": select(Propagation.success),
+    "total_success": select(Propagation.total_success),
+    "culled_success": select(Propagation.culled_success),
+    "remaining_success": select(Propagation.remaining_success),
+    "percent_success": select(Propagation.percent_success),
+    "available": select(Propagation.available),
+    "made_available": select(Propagation.made_available),
+    "discarded": select(Propagation.discarded),
+    "used": select(Propagation.used),
+    "unused": select(Propagation.unused),
+}
+
+
+@dataclass
+class PropHybridsChecker:
+    quantity: int = 0
+    total_quantity: int = 0
+    culled_quantity: int = 0
+    success: int = 0
+    total_success: int = 0
+    culled_success: int = 0
+    remaining_success: int = 0
+    percent_success: float = 0.0
+    available: int = 0
+    made_available: int = 0
+    discarded: int = 0
+    used: int = 0
+    unused: int = 0
+
+    def __call__(
+        self,
+        session: Session,
+        propagation: Propagation,
+        **kwargs,
+    ) -> tuple[bool, str]:
+        for prop, stmt in SELECT_STMTS.items():
+            result = session.scalar(stmt.filter_by(id=propagation.id))
+            prop_is_in_kwargs = False
+
+            if kwargs.get(prop) is not None:
+                expected = kwargs.pop(prop)
+                prop_is_in_kwargs = True
+            else:
+                expected = getattr(self, prop)
+
+            # the sql side
+            if result != expected:
+                return (
+                    False,
+                    f"hybrid property expression {prop=} FAILED {result=} != "
+                    f"{expected=} - {prop_is_in_kwargs=}",
+                )
+
+            # the python side
+            if getattr(propagation, prop) != expected:
+                return (
+                    False,
+                    f"hybrid property python {prop=} FAILED {result=} != "
+                    f"{expected=} - {prop_is_in_kwargs=}",
+                )
+
+        if kwargs:
+            raise ValueError(f"Unexpected key word arguments {kwargs}")
+
+        return True, "SUCCESS"
+
+
+hybrid_checker = PropHybridsChecker()
 
 
 class PropagationTests(BaubleTestCase):
@@ -61,14 +140,35 @@ class PropagationTests(BaubleTestCase):
         )
         self.session.add(self.plant)
         self.session.commit()
+        self.seed = self.session.query(PropType).filter_by(code="seed").first()
+        self.start = self.session.scalars(
+            select(PropEventType).filter_by(code="STRT")
+        ).one()
+        self.cull_qty = self.session.scalars(
+            select(PropEventType).filter_by(code="CULQ")
+        ).one()
+        self.success = self.session.scalars(
+            select(PropEventType).filter_by(code="SUCC")
+        ).one()
+        self.cull_success = self.session.scalars(
+            select(PropEventType).filter_by(code="CULS")
+        ).one()
+        self.available = self.session.scalars(
+            select(PropEventType).filter_by(code="AVLB")
+        ).one()
+        self.discard = self.session.scalars(
+            select(PropEventType).filter_by(code="DISC")
+        ).one()
 
     def test_can_add_propagation(self):
         prop = Propagation(
-            quantity=10,
+            date=datetime.today(),
+            propagator="Jade Green",
             media="potting mix",
-            container="140",
+            container="140mm",
             location="table 3",
-            prop_notes="bulb division",
+            prop_notes="Fresh, washed, seed.",
+            prop_type=self.seed,
         )
         self.plant.propagations.append(prop)
         self.session.commit()
@@ -77,11 +177,13 @@ class PropagationTests(BaubleTestCase):
 
     def test_can_add_propagation_multiple_plants(self):
         prop = Propagation(
-            quantity=10,
+            date=datetime.today(),
+            propagator="Jade Green",
             media="potting mix",
-            container="140",
+            container="140mm",
             location="table 3",
-            prop_notes="bulb division",
+            prop_notes="Fresh, washed, seed.",
+            prop_type=self.seed,
         )
         self.plant.propagations.append(prop)
         prop.plants.append(self.plant2)
@@ -91,14 +193,12 @@ class PropagationTests(BaubleTestCase):
         self.assertEqual(len(self.plant2.propagations), 1)
 
     def test_propagation_string(self):
-        prop_type = self.session.query(PropType).filter_by(code="seed").first()
         prop = Propagation(
-            quantity=10,
             media="potting mix",
-            container="140",
+            container="140mm",
             location="table 3",
-            prop_notes="bulb division",
-            prop_type=prop_type,
+            prop_notes="Fresh, washed, seed.",
+            prop_type=self.seed,
         )
         self.plant.propagations.append(prop)
         self.session.commit()
@@ -108,166 +208,265 @@ class PropagationTests(BaubleTestCase):
         self.assertEqual(
             str(prop),
             (
-                f"Seed; propagated by {user} on {today}; "
-                "Quantity: 10; Media: potting mix; Container: 140; "
-                "Location: table 3; Notes: bulb division"
+                f"Seed; propagated by {user} on {today}; Media: "
+                "potting mix; Container: 140mm; Location: table 3; Notes: "
+                "Fresh, washed, seed."
             ),
         )
 
-    def test_propagation_events(self):
+    def test_propagation_events_no_events(self):
         # test hybrid_property.expressions for established_qty, available_qty,
         # and percent_success and 'children' methods also
         prop = Propagation(
-            quantity=10,
+            date=datetime.today(),
+            propagator="Jade Green",
             media="potting mix",
-            container="140",
+            container="140mm",
             location="table 3",
-            prop_notes="bulb division",
+            prop_notes="Fresh, washed, seed.",
+            prop_type=self.seed,
         )
         self.plant.propagations.append(prop)
         self.session.commit()
 
-        established_qty = self.session.scalar(
-            select(Propagation.established_qty).filter_by(id=prop.id)
-        )
-        available_qty = self.session.scalar(
-            select(Propagation.available_qty).filter_by(id=prop.id)
-        )
-        percent_success = self.session.scalar(
-            select(Propagation.percent_success).filter_by(id=prop.id)
-        )
+        result, message = hybrid_checker(self.session, prop)
+        self.assertTrue(result, message)
 
-        self.assertEqual(established_qty, 0)
-        self.assertEqual(available_qty, 0)
-        self.assertEqual(percent_success, 0.0)
-
-        success = self.session.scalar(
-            select(PropEventType).filter_by(code="success")
+    def test_propagation_events_success(self):
+        # test hybrid_property.expressions for established_qty, available_qty,
+        # and percent_success and 'children' methods also
+        prop = Propagation(
+            date=datetime.today(),
+            propagator="Jade Green",
+            media="potting mix",
+            container="140mm",
+            location="table 3",
+            prop_notes="Fresh, washed, seed.",
+            prop_type=self.seed,
         )
+        self.plant.propagations.append(prop)
+
         prop.events.append(
             PropEvent(
-                quantity=9,
-                event_notes="leaves appear",
-                event_type=success,
+                quantity=10,
+                event_type=self.start,
             )
         )
         self.session.commit()
 
-        established_qty = self.session.scalar(
-            select(Propagation.established_qty).filter_by(id=prop.id)
+        result, message = hybrid_checker(
+            self.session,
+            prop,
+            quantity=10,
+            total_quantity=10,
         )
-        available_qty = self.session.scalar(
-            select(Propagation.available_qty).filter_by(id=prop.id)
-        )
-        percent_success = self.session.scalar(
-            select(Propagation.percent_success).filter_by(id=prop.id)
-        )
-
-        self.assertEqual(established_qty, 9)
-        self.assertEqual(available_qty, 9)
-        self.assertEqual(percent_success, 90.0)
+        self.assertTrue(result, message)
 
         prop.events.append(
             PropEvent(
-                quantity=1,
+                success=9,
                 event_notes="leaves appear",
-                event_type=success,
+                event_type=self.success,
             )
         )
-
         self.session.commit()
-        # test the expressions also
-        established_qty = self.session.scalar(
-            select(Propagation.established_qty).filter_by(id=prop.id)
-        )
-        available_qty = self.session.scalar(
-            select(Propagation.available_qty).filter_by(id=prop.id)
-        )
-        percent_success = self.session.scalar(
-            select(Propagation.percent_success).filter_by(id=prop.id)
-        )
 
-        self.assertEqual(established_qty, 10)
-        self.assertEqual(available_qty, 10)
-        self.assertEqual(percent_success, 100.0)
+        result, message = hybrid_checker(
+            self.session,
+            prop,
+            quantity=10,
+            total_quantity=10,
+            success=9,
+            total_success=9,
+            remaining_success=9,
+            percent_success=90.0,
+        )
+        self.assertTrue(result, message)
+
+        prop.events.append(
+            PropEvent(
+                success=1,
+                event_notes="leaves appear",
+                event_type=self.success,
+            )
+        )
+        self.session.commit()
+
+        result, message = hybrid_checker(
+            self.session,
+            prop,
+            quantity=10,
+            total_quantity=10,
+            success=10,
+            total_success=10,
+            remaining_success=10,
+            percent_success=100.0,
+        )
+        self.assertTrue(result, message)
+
+    def test_propagation_events_culled_qty(self):
+        # test hybrid_property.expressions for established_qty, available_qty,
+        # and percent_success and 'children' methods also
+        prop = Propagation(
+            date=datetime.today(),
+            propagator="Jade Green",
+            media="potting mix",
+            container="140mm",
+            location="table 3",
+            prop_notes="Fresh, washed, seed.",
+            prop_type=self.seed,
+        )
+        self.plant.propagations.append(prop)
+
+        prop.events.append(
+            PropEvent(
+                quantity=10,
+                event_type=self.start,
+            )
+        )
+        prop.events.append(
+            PropEvent(
+                success=5,
+                event_notes="leaves appear",
+                event_type=self.success,
+            )
+        )
+        prop.events.append(
+            PropEvent(
+                quantity=-4,
+                event_notes="Unneeded",
+                event_type=self.cull_qty,
+            )
+        )
+        self.session.commit()
+
+        result, message = hybrid_checker(
+            self.session,
+            prop,
+            quantity=6,
+            total_quantity=10,
+            culled_quantity=4,
+            success=5,
+            total_success=5,
+            remaining_success=5,
+            percent_success=83.33333333333334,
+        )
+        self.assertTrue(result, message)
 
     def test_propagation_events_discard(self):
         prop = Propagation(
-            quantity=10,
+            date=datetime.today(),
+            propagator="Jade Green",
             media="potting mix",
-            container="140",
+            container="140mm",
             location="table 3",
-            prop_notes="bulb division",
+            prop_notes="Fresh, washed, seed.",
+            prop_type=self.seed,
         )
         self.plant.propagations.append(prop)
-        self.session.commit()
 
-        self.assertEqual(prop.established_qty, 0)
-        self.assertEqual(prop.available_qty, 0)
-        self.assertEqual(prop.percent_success, 0.0)
-
-        success = self.session.scalar(
-            select(PropEventType).filter_by(code="success")
+        prop.events.append(
+            PropEvent(
+                quantity=10,
+                event_type=self.start,
+            )
         )
         prop.events.append(
             PropEvent(
-                quantity=5,
+                success=5,
                 event_notes="leaves appear",
-                event_type=success,
+                event_type=self.success,
             )
         )
-
-        self.assertEqual(prop.established_qty, 5)
-        self.assertEqual(prop.available_qty, 5)
-        self.assertEqual(prop.percent_success, 50.0)
-
-        discard = self.session.scalar(
-            select(PropEventType).filter_by(code="discard")
+        prop.events.append(
+            PropEvent(
+                available=5,
+                event_type=self.available,
+            )
         )
+        self.session.commit()
+
+        result, message = hybrid_checker(
+            self.session,
+            prop,
+            quantity=10,
+            total_quantity=10,
+            success=5,
+            total_success=5,
+            percent_success=50.0,
+            available=5,
+            made_available=5,
+            unused=5,
+        )
+        self.assertTrue(result, message)
+
         prop.events.append(
             PropEvent(
                 quantity=-5,
                 event_notes="reduced to make room.",
-                event_type=discard,
+                event_type=self.discard,
             )
         )
 
-        self.assertEqual(prop.established_qty, 0)
-        self.assertEqual(prop.available_qty, 0)
-        self.assertEqual(prop.percent_success, 0.0)
+        result, message = hybrid_checker(
+            self.session,
+            prop,
+            quantity=10,
+            total_quantity=10,
+            success=5,
+            total_success=5,
+            percent_success=50.0,
+            available=5,
+            made_available=5,
+            discaded=5,
+        )
 
     def test_propagation_as_source(self):
-        # also test hybrid_property.expressions used_qty
         prop = Propagation(
-            quantity=10,
+            date=datetime.today(),
+            propagator="Jade Green",
             media="potting mix",
-            container="140",
+            container="140mm",
             location="table 3",
-            prop_notes="bulb division",
+            prop_notes="Fresh, washed, seed.",
+            prop_type=self.seed,
         )
         self.plant.propagations.append(prop)
-        success = self.session.scalar(
-            select(PropEventType).filter_by(code="success")
+
+        prop.events.append(
+            PropEvent(
+                quantity=10,
+                event_type=self.start,
+            )
         )
         prop.events.append(
             PropEvent(
-                quantity=8,
+                success=8,
                 event_notes="leaves appear",
-                event_type=success,
+                event_type=self.success,
+            )
+        )
+        prop.events.append(
+            PropEvent(
+                available=8,
+                event_type=self.available,
             )
         )
         self.session.commit()
-        used_qty = self.session.scalar(
-            select(Propagation.used_qty).filter_by(id=prop.id)
-        )
 
-        self.assertEqual(prop.established_qty, 8)
-        self.assertEqual(prop.available_qty, 8)
-        self.assertEqual(prop.percent_success, 80.0)
-        self.assertEqual(prop.used_qty, 0)
-        self.assertEqual(used_qty, 0)
-        self.assertFalse(prop.has_children())
-        self.assertEqual(prop.count_children(), 0)
+        result, message = hybrid_checker(
+            self.session,
+            prop,
+            quantity=10,
+            total_quantity=10,
+            success=8,
+            total_success=8,
+            percent_success=80.0,
+            available=8,
+            made_available=8,
+            unused=8,
+        )
+        self.assertTrue(result, message)
 
         source = Source(plant_propagation=prop)
         acc1 = Accession(
@@ -278,15 +477,21 @@ class PropagationTests(BaubleTestCase):
         )
         self.session.add(acc1)
         self.session.commit()
-        used_qty = self.session.scalar(
-            select(Propagation.used_qty).filter_by(id=prop.id)
-        )
 
-        self.assertEqual(prop.used_qty, 3)
-        self.assertEqual(used_qty, 3)
-        self.assertEqual(prop.available_qty, 5)
-        self.assertTrue(prop.has_children())
-        self.assertEqual(prop.count_children(), 1)
+        result, message = hybrid_checker(
+            self.session,
+            prop,
+            quantity=10,
+            total_quantity=10,
+            success=8,
+            total_success=8,
+            percent_success=80.0,
+            available=8,
+            made_available=8,
+            used=3,
+            unused=5,
+        )
+        self.assertTrue(result, message)
 
         source = Source(plant_propagation=prop)
         acc2 = Accession(
@@ -297,45 +502,53 @@ class PropagationTests(BaubleTestCase):
         )
         self.session.add(acc2)
         self.session.commit()
-        used_qty = self.session.scalar(
-            select(Propagation.used_qty).filter_by(id=prop.id)
-        )
 
-        self.assertEqual(prop.used_qty, 8)
-        self.assertEqual(used_qty, 8)
-        self.assertEqual(prop.available_qty, 0)
-        self.assertTrue(prop.has_children())
-        self.assertEqual(prop.count_children(), 2)
-        self.assertCountEqual(prop.accessions, [acc1, acc2])
+        result, message = hybrid_checker(
+            self.session,
+            prop,
+            quantity=10,
+            total_quantity=10,
+            success=8,
+            total_success=8,
+            percent_success=80.0,
+            available=8,
+            made_available=8,
+            used=8,
+        )
+        self.assertTrue(result, message)
+
+
 
 
 class FunctionTests(BaubleTestCase):
     def test_populate_default_prop_types(self):
+        len_prop_types = len(START_DEFAULT_PROP_TYPES)
         prop_types = self.session.scalars(select(PropType)).all()
         self.assertEqual(len(prop_types), 0)
 
         populate_default_prop_types()
 
         prop_types = self.session.scalars(select(PropType)).all()
-        self.assertEqual(len(prop_types), 6)
+        self.assertEqual(len(prop_types), len_prop_types)
 
         # second run doesn't change
         populate_default_prop_types()
 
         prop_types = self.session.scalars(select(PropType)).all()
-        self.assertEqual(len(prop_types), 6)
+        self.assertEqual(len(prop_types), len_prop_types)
 
     def test_populate_default_event_types(self):
+        len_event_type = len(START_DEFAULT_EVENT_TYPES)
         event_types = self.session.scalars(select(PropEventType)).all()
         self.assertEqual(len(event_types), 0)
 
         populate_default_event_types()
 
         event_types = self.session.scalars(select(PropEventType)).all()
-        self.assertEqual(len(event_types), 12)
+        self.assertEqual(len(event_types), len_event_type)
 
         # second run doesn't change
         populate_default_event_types()
 
         event_types = self.session.scalars(select(PropEventType)).all()
-        self.assertEqual(len(event_types), 12)
+        self.assertEqual(len(event_types), len_event_type)

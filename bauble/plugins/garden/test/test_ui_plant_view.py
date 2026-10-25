@@ -294,13 +294,13 @@ class PropagationBoxTests(BaubleTestCase):
             _last_updated=date,
         )
         prop = Propagation(
-            quantity=10,
             media="potting mix",
             container="140",
             location="table 3",
             prop_notes="spam, spam, spam and eggs",
             date=date,
             propagator="Jade Green",
+            prop_type_id=1,
         )
         plt.propagations.append(prop)
         acc2 = Accession(code="2025.0001", species=sp)
@@ -318,7 +318,7 @@ class PropagationBoxTests(BaubleTestCase):
         )
         self.assertEqual(
             box.get_children()[1].get_label(),
-            "Other; propagated by Jade Green on 01-01-2001; Quantity: 10; "
+            "Seed; propagated by Jade Green on 01-01-2001; "
             "Media: potting mix; Container: 140; Location: table 3; Notes: "
             "spam, spam, spam and eggs",
         )
@@ -506,12 +506,12 @@ class FunctionTests(BaubleTestCase):
         )
         plant.propagations.append(
             Propagation(
-                quantity=10,
                 media="potting mix",
                 container="140",
                 location="table 3",
                 prop_notes="spam, spam, spam and eggs",
                 date=datetime(2026, 1, 1),
+                prop_type_id=1,
             )
         )
         self.session.add(plant)
