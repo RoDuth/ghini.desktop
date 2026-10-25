@@ -194,6 +194,8 @@ class PropagationTests(BaubleTestCase):
 
     def test_propagation_string(self):
         prop = Propagation(
+            date=datetime.today(),
+            propagator="Jade Green",
             media="potting mix",
             container="140mm",
             location="table 3",
@@ -201,17 +203,44 @@ class PropagationTests(BaubleTestCase):
             prop_type=self.seed,
         )
         self.plant.propagations.append(prop)
+        success = self.session.scalar(
+            select(PropEventType).filter_by(code="SUCC")
+        )
+        available = self.session.scalar(
+            select(PropEventType).filter_by(code="AVLB")
+        )
+        event1 = PropEvent(
+            date=datetime(2001, 1, 1).date(),
+            person="Jade Green",
+            quantity=10,
+            event_notes="First batch",
+            event_type=self.start,
+        )
+        prop.events.append(event1)
+        event2 = PropEvent(
+            date=datetime(2001, 2, 1).date(),
+            person="Jade Green",
+            success=10,
+            event_notes="First batch success",
+            event_type=success,
+        )
+        prop.events.append(event2)
+        event3 = PropEvent(
+            date=datetime(2001, 2, 10).date(),
+            person="Jade Green",
+            available=10,
+            event_notes="First batch available",
+            event_type=available,
+        )
+        prop.events.append(event3)
         self.session.commit()
 
         today = utils.today_str()
-        user = utils.get_user_display_name()
         self.assertEqual(
             str(prop),
-            (
-                f"Seed; propagated by {user} on {today}; Media: "
-                "potting mix; Container: 140mm; Location: table 3; Notes: "
-                "Fresh, washed, seed."
-            ),
+            f"Seed; propagated by Jade Green on {today}; Quantity: 10; Media: "
+            "potting mix; Container: 140mm; Location: table 3; Notes: Fresh, "
+            "washed, seed.; Success: 100.0%; Available: 10",
         )
 
     def test_propagation_events_no_events(self):
@@ -516,8 +545,6 @@ class PropagationTests(BaubleTestCase):
             used=8,
         )
         self.assertTrue(result, message)
-
-
 
 
 class FunctionTests(BaubleTestCase):

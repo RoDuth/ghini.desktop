@@ -235,7 +235,7 @@ class PropagationEditorDialogTests(BaubleTestCase):
     def test_can_commit_existing(self):
         prop = Propagation(
             date=datetime.date(2001, 1, 1),
-            propagator="Jade Green",
+            propagator=utils.get_user_display_name(),
             media="potting mix",
             container="140mm",
             location="table 3",
@@ -458,6 +458,139 @@ class PropagationEditorDialogTests(BaubleTestCase):
 
         editor.destroy()
 
+    def test_events_selection_func(self):
+        prop = Propagation(
+            date=datetime.date(2001, 1, 1),
+            propagator=utils.get_user_display_name(),
+            media="potting mix",
+            container="140mm",
+            location="table 3",
+            prop_notes="15% moisture content",
+            prop_type=self.seed,
+        )
+        self.plant.propagations.append(prop)
+        self.session.commit()
+        editor = PropagationEditorDialog(prop, self.session)
+        editor.add_event_button.emit("clicked")
+        update_gui()
+        editor.prop_event_presenter.person_entry.set_text("")
+
+        self.assertFalse(editor.events_selection_func(None, None, None, False))
+
+        editor.destroy()
+
+    def test_on_add_button_clicked(self):
+        prop = Propagation(
+            date=datetime.date.today(),
+            propagator=utils.get_user_display_name(),
+            media="potting mix",
+            container="140mm",
+            location="table 3",
+            prop_notes="15% moisture content",
+            prop_type=self.seed,
+        )
+        self.plant.propagations.append(prop)
+        self.session.commit()
+        editor = PropagationEditorDialog(prop, self.session)
+
+        # base case no events
+        self.assertEqual(len(editor.events_liststore), 0)
+
+        start = self.session.scalar(
+            select(PropEventType).filter_by(code="STRT")
+        )
+        tomorrow = datetime.date.today() + datetime.timedelta(days=1)
+        event = PropEvent(
+            date=tomorrow,
+            person="Jade Green",
+            quantity=10,
+            event_notes="First batch",
+            event_type=start,
+            propagation=prop,
+        )
+        self.session.add(event)
+        self.session.commit()
+        editor.populate_events()
+        path = Gtk.TreePath.new_from_string("0")
+        editor.events_treeview.set_cursor(path)
+        update_gui()
+
+        # base case one existing event
+        self.assertEqual(len(editor.events_liststore), 1)
+        self.assertEqual(
+            editor.prop_event_presenter.person_entry.get_text(),
+            event.person,
+        )
+
+        # test add clicked
+        editor.add_event_button.emit("clicked")
+        update_gui()
+
+        self.assertTrue(
+            self.session.is_modified(editor.prop_event_presenter.model)
+        )
+        self.assertEqual(len(editor.events_liststore), 2)
+        self.assertEqual(len(prop.events), 2)
+        self.assertEqual(
+            editor.prop_event_presenter.person_entry.get_text(),
+            utils.get_user_display_name(),
+        )
+        self.assertEqual(
+            editor.prop_event_presenter.date_entry.get_text(),
+            utils.date_string(tomorrow),
+        )
+
+        editor.destroy()
+
+    def test_on_remove_button_clicked(self):
+        prop = Propagation(
+            date=datetime.date.today(),
+            propagator=utils.get_user_display_name(),
+            media="potting mix",
+            container="140mm",
+            location="table 3",
+            prop_notes="15% moisture content",
+            prop_type=self.seed,
+        )
+        self.plant.propagations.append(prop)
+        start = self.session.scalar(
+            select(PropEventType).filter_by(code="STRT")
+        )
+        tomorrow = datetime.date.today() + datetime.timedelta(days=1)
+        event = PropEvent(
+            date=tomorrow,
+            person="Jade Green",
+            quantity=10,
+            event_notes="First batch",
+            event_type=start,
+            propagation=prop,
+        )
+        self.session.add(event)
+        self.session.commit()
+        editor = PropagationEditorDialog(prop, self.session)
+        editor.populate_events()
+        path = Gtk.TreePath.new_from_string("0")
+        editor.events_treeview.set_cursor(path)
+        update_gui()
+
+        # base case one existing event
+        self.assertEqual(len(editor.events_liststore), 1)
+        self.assertEqual(len(prop.events), 1)
+        self.assertEqual(
+            editor.prop_event_presenter.person_entry.get_text(),
+            event.person,
+        )
+
+        # test remove clicked
+        editor.remove_event_button.emit("clicked")
+        update_gui()
+
+        self.assertEqual(len(editor.events_liststore), 0)
+        self.assertEqual(len(prop.events), 0)
+        self.assertFalse(editor.prop_event_presenter.get_sensitive())
+
+        editor.destroy()
+
 
 class SourcePlantEditorDialogTests(BaubleTestCase):
     def setUp(self):
@@ -585,6 +718,19 @@ class PropEventPresenterTests(BaubleTestCase):
         self.session.commit()
 
     def test_init_existing(self):
+        # This event just to get the coverage on propagator_liststore
+        # population
+        event = PropEvent(
+            date=datetime.date(2001, 1, 1),
+            person=utils.get_user_display_name(),
+            quantity=10,
+            event_notes="second batch",
+            event_type=self.start,
+            propagation=self.prop,
+        )
+        self.session.add(event)
+        self.session.commit()
+
         presenter = PropEventPresenter()
         presenter.init(self.session)
         presenter.set_model(self.event)
@@ -608,7 +754,50 @@ class PropEventPresenterTests(BaubleTestCase):
 
         presenter.destroy()
 
+    def set_model_none_sesnitive(self):
+        presenter = PropEventPresenter()
+        presenter.init(self.session)
+        presenter.set_model(self.event)
+
+        self.assertTrue(presenter.get_sensitive())
+
+        presenter.set_model(None)
+
+        self.assertFalse(presenter.get_sensitive())
+
     def test_init_new(self):
+        presenter = PropEventPresenter()
+        presenter.init(self.session)
+        presenter.set_model(
+            PropEvent(
+                date=datetime.date.today(),
+                person=utils.get_user_display_name(),
+                propagation=self.prop,
+            )
+        )
+
+        self.assertTrue(presenter.get_sensitive())
+        self.assertEqual(
+            presenter.person_entry.get_text(), utils.get_user_display_name()
+        )
+        self.assertEqual(
+            presenter.date_entry.get_text(),
+            utils.date_string(datetime.datetime.today()),
+        )
+        self.assertEqual(get_widget_value(presenter.type_combo), self.start)
+        self.assertEqual(presenter.quantity_spinbutton.get_text(), "0")
+        self.assertEqual(presenter.success_spinbutton.get_text(), "0")
+        self.assertEqual(presenter.available_spinbutton.get_text(), "0")
+        self.assertEqual(presenter.available_spinbutton.get_text(), "0")
+        self.assertEqual(
+            get_widget_value(presenter.notes_textview),
+            "",
+        )
+        self.assertEqual(len(presenter.problems), 0)
+
+        presenter.destroy()
+
+    def test_init_new_wo_propagation(self):
         presenter = PropEventPresenter()
         presenter.init(self.session)
         presenter.set_model(

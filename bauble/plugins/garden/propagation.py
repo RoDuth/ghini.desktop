@@ -135,11 +135,11 @@ class PropEventType(db.Base):  # pylint: disable=too-few-public-methods
 
     __tablename__ = "prop_event_type"
 
-    code: str = Column(String(20), unique=True, nullable=False)
-    name: str = Column(String(20), unique=True, nullable=False)
+    code: str = Column(String(6), unique=True, nullable=False)
+    name: str = Column(String(24), unique=True, nullable=False)
     description = Column(String)
     # e.g. for all use "+-Q+-S+-A" for just adding to quantity use "+Q"
-    option_str = Column(String(4))
+    option_str = Column(String(12))
 
     def parsed_options(self) -> OptionDict:
         result: OptionDict = {
@@ -642,8 +642,8 @@ class Propagation(db.Domain):
         if self.prop_notes:
             parts.append(_("Notes: %s") % self.prop_notes)
 
-        if self.success:  # pylint: disable=using-constant-test
-            parts.append(_("Success: %s%%") % self.success)
+        if self.percent_success:  # pylint: disable=using-constant-test
+            parts.append(_("Success: %s%%") % self.percent_success)
 
         if self.unused:  # pylint: disable=using-constant-test
             parts.append(_("Available: %s") % self.unused)

@@ -201,6 +201,7 @@ class PropEventPresenter(GenericPresenter[PropEvent], Gtk.Frame):
     def constrain_widgets(self) -> None:
         if self.model.propagation is None:
             return
+
         events = self.model.propagation.events
         index = events.index(self.model)
         len_events = len(events)
@@ -853,6 +854,9 @@ class PropagationEditorDialog(
 
     @Gtk.Template.Callback()
     def on_events_changed(self, presenter: PropEventPresenter) -> None:
+
+        logger.debug("events changed")
+
         context = self.events_treeview.get_style_context()
         context.remove_class("problem-selected")
 
@@ -872,6 +876,7 @@ class PropagationEditorDialog(
         self.add_event_button.set_sensitive(bool(not presenter.problems))
 
         if presenter.problems:
+            # this from the cell_data_func
             context.remove_class("modified-selected")
             context.add_class("problem-selected")
 
