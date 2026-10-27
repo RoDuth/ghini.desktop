@@ -1150,7 +1150,12 @@ class SpeciesEditorDialogTests(BaubleTestCase):
         setup_plants_data()
         editor = SpeciesEditorDialog(Species(), self.session)
         result = editor.genus_get_completions("Cy")
+
         self.assertEqual([str(i[0]) for i in result], ["Cynodon"])
+
+        result = editor.genus_get_completions("× Butyagrus")
+
+        self.assertEqual([str(i[0]) for i in result], ["× Butyagrus"])
 
         editor.destroy()
 

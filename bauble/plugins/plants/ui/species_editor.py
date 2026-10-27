@@ -616,6 +616,8 @@ class SpeciesEditorDialog(
         if self.model.genus and self.model.genus.epithet == text:
             return [(self.model.genus,)]
 
+        text = text.removeprefix("× ").removeprefix("+ ")
+
         stmt = (
             select(Genus)
             .where(utils.ilike(Genus.epithet, f"{text}%"))
