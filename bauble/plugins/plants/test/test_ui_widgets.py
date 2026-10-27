@@ -57,6 +57,10 @@ from bauble.ui.widgets.message import MessageBox
 
 from ..ui.species_editor import SpeciesEditorDialog
 from ..ui.widgets.distribution import DistributionPresenter
+from ..ui.widgets.genus import genus_cell_data_func
+from ..ui.widgets.genus import genus_completions
+from ..ui.widgets.genus import genus_match_func
+from ..ui.widgets.genus import genus_to_string_matcher
 from ..ui.widgets.geography import GEO_PACIFIC_CENTRIC
 from ..ui.widgets.geography import DistributionMap
 from ..ui.widgets.geography import DistributionMapEventBox
@@ -82,6 +86,7 @@ from ..ui.widgets.synonyms import taxon_completion_cell_data_func
 from ..ui.widgets.vernacular import CAPITALISE_VNAMES_ON_PASTE_PREF_KEY
 from ..ui.widgets.vernacular import VernacularNamePresenter
 from .test_geography import setup_geographies
+from .test_plants import PlantTestCase
 from .test_plants import setUp_data as setup_plants_data
 
 
@@ -3320,3 +3325,118 @@ class FunctionTests(BaubleTestCase):
             mock_open_conn.assert_called_once()
         self.assertTrue(hasattr(Species, "nca_status"))
         self.assertTrue(hasattr(Species, "epbc_status"))
+
+
+class GenusCompletionTests(PlantTestCase):
+    def test_genus_to_string_matcher(self):
+        gen1 = self.session.get(Genus, 9)
+        self.assertTrue(genus_to_string_matcher(gen1, "Buty"))
+        self.assertTrue(genus_to_string_matcher(gen1, "× Buty"))
+        self.assertFalse(genus_to_string_matcher(gen1, "Auty"))
+        self.assertFalse(genus_to_string_matcher(gen1, "× Auty"))
+
+    def test_genus_cell_data_func(self):
+        gen = self.session.get(Genus, 9)
+        mock_renderer = mock.Mock()
+        mock_model = [[gen]]
+
+        genus_cell_data_func(None, mock_renderer, mock_model, 0)
+
+        mock_renderer.set_property.assert_called_with(
+            "markup", "× <i>Butyagrus</i> Vorster  <small>(Arecaceae)</small>"
+        )
+
+        gen = self.session.get(Genus, 2)
+        mock_renderer = mock.Mock()
+        mock_model = [[gen]]
+
+        genus_cell_data_func(None, mock_renderer, mock_model, 0)
+
+        mock_renderer.set_property.assert_called_with(
+            "markup", "<i>Encyclia</i>  <small>(Orchidaceae)</small>"
+        )
+
+    def test_genus_match_func(self):
+        completion = Gtk.EntryCompletion()
+        completion_model = Gtk.ListStore(object)
+
+        for val in self.session.query(Genus).filter(Genus.id < 11):
+            completion_model.append([val])
+
+        completion.set_model(completion_model)
+
+        key = "× Butyag"
+        self.assertTrue(genus_match_func(completion, key, 8))
+        self.assertFalse(genus_match_func(completion, key, 7))
+        self.assertFalse(genus_match_func(completion, key, 6))
+
+        key = "Butyag"
+        self.assertTrue(genus_match_func(completion, key, 8))
+        self.assertFalse(genus_match_func(completion, key, 7))
+
+        key = "Crataegomes"
+        self.assertFalse(genus_match_func(completion, key, 8))
+        self.assertTrue(genus_match_func(completion, key, 7))
+
+        key = "+ Crataegomes"
+        self.assertFalse(genus_match_func(completion, key, 8))
+        self.assertTrue(genus_match_func(completion, key, 7))
+
+        key = "max"
+        self.assertFalse(genus_match_func(completion, key, 1))
+        self.assertTrue(genus_match_func(completion, key, 0))
+
+        # detached
+        with mock.patch(
+            "bauble.plugins.plants.ui.widgets.genus.inspect"
+        ) as mock_inspect:
+            mock_inspect().persistent = False
+            self.assertFalse(genus_match_func(completion, key, 0))
+
+        # errors
+        completion.set_model(None)
+        self.assertRaises(AttributeError, genus_match_func, completion, key, 1)
+
+    def test_genus_completions(self):
+
+        key = "Max"
+        self.assertCountEqual(
+            self.session.execute(genus_completions(key)).scalars().all(),
+            [self.session.get(Genus, 1)],
+        )
+
+        key = "max"
+        self.assertCountEqual(
+            self.session.execute(genus_completions(key)).scalars().all(),
+            [self.session.get(Genus, 1)],
+        )
+
+        key = "C"
+        self.assertCountEqual(
+            self.session.execute(genus_completions(key)).scalars().all(),
+            self.session.query(Genus).filter(Genus.id.in_([4, 8, 10])).all(),
+        )
+
+        key = "+ Cr"
+        self.assertCountEqual(
+            self.session.execute(genus_completions(key)).scalars().all(),
+            [self.session.get(Genus, 8)],
+        )
+
+        key = "×"
+        self.assertCountEqual(
+            self.session.execute(genus_completions(key)).scalars().all(),
+            self.session.query(Genus).filter(Genus.id.in_([9, 16])).all(),
+        )
+
+        key = "Unknown"
+        self.assertEqual(
+            self.session.execute(genus_completions(key)).scalars().all(),
+            [],
+        )
+
+        key = ""
+        self.assertEqual(
+            len(self.session.execute(genus_completions(key)).scalars().all()),
+            len(self.session.query(Genus).all()),
+        )

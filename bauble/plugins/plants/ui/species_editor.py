@@ -80,6 +80,8 @@ from ..species import VernacularName
 from .widgets import SynonymsPresenter
 from .widgets import taxon_completion_cell_data_func
 from .widgets.distribution import DistributionPresenter
+from .widgets.genus import genus_cell_data_func
+from .widgets.genus import genus_match_func
 from .widgets.species import InfraspecificPresenter
 from .widgets.species import SpeciesEntry
 from .widgets.species import species_cell_data_func
@@ -278,9 +280,9 @@ class SpeciesEditorDialog(
         genus_completion = self.genus_entry.get_completion()
         genus_completion.set_cell_data_func(
             self.genus_cell,
-            taxon_completion_cell_data_func,
+            genus_cell_data_func,
         )
-        genus_completion.set_match_func(default_completion_match_func)
+        genus_completion.set_match_func(genus_match_func)
 
         habit_completion = self.habit_entry.get_completion()
         habit_completion.set_match_func(default_completion_match_func)
@@ -334,7 +336,7 @@ class SpeciesEditorDialog(
         for v in values:
             self.trademark_combo.append_text(v or "")
 
-        for habit in self.session.execute(select(Habit)).scalars():
+        for habit in self.session.scalars(select(Habit)):
             self.habit_liststore.append((habit,))
 
         self.habit_liststore.append((None,))
