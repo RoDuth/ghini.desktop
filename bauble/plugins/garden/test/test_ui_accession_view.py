@@ -48,7 +48,7 @@ class InfoBoxTests(BaubleTestCase):
             )
             self.assertEqual(
                 general.name_label.get_label(),
-                f"{acc.species_str(markup=True)}",
+                f"{acc.species_str(markup=True, authors=True)}",
             )
 
         acc7 = self.session.get(Accession, 7)

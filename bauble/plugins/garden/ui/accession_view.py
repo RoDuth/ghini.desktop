@@ -27,7 +27,6 @@ from gi.repository import Gtk
 from bauble import prefs
 from bauble import utils
 from bauble.i18n import _
-from bauble.plugins.plants.ui.misc import on_taxa_clicked
 from bauble.ui.views import Action
 from bauble.ui.views import InfoBox
 from bauble.ui.views import InfoExpander
@@ -37,6 +36,7 @@ from bauble.ui.views import on_clicked_search
 from bauble.ui.views import on_clicked_select
 from bauble.utils.geo import KMLMapCallbackFunctor
 
+from ...plants.ui.misc import on_taxa_clicked
 from ..accession import Accession
 from ..accession import edit_callback
 from ..accession import latitude_to_dms
@@ -87,7 +87,7 @@ class GeneralAccessionExpander(
             f"<big>{utils.xml_safe(str(row.code))}</big>"
         )
 
-        self.name_label.set_markup(row.species_str(markup=True))
+        self.name_label.set_markup(row.species_str(markup=True, authors=True))
 
         utils.make_label_clickable(
             self.name_label,
