@@ -2508,24 +2508,48 @@ class GeographyMenuTests(BaubleTestCase):
         self.session.add(geo3)
         self.session.commit()
 
-        button = Gtk.Button(sensitive=False)
-
         class SlowDict(dict):
             def __getitem__(self, key):
-                sleep(0.4)
+                sleep(0.1)
                 return super().__getitem__(key)
 
-        with mock.patch.object(
-            GeographyMenu,
-            "_geos_ordered",
-            new_callable=SlowDict,
-        ):
-            GeographyMenu.attach_new(lambda *_a: None, button)
+        for i in range(1, 4):
+            with self.assertLogs(
+                "bauble.plugins.plants.ui.widgets", level="DEBUG"
+            ) as logs:
+                button = Gtk.Button(sensitive=False)
 
-            button.destroy()
-            update_gui()
+                with mock.patch.object(
+                    GeographyMenu,
+                    "_geos_ordered",
+                    new_callable=SlowDict,
+                ):
+                    GeographyMenu.attach_new(lambda *_a: None, button)
+                    # destroy prior to Glib.idle_add
+                    button.destroy()
+                    sensitive = button.get_sensitive()
+                    update_gui()
+                    wait_on_threads()
 
-        self.assertFalse(button.get_sensitive())
+                waiting = any(
+                    "waiting for geography menu thread" in i
+                    for i in logs.output
+                )
+                not_attaching = any(
+                    "thread event set, not attaching" in i for i in logs.output
+                )
+                if not_attaching:
+                    break
+
+        self.assertFalse(sensitive)
+        self.assertTrue(
+            waiting,
+            f"no log: 'waiting for geography menu thread' after {i} tries",
+        )
+        self.assertTrue(
+            not_attaching,
+            f"no log: 'thread event set, not attaching' after {i} tries",
+        )
 
 
 class DistributionMapTests(BaubleClassTestCase):
