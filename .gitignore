@@ -53,3 +53,4 @@ Thumbs.db
 
 # due to mypy pyodbc work around (i.e. $ cp venv/lib/python3.13/site-packages/pyodbc.pyi .)
 pyodbc.pyi
+WIP/
