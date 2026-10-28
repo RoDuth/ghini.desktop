@@ -24,9 +24,9 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from bauble import utils
-from bauble.plugins.garden.source import Source
 from bauble.test import BaubleTestCase
 
+from ...garden.source import Source
 from ...plants.family import Family
 from ...plants.genus import Genus
 from ...plants.species import Species
@@ -140,7 +140,9 @@ class PropagationTests(BaubleTestCase):
         )
         self.session.add(self.plant)
         self.session.commit()
-        self.seed = self.session.query(PropType).filter_by(code="S").first()
+        self.seed = self.session.scalars(
+            select(PropType).filter_by(code="S")
+        ).one()
         self.start = self.session.scalars(
             select(PropEventType).filter_by(code="STRT")
         ).one()
