@@ -1,4 +1,4 @@
-# pylint: disable=no-self-use
+# pylint: disable=no-self-use,too-many-lines,too-many-locals
 # Copyright (c) 2026 Ross Demuth <rossdemuth123@gmail.com>
 #
 # This file is part of ghini.desktop.
@@ -58,8 +58,8 @@ class PropagationEditorDialogTests(BaubleTestCase):
         populate_default_event_types()
         location = Location(code="LOC1")
         family = Family(family="Myrtaceae")
-        genus = Genus(family=family, genus="Syzygium")
-        self.species = Species(genus=genus, sp="australe")
+        self.genus = Genus(family=family, genus="Syzygium")
+        self.species = Species(genus=self.genus, sp="australe")
         self.accession = Accession(code="2001.0001", species=self.species)
         self.plant = Plant(
             code="1",
@@ -77,7 +77,7 @@ class PropagationEditorDialogTests(BaubleTestCase):
         self.session.add(self.plant2)
         self.session.commit()
         self.seed = self.session.scalars(
-            select(PropType).filter_by(code="seed")
+            select(PropType).filter_by(code="S")
         ).one()
 
     @mock.patch("bauble.gui")
@@ -85,6 +85,8 @@ class PropagationEditorDialogTests(BaubleTestCase):
         mock_gui.window = Gtk.Window()
         # This prop just to get the coverage on propagator_liststore population
         prop = Propagation(
+            species=self.species,
+            code="2001S/1",
             date=datetime.date(2001, 1, 1),
             propagator=utils.get_user_display_name(),
             media="potting mix",
@@ -93,6 +95,8 @@ class PropagationEditorDialogTests(BaubleTestCase):
         self.plant.propagations.append(prop)
         # this for the test
         prop = Propagation(
+            species=self.species,
+            code="2001S/2",
             date=datetime.date(2001, 1, 1),
             propagator="Jade Green",
             media="potting mix",
@@ -234,6 +238,8 @@ class PropagationEditorDialogTests(BaubleTestCase):
 
     def test_can_commit_existing(self):
         prop = Propagation(
+            species=self.species,
+            code="2001S/1",
             date=datetime.date(2001, 1, 1),
             propagator=utils.get_user_display_name(),
             media="potting mix",
@@ -260,8 +266,8 @@ class PropagationEditorDialogTests(BaubleTestCase):
             prop_type=self.seed,
         )
         self.plant.propagations.append(prop)
-        self.session.commit()
         editor = PropagationEditorDialog(prop, db.Session())
+        editor.species_entry.set_text("")
         ok_button = editor.get_widget_for_response(-5)
 
         self.assertFalse(ok_button.get_sensitive())
@@ -270,6 +276,8 @@ class PropagationEditorDialogTests(BaubleTestCase):
 
         editor = PropagationEditorDialog(prop, db.Session())
         editor.date_entry.set_text("1/1/2021")
+        editor.code_entry.set_text("2021S/1")
+        editor.species_entry.set_text(str(self.species))
         ok_button = editor.get_widget_for_response(-5)
 
         self.assertTrue(ok_button.get_sensitive())
@@ -311,6 +319,8 @@ class PropagationEditorDialogTests(BaubleTestCase):
 
     def test_on_remove_source_button_clicked(self):
         prop = Propagation(
+            species=self.species,
+            code="2001S/1",
             date=datetime.date(2001, 1, 1),
             propagator="Jade Green",
             media="potting mix",
@@ -345,6 +355,8 @@ class PropagationEditorDialogTests(BaubleTestCase):
     )
     def test_on_source_activated(self, mock_source_editor):
         prop = Propagation(
+            species=self.species,
+            code="2001S/1",
             date=datetime.date(2001, 1, 1),
             propagator="Jade Green",
             media="potting mix",
@@ -421,6 +433,7 @@ class PropagationEditorDialogTests(BaubleTestCase):
         self.plant.propagations.append(editor.model)
         editor.model.plant_sources[0].source_type = "1"
         editor.type_combo.set_active(0)
+        editor.species_entry.set_text(str(self.species))
         self.assertFalse(editor.on_response(editor, Response.OK))
 
         update_gui()
@@ -446,6 +459,7 @@ class PropagationEditorDialogTests(BaubleTestCase):
         editor.type_combo.set_active(0)
         editor.propagator_entry.set_text("Jade Green")
         editor.date_entry.set_text("1/1/2001")
+        editor.species_entry.set_text(str(self.species))
 
         self.assertFalse(editor.on_response(editor, Response.NEXT))
 
@@ -460,6 +474,8 @@ class PropagationEditorDialogTests(BaubleTestCase):
 
     def test_events_selection_func(self):
         prop = Propagation(
+            species=self.species,
+            code="2001S/1",
             date=datetime.date(2001, 1, 1),
             propagator=utils.get_user_display_name(),
             media="potting mix",
@@ -481,6 +497,8 @@ class PropagationEditorDialogTests(BaubleTestCase):
 
     def test_on_add_button_clicked(self):
         prop = Propagation(
+            species=self.species,
+            code="2001S/1",
             date=datetime.date.today(),
             propagator=utils.get_user_display_name(),
             media="potting mix",
@@ -544,6 +562,8 @@ class PropagationEditorDialogTests(BaubleTestCase):
 
     def test_on_remove_button_clicked(self):
         prop = Propagation(
+            species=self.species,
+            code="2001S/1",
             date=datetime.date.today(),
             propagator=utils.get_user_display_name(),
             media="potting mix",
@@ -591,6 +611,173 @@ class PropagationEditorDialogTests(BaubleTestCase):
 
         editor.destroy()
 
+    def test_multiple_plant_sources_hybrid_grex(self):
+        location = Location(code="OH1")
+        family = Family(epithet="Orchidaceae")
+        laeliocattleya = Genus(
+            family=family,
+            epithet="Laeliocattleya",
+            hybrid="×",
+        )
+        lc_caligula = Species(genus=laeliocattleya, grex="Caligula")
+        self.session.add(lc_caligula)
+        cattleya = Genus(family=family, epithet="Cattleya")
+        c_percivaliana = Species(genus=cattleya, epithet="percivaliana")
+        accession1 = Accession(code="1999.0001", species=c_percivaliana)
+        plant1 = Plant(
+            code="1",
+            accession=accession1,
+            quantity=5,
+            location=location,
+        )
+        laelia = Genus(family=family, epithet="Laelia")
+        l_anceps = Species(genus=laelia, epithet="anceps")
+        accession2 = Accession(code="1998.0001", species=l_anceps)
+        plant2 = Plant(
+            code="1",
+            accession=accession2,
+            quantity=5,
+            location=location,
+        )
+        self.session.add(plant1)
+        self.session.add(plant2)
+        self.session.commit()
+        source1 = PlantPropSource(
+            plant=plant1,
+            source_type="1",
+            source_material="F",
+        )
+        source2 = PlantPropSource(
+            plant=plant2,
+            source_type="1",
+            source_material="M",
+        )
+        prop = Propagation()
+        prop.plant_sources.append(source1)
+        prop.plant_sources.append(source2)
+        self.session.add(prop)
+
+        editor = PropagationEditorDialog(prop, self.session)
+        editor.populate_source_list()
+        editor.type_combo.set_active(0)
+
+        self.assertEqual(len(editor.problems), 1)
+        self.assertFalse(editor.can_commit)
+        self.assertEqual(editor.species_entry.get_text(), "")
+
+        sp_editor = (
+            "bauble.plugins.plants.ui.species_editor.SpeciesEditorDialog"
+        )
+        with mock.patch(sp_editor) as mock_editor:
+            mock_editor().model = lc_caligula
+            mock_editor().run.return_value = Gtk.ResponseType.OK
+            mock_editor.reset_mock()
+            editor.on_species_add_button_clicked(None)
+            self.assertIsNone(mock_editor.call_args[0][0].genus)
+
+        self.assertEqual(editor.species_entry.get_text(), str(lc_caligula))
+        self.assertEqual(editor.model.species, lc_caligula)
+        self.assertTrue(editor.can_commit)
+
+        editor.destroy()
+
+    def test_multiple_plant_sources_species_hybrid(self):
+        s_wilsonii = Species(genus=self.genus, epithet="wilsonii")
+        s_luehmannii = Species(genus=self.genus, epithet="luemannii")
+        hybrid = Species(genus=self.genus, epithet="wilsonii × luemannii")
+        accession1 = Accession(code="1999.0001", species=s_wilsonii)
+        plant1 = Plant(
+            code="1",
+            accession=accession1,
+            quantity=5,
+            location=Location(code="ANPcv1"),
+        )
+        accession2 = Accession(code="1998.0001", species=s_luehmannii)
+        plant2 = Plant(
+            code="1",
+            accession=accession2,
+            quantity=5,
+            location=Location(code="ANPcv2"),
+        )
+        self.session.add(plant1)
+        self.session.add(plant2)
+        self.session.commit()
+        source1 = PlantPropSource(
+            plant=plant1,
+            source_type="1",
+            source_material="F",
+        )
+        source2 = PlantPropSource(
+            plant=plant2,
+            source_type="1",
+            source_material="M",
+        )
+        prop = Propagation()
+        prop.plant_sources.append(source1)
+        prop.plant_sources.append(source2)
+        self.session.add(prop)
+
+        editor = PropagationEditorDialog(prop, self.session)
+        editor.populate_source_list()
+        editor.type_combo.set_active(0)
+
+        self.assertFalse(editor.can_commit)
+        self.assertEqual(editor.species_entry.get_text(), "")
+
+        sp_editor = (
+            "bauble.plugins.plants.ui.species_editor.SpeciesEditorDialog"
+        )
+        # CANCEL doesn't change
+        with mock.patch(sp_editor) as mock_editor:
+            mock_editor().model = hybrid
+            mock_editor().run.return_value = Gtk.ResponseType.CANCEL
+            mock_editor.reset_mock()
+            editor.on_species_add_button_clicked(None)
+            self.assertEqual(mock_editor.call_args[0][0].genus, self.genus)
+
+        self.assertEqual(editor.species_entry.get_text(), "")
+        self.assertIsNone(editor.model.species)
+        self.assertFalse(editor.can_commit)
+
+        with mock.patch(sp_editor) as mock_editor:
+            mock_editor().model = hybrid
+            mock_editor().run.return_value = Gtk.ResponseType.OK
+            mock_editor.reset_mock()
+            editor.on_species_add_button_clicked(None)
+            self.assertEqual(mock_editor.call_args[0][0].genus, self.genus)
+
+        self.assertEqual(editor.species_entry.get_text(), str(hybrid))
+        self.assertEqual(editor.model.species, hybrid)
+        self.assertTrue(editor.can_commit)
+
+        editor.destroy()
+
+    def test_on_code_edit_button_clicke(self):
+        prop = Propagation(
+            species=self.species,
+            code="2001S/1",
+            date=datetime.date(2001, 1, 1),
+            propagator=utils.get_user_display_name(),
+            media="potting mix",
+            container="140mm",
+            location="table 3",
+            prop_notes="15% moisture content",
+            prop_type=self.seed,
+        )
+        self.plant.propagations.append(prop)
+        self.session.commit()
+        editor = PropagationEditorDialog(prop, self.session)
+        mock_btn = mock.Mock()
+        mock_btn.get_active.return_value = True
+
+        self.assertFalse(editor.code_entry.get_sensitive())
+
+        editor.on_code_edit_button_toggled(mock_btn)
+
+        self.assertTrue(editor.code_entry.get_sensitive())
+
+        editor.destroy()
+
 
 class SourcePlantEditorDialogTests(BaubleTestCase):
     def setUp(self):
@@ -617,12 +804,12 @@ class SourcePlantEditorDialogTests(BaubleTestCase):
         self.session.add(self.plant)
         self.session.add(self.plant2)
         self.session.commit()
-        self.seed = self.session.scalar(
-            select(PropType).filter_by(code="seed")
-        )
+        self.seed = self.session.scalar(select(PropType).filter_by(code="S"))
 
     def test_init_existing(self):
         prop = Propagation(
+            species=self.species,
+            code="2001S/1",
             date=datetime.date(2001, 1, 1),
             propagator="Jade Green",
             media="potting mix",
@@ -688,10 +875,10 @@ class PropEventPresenterTests(BaubleTestCase):
             quantity=5,
             location=location,
         )
-        self.seed = self.session.scalar(
-            select(PropType).filter_by(code="seed")
-        )
+        self.seed = self.session.scalar(select(PropType).filter_by(code="S"))
         self.prop = Propagation(
+            species=self.species,
+            code="2001S/1",
             date=datetime.date(2001, 1, 1),
             propagator="Jade Green",
             media="potting mix",
@@ -1056,8 +1243,9 @@ class FunctionTests(BaubleTestCase):
         self.session.commit()
 
     def test_edit_callback(self):
-        seed = self.session.scalar(select(PropType).filter_by(code="seed"))
+        seed = self.session.scalar(select(PropType).filter_by(code="S"))
         prop = Propagation(
+            species=self.species,
             date=datetime.date(2001, 1, 1),
             propagator="Jade Green",
             media="potting mix",

@@ -17,6 +17,7 @@
 """
 Propagation GUI editor parts.
 """
+from __future__ import annotations
 
 import logging
 
@@ -25,6 +26,7 @@ logger = logging.getLogger(__name__)
 import datetime
 from functools import partial
 from pathlib import Path
+from typing import TYPE_CHECKING
 from typing import Literal
 from typing import Self
 from typing import cast
@@ -38,6 +40,7 @@ from sqlalchemy import select
 from sqlalchemy.engine import Result
 from sqlalchemy.orm import Session
 
+from bauble import db
 from bauble import utils
 from bauble.btypes import parse_str_date
 from bauble.i18n import _
@@ -60,6 +63,9 @@ from bauble.ui.widgets import NoteBox
 from bauble.ui.widgets import NotesPresenter
 from bauble.ui.widgets import PictureBox
 
+from ...plants.ui.widgets.species import species_cell_data_func
+from ...plants.ui.widgets.species import species_completions
+from ...plants.ui.widgets.species import species_match_func
 from ..plant import Plant
 from ..plant import plant_match_func
 from ..propagation import PlantPropSource
@@ -67,6 +73,9 @@ from ..propagation import Propagation
 from ..propagation import PropEvent
 from ..propagation import PropEventType
 from ..propagation import PropType
+
+if TYPE_CHECKING:
+    from ...plants.species import Species
 
 parent = Path(__file__).resolve().parent
 
@@ -434,6 +443,11 @@ class PropagationEditorDialog(
     __gsignals__ = GenericPresenter.gsignals
 
     revealer = cast(Gtk.Revealer, Gtk.Template.Child())
+    code_entry = cast(Gtk.Entry, Gtk.Template.Child())
+    species_box = cast(Gtk.Box, Gtk.Template.Child())
+    species_entry = cast(Gtk.Entry, Gtk.Template.Child())
+    species_liststore = cast(Gtk.ListStore, Gtk.Template.Child())
+    species_cell = cast(Gtk.CellRendererText, Gtk.Template.Child())
     type_combo = cast(Gtk.ComboBox, Gtk.Template.Child())
     type_liststore = cast(Gtk.ListStore, Gtk.Template.Child())
     type_cell = cast(Gtk.CellRendererText, Gtk.Template.Child())
@@ -487,6 +501,7 @@ class PropagationEditorDialog(
         [Validator(validate_date, "invalid_date")],
         lambda value, *_args: parse_str_date(value, as_date=True),
     )
+    on_completion_entry_matched = EntryWCompletionHandler(must_match=True)
 
     PROBLEM_PRIMARY = Problem("no_primary_source")
 
@@ -510,7 +525,16 @@ class PropagationEditorDialog(
         spellview = Gspell.TextView.get_from_gtk_text_view(self.notes_textview)
         spellview.basic_setup()
 
+        species_completion = self.species_entry.get_completion()
+        species_completion.set_cell_data_func(
+            self.species_cell,
+            species_cell_data_func,
+        )
+        species_completion.set_match_func(species_match_func)
+
         self.widgets_to_model_map = {
+            self.code_entry: "code",
+            self.species_entry: "species",
             self.type_combo: "prop_type",
             self.date_entry: "date",
             self.propagator_entry: "propagator",
@@ -633,6 +657,12 @@ class PropagationEditorDialog(
     def on_problems_changed(self, _view: Self, has_problems: bool) -> None:
         self.events_frame.set_sensitive(not has_problems)
 
+    def update(self) -> None:
+        if self.model.id is None:
+            self.code_entry.set_text(self.model.get_next_code())
+
+        super().update()
+
     @property
     def can_commit(self) -> bool:
         modified = self.session.is_modified(self.model)
@@ -664,16 +694,59 @@ class PropagationEditorDialog(
 
         has_primary = False
 
+        species = None
+        all_same_species = True
+
         for source in self.model.plant_sources:
             logger.debug("adding source %s", source)
             if source.source_type == "1":
                 logger.debug("source is primary")
                 has_primary = True
 
+            if species is None:
+                species = source.plant.accession.species
+            elif source.plant.accession.species_id != species.id:
+                all_same_species = False
+
             self.source_liststore.append((source,))
 
         if not has_primary:
             self.add_problem(self.PROBLEM_PRIMARY, self.source_treeview)
+
+        if all_same_species:
+            self.model.species = species
+            self.species_entry.set_text(str(species))
+            self.species_box.set_sensitive(False)
+        else:
+            if not self.model.id:
+                self.species_entry.set_text("")
+            self.species_box.set_sensitive(True)
+            self.species_entry.emit("changed")
+
+    @Gtk.Template.Callback()
+    def on_code_entry_changed(self, entry: Gtk.Entry) -> None:
+        super().on_unique_text_entry_changed(entry)
+
+    @Gtk.Template.Callback()
+    def on_code_edit_button_toggled(self, button: Gtk.ToggleButton) -> None:
+        self.code_entry.set_sensitive(button.get_active())
+
+    @Gtk.Template.Callback()
+    def on_species_entry_changed(self, entry: Gtk.Entry) -> None:
+        # pylint: disable=not-callable
+        self.on_completion_entry_matched(
+            entry,
+            get_values=self.species_get_completions,
+        )
+
+    def species_get_completions(
+        self,
+        text: str,
+    ) -> Result | list[tuple[Species]]:
+        if str(self.model.species) == text:
+            return [(self.model.species,)]
+
+        return self.session.execute(species_completions(text).limit(20))
 
     @Gtk.Template.Callback()
     def on_type_changed(self, combo: Gtk.ComboBox) -> None:
@@ -713,6 +786,41 @@ class PropagationEditorDialog(
             source = model[iter_][0]
             self.model.plant_sources.remove(source)
             self.populate_source_list()
+
+    @Gtk.Template.Callback()
+    def on_species_add_button_clicked(self, _button: Gtk.Button) -> None:
+
+        from ...plants.species import Species
+        from ...plants.ui.species_editor import SpeciesEditorDialog
+
+        species = Species()
+
+        genus_ids = {
+            i.plant.accession.species.genus_id
+            for i in self.model.plant_sources
+        }
+
+        if len(genus_ids) == 1:
+            genus = self.model.plant_sources[0].plant.accession.species.genus
+            species.genus = genus
+
+        with db.Session() as session:
+            dialog = SpeciesEditorDialog(
+                species,
+                session,
+                transient_for=self,
+            )
+
+            if dialog.run() not in [Response.OK, Response.RETURN]:
+                dialog.destroy()
+                return
+
+            species = self.session.merge(dialog.model)
+            dialog.destroy()
+
+        self.present()
+        self.model.species = species
+        self.species_entry.set_text(str(species))
 
     @Gtk.Template.Callback()
     def on_source_activated(
@@ -883,7 +991,8 @@ class PropagationEditorDialog(
         self.on_changed(presenter)
         self.state_label.set_text(
             f"Quantity: {self.model.quantity}\n"
-            f"Available: {self.model.available}\n"
+            f"Total available: {self.model.available}\n"
+            f"Currently available: {self.model.unused}\n"
             f"Success: {self.model.percent_success:.1f}%"
         )
 

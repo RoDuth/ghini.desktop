@@ -179,27 +179,10 @@ plant_change_test_data = (
     },
 )
 
-plant_seedprop_test_data = (
-    {
-        "pretreatment": "Soaked in peroxide solution",
-        "nseeds": 24,
-        "date_sown": datetime.date(2023, 1, 1),
-        "container": "tray",
-        "location": "mist tent",
-        "moved_from": "mist tent",
-        "moved_to": "hardening table",
-        "media": "standard mix",
-        "germ_date": datetime.date(2023, 2, 1),
-        "germ_pct": 99,
-        "nseedlings": 23,
-        "date_planted": datetime.date(2023, 2, 8),
-        "propagation_id": 1,
-    },
-)
-
 propagation_test_data = (
     {
         "id": 1,
+        "species_id": 1,
         "prop_type_id": 1,
         "quantity": 10,
         "media": "potting mix",
@@ -989,6 +972,8 @@ class PlantUpdatedTests(BaubleTestCase):
         change = PlantChange(_last_updated=datetime.datetime(2000, 1, 1, 0))
         plt.changes.append(change)
         prop = Propagation(
+            species_id=1,
+            code="2001S/1",
             media="potting mix",
             container="140",
             location="table 3",
@@ -1203,6 +1188,8 @@ class SourceTests(GardenTestCase):
         )
         plant.propagations.append(
             Propagation(
+                species_id=1,
+                code="2001S/1",
                 media="potting mix",
                 container="140",
                 location="table 3",
@@ -2451,6 +2438,8 @@ class AccessionUpdatedTests(BaubleTestCase):
             name="Jade Green", source_type="Individual"
         )
         prop = Propagation(
+            species_id=1,
+            code="2001S/1",
             media="potting mix",
             container="140",
             location="table 3",

@@ -89,6 +89,18 @@
       <column type="PyObject"/>
     </columns>
   </object>
+  <object class="GtkListStore" id="species_liststore">
+    <columns>
+      <!-- column-name pyobject -->
+      <column type="PyObject"/>
+    </columns>
+  </object>
+  <object class="GtkEntryCompletion" id="species_completion">
+    <property name="model">species_liststore</property>
+    <child>
+      <object class="GtkCellRendererText" id="species_cell"/>
+    </child>
+  </object>
   <object class="GtkListStore" id="type_liststore">
     <columns>
       <!-- column-name pyobject -->
@@ -208,7 +220,7 @@
                     <property name="hexpand">True</property>
                     <property name="spacing">6</property>
                     <child>
-                      <!-- n-columns=3 n-rows=8 -->
+                      <!-- n-columns=3 n-rows=10 -->
                       <object class="GtkGrid">
                         <property name="visible">True</property>
                         <property name="can-focus">False</property>
@@ -219,7 +231,7 @@
                           <object class="GtkLabel">
                             <property name="visible">True</property>
                             <property name="can-focus">False</property>
-                            <property name="label" translatable="yes">Type</property>
+                            <property name="label" translatable="yes">Code</property>
                             <property name="xalign">0</property>
                           </object>
                           <packing>
@@ -231,18 +243,18 @@
                           <object class="GtkBox">
                             <property name="visible">True</property>
                             <property name="can-focus">False</property>
-                            <property name="hexpand">True</property>
-                            <property name="spacing">6</property>
+                            <property name="tooltip-text" translatable="yes">The code should be generated once a date and type are set.
+
+You can edit it after by clicking the edit button.
+
+CAUTION!  If the code is already in use and you change it here they will no longer correspond.</property>
                             <child>
-                              <object class="GtkComboBox" id="type_combo">
+                              <object class="GtkEntry" id="code_entry">
                                 <property name="visible">True</property>
-                                <property name="can-focus">False</property>
-                                <property name="halign">start</property>
-                                <property name="model">type_liststore</property>
-                                <signal name="changed" handler="on_type_changed" swapped="no"/>
-                                <child>
-                                  <object class="GtkCellRendererText" id="type_cell"/>
-                                </child>
+                                <property name="sensitive">False</property>
+                                <property name="can-focus">True</property>
+                                <property name="hexpand">True</property>
+                                <signal name="changed" handler="on_code_entry_changed" swapped="no"/>
                               </object>
                               <packing>
                                 <property name="expand">False</property>
@@ -251,12 +263,75 @@
                               </packing>
                             </child>
                             <child>
-                              <object class="GtkButton" id="type_add_button">
+                              <object class="GtkToggleButton" id="code_edit_button">
+                                <property name="visible">True</property>
+                                <property name="can-focus">True</property>
+                                <property name="receives-default">False</property>
+                                <signal name="toggled" handler="on_code_edit_button_toggled" swapped="no"/>
+                                <child>
+                                  <object class="GtkImage">
+                                    <property name="visible">True</property>
+                                    <property name="can-focus">False</property>
+                                    <property name="icon-name">document-edit-symbolic</property>
+                                  </object>
+                                </child>
+                              </object>
+                              <packing>
+                                <property name="expand">False</property>
+                                <property name="fill">True</property>
+                                <property name="position">1</property>
+                              </packing>
+                            </child>
+                          </object>
+                          <packing>
+                            <property name="left-attach">1</property>
+                            <property name="top-attach">0</property>
+                            <property name="width">2</property>
+                          </packing>
+                        </child>
+                        <child>
+                          <object class="GtkLabel">
+                            <property name="visible">True</property>
+                            <property name="can-focus">False</property>
+                            <property name="label" translatable="yes">Species</property>
+                            <property name="xalign">0</property>
+                          </object>
+                          <packing>
+                            <property name="left-attach">0</property>
+                            <property name="top-attach">1</property>
+                          </packing>
+                        </child>
+                        <child>
+                          <object class="GtkBox" id="species_box">
+                            <property name="visible">True</property>
+                            <property name="sensitive">False</property>
+                            <property name="can-focus">False</property>
+                            <property name="tooltip-text" translatable="yes">The species to use when this propagation is used as a source.
+
+If all source plants are of the same species this is automatically selected.
+
+Where they differ you will need to supply one.
+Use the add button to add a new species if needed.</property>
+                            <child>
+                              <object class="GtkEntry" id="species_entry">
+                                <property name="visible">True</property>
+                                <property name="can-focus">True</property>
+                                <property name="hexpand">True</property>
+                                <property name="completion">species_completion</property>
+                                <signal name="changed" handler="on_species_entry_changed" swapped="no"/>
+                              </object>
+                              <packing>
+                                <property name="expand">False</property>
+                                <property name="fill">True</property>
+                                <property name="position">0</property>
+                              </packing>
+                            </child>
+                            <child>
+                              <object class="GtkButton" id="species_add_button">
                                 <property name="visible">True</property>
                                 <property name="can-focus">True</property>
                                 <property name="receives-default">True</property>
-                                <property name="tooltip-text" translatable="yes">Create a new propagation type.</property>
-                                <signal name="clicked" handler="on_type_add_button_clicked" swapped="no"/>
+                                <signal name="clicked" handler="on_species_add_button_clicked" swapped="no"/>
                                 <child>
                                   <object class="GtkBox">
                                     <property name="visible">True</property>
@@ -299,7 +374,36 @@
                           </object>
                           <packing>
                             <property name="left-attach">1</property>
-                            <property name="top-attach">0</property>
+                            <property name="top-attach">1</property>
+                            <property name="width">2</property>
+                          </packing>
+                        </child>
+                        <child>
+                          <object class="GtkLabel">
+                            <property name="visible">True</property>
+                            <property name="can-focus">False</property>
+                            <property name="label" translatable="yes">Type</property>
+                            <property name="xalign">0</property>
+                          </object>
+                          <packing>
+                            <property name="left-attach">0</property>
+                            <property name="top-attach">2</property>
+                          </packing>
+                        </child>
+                        <child>
+                          <object class="GtkComboBox" id="type_combo">
+                            <property name="visible">True</property>
+                            <property name="can-focus">False</property>
+                            <property name="halign">start</property>
+                            <property name="model">type_liststore</property>
+                            <signal name="changed" handler="on_type_changed" swapped="no"/>
+                            <child>
+                              <object class="GtkCellRendererText" id="type_cell"/>
+                            </child>
+                          </object>
+                          <packing>
+                            <property name="left-attach">1</property>
+                            <property name="top-attach">2</property>
                             <property name="width">2</property>
                           </packing>
                         </child>
@@ -312,7 +416,7 @@
                           </object>
                           <packing>
                             <property name="left-attach">0</property>
-                            <property name="top-attach">1</property>
+                            <property name="top-attach">3</property>
                           </packing>
                         </child>
                         <child>
@@ -322,7 +426,7 @@
                           </object>
                           <packing>
                             <property name="left-attach">1</property>
-                            <property name="top-attach">1</property>
+                            <property name="top-attach">3</property>
                             <property name="width">2</property>
                           </packing>
                         </child>
@@ -335,7 +439,7 @@
                           </object>
                           <packing>
                             <property name="left-attach">0</property>
-                            <property name="top-attach">2</property>
+                            <property name="top-attach">4</property>
                           </packing>
                         </child>
                         <child>
@@ -350,7 +454,7 @@
                           </object>
                           <packing>
                             <property name="left-attach">1</property>
-                            <property name="top-attach">2</property>
+                            <property name="top-attach">4</property>
                             <property name="width">2</property>
                           </packing>
                         </child>
@@ -358,12 +462,12 @@
                           <object class="GtkLabel">
                             <property name="visible">True</property>
                             <property name="can-focus">False</property>
-                            <property name="label" translatable="yes">Source plants</property>
+                            <property name="label" translatable="yes">Source plants:</property>
                             <property name="xalign">0</property>
                           </object>
                           <packing>
                             <property name="left-attach">0</property>
-                            <property name="top-attach">3</property>
+                            <property name="top-attach">5</property>
                           </packing>
                         </child>
                         <child>
@@ -417,7 +521,7 @@
                           </object>
                           <packing>
                             <property name="left-attach">2</property>
-                            <property name="top-attach">3</property>
+                            <property name="top-attach">5</property>
                           </packing>
                         </child>
                         <child>
@@ -473,7 +577,7 @@ There &lt;b&gt;must be at least one primary source&lt;/b&gt;.</property>
                           </object>
                           <packing>
                             <property name="left-attach">1</property>
-                            <property name="top-attach">3</property>
+                            <property name="top-attach">5</property>
                           </packing>
                         </child>
                         <child>
@@ -485,7 +589,7 @@ There &lt;b&gt;must be at least one primary source&lt;/b&gt;.</property>
                           </object>
                           <packing>
                             <property name="left-attach">0</property>
-                            <property name="top-attach">4</property>
+                            <property name="top-attach">6</property>
                           </packing>
                         </child>
                         <child>
@@ -506,7 +610,7 @@ There &lt;b&gt;must be at least one primary source&lt;/b&gt;.</property>
                           </object>
                           <packing>
                             <property name="left-attach">1</property>
-                            <property name="top-attach">4</property>
+                            <property name="top-attach">6</property>
                             <property name="width">2</property>
                           </packing>
                         </child>
@@ -519,7 +623,7 @@ There &lt;b&gt;must be at least one primary source&lt;/b&gt;.</property>
                           </object>
                           <packing>
                             <property name="left-attach">0</property>
-                            <property name="top-attach">5</property>
+                            <property name="top-attach">7</property>
                           </packing>
                         </child>
                         <child>
@@ -540,7 +644,7 @@ There &lt;b&gt;must be at least one primary source&lt;/b&gt;.</property>
                           </object>
                           <packing>
                             <property name="left-attach">1</property>
-                            <property name="top-attach">5</property>
+                            <property name="top-attach">7</property>
                             <property name="width">2</property>
                           </packing>
                         </child>
@@ -553,7 +657,7 @@ There &lt;b&gt;must be at least one primary source&lt;/b&gt;.</property>
                           </object>
                           <packing>
                             <property name="left-attach">0</property>
-                            <property name="top-attach">6</property>
+                            <property name="top-attach">8</property>
                           </packing>
                         </child>
                         <child>
@@ -574,7 +678,7 @@ There &lt;b&gt;must be at least one primary source&lt;/b&gt;.</property>
                           </object>
                           <packing>
                             <property name="left-attach">1</property>
-                            <property name="top-attach">6</property>
+                            <property name="top-attach">8</property>
                             <property name="width">2</property>
                           </packing>
                         </child>
@@ -587,7 +691,7 @@ There &lt;b&gt;must be at least one primary source&lt;/b&gt;.</property>
                           </object>
                           <packing>
                             <property name="left-attach">0</property>
-                            <property name="top-attach">7</property>
+                            <property name="top-attach">9</property>
                           </packing>
                         </child>
                         <child>
@@ -610,7 +714,7 @@ There &lt;b&gt;must be at least one primary source&lt;/b&gt;.</property>
                           </object>
                           <packing>
                             <property name="left-attach">1</property>
-                            <property name="top-attach">7</property>
+                            <property name="top-attach">9</property>
                             <property name="width">2</property>
                           </packing>
                         </child>
@@ -701,6 +805,7 @@ There &lt;b&gt;must be at least one primary source&lt;/b&gt;.</property>
                                       <object class="GtkTreeView" id="events_treeview">
                                         <property name="visible">True</property>
                                         <property name="can-focus">True</property>
+                                        <property name="tooltip-text" translatable="yes">Event history, the event selected here is the one being edited below.</property>
                                         <property name="model">events_liststore</property>
                                         <child internal-child="selection">
                                           <object class="GtkTreeSelection">

@@ -438,6 +438,7 @@ class DomainEditorDialog[T: db.Domain](_Dialog[T]):
                 Gtk.MessageType.ERROR,
                 parent=self,
             )
+            logger.debug("%s(%s)", type(e).__name__, e)
             self.session.rollback()
             self.model = self.session.merge(self.model)
         return False

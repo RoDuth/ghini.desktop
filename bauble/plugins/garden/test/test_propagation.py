@@ -140,7 +140,7 @@ class PropagationTests(BaubleTestCase):
         )
         self.session.add(self.plant)
         self.session.commit()
-        self.seed = self.session.query(PropType).filter_by(code="seed").first()
+        self.seed = self.session.query(PropType).filter_by(code="S").first()
         self.start = self.session.scalars(
             select(PropEventType).filter_by(code="STRT")
         ).one()
@@ -162,6 +162,8 @@ class PropagationTests(BaubleTestCase):
 
     def test_can_add_propagation(self):
         prop = Propagation(
+            species=self.species,
+            code="2026S/1",
             date=datetime.today(),
             propagator="Jade Green",
             media="potting mix",
@@ -177,6 +179,8 @@ class PropagationTests(BaubleTestCase):
 
     def test_can_add_propagation_multiple_plants(self):
         prop = Propagation(
+            species=self.species,
+            code="2026S/1",
             date=datetime.today(),
             propagator="Jade Green",
             media="potting mix",
@@ -194,6 +198,8 @@ class PropagationTests(BaubleTestCase):
 
     def test_propagation_string(self):
         prop = Propagation(
+            species=self.species,
+            code="2026S/1",
             date=datetime.today(),
             propagator="Jade Green",
             media="potting mix",
@@ -238,15 +244,17 @@ class PropagationTests(BaubleTestCase):
         today = utils.today_str()
         self.assertEqual(
             str(prop),
-            f"Seed; propagated by Jade Green on {today}; Quantity: 10; Media: "
-            "potting mix; Container: 140mm; Location: table 3; Notes: Fresh, "
-            "washed, seed.; Success: 100.0%; Available: 10",
+            f"Seed; propagated by Jade Green on {today}; Media: potting mix; "
+            "Container: 140mm; Location: table 3; Notes: Fresh, "
+            "washed, seed.; Quantity: 10; Success: 100.00%; Available: 10",
         )
 
     def test_propagation_events_no_events(self):
         # test hybrid_property.expressions for established_qty, available_qty,
         # and percent_success and 'children' methods also
         prop = Propagation(
+            species=self.species,
+            code="2026S/1",
             date=datetime.today(),
             propagator="Jade Green",
             media="potting mix",
@@ -265,6 +273,8 @@ class PropagationTests(BaubleTestCase):
         # test hybrid_property.expressions for established_qty, available_qty,
         # and percent_success and 'children' methods also
         prop = Propagation(
+            species=self.species,
+            code="2026S/1",
             date=datetime.today(),
             propagator="Jade Green",
             media="potting mix",
@@ -337,6 +347,8 @@ class PropagationTests(BaubleTestCase):
         # test hybrid_property.expressions for established_qty, available_qty,
         # and percent_success and 'children' methods also
         prop = Propagation(
+            species=self.species,
+            code="2026S/1",
             date=datetime.today(),
             propagator="Jade Green",
             media="potting mix",
@@ -384,6 +396,8 @@ class PropagationTests(BaubleTestCase):
 
     def test_propagation_events_discard(self):
         prop = Propagation(
+            species=self.species,
+            code="2026S/1",
             date=datetime.today(),
             propagator="Jade Green",
             media="potting mix",
@@ -452,6 +466,8 @@ class PropagationTests(BaubleTestCase):
 
     def test_propagation_as_source(self):
         prop = Propagation(
+            species=self.species,
+            code="2026S/1",
             date=datetime.today(),
             propagator="Jade Green",
             media="potting mix",
@@ -545,6 +561,58 @@ class PropagationTests(BaubleTestCase):
             used=8,
         )
         self.assertTrue(result, message)
+
+    def test_get_next_code(self):
+        today = datetime.today()
+        prop = Propagation(
+            species=self.species,
+            code=f"{today.year}S/1",
+            propagator="Jade Green",
+            media="potting mix",
+            container="140mm",
+            location="table 3",
+            prop_notes="Fresh, washed, seed.",
+            prop_type=self.seed,
+        )
+
+        # no date yet
+        self.assertEqual(prop.get_next_code(), "")
+
+        prop.date = today
+        self.plant.propagations.append(prop)
+        self.session.commit()
+
+        prop = Propagation(
+            species=self.species,
+            date=today,
+            propagator="Jade Green",
+            media="potting mix",
+            container="140mm",
+            location="table 3",
+            prop_notes="Fresh, washed, seed.",
+            prop_type=self.seed,
+        )
+
+        self.assertEqual(prop.get_next_code(), f"{today.year}S/2")
+
+    def test_search_view_markup_pair(self):
+        prop = Propagation(
+            species=self.species,
+            code="2026S/1",
+            date=datetime.today(),
+            propagator="Jade Green",
+            media="potting mix",
+            container="140mm",
+            location="table 3",
+            prop_notes="Fresh, washed, seed.",
+            prop_type=self.seed,
+        )
+        self.plant.propagations.append(prop)
+
+        date = utils.date_string(prop.date)
+        part1 = f'2026S/1 <span weight="light">- Jade Green {date}</span>'
+        part2 = f"{prop.species.markup()}  - Available: 0"
+        self.assertEqual(prop.search_view_markup_pair(), (part1, part2))
 
 
 class FunctionTests(BaubleTestCase):

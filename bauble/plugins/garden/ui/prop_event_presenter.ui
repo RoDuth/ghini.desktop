@@ -143,6 +143,8 @@
               <object class="GtkGrid">
                 <property name="visible">True</property>
                 <property name="can-focus">True</property>
+                <property name="halign">center</property>
+                <property name="column-homogeneous">True</property>
                 <child>
                   <object class="GtkLabel">
                     <property name="visible">True</property>
@@ -180,6 +182,7 @@
                   <object class="GtkSpinButton" id="quantity_spinbutton">
                     <property name="visible">True</property>
                     <property name="can-focus">True</property>
+                    <property name="tooltip-text" translatable="yes">Records the intial quantity used to start this propagation (e.g. the number of seeds).</property>
                     <property name="adjustment">quantity_adj</property>
                     <property name="numeric">True</property>
                     <signal name="changed" handler="on_spinbutton_changed" swapped="no"/>
@@ -193,6 +196,9 @@
                   <object class="GtkSpinButton" id="success_spinbutton">
                     <property name="visible">True</property>
                     <property name="can-focus">True</property>
+                    <property name="tooltip-text" translatable="yes">Records successful propagation counts (e.g. number of seeds germinated).
+
+Can not exceed the current quantity.</property>
                     <property name="adjustment">success_adj</property>
                     <property name="numeric">True</property>
                     <signal name="changed" handler="on_spinbutton_changed" swapped="no"/>
@@ -206,6 +212,9 @@
                   <object class="GtkSpinButton" id="available_spinbutton">
                     <property name="visible">True</property>
                     <property name="can-focus">True</property>
+                    <property name="tooltip-text" translatable="yes">Records the number of plants made available to accession.
+
+Can not exceed the current success count.</property>
                     <property name="adjustment">available_adj</property>
                     <property name="numeric">True</property>
                     <signal name="changed" handler="on_spinbutton_changed" swapped="no"/>
@@ -247,6 +256,7 @@
                     <property name="height-request">75</property>
                     <property name="visible">True</property>
                     <property name="can-focus">True</property>
+                    <property name="tooltip-text" translatable="yes">Record details or observations for this event here.</property>
                     <property name="buffer">notes_textbuffer</property>
                   </object>
                 </child>

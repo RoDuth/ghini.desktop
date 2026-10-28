@@ -19,11 +19,14 @@
 """
 propagation module
 """
+from __future__ import annotations
+
 import logging
 
 logger = logging.getLogger(__name__)
 
 import datetime
+import re
 from typing import TYPE_CHECKING
 from typing import Literal
 from typing import TypedDict
@@ -52,6 +55,7 @@ from bauble import utils
 from bauble.i18n import _
 
 if TYPE_CHECKING:
+    from ..plants.species import Species
     from .plant import Plant
     from .source import Source
 
@@ -82,7 +86,7 @@ class PlantPropSource(db.Base):  # pylint: disable=too-few-public-methods
         {},
     )
 
-    source_type = Column(
+    source_type: str = Column(
         types.Enum(
             values=list(SOURCE_TYPES.keys()),
             translations=SOURCE_TYPES,
@@ -293,8 +297,8 @@ class PropType(db.Base):  # pylint: disable=too-few-public-methods
 
     __tablename__ = "prop_type"
 
-    code: str = Column(String(20), unique=True, nullable=False)
-    name: str = Column(String(20), unique=True, nullable=False)
+    code: str = Column(String(6), unique=True, nullable=False)
+    name: str = Column(String(24), unique=True, nullable=False)
     description: str = Column(String)
 
     def __str__(self) -> str:
@@ -302,25 +306,25 @@ class PropType(db.Base):  # pylint: disable=too-few-public-methods
 
 
 START_DEFAULT_PROP_TYPES = (
-    ("other", _("Other"), _("Undefined propagation (add notes).")),
-    ("seed", _("Seed"), _("Sexual propagation from seed.")),
+    ("O", _("Other"), _("Undefined propagation (add notes).")),
+    ("S", _("Seed"), _("Sexual propagation from seed.")),
     (
-        "cutting",
+        "C",
         _("Cutting"),
         _("Asexual vegetative propagation from a cutting."),
     ),
     (
-        "graft",
+        "G",
         _("Graft"),
         _("Asexual vegetative propagation from a rootstock and scion."),
     ),
     (
-        "marcot",
+        "M",
         _("Marcot"),
         _("Asexual vegetative propagation from a marcot or air-layering."),
     ),
     (
-        "division",
+        "D",
         _("Division"),
         _(
             "Asexual vegetative propagation from a division of a plant (bulb, "
@@ -370,6 +374,13 @@ class Propagation(db.Domain):
 
     __tablename__ = "propagation"
 
+    code = Column(String(32), unique=True)
+    species_id = Column(
+        Integer,
+        ForeignKey("species.id"),
+        nullable=False,
+    )
+    species: Species = relationship("Species", uselist=False)
     plants = association_proxy(
         "plant_sources",
         "plant",
@@ -619,16 +630,16 @@ class Propagation(db.Domain):
 
     def __str__(self) -> str:
 
-        parts: list[str] = [self.prop_type.name]
+        parts: list[str] = []
+
+        if self.prop_type:
+            parts.append(self.prop_type.name)
 
         if self.propagator:
             date_str = utils.date_string(self.date)
             parts.append(
                 _("propagated by %s on %s") % (self.propagator, date_str)
             )
-
-        if self.quantity:  # pylint: disable=using-constant-test
-            parts.append(_("Quantity: %s") % self.quantity)
 
         if self.media:
             parts.append(_("Media: %s") % self.media)
@@ -642,10 +653,43 @@ class Propagation(db.Domain):
         if self.prop_notes:
             parts.append(_("Notes: %s") % self.prop_notes)
 
+        if self.quantity:  # pylint: disable=using-constant-test
+            parts.append(_("Quantity: %s") % self.quantity)
+
         if self.percent_success:  # pylint: disable=using-constant-test
-            parts.append(_("Success: %s%%") % self.percent_success)
+            parts.append(_("Success: %s%%") % f"{self.percent_success:.2f}")
 
         if self.unused:  # pylint: disable=using-constant-test
             parts.append(_("Available: %s") % self.unused)
 
         return "; ".join(parts)
+
+    def search_view_markup_pair(self) -> tuple[str, str]:
+        date = utils.date_string(self.date)
+        line1 = (
+            f"{self.code} "
+            f'<span weight="light">- {self.propagator} {date}</span>'
+        )
+        line2 = f"{self.species.markup()}  - Available: {self.unused}"
+        return line1, line2
+
+    def get_next_code(self) -> str:
+        # at this point in time hard coded, no options
+        if self.date is not None and self.prop_type is not None:
+            cls = type(self)
+
+            with db.engine.connect() as connection:
+                codes = connection.scalars(
+                    select(cls.code)
+                    .where(cls.code.startswith(str(self.date.year)))
+                    .where(cls.id != self.id)
+                ).all()
+
+            def trailing_int(code: str) -> int:
+                match = re.search(r"\d+$", code)
+                return int(match.group() if match else 0)
+
+            prop_num = max(trailing_int(i) for i in codes) + 1 if codes else 1
+
+            return f"{self.date.year}{self.prop_type.code}/{prop_num}"
+        return ""

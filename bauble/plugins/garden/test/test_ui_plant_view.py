@@ -294,6 +294,8 @@ class PropagationBoxTests(BaubleTestCase):
             _last_updated=date,
         )
         prop = Propagation(
+            species=sp,
+            code="2001S/1",
             media="potting mix",
             container="140",
             location="table 3",
@@ -506,6 +508,8 @@ class FunctionTests(BaubleTestCase):
         )
         plant.propagations.append(
             Propagation(
+                species=species,
+                code="2026S/1",
                 media="potting mix",
                 container="140",
                 location="table 3",
