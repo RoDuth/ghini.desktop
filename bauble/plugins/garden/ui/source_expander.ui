@@ -114,9 +114,10 @@
               <object class="GtkLabel" id="parent_plant_label">
                 <property name="visible">True</property>
                 <property name="can-focus">False</property>
-                <property name="label" translatable="yes">Parent Plant:</property>
+                <property name="label" translatable="yes">Parent Plants:</property>
                 <property name="use-markup">True</property>
                 <property name="xalign">1</property>
+                <property name="yalign">0</property>
                 <attributes>
                   <attribute name="weight" value="bold"/>
                 </attributes>
@@ -127,16 +128,12 @@
               </packing>
             </child>
             <child>
-              <object class="GtkEventBox" id="parent_plant_eventbox">
+              <object class="GtkBox" id="parent_plants_box">
                 <property name="visible">True</property>
                 <property name="can-focus">False</property>
+                <property name="orientation">vertical</property>
                 <child>
-                  <object class="GtkLabel" id="parent_plant_data_label">
-                    <property name="visible">True</property>
-                    <property name="can-focus">False</property>
-                    <property name="label">--</property>
-                    <property name="xalign">0</property>
-                  </object>
+                  <placeholder/>
                 </child>
               </object>
               <packing>
@@ -162,13 +159,46 @@
               </packing>
             </child>
             <child>
-              <object class="GtkLabel" id="propagation_data_label">
+              <object class="GtkBox" id="propagation_data_box">
                 <property name="visible">True</property>
                 <property name="can-focus">False</property>
-                <property name="label">--</property>
-                <property name="wrap">True</property>
-                <property name="xalign">0</property>
-                <property name="yalign">0</property>
+                <property name="orientation">vertical</property>
+                <child>
+                  <object class="GtkEventBox">
+                    <property name="visible">True</property>
+                    <property name="can-focus">False</property>
+                    <child>
+                      <object class="GtkLabel" id="propagation_code_label">
+                        <property name="visible">True</property>
+                        <property name="can-focus">False</property>
+                        <property name="label">--</property>
+                        <property name="wrap">True</property>
+                        <property name="xalign">0</property>
+                        <property name="yalign">0</property>
+                      </object>
+                    </child>
+                  </object>
+                  <packing>
+                    <property name="expand">False</property>
+                    <property name="fill">True</property>
+                    <property name="position">0</property>
+                  </packing>
+                </child>
+                <child>
+                  <object class="GtkLabel" id="propagation_data_label">
+                    <property name="visible">True</property>
+                    <property name="can-focus">False</property>
+                    <property name="label">--</property>
+                    <property name="wrap">True</property>
+                    <property name="xalign">0</property>
+                    <property name="yalign">0</property>
+                  </object>
+                  <packing>
+                    <property name="expand">False</property>
+                    <property name="fill">True</property>
+                    <property name="position">1</property>
+                  </packing>
+                </child>
               </object>
               <packing>
                 <property name="left-attach">1</property>

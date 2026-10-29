@@ -46,6 +46,8 @@ from ..accession import recvd_type_values
 from ..accession import remove_callback
 from ..accession import wild_prov_status_values
 from ..location import Location
+from ..propagation import SOURCE_MATERIALS
+from ..propagation import SOURCE_TYPES
 from ..source import COLLECTION_KML_MAP_PREF
 from ..source import Collection
 from .accession_editor import add_plants_callback
@@ -192,9 +194,10 @@ class SourceExpander(
     source_notes_label = cast(Gtk.Label, Gtk.Template.Child())
     source_notes_data_label = cast(Gtk.Label, Gtk.Template.Child())
     parent_plant_label = cast(Gtk.Label, Gtk.Template.Child())
-    parent_plant_eventbox = cast(Gtk.EventBox, Gtk.Template.Child())
-    parent_plant_data_label = cast(Gtk.Label, Gtk.Template.Child())
+    parent_plants_box = cast(Gtk.Box, Gtk.Template.Child())
     propagation_label = cast(Gtk.Label, Gtk.Template.Child())
+    propagation_data_box = cast(Gtk.Box, Gtk.Template.Child())
+    propagation_code_label = cast(Gtk.Label, Gtk.Template.Child())
     propagation_data_label = cast(Gtk.Label, Gtk.Template.Child())
     collection_seperator = cast(Gtk.Separator, Gtk.Template.Child())
     collection_expander = cast(Gtk.Expander, Gtk.Template.Child())
@@ -229,11 +232,11 @@ class SourceExpander(
 
         self.plt_prop_widgets = [
             self.parent_plant_label,
-            self.parent_plant_eventbox,
+            self.parent_plants_box,
         ]
         self.prop_widgets = [
             self.propagation_label,
-            self.propagation_data_label,
+            self.propagation_data_box,
         ]
         self.collection_widgets = [
             self.collection_expander,
@@ -290,7 +293,50 @@ class SourceExpander(
             self.source_notes_data_label.set_label(str(row.source.notes))
 
     def update_propagation(self, row: Accession) -> None:
-        pass
+
+        for label in self.parent_plants_box.get_children():
+            label.destroy()
+
+        if not row.source.plant_propagation:
+            return
+
+        utils.unhide_widgets(self.plt_prop_widgets)
+
+        for plant_source in row.source.plant_propagation.plant_sources:
+            box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
+            event_box = Gtk.EventBox()
+            plant = plant_source.plant
+            label = Gtk.Label(label=str(plant))
+            event_box.add(label)
+            utils.make_label_clickable(
+                label,
+                on_clicked_select,
+                plant_source.plant,
+            )
+            label.set_tooltip_markup(
+                plant.accession.species_str(markup=True, authors=True)
+            )
+            box.add(event_box)
+
+            type_ = SOURCE_TYPES.get(plant_source.source_type)
+            material = SOURCE_MATERIALS.get(plant_source.source_material)
+            box.add(Gtk.Label(label=f" ({material} - {type_})"))
+            self.parent_plants_box.add(box)
+
+        self.parent_plants_box.show_all()
+
+        self.propagation_code_label.set_label(
+            row.source.plant_propagation.code or ""
+        )
+        utils.make_label_clickable(
+            self.propagation_code_label,
+            on_clicked_select,
+            row.source.plant_propagation,
+        )
+        self.propagation_data_label.set_label(
+            str(row.source.plant_propagation)
+        )
+        utils.unhide_widgets(self.prop_widgets)
 
     def update_collection(self, collection: Collection) -> None:
         self.locale_label.set_label(collection.locale or "")

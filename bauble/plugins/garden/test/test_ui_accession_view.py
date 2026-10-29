@@ -17,6 +17,7 @@
 """
 Accession search view tests
 """
+
 from bauble.test import BaubleTestCase
 
 from ...plants.test.test_plants import setUp_data as setup_plants_data
@@ -24,7 +25,6 @@ from ..accession import Accession
 from ..accession import IntendedLocation
 from ..location import Location
 from ..plant import Plant
-from ..propagation import Propagation
 from ..source import Source
 from ..test_garden import setUp_data as setup_garden_data
 from ..ui.accession_view import GeneralAccessionExpander
@@ -77,7 +77,6 @@ class InfoBoxTests(BaubleTestCase):
     def test_source_expander(self):
         setup_plants_data()
         setup_garden_data()
-        # at least tests nothing errors
         accessions = self.session.query(Accession).filter(
             Accession.id.in_((1, 2, 5, 7))
         )
@@ -99,11 +98,39 @@ class InfoBoxTests(BaubleTestCase):
                 )
             else:
                 self.assertFalse(expander.source_name_data_label.get_visible())
+            self.assertEqual(len(expander.parent_plants_box), 0)
 
         acc7 = self.session.get(Accession, 7)
         plt1 = self.session.get(Plant, 1)
-        acc7.source = Source(plant_propagation=plt1.propagations[0])
+        prop = plt1.propagations[0]
+        acc7.source = Source(plant_propagation=prop)
+
         expander.update(acc7)
 
+        self.assertEqual(len(expander.parent_plants_box), 1)
+        self.assertTrue(expander.parent_plants_box.get_visible())
 
+        plant_boxes = expander.parent_plants_box.get_children()
+        first_box = plant_boxes[0]
+        event_box = first_box.get_children()[0]
+        label = event_box.get_child()
+        type_label = first_box.get_children()[1]
 
+        self.assertEqual(label.get_label(), str(plt1))
+        self.assertEqual(type_label.get_label(), " (Seed - Primary)")
+        self.assertEqual(
+            expander.propagation_code_label.get_label(),
+            "2023S/1",
+        )
+        self.assertEqual(
+            expander.propagation_data_label.get_label(),
+            str(prop),
+        )
+
+        # back to no propagation source destroys and hides
+        acc1 = self.session.get(Accession, 1)
+
+        expander.update(acc1)
+
+        self.assertEqual(len(expander.parent_plants_box), 0)
+        self.assertFalse(expander.parent_plants_box.get_visible())

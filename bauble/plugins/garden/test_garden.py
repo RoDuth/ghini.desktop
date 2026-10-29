@@ -183,6 +183,7 @@ propagation_test_data = (
     {
         "id": 1,
         "species_id": 1,
+        "code": "2023S/1",
         "prop_type_id": 1,
         "quantity": 10,
         "media": "potting mix",
