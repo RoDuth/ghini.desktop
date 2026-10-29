@@ -38,7 +38,6 @@ from bauble import db
 from bauble import pb_set_fraction
 from bauble import prefs
 from bauble import task
-from bauble.btypes import parse_str_date
 from bauble.editor import GenericEditorPresenter
 from bauble.editor import GenericEditorView
 from bauble.editor import Problem
@@ -56,6 +55,7 @@ from bauble.plugins.garden.plant import (  # noqa pylint: disable=unused-import
 )
 from bauble.search.query_builder import SchemaMenu
 from bauble.ui import dialogs
+from bauble.utils import parse_str_date
 from bauble.utils.geo import ProjDB
 
 from .. import ExtraTypes

@@ -34,7 +34,7 @@ from sqlalchemy.orm.exc import DetachedInstanceError
 
 from bauble import db
 from bauble import prefs
-from bauble.btypes import parse_str_date
+from bauble.utils import parse_str_date
 
 from ...plant import Plant
 from ...plant import PlantChange

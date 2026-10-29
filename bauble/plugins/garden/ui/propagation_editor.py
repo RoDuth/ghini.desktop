@@ -42,7 +42,6 @@ from sqlalchemy.orm import Session
 
 from bauble import db
 from bauble import utils
-from bauble.btypes import parse_str_date
 from bauble.i18n import _
 from bauble.ui.handlers import ComboBoxHandler
 from bauble.ui.handlers import EntryHandler
@@ -106,7 +105,7 @@ class PropEventPresenter(GenericPresenter[PropEvent], Gtk.Frame):
     on_type_combo_changed = ComboBoxHandler(must_match=True)
     on_date_changed = EntryHandler(
         [Validator(validate_date, "invalid_date")],
-        lambda value, *_args: parse_str_date(value, as_date=True),
+        lambda value, *_args: utils.parse_str_date(value, as_date=True),
     )
     on_spin_button_changed = EntryHandler(
         converter=lambda value, *_args: int(value or 0),
@@ -499,7 +498,7 @@ class PropagationEditorDialog(
     on_type_combo_changed = ComboBoxHandler(must_match=True)
     on_date_changed = EntryHandler(
         [Validator(validate_date, "invalid_date")],
-        lambda value, *_args: parse_str_date(value, as_date=True),
+        lambda value, *_args: utils.parse_str_date(value, as_date=True),
     )
     on_completion_entry_matched = EntryWCompletionHandler(must_match=True)
 

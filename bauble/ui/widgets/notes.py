@@ -43,7 +43,6 @@ from sqlalchemy.orm import object_mapper
 from bauble import db
 from bauble import prefs
 from bauble import utils
-from bauble.btypes import parse_str_date
 from bauble.error import BaubleError
 from bauble.i18n import _
 from bauble.ui import dialogs
@@ -84,7 +83,7 @@ class NoteBox(GenericPresenter[db.Note], Gtk.Box):
 
     on_date_changed = EntryHandler(
         [Validator(validate_date, "invalid_date")],
-        lambda value, *_args: parse_str_date(value, as_date=True),
+        lambda value, *_args: utils.parse_str_date(value, as_date=True),
     )
 
     def __init__(self, model: db.Note) -> None:
@@ -210,7 +209,7 @@ class PictureBox(GenericPresenter[db.Note], Gtk.Box):
 
     on_date_changed = EntryHandler(
         [Validator(validate_date, "invalid_date")],
-        lambda value, *_args: parse_str_date(value, as_date=True),
+        lambda value, *_args: utils.parse_str_date(value, as_date=True),
     )
 
     last_folder = str(Path.home())
@@ -530,7 +529,7 @@ class DocumentBox(GenericPresenter[db.Note], Gtk.Box):
 
     on_date_changed = EntryHandler(
         [Validator(validate_date, "invalid_date")],
-        lambda value, *_args: parse_str_date(value, as_date=True),
+        lambda value, *_args: utils.parse_str_date(value, as_date=True),
     )
 
     last_folder = str(Path.home())
