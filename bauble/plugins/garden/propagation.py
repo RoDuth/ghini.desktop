@@ -626,7 +626,7 @@ class Propagation(db.Domain):
     @unused.expression  # type: ignore [no-redef]
     def unused(cls) -> ScalarSelect:
         # pylint: disable=no-self-argument
-        return cls.available - cls.used
+        return select(cls.available - cls.used).scalar_subquery()
 
     def __str__(self) -> str:
 

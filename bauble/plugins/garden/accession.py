@@ -2154,7 +2154,7 @@ class SourcePresenter(editor.GenericEditorPresenter):
                 self.source.notes or ""
             )
         else:
-            self.source = Source()
+            self.source = Source(accession=self.model)
             self.view.widgets.sources_code_entry.set_text("")
             self.view.widgets.source_notes_textbuffer.set_text("")
 
@@ -2180,6 +2180,9 @@ class SourcePresenter(editor.GenericEditorPresenter):
         # specific to this Source and not attached to any Plant
 
         # presenter that allows us to select an existing propagation
+        self.prop_chooser_presenter = PropagationChooserPresenter(
+            self, self.source, view, session
+        )
 
         # collection data
         self.collection_presenter = CollectionPresenter(
@@ -2282,11 +2285,13 @@ class SourcePresenter(editor.GenericEditorPresenter):
         return (
             self.problems
             | self.collection_presenter.problems
+            | self.prop_chooser_presenter.problems
         )
 
     def cleanup(self):
         super().cleanup()
         self.collection_presenter.cleanup()
+        self.prop_chooser_presenter.cleanup()
 
     def start(self):
         active = None
@@ -2300,6 +2305,7 @@ class SourcePresenter(editor.GenericEditorPresenter):
     def is_dirty(self):
         return (
             self._dirty
+            or self.prop_chooser_presenter.is_dirty()
             or self.collection_presenter.is_dirty()
         )
 
