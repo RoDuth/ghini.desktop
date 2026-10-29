@@ -321,9 +321,6 @@ class StoredQueriesButtonBox(Gtk.Box):
 
     query_button_box = cast(Gtk.Box, Gtk.Template.Child())
 
-    def __init__(self) -> None:
-        super().__init__()
-
     @Gtk.Template.Callback()
     def on_edit_button_clicked(self, _button: Gtk.Button) -> None:
         dialog = StoredQueriesDialog()
@@ -340,7 +337,10 @@ class StoredQueriesButtonBox(Gtk.Box):
         self.refresh()
 
     def refresh(self) -> None:
-        self.query_button_box.foreach(self.query_button_box.remove)
+
+        for widget in self.query_button_box.get_children():
+            widget.destroy()
+
         try:
             with db.Session() as session:
                 for stored_query in session.query(StoredQuery).order_by(

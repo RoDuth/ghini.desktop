@@ -301,6 +301,17 @@ class StoredQueriesButtonBoxTests(BaubleTestCase):
             button_box.query_button_box.get_children()[0].emit("clicked")
             mock_gui.send_command.assert_called_with(sq1.query)
 
+        sq2 = StoredQuery(
+            name="Test2",
+            description="Test description 2",
+            query="family where id=0",
+        )
+        self.session.add(sq2)
+        self.session.commit()
+        button_box.refresh()
+
+        self.assertEqual(len(button_box.query_button_box.get_children()), 2)
+
     def test_refresh_upgrades(self):
         # prior to v1.3.16 there was no stored_queries table, queries where in
         # the bauble meta table

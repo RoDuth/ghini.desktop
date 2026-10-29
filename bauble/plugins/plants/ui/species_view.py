@@ -80,7 +80,9 @@ class VernacularExpander(InfoExpander[Species], Gtk.Expander):
 
     def update(self, row: Species) -> None:
         self.set_sensitive(False)
-        self.box.foreach(self.box.remove)
+
+        for widget in self.box.get_children():
+            widget.destroy()
 
         names: list[tuple[str, str]] = []
 
@@ -381,7 +383,8 @@ class GeneralSpeciesExpander(
 
         self.map_event_box.update(row)
 
-        self.dist_details_box.foreach(self.dist_details_box.remove)
+        for widget in self.dist_details_box.get_children():
+            widget.destroy()
 
         if not row.distribution:
             return
@@ -412,7 +415,9 @@ class GeneralSpeciesExpander(
         self.dist_details_box.pack_start(expander, False, False, 0)
 
     def update_plant_locations(self, row: Species) -> None:
-        self.plant_locations_box.foreach(self.plant_locations_box.remove)
+
+        for widget in self.plant_locations_box.get_children():
+            widget.destroy()
 
         def plant_selector(data):
             acc, plt = data
@@ -453,7 +458,8 @@ class GeneralSpeciesExpander(
     def update_verifications(self, row: Species) -> None:
         from ...garden.accession import Verification
 
-        self.verifications_box.foreach(self.verifications_box.remove)
+        for widget in self.verifications_box.get_children():
+            widget.destroy()
 
         new = 0
         prev = 0

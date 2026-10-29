@@ -514,7 +514,10 @@ class DistributionMapEventBox(Gtk.EventBox):
         """Update the map image for the supplied row."""
         self.zoomed = False
         self.zoom_level = 1
-        self.foreach(self.remove)
+
+        for widget in self.get_children():
+            widget.destroy()
+
         ids = row.get_geography_ids()
         if not ids:
             return

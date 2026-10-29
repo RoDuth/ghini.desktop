@@ -109,13 +109,15 @@ class VernacularNamePresenter(Gtk.Frame):
 
     def notify_user_default_set(self) -> None:
 
+        for widget in self.revealer.get_children():
+            widget.destroy()
+
         msg = _(
             "This species has vernacular names but none have been "
             "selected as the default.\n\nThe first vernacular name in "
             "the list has been automatically selected."
         )
         message_box = MessageBox(msg)
-        self.revealer.foreach(self.revealer.remove)
         message_box.show_all()
         self.revealer.add(message_box)
         self.revealer.set_reveal_child(True)

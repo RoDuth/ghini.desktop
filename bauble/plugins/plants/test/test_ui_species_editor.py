@@ -209,6 +209,14 @@ class SpeciesEditorDialogTests(BaubleTestCase):
 
         mock_callback.assert_not_called()
 
+        # trigger again, destroys replaces
+        editor.check_synonym()
+        update_gui()
+
+        self.assertIsNot(editor.revealer.get_child(), child)
+
+        child = editor.revealer.get_child()
+
         # yes
         child.get_children()[1].get_children()[0].emit("clicked")
 

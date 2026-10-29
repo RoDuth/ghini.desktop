@@ -90,7 +90,9 @@ class GeneralGeographyExpander(
         self.label_name_label.set_label(row.label_name or "")
 
     def update_children(self, row: Geography) -> None:
-        self.children_box.foreach(self.children_box.remove)
+
+        for widget in self.children_box.get_children():
+            widget.destroy()
 
         for geo in row.children:
             child_lbl = Gtk.Label()

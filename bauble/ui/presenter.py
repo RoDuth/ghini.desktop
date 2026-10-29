@@ -219,6 +219,7 @@ class GenericPresenter[T]:
         *args,
         **kwargs,
     ) -> None:
+        self.model: T
 
         logger.debug("%s.__init__", type(self).__name__)
         self.widgets_to_model_map: dict[GObject.Object, str]
@@ -521,14 +522,15 @@ def generic_notify_delete_event(
 
     message_box = OkCancelMessageBox(msg, on_yes_clicked, on_no_clicked)
 
-    dialog.revealer.foreach(dialog.revealer.remove)
+    for widget in dialog.revealer.get_children():
+        widget.destroy()
 
     def _reveal():
         message_box.show_all()
         dialog.revealer.add(message_box)
         dialog.revealer.set_reveal_child(True)
 
-    # if replaceing existing in-app notifications allow them time to clear
+    # if replacing existing in-app notifications allow them time to clear
     # first so this one reveals again, makes this notification a little more
     # prominent
     GLib.timeout_add(50, _reveal)

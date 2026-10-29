@@ -97,7 +97,8 @@ class InstitutionDialog(
 
     def notify_no_institution(self) -> None:
 
-        self.revealer.foreach(self.revealer.remove)
+        for widget in self.revealer.get_children():
+            widget.destroy()
 
         msg = _("Please specify an institution name for this database.")
 

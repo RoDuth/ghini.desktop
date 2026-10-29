@@ -123,6 +123,11 @@ class PlantEditorDialogTests(BaubleTestCase):
 
         self.assertTrue(editor.note_book.get_sensitive())
 
+        # destroys and replaces
+        editor.notify_is_dead()
+
+        self.assertIsNot(editor.revealer.get_child(), child)
+
         editor.destroy()
 
     def test_init_new(self):

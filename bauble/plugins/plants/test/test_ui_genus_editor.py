@@ -126,6 +126,14 @@ class GenusEditorDialogTests(BaubleTestCase):
 
         mock_callback.assert_not_called()
 
+        # trigger again, destroys replaces
+        editor.check_synonym()
+        update_gui()
+
+        self.assertIsNot(editor.revealer.get_child(), child)
+
+        child = editor.revealer.get_child()
+
         # yes
         child.get_children()[1].get_children()[0].emit("clicked")
 
@@ -223,7 +231,13 @@ class GenusEditorDialogTests(BaubleTestCase):
 
         # yes
         editor.family_entry.set_text("")
-        editor.family_entry.set_text("Malvaceae")
+        editor.family_entry.set_text("Sterculiaceae")
+        update_gui()
+
+        child = editor.revealer.get_child()
+
+        self.assertIsInstance(child, YesNoMessageBox)
+
         child.get_children()[1].get_children()[0].emit("clicked")
         self.assertEqual(editor.family_entry.get_text(), "Malvaceae")
 
@@ -329,6 +343,10 @@ class GenusEditorDialogTests(BaubleTestCase):
         editor.genus_entry.set_text("")
         editor.genus_entry.set_text("Sterculia")
         update_gui()
+        child = editor.revealer.get_child()
+
+        self.assertIsInstance(child, YesNoMessageBox)
+
         child.get_children()[1].get_children()[0].emit("clicked")
 
         mock_callback.assert_called_once()

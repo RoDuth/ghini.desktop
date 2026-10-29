@@ -143,6 +143,10 @@ class LocationEditorDialog(
         super().on_unique_text_entry_changed(entry)
 
     def notify_existing_location(self, existing: Location) -> None:
+
+        for widget in self.revealer.get_children():
+            widget.destroy()
+
         modal = self.get_modal()
 
         def on_yes_clicked(_button: Gtk.Button) -> None:
@@ -176,7 +180,6 @@ class LocationEditorDialog(
 
         message_box = YesNoMessageBox(msg, on_yes_clicked, on_no_clicked)
 
-        self.revealer.foreach(self.revealer.remove)
         message_box.show_all()
         self.revealer.add(message_box)
         self.revealer.set_reveal_child(True)

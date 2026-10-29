@@ -78,7 +78,6 @@ from ..species import Species
 from ..species import SpeciesSynonym
 from ..species import VernacularName
 from .widgets import SynonymsPresenter
-from .widgets import taxon_completion_cell_data_func
 from .widgets.distribution import DistributionPresenter
 from .widgets.genus import genus_cell_data_func
 from .widgets.genus import genus_match_func
@@ -641,6 +640,9 @@ class SpeciesEditorDialog(
             logger.debug("%s is a synonym of %s", value, value.accepted)
 
     def notify_genus_is_synonym(self, genus: Genus) -> None:
+        for widget in self.revealer.get_children():
+            widget.destroy()
+
         def on_yes_clicked(_button: Gtk.Button) -> None:
             self.revealer.set_reveal_child(False)
             genus_completion = self.genus_entry.get_completion()
@@ -677,7 +679,6 @@ class SpeciesEditorDialog(
             on_yes_clicked,
             on_no_clicked,
         )
-        self.revealer.foreach(self.revealer.remove)
         message_box.show_all()
         self.revealer.add(message_box)
         self.revealer.set_reveal_child(True)
@@ -874,6 +875,9 @@ class SpeciesEditorDialog(
             GLib.idle_add(self.notify_is_synonym, self.model.accepted)
 
     def notify_is_synonym(self, accepted: Species) -> None:
+        for widget in self.revealer.get_children():
+            widget.destroy()
+
         def on_yes_clicked(_button: Gtk.Button) -> None:
             self.revealer.set_reveal_child(False)
             self.emit("response", Response.CANCEL)
@@ -895,7 +899,6 @@ class SpeciesEditorDialog(
 
         message_box = YesNoMessageBox(msg, on_yes_clicked, on_no_clicked)
 
-        self.revealer.foreach(self.revealer.remove)
         message_box.show_all()
         self.revealer.add(message_box)
         self.revealer.set_reveal_child(True)
@@ -960,6 +963,9 @@ class SpeciesEditorDialog(
             GLib.idle_add(self.notify_existing_species, existing)
 
     def notify_existing_species(self, existing: Species) -> None:
+        for widget in self.revealer.get_children():
+            widget.destroy()
+
         def on_yes_clicked(_button: Gtk.Button) -> None:
             self.revealer.set_reveal_child(False)
             self.emit("response", Response.CANCEL)
@@ -978,7 +984,6 @@ class SpeciesEditorDialog(
 
         message_box = YesNoMessageBox(msg, on_yes_clicked, on_no_clicked)
 
-        self.revealer.foreach(self.revealer.remove)
         message_box.show_all()
         self.revealer.add(message_box)
         self.revealer.set_reveal_child(True)

@@ -333,6 +333,9 @@ class PlantEditorDialog(
 
     def notify_is_dead(self) -> None:
 
+        for widget in self.revealer.get_children():
+            widget.destroy()
+
         def on_yes_clicked(_button: Gtk.Button) -> None:
             self.revealer.set_reveal_child(False)
             self.note_book.set_sensitive(True)
@@ -352,7 +355,6 @@ class PlantEditorDialog(
             on_yes_clicked,
             on_no_clicked,
         )
-        self.revealer.foreach(self.revealer.remove)
         message_box.show_all()
         self.revealer.add(message_box)
         self.revealer.set_reveal_child(True)

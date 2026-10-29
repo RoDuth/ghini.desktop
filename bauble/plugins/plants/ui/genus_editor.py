@@ -240,6 +240,10 @@ class GenusEditorDialog(
             logger.debug("%s is a synonym of %s", value, value.accepted)
 
     def notify_fam_is_synonym(self, family: Family) -> None:
+
+        for widget in self.revealer.get_children():
+            widget.destroy()
+
         def on_yes_clicked(_button: Gtk.Button) -> None:
             self.revealer.set_reveal_child(False)
             family_completion = self.family_entry.get_completion()
@@ -276,7 +280,6 @@ class GenusEditorDialog(
             on_yes_clicked,
             on_no_clicked,
         )
-        self.revealer.foreach(self.revealer.remove)
         message_box.show_all()
         self.revealer.add(message_box)
         self.revealer.set_reveal_child(True)
@@ -438,6 +441,9 @@ class GenusEditorDialog(
     def notify_existing_genus(self, existing: Genus) -> None:
         modal = self.get_modal()
 
+        for widget in self.revealer.get_children():
+            widget.destroy()
+
         def on_yes_clicked(_button: Gtk.Button) -> None:
             self.revealer.set_reveal_child(False)
 
@@ -471,7 +477,6 @@ class GenusEditorDialog(
 
         message_box = YesNoMessageBox(msg, on_yes_clicked, on_no_clicked)
 
-        self.revealer.foreach(self.revealer.remove)
         message_box.show_all()
         self.revealer.add(message_box)
         self.revealer.set_reveal_child(True)
@@ -518,6 +523,10 @@ class GenusEditorDialog(
             GLib.idle_add(self.notify_is_synonym, self.model.accepted)
 
     def notify_is_synonym(self, accepted: Genus) -> None:
+
+        for widget in self.revealer.get_children():
+            widget.destroy()
+
         def on_yes_clicked(_button: Gtk.Button) -> None:
             self.revealer.set_reveal_child(False)
             self.emit("response", Response.CANCEL)
@@ -537,7 +546,6 @@ class GenusEditorDialog(
 
         message_box = YesNoMessageBox(msg, on_yes_clicked, on_no_clicked)
 
-        self.revealer.foreach(self.revealer.remove)
         message_box.show_all()
         self.revealer.add(message_box)
         self.revealer.set_reveal_child(True)

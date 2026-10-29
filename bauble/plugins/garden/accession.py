@@ -2612,13 +2612,19 @@ class AccessionEditorPresenter(editor.GenericEditorPresenter):
             self, self.model, self.view, self.session
         )
         documents_parent = self.view.widgets.document_parent_box
-        documents_parent.foreach(documents_parent.remove)
+
+        for widget in documents_parent.get_children():
+            widget.destroy()
+
         self.documents_presenter = editor.DocumentsPresenter(
             self, "documents", documents_parent
         )
 
         notes_parent = self.view.widgets.notes_parent_box
-        notes_parent.foreach(notes_parent.remove)
+
+        for widget in notes_parent.get_children():
+            widget.destroy()
+
         self.notes_presenter = editor.NotesPresenter(
             self, "notes", notes_parent
         )

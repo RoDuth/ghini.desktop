@@ -71,6 +71,11 @@ class InstitutionDialogTests(BaubleTestCase):
             "Please specify an institution name for this database.",
         )
 
+        # destroys and replaces
+        dialog.notify_no_institution()
+
+        self.assertIsNot(message_box, dialog.revealer.get_child())
+
         dialog.destroy()
 
     def test_setting_name_empty_is_a_problem(self):

@@ -109,6 +109,16 @@ class FamilyEditorDialogTests(BaubleTestCase):
 
         mock_callback.assert_not_called()
 
+        # trigger again, destroys replaces
+        editor.check_synonym()
+        update_gui()
+
+        self.assertIsNot(editor.revealer.get_child(), child)
+
+        child = editor.revealer.get_child()
+
+        self.assertIsInstance(child, YesNoMessageBox)
+
         # yes
         child.get_children()[1].get_children()[0].emit("clicked")
 
@@ -234,6 +244,10 @@ class FamilyEditorDialogTests(BaubleTestCase):
         editor.family_entry.set_text("")
         editor.family_entry.set_text("Myrtaceae")
         update_gui()
+        child = editor.revealer.get_child()
+
+        self.assertIsInstance(child, YesNoMessageBox)
+
         child.get_children()[1].get_children()[0].emit("clicked")
 
         mock_callback.assert_called_once()

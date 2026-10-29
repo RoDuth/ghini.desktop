@@ -1473,6 +1473,13 @@ class VernacularNamePresenterTests(BaubleTestCase):
 
         child.get_children()[0].get_children()[0].emit("clicked")
         self.assertFalse(revealer.get_reveal_child())
+
+        # tigger again, destroys replaces
+        presenter.notify_user_default_set()
+
+        self.assertIsNot(revealer.get_child(), child)
+        self.assertIsInstance(revealer.get_child(), MessageBox)
+
         presenter.destroy()
 
     def test__name_edit_start(self):

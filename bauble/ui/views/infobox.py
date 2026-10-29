@@ -380,7 +380,8 @@ class LinksExpander(InfoExpander[db.Domain], Gtk.Expander):
         for btn in self.web_links:
             btn.set_string(row)
 
-        self.notes_links_box.foreach(self.notes_links_box.remove)
+        for widget in self.notes_links_box.get_children():
+            widget.destroy()
 
         if self.notes:
             for note in getattr(row, self.notes):

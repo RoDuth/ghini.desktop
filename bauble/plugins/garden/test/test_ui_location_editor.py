@@ -228,6 +228,11 @@ class LocationEditorDialogTests(BaubleTestCase):
         editor.code_entry.set_text("")
         editor.code_entry.set_text("LOC1")
         update_gui()
+
+        child = editor.revealer.get_child()
+
+        self.assertIsInstance(child, YesNoMessageBox)
+
         child.get_children()[1].get_children()[0].emit("clicked")
 
         mock_callback.assert_called_once()

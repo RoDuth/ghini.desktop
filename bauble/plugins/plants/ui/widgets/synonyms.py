@@ -90,7 +90,9 @@ class SynonymsExpander[T: Taxon](InfoExpander[T], Gtk.Expander):
     def update(self, row: T) -> None:
         self.set_label(_("Synonyms"))
         self.set_sensitive(False)
-        self.box.foreach(self.box.remove)
+
+        for widget in self.box.get_children():
+            widget.destroy()
 
         if row.accepted is not None:
             self.set_label(_("Accepted name"))

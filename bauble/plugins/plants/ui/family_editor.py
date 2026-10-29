@@ -196,6 +196,10 @@ class FamilyEditorDialog(
         self.on_family_author_entry_changed(entry)
 
     def notify_existing_family(self, existing: Family) -> None:
+
+        for widget in self.revealer.get_children():
+            widget.destroy()
+
         modal = self.get_modal()
 
         def on_yes_clicked(_button: Gtk.Button) -> None:
@@ -230,7 +234,6 @@ class FamilyEditorDialog(
 
         message_box = YesNoMessageBox(msg, on_yes_clicked, on_no_clicked)
 
-        self.revealer.foreach(self.revealer.remove)
         message_box.show_all()
         self.revealer.add(message_box)
         self.revealer.set_reveal_child(True)
@@ -305,7 +308,11 @@ class FamilyEditorDialog(
         if self.model.accepted:
             GLib.idle_add(self.notify_is_synonym, self.model.accepted)
 
-    def notify_is_synonym(self, accepted: Genus) -> None:
+    def notify_is_synonym(self, accepted: Family) -> None:
+
+        for widget in self.revealer.get_children():
+            widget.destroy()
+
         def on_yes_clicked(_button: Gtk.Button) -> None:
             self.revealer.set_reveal_child(False)
             self.emit("response", Response.CANCEL)
@@ -325,7 +332,6 @@ class FamilyEditorDialog(
 
         message_box = YesNoMessageBox(msg, on_yes_clicked, on_no_clicked)
 
-        self.revealer.foreach(self.revealer.remove)
         message_box.show_all()
         self.revealer.add(message_box)
         self.revealer.set_reveal_child(True)
