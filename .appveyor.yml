@@ -70,20 +70,9 @@ for:
     - bash -lc "pacman --noconfirm -Syuu"  # Core update.  see: https://msys2.org/docs/ci/
     - bash -lc "pacman --noconfirm -Syuu"  # Normal update
     - bash -lc "pacman --noconfirm --needed -S - < ./scripts/mingw64_pkglist.txt"
-    # TEMP FIX for gspell - enchant
-    - bash -lc "mkdir enchant"
-    - bash -lc "cd enchant && curl -O https://raw.githubusercontent.com/RoDuth/MINGW-packages/refs/heads/enchant_set_prefix_dir_fix/mingw-w64-enchant/PKGBUILD"
-    - bash -lc "cd enchant && makepkg-mingw --cleanbuild --syncdeps --nocheck --force --install --noconfirm"
-    - bash -lc "mkdir gspell"
-    - bash -lc "cd gspell && curl -O https://raw.githubusercontent.com/RoDuth/MINGW-packages/refs/heads/enchant_set_prefix_dir_fix/mingw-w64-gspell/PKGBUILD"
-    - bash -lc "cd gspell && makepkg-mingw --cleanbuild --syncdeps --nocheck --force --install --noconfirm"
     # END
     - bash -lc "python --version"
     - dir %WINDIR%\System32\msodbcsql*.dll
-    # wheels cache
-    - bash -lc "pip wheel dukpy==0.5.1 --wheel-dir wheels --find-links wheels"
-    - bash -lc "pip wheel 'SQLAlchemy<2.0' --wheel-dir wheels --find-links wheels"
-    - dir wheels
 
   build_script:
     - bash -lc "pip install '.[ci]' --find-links wheels"
@@ -104,8 +93,14 @@ for:
     - bash -lc "coverage report"
     - bash -lc "coveralls"
   cache:
-    - wheels -> requirements.txt, ci-requirements.txt
+    # pip downloads and wheels
+    - '%LOCALAPPDATA%ip\Cache\http-v2 -> requirements.txt, ci-requirements.txt'
+    - '%LOCALAPPDATA%\pip\Cache\wheels -> requirements.txt, ci-requirements.txt'
+    # MSYS2 downloaded .pkg.tar.zst installers
+    - C:\msys64\var\cache\pacman\pkg -> ./scripts/mingw64_pkglist.txt
+    # fop
     - 'fop-%fop_ver% -> scripts\get_fop.sh'
+    # java
     - jre -> scripts\get_fop.sh
 -
   matrix:
@@ -123,10 +118,6 @@ for:
     - bash -lc "pacman --noconfirm --needed -S - < ./scripts/mingw64_pkglist.txt"
     - bash -lc "python --version"
     - dir %WINDIR%\System32\msodbcsql*.dll
-    # wheels cache
-    - bash -lc "pip wheel dukpy==0.5.1 --wheel-dir wheels --find-links wheels"
-    - bash -lc "pip wheel 'SQLAlchemy<2.0' --wheel-dir wheels --find-links wheels"
-    - dir wheels
 
   build_script:
     - bash -lc "pip install '.[ci]' --find-links wheels"
@@ -134,7 +125,11 @@ for:
   test_script:
     - bash -lc "BAUBLE_TEST_DB_URI='mssql://sa:Password12!@localhost:1433/master?driver=ODBC+Driver+17+for+SQL+Server&MARS_Connection=Yes' python -m pytest -sv"
   cache:
-    - wheels -> requirements.txt, ci-requirements.txt
+    # pip downloads and wheels
+    - '%LOCALAPPDATA%ip\Cache\http-v2 -> requirements.txt, ci-requirements.txt'
+    - '%LOCALAPPDATA%\pip\Cache\wheels -> requirements.txt, ci-requirements.txt'
+    # MSYS2 downloaded .pkg.tar.zst installers
+    - C:\msys64\var\cache\pacman\pkg -> ./scripts/mingw64_pkglist.txt
 
 deploy:
   provider: GitHub
