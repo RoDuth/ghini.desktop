@@ -313,23 +313,27 @@ class PropagationBoxTests(BaubleTestCase):
 
         box = PropagationBox(prop)
 
-        self.assertEqual(len(box.get_children()), 3)
+        self.assertEqual(len(box.get_children()), 4)
         self.assertEqual(
             box.get_children()[0].get_label(),
             "<b>01-01-2001</b>",
         )
         self.assertEqual(
-            box.get_children()[1].get_label(),
+            box.get_children()[1].get_child().get_label(),
+            "2001S/1",
+        )
+        self.assertEqual(
+            box.get_children()[2].get_label(),
             "Seed; propagated by Jade Green on 01-01-2001; "
             "Media: potting mix; Container: 140; Location: table 3; Notes: "
             "spam, spam, spam and eggs",
         )
         self.assertEqual(
-            box.get_children()[2].get_children()[0].get_label(),
+            box.get_children()[3].get_children()[0].get_label(),
             "Parent of:",
         )
         self.assertEqual(
-            box.get_children()[2].get_children()[1].get_child().get_label(),
+            box.get_children()[3].get_children()[1].get_child().get_label(),
             "2025.0001",
         )
 

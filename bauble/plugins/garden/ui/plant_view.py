@@ -87,7 +87,9 @@ class GeneralPlantExpander(
 
         self.acc_code_label.set_markup(f"<big>{utils.xml_safe(head)}</big>")
         self.plant_code_label.set_markup(f"<big>{utils.xml_safe(tail)}</big>")
-        self.name_label.set_markup(row.accession.species_str(markup=True))
+        self.name_label.set_markup(
+            row.accession.species_str(markup=True, authors=True)
+        )
         self.location_label.set_label(utils.xml_safe(row.location))
         self.quantity_label.set_label(str(row.quantity))
 
@@ -251,7 +253,8 @@ class ChangesExpander(
         self.add(self.vbox)
 
     def update(self, row: Plant) -> None:
-        self.vbox.foreach(self.vbox.remove)
+        for widget in self.vbox.get_children():
+            widget.destroy()
 
         if not row.changes:
             self.set_sensitive(False)
@@ -276,6 +279,7 @@ class PropagationBox(Gtk.Box):
         super().__init__(orientation=Gtk.Orientation.VERTICAL)
         self.prop = prop
         self.add_date_label()
+        self.add_code_label()
         self.add_summary_label()
 
         if prop.accessions:
@@ -289,6 +293,24 @@ class PropagationBox(Gtk.Box):
         date_lbl.set_yalign(0.0)
 
         self.add(date_lbl)
+
+    def add_code_label(self) -> None:
+        event_box = Gtk.EventBox()
+        summary_label = Gtk.Label()
+        summary_label.set_text(self.prop.code or "")
+        summary_label.set_line_wrap(True)
+        summary_label.set_xalign(0.0)
+        summary_label.set_yalign(0.0)
+        summary_label.set_size_request(-1, -1)
+
+        event_box.add(summary_label)
+        utils.make_label_clickable(
+            summary_label,
+            on_clicked_select,
+            self.prop,
+        )
+
+        self.add(event_box)
 
     def add_summary_label(self) -> None:
         summary_label = Gtk.Label()
@@ -343,7 +365,8 @@ class PropagationExpander(
         self.add(self.vbox)
 
     def update(self, row: Plant) -> None:
-        self.vbox.foreach(self.vbox.remove)
+        for widget in self.vbox.get_children():
+            widget.destroy()
 
         if not row.propagations:
             self.set_sensitive(False)
