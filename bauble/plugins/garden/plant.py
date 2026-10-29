@@ -75,12 +75,12 @@ from .propagation import Propagation
 PLANT_DELIMITER_KEY = "plant_delimiter"
 DEFAULT_PLANT_DELIMITER = "."
 PLANT_CODE_FORMAT_KEY = "plant_code_format"
+DEFAULT_PLANT_CODE_FORMAT = "digits"
 """
 Meta key for plant code format.
 
 Values: 'alpha_lower', 'alpha_upper', 'digits'
 """
-DEFAULT_PLANT_CODE_FORMAT = "digits"
 
 
 # def branch_callback(objs: Sequence["Plant"], **kwargs) -> bool:
@@ -152,7 +152,8 @@ def get_next_code(acc: Accession) -> str:
     """
     frmt: str | None = None
     frmt_meta = meta.get_default(
-        PLANT_CODE_FORMAT_KEY, DEFAULT_PLANT_CODE_FORMAT
+        PLANT_CODE_FORMAT_KEY,
+        DEFAULT_PLANT_CODE_FORMAT,
     )
 
     if frmt_meta:
