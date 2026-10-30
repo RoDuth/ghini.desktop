@@ -36,6 +36,8 @@ from ..plant import Plant
 from ..propagation import START_DEFAULT_EVENT_TYPES
 from ..propagation import START_DEFAULT_PROP_TYPES
 from ..propagation import Propagation
+from ..propagation import PropagationNote
+from ..propagation import PropagationPicture
 from ..propagation import PropEvent
 from ..propagation import PropEventType
 from ..propagation import PropType
@@ -615,6 +617,206 @@ class PropagationTests(BaubleTestCase):
         part1 = f'2026S/1 <span weight="light">- Jade Green {date}</span>'
         part2 = f"{prop.species.markup()}  - Available: 0"
         self.assertEqual(prop.search_view_markup_pair(), (part1, part2))
+
+
+class PropagationUpdatedTests(BaubleTestCase):
+    def setUp(self):
+        super().setUp()
+        populate_default_prop_types()
+        populate_default_event_types()
+        location = Location(code="LOC1")
+        family = Family(family="Myrtaceae")
+        genus = Genus(family=family, genus="Syzygium")
+        self.species = Species(genus=genus, sp="australe")
+        self.accession = Accession(code="2001.0001", species=self.species)
+        self.plant = Plant(
+            code="1",
+            accession=self.accession,
+            quantity=5,
+            location=location,
+        )
+        self.session.add(self.plant)
+        self.session.commit()
+        self.seed = self.session.scalars(
+            select(PropType).filter_by(code="S")
+        ).one()
+
+    def test_updated_self(self):
+        prop = Propagation(
+            species=self.species,
+            code="2026S/1",
+            date=datetime(2026, 1, 1),
+            propagator="Jade Green",
+            media="potting mix",
+            container="140mm",
+            location="table 3",
+            prop_notes="Fresh, washed, seed.",
+            prop_type=self.seed,
+            plants=[self.plant],
+        )
+        self.session.add(prop)
+        self.session.commit()
+
+        self.assertIs(
+            self.session.scalar(
+                select(Propagation).where(Propagation.updated > "Today")
+            ),
+            prop,
+        )
+
+        # the python function
+        self.assertEqual(prop.updated, prop._last_updated)
+
+        date = datetime(2001, 1, 1, 0)
+        prop._last_updated = date
+        self.session.commit()
+
+        self.assertIs(
+            self.session.scalar(
+                select(Propagation).where(Propagation.updated == date)
+            ),
+            prop,
+        )
+
+        # the python function
+        self.assertEqual(prop.updated, prop._last_updated)
+
+    def test_updated_notes(self):
+        date = datetime(2001, 1, 1, 0)
+        prop = Propagation(
+            species=self.species,
+            code="2026S/1",
+            date=datetime(2026, 1, 1),
+            propagator="Jade Green",
+            media="potting mix",
+            container="140mm",
+            location="table 3",
+            prop_notes="Fresh, washed, seed.",
+            prop_type=self.seed,
+            plants=[self.plant],
+            _last_updated=date,
+        )
+        note = PropagationNote(category="Spam", note="Eggs", propagation=prop)
+        self.session.add(prop)
+        self.session.commit()
+
+        self.assertIs(
+            self.session.scalar(
+                select(Propagation).where(Propagation.updated > "Today")
+            ),
+            prop,
+        )
+
+        # the python function
+        self.assertEqual(prop.updated, note._last_updated)
+
+        note._last_updated = date
+        self.session.commit()
+
+        self.assertIs(
+            self.session.scalar(
+                select(Propagation).where(Propagation.updated == date)
+            ),
+            prop,
+        )
+
+        # the python function
+        self.assertEqual(prop.updated, prop._last_updated)
+
+    def test_updated_pictures(self):
+        date = datetime(2001, 1, 1, 0)
+        prop = Propagation(
+            species=self.species,
+            code="2026S/1",
+            date=datetime(2026, 1, 1),
+            propagator="Jade Green",
+            media="potting mix",
+            container="140mm",
+            location="table 3",
+            prop_notes="Fresh, washed, seed.",
+            prop_type=self.seed,
+            plants=[self.plant],
+            _last_updated=date,
+        )
+        pic = PropagationPicture(
+            category="Spam",
+            picture="eggs.png",
+            propagation=prop,
+        )
+        self.session.add(prop)
+        self.session.commit()
+
+        self.assertIs(
+            self.session.scalar(
+                select(Propagation).where(Propagation.updated > "Today")
+            ),
+            prop,
+        )
+
+        # the python function
+        self.assertEqual(prop.updated, pic._last_updated)
+
+        pic._last_updated = date
+        self.session.commit()
+
+        self.assertIs(
+            self.session.scalar(
+                select(Propagation).where(Propagation.updated == date)
+            ),
+            prop,
+        )
+
+        # the python function
+        self.assertEqual(prop.updated, prop._last_updated)
+
+    def test_updated_events(self):
+        date = datetime(2001, 1, 1)
+        prop = Propagation(
+            species=self.species,
+            code="2026S/1",
+            date=datetime(2026, 1, 1),
+            propagator="Jade Green",
+            media="potting mix",
+            container="140mm",
+            location="table 3",
+            prop_notes="Fresh, washed, seed.",
+            prop_type=self.seed,
+            plants=[self.plant],
+            _last_updated=date,
+        )
+        event = PropEvent(
+            date=datetime(2000, 1, 1).date(),
+            person="Jade Green",
+            quantity=10,
+            event_notes="First batch",
+            event_type_id=1,
+        )
+        prop.events.append(event)
+        self.session.add(prop)
+        self.session.commit()
+
+        self.assertIs(
+            self.session.scalar(
+                select(Propagation).where(Propagation.updated > "Today")
+            ),
+            prop,
+        )
+
+        # the python function
+        self.assertEqual(prop.updated, event._last_updated)
+
+        event._last_updated = date
+        self.session.commit()
+
+        self.assertIs(
+            self.session.scalar(
+                select(Propagation).where(Propagation.updated == date)
+            ),
+            prop,
+        )
+
+        # the python function
+        self.assertEqual(prop.updated, prop._last_updated)
 
 
 class FunctionTests(BaubleTestCase):

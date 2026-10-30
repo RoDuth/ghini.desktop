@@ -42,6 +42,7 @@ from sqlalchemy import case
 from sqlalchemy import cast
 from sqlalchemy import func
 from sqlalchemy import select
+from sqlalchemy import union
 from sqlalchemy.ext.associationproxy import association_proxy
 from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.orm import Mapped
@@ -693,3 +694,44 @@ class Propagation(db.Domain):
 
             return f"{self.date.year}{self.prop_type.code}/{prop_num}"
         return ""
+
+    @hybrid_property
+    def updated(self) -> datetime.datetime:
+        updates = [self._last_updated]
+
+        if self.notes:
+            updates.append(max(i._last_updated for i in self.notes))
+
+        if self.pictures:
+            updates.append(max(i._last_updated for i in self.pictures))
+
+        if self.events:
+            updates.append(max(i._last_updated for i in self.events))
+
+        return max(updates)
+
+    @updated.expression  # type: ignore [no-redef]
+    def updated(cls) -> types.DateTime:
+        # pylint: disable=no-self-argument,no-self-use,arguments-renamed
+        self_select = select([cls._last_updated, cls.id])
+
+        note_select = select([PropagationNote._last_updated, cls.id]).join(cls)
+
+        pic_select = select([PropagationPicture._last_updated, cls.id]).join(
+            cls
+        )
+
+        event_select = select([PropEvent._last_updated, cls.id]).join(cls)
+
+        dates = union(
+            self_select,
+            note_select,
+            pic_select,
+            event_select,
+        ).alias("dates")
+
+        return (
+            select([func.max(dates.c._last_updated)])
+            .where(dates.c.id == cls.id)
+            .label("updated")
+        )
