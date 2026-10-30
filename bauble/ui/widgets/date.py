@@ -390,6 +390,10 @@ class DatePickerBox(Gtk.Box):
         """
         year, month, day = self.button.calendar.get_date()
         month += 1
+        # Ensure valid date:
+        # i.e. month-changed signal handler - day is the day prior to month
+        # change, exceeding the selected months range, causing a ValueError
+        day = min((day, monthrange(year, month)[1]))
 
         return dt_date(year, month, day)
 
