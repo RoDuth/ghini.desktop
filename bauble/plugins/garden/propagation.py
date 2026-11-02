@@ -38,9 +38,11 @@ from sqlalchemy import ForeignKey
 from sqlalchemy import Integer
 from sqlalchemy import String
 from sqlalchemy import UniqueConstraint
+from sqlalchemy import and_
 from sqlalchemy import case
 from sqlalchemy import cast
 from sqlalchemy import func
+from sqlalchemy import or_
 from sqlalchemy import select
 from sqlalchemy import union
 from sqlalchemy.ext.associationproxy import association_proxy
@@ -462,6 +464,16 @@ class Propagation(db.Domain):
         )
 
     @hybrid_property
+    def remaining_quantity(self) -> int:
+        """Total of quantity, excluding available."""
+        return self.quantity - self.total_success
+
+    @remaining_quantity.expression  # type: ignore [no-redef]
+    def remaining_quantity(cls) -> ScalarSelect:
+        # pylint: disable=no-self-argument
+        return cls.quantity - cls.total_success
+
+    @hybrid_property
     def culled_quantity(self) -> int:
         """The amount culled from the starting quantity, prior to success."""
         return abs(
@@ -510,12 +522,12 @@ class Propagation(db.Domain):
     @hybrid_property
     def remaining_success(self) -> int:
         """Total of success, excluding available."""
-        return self.success - self.available
+        return self.success - self.made_available
 
     @remaining_success.expression  # type: ignore [no-redef]
     def remaining_success(cls) -> int:
         # pylint: disable=no-self-argument
-        return cls.success - cls.available
+        return cls.success - cls.made_available
 
     @hybrid_property
     def culled_success(self) -> int:
@@ -627,7 +639,7 @@ class Propagation(db.Domain):
     @unused.expression  # type: ignore [no-redef]
     def unused(cls) -> ScalarSelect:
         # pylint: disable=no-self-argument
-        return select(cls.available - cls.used).scalar_subquery()
+        return cls.available - cls.used
 
     def __str__(self) -> str:
 
@@ -734,4 +746,52 @@ class Propagation(db.Domain):
             select([func.max(dates.c._last_updated)])
             .where(dates.c.id == cls.id)
             .label("updated")
+        )
+
+    @hybrid_property
+    def active(self) -> bool:
+        """False when all accessions are inactive or the propagation has been
+        completely culled and discarded, True otherwise.
+        """
+        if len(self.events) == 0:
+            return True
+
+        for accession in self.accessions:
+            if accession.active:
+                return True
+
+        # pylint: disable=comparison-with-callable
+        has_remaining = any(
+            (
+                self.unused > 0,
+                self.remaining_quantity > 0,
+                self.remaining_success > 0,
+            )
+        )
+
+        return has_remaining
+
+    @active.expression  # type: ignore [no-redef]
+    def active(cls) -> ColumnElement[types.Boolean]:
+        # pylint: disable=no-self-argument,arguments-renamed
+        from .accession import Accession
+
+        # pylint: disable=comparison-with-callable,no-member
+        return cast(
+            case(
+                [
+                    (~cls.events.any(), 1),
+                    (cls.accessions.any(Accession.active.is_(True)), 1),
+                    (
+                        or_(
+                            cls.unused > 0,
+                            cls.remaining_quantity > 0,
+                            cls.remaining_success > 0,
+                        ),
+                        1,
+                    ),
+                ],
+                else_=0,
+            ),
+            types.Boolean,
         )

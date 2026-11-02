@@ -1050,7 +1050,7 @@ class PropEventPresenterTests(BaubleTestCase):
 
         presenter.destroy()
 
-    def test_constrian_widgets(self):
+    def test_constrain_widgets(self):
         success = self.session.scalar(
             select(PropEventType).filter_by(code="SUCC")
         )

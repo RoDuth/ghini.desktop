@@ -47,6 +47,7 @@ from ..propagation import populate_default_prop_types
 SELECT_STMTS = {
     "quantity": select(Propagation.quantity),
     "total_quantity": select(Propagation.total_quantity),
+    "remaining_quantity": select(Propagation.remaining_quantity),
     "culled_quantity": select(Propagation.culled_quantity),
     "success": select(Propagation.success),
     "total_success": select(Propagation.total_success),
@@ -62,9 +63,10 @@ SELECT_STMTS = {
 
 
 @dataclass
-class PropHybridsChecker:
+class PropHybridsChecker:  # pylint: disable=too-many-instance-attributes
     quantity: int = 0
     total_quantity: int = 0
+    remaining_quantity: int = 0
     culled_quantity: int = 0
     success: int = 0
     total_success: int = 0
@@ -302,6 +304,7 @@ class PropagationTests(BaubleTestCase):
             prop,
             quantity=10,
             total_quantity=10,
+            remaining_quantity=10,
         )
         self.assertTrue(result, message)
 
@@ -319,6 +322,7 @@ class PropagationTests(BaubleTestCase):
             prop,
             quantity=10,
             total_quantity=10,
+            remaining_quantity=1,
             success=9,
             total_success=9,
             remaining_success=9,
@@ -340,6 +344,7 @@ class PropagationTests(BaubleTestCase):
             prop,
             quantity=10,
             total_quantity=10,
+            remaining_quantity=0,
             success=10,
             total_success=10,
             remaining_success=10,
@@ -390,6 +395,7 @@ class PropagationTests(BaubleTestCase):
             prop,
             quantity=6,
             total_quantity=10,
+            remaining_quantity=1,
             culled_quantity=4,
             success=5,
             total_success=5,
@@ -438,6 +444,7 @@ class PropagationTests(BaubleTestCase):
             prop,
             quantity=10,
             total_quantity=10,
+            remaining_quantity=5,
             success=5,
             total_success=5,
             percent_success=50.0,
@@ -460,6 +467,7 @@ class PropagationTests(BaubleTestCase):
             prop,
             quantity=10,
             total_quantity=10,
+            remaining_quantity=5,
             success=5,
             total_success=5,
             percent_success=50.0,
@@ -508,6 +516,7 @@ class PropagationTests(BaubleTestCase):
             prop,
             quantity=10,
             total_quantity=10,
+            remaining_quantity=2,
             success=8,
             total_success=8,
             percent_success=80.0,
@@ -532,6 +541,7 @@ class PropagationTests(BaubleTestCase):
             prop,
             quantity=10,
             total_quantity=10,
+            remaining_quantity=2,
             success=8,
             total_success=8,
             percent_success=80.0,
@@ -557,6 +567,7 @@ class PropagationTests(BaubleTestCase):
             prop,
             quantity=10,
             total_quantity=10,
+            remaining_quantity=2,
             success=8,
             total_success=8,
             percent_success=80.0,
@@ -617,6 +628,194 @@ class PropagationTests(BaubleTestCase):
         part1 = f'2026S/1 <span weight="light">- Jade Green {date}</span>'
         part2 = f"{prop.species.markup()}  - Available: 0"
         self.assertEqual(prop.search_view_markup_pair(), (part1, part2))
+
+    def test_active_culled(self):
+        prop = Propagation(
+            species=self.species,
+            code="2026S/1",
+            date=datetime.today(),
+            propagator="Jade Green",
+            media="potting mix",
+            container="140mm",
+            location="table 3",
+            prop_notes="Fresh, washed, seed.",
+            prop_type=self.seed,
+        )
+        self.plant.propagations.append(prop)
+        self.session.commit()
+        active = self.session.scalar(
+            select(Propagation.active).filter_by(id=prop.id)
+        )
+
+        self.assertTrue(prop.active)
+        self.assertTrue(active)
+
+        prop.events.append(
+            PropEvent(
+                quantity=10,
+                event_type=self.start,
+            )
+        )
+        prop.events.append(
+            PropEvent(
+                success=8,
+                event_notes="leaves appear",
+                event_type=self.success,
+            )
+        )
+        prop.events.append(
+            PropEvent(
+                available=6,
+                event_type=self.available,
+            )
+        )
+        self.session.commit()
+        active = self.session.scalar(
+            select(Propagation.active).filter_by(id=prop.id)
+        )
+
+        self.assertTrue(prop.active)
+        self.assertTrue(active)
+
+        # search
+        result = self.session.scalars(
+            select(Propagation).filter_by(active=True)
+        ).all()
+
+        self.assertIn(prop, result)
+
+        prop.events.append(
+            PropEvent(
+                quantity=-2,
+                event_notes="cull remainder",
+                event_type=self.cull_qty,
+            )
+        )
+        prop.events.append(
+            PropEvent(
+                success=-2,
+                event_notes="cull remainder",
+                event_type=self.cull_success,
+            )
+        )
+        prop.events.append(
+            PropEvent(
+                available=-6,
+                event_notes="discarded all",
+                event_type=self.discard,
+            )
+        )
+        self.session.commit()
+
+        active = self.session.scalar(
+            select(Propagation.active).filter_by(id=prop.id)
+        )
+
+        self.assertFalse(prop.active)
+        self.assertFalse(active)
+
+        # search
+        result = self.session.scalars(
+            select(Propagation).filter_by(active=True)
+        ).all()
+
+        self.assertNotIn(prop, result)
+
+    def test_active_consumed_inactive_accession(self):
+        prop = Propagation(
+            species=self.species,
+            code="2026S/1",
+            date=datetime.today(),
+            propagator="Jade Green",
+            media="potting mix",
+            container="140mm",
+            location="table 3",
+            prop_notes="Fresh, washed, seed.",
+            prop_type=self.seed,
+        )
+        self.plant.propagations.append(prop)
+        self.session.commit()
+        prop.events.append(
+            PropEvent(
+                quantity=10,
+                event_type=self.start,
+            )
+        )
+        prop.events.append(
+            PropEvent(
+                success=8,
+                event_notes="leaves appear",
+                event_type=self.success,
+            )
+        )
+        prop.events.append(
+            PropEvent(
+                available=8,
+                event_type=self.available,
+            )
+        )
+        source = Source(plant_propagation=prop)
+        accession = Accession(
+            code="2026.0003",
+            species=self.species,
+            quantity_recvd=8,
+            source=source,
+        )
+        location = Location(code="LOC2")
+        plant = Plant(
+            code="1",
+            accession=accession,
+            quantity=1,
+            location=location,
+        )
+        self.session.commit()
+        active = self.session.scalar(
+            select(Propagation.active).filter_by(id=prop.id)
+        )
+
+        # has active accession and remaining success
+        self.assertTrue(prop.active)
+        self.assertTrue(active)
+
+        prop.events.append(
+            PropEvent(
+                quantity=-2,
+                event_notes="cull remainder",
+                event_type=self.cull_qty,
+            )
+        )
+        self.session.commit()
+        active = self.session.scalar(
+            select(Propagation.active).filter_by(id=prop.id)
+        )
+
+        # has active accession but nothing remaining
+        self.assertTrue(prop.active)
+        self.assertTrue(active)
+
+        # search
+        result = self.session.scalars(
+            select(Propagation).filter_by(active=True)
+        ).all()
+
+        self.assertIn(prop, result)
+
+        plant.quantity = 0
+        self.session.commit()
+        active = self.session.scalar(
+            select(Propagation.active).filter_by(id=prop.id)
+        )
+
+        # has no active accession and nothing remaining
+        self.assertFalse(prop.active)
+        self.assertFalse(active)
+
+        # search
+        result = self.session.scalars(
+            select(Propagation).filter_by(active=True)
+        ).all()
+
+        self.assertNotIn(prop, result)
 
 
 class PropagationUpdatedTests(BaubleTestCase):

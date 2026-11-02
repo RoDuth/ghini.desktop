@@ -221,19 +221,23 @@ class PropEventPresenter(GenericPresenter[PropEvent], Gtk.Frame):
         prior_available = sum(i.available for i in events[:index])
 
         prior_remaining_quantity = prior_quantity - prior_success
-        prior_remaining_available = prior_success - prior_available
+        prior_remaining_success = prior_success - prior_available
 
-        self._constrain_spinbutton("quantity", "Q", lower=-prior_quantity)
+        self._constrain_spinbutton(
+            "quantity",
+            "Q",
+            lower=-prior_remaining_quantity,
+        )
         self._constrain_spinbutton(
             "success",
             "S",
             upper=prior_remaining_quantity,
-            lower=-prior_success,
+            lower=-prior_remaining_success,
         )
         self._constrain_spinbutton(
             "available",
             "A",
-            upper=prior_remaining_available,
+            upper=prior_remaining_success,
             lower=-prior_available,
         )
 
