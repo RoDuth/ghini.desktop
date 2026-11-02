@@ -561,7 +561,7 @@ class Propagation(db.Domain):
     def percent_success(cls) -> ColumnElement[Float]:
         # pylint: disable=no-self-argument,comparison-with-callable
         return case(
-            [(cls.quantity == 0, 0)],
+            [(cls.quantity == 0, 0.0)],
             else_=cast(cls.total_success, Float) / cls.quantity * 100,
         )
 

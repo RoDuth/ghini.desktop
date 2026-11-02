@@ -693,6 +693,19 @@ class QueryBuilderTests(BaubleTestCase):
         self.assertIsNone(qb.get_column(Clause(), "plant"))
         qb.destroy()
 
+    def test_gets_proptype_from_hybrid_property(self):
+        qb = QueryBuilder()
+        self.assertFalse(prefs.prefs.get(prefs.query_builder_advanced))
+        # Float
+        query = "propagation where percent_success = 'extinct'"
+        qb.set_query(query)
+        self.assertIs(qb.expression_rows[0].proptype().python_type, float)
+
+        # Integer
+        query = "propagation where used = 'extinct'"
+        qb.set_query(query)
+        self.assertIs(qb.expression_rows[0].proptype().python_type, int)
+
 
 class TestQBP(BaubleTestCase):
     def test_and_clauses(self):

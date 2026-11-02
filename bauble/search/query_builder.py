@@ -432,7 +432,10 @@ class ExpressionRow:  # pylint: disable=too-many-instance-attributes
         self.on_value_changed(widget)
 
     def on_schema_menu_activated(
-        self, _menuitem, path: str, prop: ColumnProperty
+        self,
+        _menuitem,
+        path: str,
+        prop: ColumnProperty,
     ) -> None:
         """Called when an item in the schema menu is activated"""
         self.prop_button.set_label(path)
@@ -447,6 +450,15 @@ class ExpressionRow:  # pylint: disable=too-many-instance-attributes
             self.proptype = type(prop.columns[0].type)
         except AttributeError:
             self.proptype = None
+
+        if (
+            self.proptype is None
+            and isinstance(prop, hybrid_property)
+            and prop.expr
+        ):
+            cls_ = self.presenter.mapper.class_
+            self.proptype = type(prop.expr(cls_).type)
+
         # reset the cond_combo incase it was last a date/datetime
         if self.proptype not in (bauble.btypes.Date, bauble.btypes.DateTime):
             self.cond_combo.handler_block(self.cond_handler)
