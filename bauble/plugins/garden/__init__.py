@@ -83,6 +83,7 @@ from .ui.plant_view import plant_context_menu
 from .ui.propagation_editor import create_propagation
 from .ui.propagation_editor import edit_callback as propagation_edit_callback
 from .ui.propagation_view import PropagationInfoBox
+from .ui.propagation_view import prop_context_menu
 
 # other ideas:
 # - cultivation table
@@ -267,6 +268,7 @@ class GardenPlugin(pluginmgr.Plugin):
         SearchView.row_meta[Propagation].set(
             children="accessions",
             infobox=cls.propagation_infobox,
+            context_menu=prop_context_menu,
             activated_callback=propagation_edit_callback,
         )
 

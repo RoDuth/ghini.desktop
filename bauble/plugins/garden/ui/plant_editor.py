@@ -45,6 +45,7 @@ from bauble.plugins.plants.species import Species
 from bauble.ui.handlers import ComboBoxHandler
 from bauble.ui.handlers import EntryHandler
 from bauble.ui.handlers import EntryWCompletionHandler
+from bauble.ui.presenter import AddCallback
 from bauble.ui.presenter import DomainEditorDialog
 from bauble.ui.presenter import EditCreateCallback
 from bauble.ui.presenter import Response
@@ -74,6 +75,8 @@ from ..plant import deleted_reasons
 from ..plant import get_next_code
 from ..plant import new_plt_reasons
 from ..plant import transfer_reasons
+from ..propagation import Propagation
+from .propagation_editor import PropagationEditorDialog
 from .widgets.accession import accession_completion_cell_data_func
 from .widgets.accession import accession_match_func
 from .widgets.location import location_match_func
@@ -544,3 +547,10 @@ edit_callback = EditCreateCallback(
 )
 
 create_plant = edit_callback
+
+propagate_callback = AddCallback(
+    PropagationEditorDialog,
+    Propagation,
+    "plants",
+    attr_setter=lambda model, attr, value: setattr(model, attr, [value]),
+)

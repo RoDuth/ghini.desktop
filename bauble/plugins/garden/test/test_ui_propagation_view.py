@@ -20,8 +20,11 @@
 Propagation search view parts.
 """
 from datetime import datetime
+from unittest import mock
 
+from gi.repository import Gtk
 from sqlalchemy import select
+from sqlalchemy.exc import SQLAlchemyError
 
 from bauble import utils
 from bauble.test import BaubleTestCase
@@ -41,11 +44,13 @@ from ..propagation import PropType
 from ..propagation import populate_default_event_types
 from ..propagation import populate_default_prop_types
 from ..ui.propagation_view import GeneralPropagationExpander
+from ..ui.propagation_view import remove_callback
 
 
 class InfoBoxTests(BaubleTestCase):
 
     def test_general_propagation_expander_update(self):
+        # pylint: disable=too-many-statements
         populate_default_prop_types()
         populate_default_event_types()
         location = Location(code="OH1")
@@ -193,3 +198,183 @@ class InfoBoxTests(BaubleTestCase):
         self.assertEqual(expander.available_label.get_label(), "4")
         self.assertEqual(len(expander.source_plants_box.get_children()), 2)
         self.assertEqual(len(expander.source_for_box.get_children()), 1)
+
+
+class FunctionTests(BaubleTestCase):
+    def setUp(self):
+        super().setUp()
+        populate_default_prop_types()
+        populate_default_event_types()
+        location = Location(code="LOC1")
+        family = Family(family="Myrtaceae")
+        genus = Genus(family=family, genus="Syzygium")
+        self.species = Species(genus=genus, sp="australe")
+        self.accession = Accession(code="2001.0001", species=self.species)
+        self.plant = Plant(
+            code="1",
+            accession=self.accession,
+            quantity=5,
+            location=location,
+        )
+        self.session.add(self.plant)
+        self.session.commit()
+
+    @mock.patch("bauble.ui.dialogs.yes_no_dialog")
+    def test_remove_callback_user_backs_out(self, mock_dlog):
+        prop = Propagation(
+            species=self.species,
+            code="2026S/1",
+            date=datetime(2026, 1, 10),
+            propagator="Jade Green",
+            media="potting mix",
+            container="140mm",
+            location="table 3",
+            prop_notes="Fresh, washed, seed.",
+            prop_type_id=1,
+        )
+        self.plant.propagations.append(prop)
+        self.session.commit()
+        mock_dlog.return_value = False
+
+        remove_callback([prop])
+
+        mock_dlog.assert_called_once_with(
+            "Are you sure you want to remove the following propagations "
+            "<b>2026S/1</b>?"
+        )
+        self.assertEqual(
+            self.session.execute(
+                select(Propagation).where(Propagation.code == "2026S/1")
+            )
+            .scalars()
+            .all(),
+            [prop],
+        )
+
+    @mock.patch("bauble.ui.dialogs.yes_no_dialog")
+    def test_remove_callback_user_confirms(self, mock_dlog):
+        prop = Propagation(
+            species=self.species,
+            code="2026S/1",
+            date=datetime(2026, 1, 10),
+            propagator="Jade Green",
+            media="potting mix",
+            container="140mm",
+            location="table 3",
+            prop_notes="Fresh, washed, seed.",
+            prop_type_id=1,
+        )
+        self.plant.propagations.append(prop)
+        self.session.commit()
+        mock_dlog.return_value = True
+
+        remove_callback([prop])
+
+        mock_dlog.assert_called_once_with(
+            "Are you sure you want to remove the following propagations "
+            "<b>2026S/1</b>?"
+        )
+        self.assertEqual(
+            self.session.execute(
+                select(Propagation).where(Propagation.code == "2026S/1")
+            )
+            .scalars()
+            .all(),
+            [],
+        )
+
+    @mock.patch("bauble.ui.dialogs.message_dialog")
+    def test_remove_callback_with_accessions(self, mock_dlog):
+        prop = Propagation(
+            species=self.species,
+            code="2026S/1",
+            date=datetime(2026, 1, 10),
+            propagator="Jade Green",
+            media="potting mix",
+            container="140mm",
+            location="table 3",
+            prop_notes="Fresh, washed, seed.",
+            prop_type_id=1,
+        )
+        self.plant.propagations.append(prop)
+        source = Source(plant_propagation=prop)
+        accession = Accession(
+            code="2026.0003",
+            species=self.species,
+            quantity_recvd=8,
+            source=source,
+        )
+        self.session.add(accession)
+        self.session.commit()
+        mock_dlog.return_value = True
+
+        self.assertFalse(remove_callback([prop]))
+
+        mock_dlog.assert_called_once_with(
+            "Please remove the accessions from <b>2026S/1</b> before deleting "
+            "it.",
+            typ=Gtk.MessageType.WARNING,
+        )
+        self.assertEqual(
+            self.session.execute(
+                select(Propagation).where(Propagation.code == "2026S/1")
+            )
+            .scalars()
+            .all(),
+            [prop],
+        )
+
+    @mock.patch("bauble.ui.dialogs.yes_no_dialog")
+    @mock.patch("bauble.ui.dialogs.message_details_dialog")
+    def test_remove_callback_commit_exception(self, mock_d_dlog, mock_yn_dlog):
+        mock_yn_dlog.return_value = True
+        mock_d_dlog.return_value = True
+        prop = Propagation(
+            species=self.species,
+            code="2026S/1",
+            date=datetime(2026, 1, 10),
+            propagator="Jade Green",
+            media="potting mix",
+            container="140mm",
+            location="table 3",
+            prop_notes="Fresh, washed, seed.",
+            prop_type_id=1,
+        )
+        self.plant.propagations.append(prop)
+        self.session.commit()
+
+        with (
+            mock.patch.object(
+                self.session, "commit", side_effect=SQLAlchemyError
+            ),
+            mock.patch.object(self.session, "rollback") as mock_rollback,
+        ):
+
+            self.assertFalse(remove_callback([prop]))
+            mock_rollback.assert_called_once()
+            mock_d_dlog.assert_called_once()
+
+    def test_remove_callback_no_session(self):
+        prop = Propagation(
+            species=self.species,
+            code="2026S/1",
+            date=datetime(2026, 1, 10),
+            propagator="Jade Green",
+            media="potting mix",
+            container="140mm",
+            location="table 3",
+            prop_notes="Fresh, washed, seed.",
+            prop_type_id=1,
+        )
+
+        with self.assertLogs(
+            "bauble.plugins.garden.ui.propagation_view",
+            level="WARNING",
+        ) as logs:
+            remove_callback([prop])
+
+            self.assertIn(
+                "Could not get session for propagation 2026S/1. Cannot "
+                "delete.",
+                logs.output[0],
+            )

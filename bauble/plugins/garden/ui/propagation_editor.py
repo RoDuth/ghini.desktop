@@ -552,6 +552,17 @@ class PropagationEditorDialog(
                 self.model.date = datetime.date.today()
             if model.propagator is None:
                 self.model.propagator = utils.get_user_display_name()
+            if (
+                len(model.plant_sources) == 1
+                and model.plant_sources[0].source_material is None
+            ):
+                GLib.idle_add(self.source_treeview.set_cursor, 0)
+                GLib.idle_add(
+                    self.source_treeview.emit,
+                    "row-activated",
+                    Gtk.TreePath.new_from_string("0"),
+                    None,
+                )
 
         self.connect("problems-changed", self.on_problems_changed)
         self.refresh_all_widgets_from_model()

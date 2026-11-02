@@ -27,6 +27,7 @@ from collections.abc import Callable
 from collections.abc import Sequence
 from enum import IntEnum
 from typing import TYPE_CHECKING
+from typing import Any
 from typing import Protocol
 from typing import Self
 
@@ -544,10 +545,13 @@ class AddCallback:
         dialog_class: type[DomainEditorDialog],
         obj_class: type[db.Domain],
         parent_attr: str,
+        *,
+        attr_setter: Callable[[db.Domain, str, Any], None] = setattr,
     ) -> None:
         self.dialog_class = dialog_class
         self.obj_class = obj_class
         self.parent_attr = parent_attr
+        self.attr_setter = attr_setter
 
     def __call__(self, objs: Sequence[db.Domain], **_kwargs) -> bool:
         obj = objs[0]
@@ -557,7 +561,7 @@ class AddCallback:
         with db.Session() as session:
             parent = session.merge(obj)
             model = self.obj_class()
-            setattr(model, self.parent_attr, parent)
+            self.attr_setter(model, self.parent_attr, parent)
 
         dialog = self.dialog_class(
             model=model,

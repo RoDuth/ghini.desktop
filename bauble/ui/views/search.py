@@ -114,7 +114,10 @@ class Action:
         callback: ActionCallback,
         accelerator: str | None = None,
         multiselect: bool = False,
+        *,
+        enabled_func: Callable[[list[db.Domain]], bool] = lambda vals: True,
     ) -> None:
+        # pylint: disable=too-many-arguments
         """SearchView context menu items.
 
         :param name: name of the action as a string
@@ -131,6 +134,7 @@ class Action:
         self.accelerator = accelerator
         self.multiselect = multiselect
         self.action = Gio.SimpleAction.new(name, None)
+        self.enabled_func = enabled_func
         self.connected = False
 
     def connect(
@@ -539,7 +543,8 @@ class SearchView(View, Gtk.Box):
             self.update()
 
     def _add_meta_actions_to_context_menu(
-        self, selected_values: list[db.Domain]
+        self,
+        selected_values: list[db.Domain],
     ) -> None:
 
         selected_types = set(map(type, selected_values))
@@ -574,7 +579,7 @@ class SearchView(View, Gtk.Box):
             if (len(selected_values) > 1 and action.multiselect) or len(
                 selected_values
             ) == 1:
-                action.action.set_enabled(True)
+                action.action.set_enabled(action.enabled_func(selected_values))
             else:
                 action.action.set_enabled(False)
 
@@ -1610,7 +1615,7 @@ on_clicked_search = utils.generate_on_clicked(_send_command)
 """Clickable labels convienence function for running a new search,
 e.g.::
 
-    utils.make_label_clickable(label, on_clicked_select, "loc=LOC1")
+    utils.make_label_clickable(label, on_clicked_search, "loc=LOC1")
 """
 
 on_clicked_select = utils.generate_on_clicked(select_in_search_results)

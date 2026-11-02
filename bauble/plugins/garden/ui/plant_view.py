@@ -53,6 +53,7 @@ from ..plant import change_reasons
 from ..propagation import Propagation
 from .plant_editor import edit_callback
 from .plant_editor import map_kml_callback
+from .plant_editor import propagate_callback
 
 parent = Path(__file__).resolve().parent
 
@@ -485,6 +486,14 @@ remove_action = Action(
     multiselect=True,
 )
 
+propagate_action = Action(
+    "plant_make_propagation",
+    _("_Propagate"),
+    callback=propagate_callback,
+    accelerator="<ctrl>p",
+    enabled_func=lambda objs: objs[0].active,
+)
+
 map_action = Action(
     "plant_show_in_map",
     _("Show in _map"),
@@ -494,4 +503,9 @@ map_action = Action(
 )
 
 # plant_context_menu = [edit_action, branch_action, remove_action, map_action]
-plant_context_menu = [edit_action, remove_action, map_action]
+plant_context_menu = [
+    edit_action,
+    remove_action,
+    propagate_action,
+    map_action,
+]

@@ -21,14 +21,20 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+import traceback
+from collections.abc import Sequence
 from functools import partial
 from pathlib import Path
 from typing import cast
 
 from gi.repository import Gtk
+from sqlalchemy.orm import Session
+from sqlalchemy.orm.session import object_session
 
 from bauble import utils
 from bauble.i18n import _
+from bauble.ui import dialogs
+from bauble.ui.views import Action
 from bauble.ui.views import InfoBox
 from bauble.ui.views import InfoExpander
 from bauble.ui.views import LinksExpander
@@ -40,6 +46,7 @@ from ...plants.ui.misc import on_taxa_clicked
 from ..propagation import SOURCE_MATERIALS
 from ..propagation import SOURCE_TYPES
 from ..propagation import Propagation
+from .propagation_editor import edit_callback
 
 parent = Path(__file__).resolve().parent
 
@@ -166,3 +173,77 @@ class PropagationInfoBox(InfoBox[Propagation]):
         self.add_expander(GeneralPropagationExpander())
         self.add_expander(LinksExpander("notes"))
         self.add_expander(PropertiesExpander())
+
+
+def remove_callback(
+    objs: Sequence[Propagation],
+    **_kwargs,
+) -> bool:
+    propagations = objs
+    prop = propagations[0]
+    prop_lst = []
+
+    session = object_session(prop)
+
+    if not isinstance(session, Session):
+        logger.warning(
+            "Could not get session for propagation %s. Cannot delete.",
+            prop.code,
+        )
+        return False
+
+    for prop in propagations:
+        prop_lst.append(utils.xml_safe(prop.code))
+        if len(prop.accessions) > 0:
+            msg = _(
+                "Please remove the accessions from <b>%s</b> "
+                "before deleting it."
+            ) % utils.xml_safe(prop.code)
+            dialogs.message_dialog(msg, typ=Gtk.MessageType.WARNING)
+            return False
+
+    msg = _(
+        "Are you sure you want to remove the following propagations <b>%s</b>?"
+    ) % ", ".join(i for i in prop_lst)
+
+    if not dialogs.yes_no_dialog(msg):
+        return False
+
+    for prop in propagations:
+        session.delete(prop)
+    try:
+        session.commit()
+    except Exception as e:  # pylint: disable=broad-except
+        msg = _("Could not delete.\n\n%s") % utils.xml_safe(e)
+        dialogs.message_details_dialog(
+            msg,
+            traceback.format_exc(),
+            Gtk.MessageType.ERROR,
+        )
+        session.rollback()
+
+        return False
+
+    return True
+
+
+edit_action = Action(
+    "prop_edit",
+    _("_Edit"),
+    callback=edit_callback,
+    accelerator="<ctrl>e",
+    multiselect=True,
+)
+
+remove_action = Action(
+    "prop_remove",
+    _("_Delete"),
+    callback=remove_callback,
+    accelerator="<ctrl>Delete",
+    multiselect=True,
+)
+
+prop_context_menu = [
+    edit_action,
+    remove_action,
+]

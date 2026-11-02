@@ -40,6 +40,7 @@ from ..test_garden import GardenTestCase
 from ..ui.plant_view import ChangeBox
 from ..ui.plant_view import GeneralPlantExpander
 from ..ui.plant_view import PropagationBox
+from ..ui.plant_view import propagate_action
 from ..ui.plant_view import remove_callback
 
 
@@ -608,3 +609,29 @@ class FunctionTests(BaubleTestCase):
             self.assertFalse(remove_callback([plant]))
             mock_rollback.assert_called_once()
             mock_d_dlog.assert_called_once()
+
+    def test_propagate_action_enabled_func(self):
+        populate_default_prop_types()
+        family = Family(epithet="Austrobaileyaceae")
+        genus = Genus(epithet="Austrobaileya", family=family)
+        species = Species(genus=genus, epithet="scandens")
+        accession = Accession(code="2001.0001", species=species)
+        location = Location(
+            code="LOC1",
+            name="Location One",
+            description="First location.",
+        )
+        plant = Plant(
+            accession=accession,
+            location=location,
+            code="1",
+            quantity=1,
+        )
+        self.session.add(plant)
+        self.session.commit()
+
+        self.assertTrue(propagate_action.enabled_func([plant]))
+
+        plant.quantity = 0
+        self.session.commit()
+        self.assertFalse(propagate_action.enabled_func([plant]))

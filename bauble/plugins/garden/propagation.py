@@ -378,16 +378,18 @@ class Propagation(db.Domain):
     __tablename__ = "propagation"
 
     code = Column(String(32), unique=True)
+
     species_id = Column(
         Integer,
         ForeignKey("species.id"),
         nullable=False,
     )
     species: Species = relationship("Species", uselist=False)
+
     plants = association_proxy(
         "plant_sources",
         "plant",
-        creator=lambda plant: PlantPropSource(plant=plant),
+        creator=lambda plant: PlantPropSource(plant=plant, source_type="1"),
     )
     plant_sources: list["PlantPropSource"] = relationship(
         "PlantPropSource",

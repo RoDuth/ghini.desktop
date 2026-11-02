@@ -38,8 +38,10 @@ from ..plant import added_reasons
 from ..plant import deleted_reasons
 from ..plant import new_plt_reasons
 from ..plant import transfer_reasons
+from ..propagation import Propagation
 from ..ui.plant_editor import PlantEditorDialog
 from ..ui.plant_editor import edit_callback
+from ..ui.plant_editor import propagate_callback
 
 
 class PlantEditorDialogTests(BaubleTestCase):
@@ -665,4 +667,34 @@ class FunctionTests(BaubleTestCase):
             self.assertFalse(edit_callback([plant]))
             mock_editor.assert_called_once()
             self.assertEqual(mock_editor.call_args.kwargs["model"], plant)
+            mock_editor().show.assert_called_once()
+
+    def test_propagate_callback(self):
+        family = Family(epithet="Austrobaileyaceae")
+        genus = Genus(epithet="Austrobaileya", family=family)
+        species = Species(genus=genus, epithet="scandens")
+        accession = Accession(code="2001.0001", species=species)
+        location = Location(
+            code="LOC1",
+            name="Location One",
+            description="First location.",
+        )
+        plant = Plant(
+            accession=accession,
+            location=location,
+            code="1",
+            quantity=1,
+        )
+        self.session.add(plant)
+        self.session.commit()
+
+        with mock.patch.object(
+            propagate_callback, "dialog_class"
+        ) as mock_editor:
+
+            self.assertFalse(propagate_callback([plant]))
+            mock_editor.assert_called_once()
+            model = mock_editor.call_args.kwargs["model"]
+            self.assertIsInstance(model, Propagation)
+            self.assertEqual([i.id for i in model.plants], [plant.id])
             mock_editor().show.assert_called_once()
