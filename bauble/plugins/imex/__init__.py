@@ -659,24 +659,6 @@ class GenericExporter(ABC):
         except AttributeError:
             return ""
 
-    @staticmethod
-    def get_attr_notes(item):
-        """Get a list of names of any attribute notes for an item."""
-        attr_notes = []
-        for note in item.notes:
-            category = getattr(note, "category", None)
-            if not category:
-                continue
-            import re
-
-            if match := re.match(r"\{([^\{:]+):(.*)}", category):
-                attr_notes.append(match.group(1))
-            elif category.startswith("[") and category.endswith("]"):
-                attr_notes.append(category[1:-1])
-            elif category.startswith("<") and category.endswith(">"):
-                attr_notes.append(category[1:-1])
-        return attr_notes
-
     @classmethod
     def get_item_record(cls, item, fields, date_types=None, defaults=None):
         """Given a database entry and a dict of names to the paths to
@@ -691,19 +673,12 @@ class GenericExporter(ABC):
         date_types = date_types or []
         record = {}
         # handle generated attribute notes
-        has_notes = hasattr(item, "notes") and isinstance(item.notes, list)
-        attr_notes = cls.get_attr_notes(item) if has_notes else []
         for name, path in fields.items():
             if name == "domain":
                 record[name] = path
             elif path == ExtraTypes.NOTE.value:
-                value = ""
-                # handle generated attribute notes
-                if hasattr(item, name) and name in attr_notes:
-                    value = getattr(item, name)
-                else:
-                    value = [n.note for n in item.notes if n.category == name]
-                    value = str(value[-1]) if value else ""
+                notes = [n.note for n in item.notes if n.category == name]
+                value = str(notes[-1]) if notes else ""
                 record[name] = str(value)
             elif path == ExtraTypes.EMPTY.value:
                 record[name] = ""

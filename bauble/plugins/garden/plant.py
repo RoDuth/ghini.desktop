@@ -424,7 +424,7 @@ acc_type_values = {
 }
 
 
-class Plant(db.Domain, db.WithNotes):
+class Plant(db.Domain):
     """
     :Table name: plant
 
@@ -517,7 +517,7 @@ class Plant(db.Domain, db.WithNotes):
         back_populates="plant",
     )
 
-    _pictures: db.Base = sa_synonym("pictures")
+    _pictures: list[db.Picture] = sa_synonym("pictures")
 
     # provide a way to search and use the change that recorded either a death
     # or a planting date directly.  This is not fool proof but close enough.
@@ -555,6 +555,8 @@ class Plant(db.Domain, db.WithNotes):
         viewonly=True,
         uselist=False,
     )
+    changes: list["PlantChange"]
+    branches: list["PlantChange"]
 
     _delimiter = None
     # see retrieve classmethod.
@@ -770,6 +772,12 @@ class Plant(db.Domain, db.WithNotes):
         dists = self.accession.species.distribution
         for dist in dists:
             yield (dist.geography, self.accession.species, self.accession)
+
+    def has_children(self) -> bool:
+        return False
+
+    def count_children(self) -> int:
+        return 0
 
     @classmethod
     def top_level_count(

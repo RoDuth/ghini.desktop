@@ -208,13 +208,11 @@ class CSVExporterTests(CSVTestCase):
     def test_export_plants_w_notes(self):
         plt = self.session.get(Plant, 1)
         plt.notes.append(PlantNote(category="test1", note="test note"))
-        plt.notes.append(PlantNote(category="[test2]", note="test1"))
-        plt.notes.append(PlantNote(category="[test2]", note="test2"))
-        plt.notes.append(PlantNote(category="{test3:1}", note="test1"))
-        plt.notes.append(PlantNote(category="{test3:2}", note="test2"))
-        plt.notes.append(
-            PlantNote(category="<test4>", note='{"key": "value"}')
-        )
+        plt.notes.append(PlantNote(category="test2", note="test1"))
+        plt.notes.append(PlantNote(category="test2", note="test2"))
+        plt.notes.append(PlantNote(category="test3", note="test1"))
+        plt.notes.append(PlantNote(category="test3", note="test2"))
+        plt.notes.append(PlantNote(category="test4", note='{"key": "value"}'))
         self.session.add(plt)
         self.session.commit()
         mock_view = MockView()
@@ -227,7 +225,6 @@ class CSVExporterTests(CSVTestCase):
             "test2": "Note",
             "test3": "Note",
             "test4": "Note",
-            "{test3:1}": "Note",
         }
         field_list = fields.copy()
         del field_list["domain"]
@@ -237,10 +234,9 @@ class CSVExporterTests(CSVTestCase):
                 "domain": "plant",
                 "id": "1",
                 "test1": "test note",
-                "test2": "['test1', 'test2']",
-                "test3": "{'1': 'test1', '2': 'test2'}",
-                "test4": "{'key': 'value'}",
-                "{test3:1}": "test1",
+                "test2": "test2",
+                "test3": "test2",
+                "test4": '{"key": "value"}',
             }
         ]
         out_file = Path(self.temp_dir.name) / "test.csv"

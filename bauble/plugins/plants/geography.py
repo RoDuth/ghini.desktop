@@ -217,6 +217,7 @@ class Geography(db.Domain):
 
     def count_children(self) -> int:
         # Much more expensive than other models
+        from .species import Species
         from .species import SpeciesDistribution
 
         session = cast(Session, object_session(self))
@@ -231,8 +232,8 @@ class Geography(db.Domain):
             .distinct()
         )
         if prefs.prefs.get(prefs.exclude_inactive_pref):
-            cls = SpeciesDistribution.species.prop.mapper.class_
-            query = query.join(cls).filter(cls.active.is_(True))
+            query = query.join(Species)
+            query = query.filter(Species.active.is_(True))  # type: ignore [attr-defined] # noqa
         return query.count()
 
     def get_approx_area(self) -> float:

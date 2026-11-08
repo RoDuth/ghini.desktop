@@ -69,7 +69,7 @@ from .model import Synonym
 from .model import Taxon
 
 
-class Genus(Taxon, db.WithNotes):
+class Genus(Taxon):
     """
     :Table name: genus
 

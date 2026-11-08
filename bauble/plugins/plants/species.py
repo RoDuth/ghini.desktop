@@ -332,7 +332,7 @@ compare_rank = {
 }
 
 
-class Species(Taxon, db.WithNotes):
+class Species(Taxon):
     """
     :Table name: species
 
@@ -558,6 +558,8 @@ class Species(Taxon, db.WithNotes):
             values=list(red_list_values.keys()), translations=red_list_values
         )
     )
+    _pictures: list[db.Picture]
+    accessions: list["Accession"]
 
     _sp_custom1 = Column(types.CustomEnum(64))
     _sp_custom2 = Column(types.CustomEnum(64))
@@ -1704,4 +1706,5 @@ class Color(db.Base):
 
 
 if TYPE_CHECKING:
+    from ..garden.accession import Accession
     from .genus import Genus

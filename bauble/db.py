@@ -940,7 +940,7 @@ class Note(Base):  # pylint: disable=too-few-public-methods
         return " ".join(label)
 
 
-def make_note_class(name, cls_type="note", extra_columns=None):
+def make_note_class(name, cls_type="note", extra_columns=None) -> type[Note]:
     """Dynamically create a related table class of the notes type.
 
     Current use is for notes, documents and pictures tables."""
@@ -980,63 +980,6 @@ def make_note_class(name, cls_type="note", extra_columns=None):
 
     result = type(class_name, (Note,), obj_dict)
     return result
-
-
-class WithNotes:
-    key_pattern = re.compile(r"{[^:]+:(.*)}")
-
-    def __getattr__(self, name):
-        """retrieve value from corresponding note(s)
-
-        the result can be an atomic value, a list, or a dictionary.
-        """
-
-        if name.startswith("_sa"):  # _sa are internal sqlalchemy fields
-            raise AttributeError(name)
-
-        result = []
-        is_dict = False
-        for note in self.notes:
-            if note.category is None:
-                pass
-            elif note.category == f"[{name}]":
-                result.append(note.note)
-            elif note.category.startswith(
-                f"{{{name}:"
-            ) and note.category.endswith("}"):
-                is_dict = True
-                match = self.key_pattern.match(note.category)
-                key = match.group(1)
-                result.append((key, note.note))
-            elif note.category == f"<{name}>":
-                try:
-                    return json.loads(
-                        re.sub(
-                            r"(\w+)[ ]*(?=:)",
-                            r'"\g<1>"',
-                            "{" + note.note.replace(";", ",") + "}",
-                        )
-                    )
-                except json.JSONDecodeError:
-                    pass
-                try:
-                    return json.loads(
-                        re.sub(r"(\w+)[ ]*(?=:)", r'"\g<1>"', note.note)
-                    )
-                except json.JSONDecodeError as e:
-                    logger.debug(
-                        "not parsed %s(%s), returning literal text »%s«",
-                        type(e).__name__,
-                        e,
-                        note.note,
-                    )
-                    return note.note
-        if not result:
-            # if nothing was found, do not break the proxy.
-            raise AttributeError(name)
-        if is_dict:
-            return dict(result)
-        return result
 
 
 def get_related_class(model, path):

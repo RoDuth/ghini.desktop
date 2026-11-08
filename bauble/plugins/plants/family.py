@@ -64,7 +64,7 @@ from .species import Species
 from .species import SpeciesPicture
 
 
-class Family(Taxon, db.WithNotes):
+class Family(Taxon):
     """
     :Table name: family
 

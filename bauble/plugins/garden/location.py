@@ -62,7 +62,7 @@ LocationDocument = db.make_note_class(
 )
 
 
-class Location(db.Domain, db.WithNotes):
+class Location(db.Domain):
     """
     :Table name: location
 
@@ -109,6 +109,7 @@ class Location(db.Domain, db.WithNotes):
         cascade="all, delete-orphan",
         back_populates="location",
     )
+    _pictures: list[db.Picture]
 
     retrieve_cols = ["id", "code"]
 

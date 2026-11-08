@@ -483,7 +483,7 @@ AccessionDocument = db.make_note_class(
 )
 
 
-class Accession(db.Domain, db.WithNotes):
+class Accession(db.Domain):
     """
     :Table name: accession
 
