@@ -45,14 +45,14 @@ dynamic = ["version", "dependencies", "optional-dependencies"]
 Homepage = "http://github.com/RoDuth/ghini.desktop/"
 
 [tool.setuptools.dynamic]
-version = {attr = "bauble.version.version"}
 dependencies = {file = ["requirements.txt"]}
 optional-dependencies.ci = {file = ["ci-requirements.txt"]}
 
 [tool.setuptools_scm]
 
 [tool.setuptools.packages.find]
-include = ["bauble"]
+include = ["bauble*"]
+exclude = ["test*"]
 
 [tool.isort]
 line_length = 79
