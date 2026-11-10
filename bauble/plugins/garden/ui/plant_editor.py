@@ -318,7 +318,8 @@ class PlantEditorDialog(
             reasons = deleted_reasons
 
             added = int(qty_history.added[0])
-            deleted = int(qty_history.deleted[0])
+            # new plants won't have a deleted value
+            deleted = int(qty_history.deleted[0] if qty_history.deleted else 0)
             quantity_change = added - deleted
             if quantity_change > 0:
                 reasons = added_reasons
