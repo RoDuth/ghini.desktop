@@ -26,7 +26,6 @@ from sqlalchemy.orm import Session
 from bauble import utils
 from bauble.test import BaubleTestCase
 
-from ...garden.source import Source
 from ...plants.family import Family
 from ...plants.genus import Genus
 from ...plants.species import Species
@@ -57,8 +56,7 @@ SELECT_STMTS = {
     "available": select(Propagation.available),
     "made_available": select(Propagation.made_available),
     "discarded": select(Propagation.discarded),
-    "used": select(Propagation.used),
-    "unused": select(Propagation.unused),
+    "consumed": select(Propagation.consumed),
 }
 
 
@@ -76,8 +74,7 @@ class PropHybridsChecker:  # pylint: disable=too-many-instance-attributes
     available: int = 0
     made_available: int = 0
     discarded: int = 0
-    used: int = 0
-    unused: int = 0
+    consumed: int = 0
 
     def __call__(
         self,
@@ -104,7 +101,8 @@ class PropHybridsChecker:  # pylint: disable=too-many-instance-attributes
                 )
 
             # the python side
-            if getattr(propagation, prop) != expected:
+            result = getattr(propagation, prop)
+            if result != expected:
                 return (
                     False,
                     f"hybrid property python {prop=} FAILED {result=} != "
@@ -147,6 +145,9 @@ class PropagationTests(BaubleTestCase):
         self.seed = self.session.scalars(
             select(PropType).filter_by(code="S")
         ).one()
+        self.cutting = self.session.scalars(
+            select(PropType).filter_by(code="C")
+        ).one()
         self.start = self.session.scalars(
             select(PropEventType).filter_by(code="STRT")
         ).one()
@@ -183,7 +184,7 @@ class PropagationTests(BaubleTestCase):
 
         self.assertEqual(len(self.plant.propagations), 1)
 
-    def test_can_add_propagation_multiple_plants(self):
+    def test_can_add_propagation_multiple_source_plants(self):
         prop = Propagation(
             species=self.species,
             code="2026S/1",
@@ -196,7 +197,7 @@ class PropagationTests(BaubleTestCase):
             prop_type=self.seed,
         )
         self.plant.propagations.append(prop)
-        prop.plants.append(self.plant2)
+        prop.source_plants.append(self.plant2)
         self.session.commit()
 
         self.assertEqual(len(self.plant.propagations), 1)
@@ -246,10 +247,11 @@ class PropagationTests(BaubleTestCase):
         )
         prop.events.append(event3)
         self.session.commit()
-
         today = utils.today_str()
+
+        self.assertEqual(str(prop), prop.code)
         self.assertEqual(
-            str(prop),
+            prop.string(),
             f"Seed; propagated by Jade Green on {today}; Media: potting mix; "
             "Container: 140mm; Location: table 3; Notes: Fresh, "
             "washed, seed.; Quantity: 10; Success: 100.00%; Available: 10",
@@ -450,17 +452,17 @@ class PropagationTests(BaubleTestCase):
             percent_success=50.0,
             available=5,
             made_available=5,
-            unused=5,
         )
         self.assertTrue(result, message)
 
         prop.events.append(
             PropEvent(
-                quantity=-5,
+                available=-5,
                 event_notes="reduced to make room.",
                 event_type=self.discard,
             )
         )
+        self.session.commit()
 
         result, message = hybrid_checker(
             self.session,
@@ -471,10 +473,11 @@ class PropagationTests(BaubleTestCase):
             success=5,
             total_success=5,
             percent_success=50.0,
-            available=5,
+            available=0,
             made_available=5,
-            discaded=5,
+            discarded=5,
         )
+        self.assertTrue(result, message)
 
     def test_propagation_as_source(self):
         prop = Propagation(
@@ -522,18 +525,15 @@ class PropagationTests(BaubleTestCase):
             percent_success=80.0,
             available=8,
             made_available=8,
-            unused=8,
         )
         self.assertTrue(result, message)
 
-        source = Source(plant_propagation=prop)
         acc1 = Accession(
             code="2001.0002",
             species=self.species,
             quantity_recvd=3,
-            source=source,
         )
-        self.session.add(acc1)
+        prop.source_new_accession(acc1)
         self.session.commit()
 
         result, message = hybrid_checker(
@@ -545,21 +545,18 @@ class PropagationTests(BaubleTestCase):
             success=8,
             total_success=8,
             percent_success=80.0,
-            available=8,
+            available=5,
             made_available=8,
-            used=3,
-            unused=5,
+            consumed=3,
         )
         self.assertTrue(result, message)
 
-        source = Source(plant_propagation=prop)
         acc2 = Accession(
             code="2001.0003",
             species=self.species,
             quantity_recvd=5,
-            source=source,
         )
-        self.session.add(acc2)
+        prop.source_new_accession(acc2)
         self.session.commit()
 
         result, message = hybrid_checker(
@@ -571,9 +568,9 @@ class PropagationTests(BaubleTestCase):
             success=8,
             total_success=8,
             percent_success=80.0,
-            available=8,
+            available=0,
             made_available=8,
-            used=8,
+            consumed=8,
         )
         self.assertTrue(result, message)
 
@@ -754,13 +751,12 @@ class PropagationTests(BaubleTestCase):
                 event_type=self.available,
             )
         )
-        source = Source(plant_propagation=prop)
         accession = Accession(
             code="2026.0003",
             species=self.species,
             quantity_recvd=8,
-            source=source,
         )
+        prop.source_new_accession(accession)
         location = Location(code="LOC2")
         plant = Plant(
             code="1",
@@ -851,7 +847,7 @@ class PropagationUpdatedTests(BaubleTestCase):
             location="table 3",
             prop_notes="Fresh, washed, seed.",
             prop_type=self.seed,
-            plants=[self.plant],
+            source_plants=[self.plant],
         )
         self.session.add(prop)
         self.session.commit()
@@ -892,7 +888,7 @@ class PropagationUpdatedTests(BaubleTestCase):
             location="table 3",
             prop_notes="Fresh, washed, seed.",
             prop_type=self.seed,
-            plants=[self.plant],
+            source_plants=[self.plant],
             _last_updated=date,
         )
         note = PropagationNote(category="Spam", note="Eggs", propagation=prop)
@@ -934,7 +930,7 @@ class PropagationUpdatedTests(BaubleTestCase):
             location="table 3",
             prop_notes="Fresh, washed, seed.",
             prop_type=self.seed,
-            plants=[self.plant],
+            source_plants=[self.plant],
             _last_updated=date,
         )
         pic = PropagationPicture(
@@ -980,7 +976,7 @@ class PropagationUpdatedTests(BaubleTestCase):
             location="table 3",
             prop_notes="Fresh, washed, seed.",
             prop_type=self.seed,
-            plants=[self.plant],
+            source_plants=[self.plant],
             _last_updated=date,
         )
         event = PropEvent(

@@ -44,11 +44,14 @@ from ..plant import deleted_reasons
 from ..plant import new_plt_reasons
 from ..plant import split_reasons
 from ..plant import transfer_reasons
+from ..propagation import Propagation
+from ..propagation import PropType
 from ..ui.widgets.accession import accession_completion_cell_data_func
 from ..ui.widgets.accession import accession_match_func
 from ..ui.widgets.location import location_match_func
 from ..ui.widgets.plant import PlantHistoryPresenter
 from ..ui.widgets.plant import _set_cell_from_func
+from ..ui.widgets.propagation import propagation_match_func
 
 
 class PlantHistoryPresenterTests(BaubleTestCase):
@@ -869,6 +872,136 @@ class LocationCompletionTests(BaubleClassTestCase):
         self.assertRaises(
             AttributeError,
             location_match_func,
+            Gtk.EntryCompletion(),
+            key,
+            0,
+        )
+
+
+class PropagationCompletionTests(BaubleClassTestCase):
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        for setup_func in get_setUp_data_funcs():
+            setup_func()
+
+        list(update_all_full_names_task())
+
+        seed = cls.session.scalar(select(PropType).filter_by(code="S"))
+
+        cls.len_props = 0
+        # add some extras
+        for i, plant in enumerate(cls.session.scalars(select(Plant))):
+            cls.len_props += 1
+            year = 1990 + i
+            prop = Propagation(
+                species=plant.accession.species,
+                code=f"{year}S/1",
+                date=datetime(year, 1, 1).date(),
+                propagator="Jade Green",
+                prop_type=seed,
+            )
+            cls.session.add(prop)
+        cls.session.commit()
+
+        cls.completion = Gtk.EntryCompletion()
+        completion_model = Gtk.ListStore(object)
+        for prop in cls.session.execute(select(Propagation)):
+            completion_model.append(prop)
+        completion_model.append((None,))
+        cls.completion.set_model(completion_model)
+
+    @classmethod
+    def tearDownClass(cls):
+        del cls.completion
+        return super().tearDownClass()
+
+    def test_match_func_full_propagation_code(self):
+        key = "2023S/1"
+        self.assertTrue(propagation_match_func(self.completion, key, 0))
+        key = "1989S/1"
+        self.assertFalse(propagation_match_func(self.completion, key, 0))
+        for i in range(1, self.len_props):
+            self.assertFalse(propagation_match_func(self.completion, key, i))
+
+    def test_match_func_partial_propagation_code(self):
+        key = "202"
+        self.assertTrue(propagation_match_func(self.completion, key, 0))
+        key = "198"
+        self.assertFalse(propagation_match_func(self.completion, key, 0))
+        for i in range(1, self.len_props):
+            self.assertFalse(propagation_match_func(self.completion, key, i))
+
+    def test_match_func_partial_propagation_code_and_species(self):
+        key = "202 Ma va"
+        self.assertTrue(propagation_match_func(self.completion, key, 0))
+        key = "198 Ag pap"
+        self.assertFalse(propagation_match_func(self.completion, key, 0))
+        for i in range(1, self.len_props):
+            self.assertFalse(propagation_match_func(self.completion, key, i))
+
+    def test_match_func_full_accession_code(self):
+        key = "2001.1"
+        self.assertTrue(propagation_match_func(self.completion, key, 0))
+        key = "1980.1"
+        self.assertFalse(propagation_match_func(self.completion, key, 0))
+        for i in range(1, self.len_props):
+            self.assertFalse(propagation_match_func(self.completion, key, i))
+
+    def test_match_func_partial_accession_code(self):
+        key = "200"
+        self.assertTrue(propagation_match_func(self.completion, key, 0))
+        key = "198"
+        self.assertFalse(propagation_match_func(self.completion, key, 0))
+        for i in range(1, self.len_props):
+            self.assertFalse(propagation_match_func(self.completion, key, i))
+
+    def test_match_func_full_accession_code_and_species(self):
+        key = "2001.1 Maxillaria s. str variabilis"
+        self.assertTrue(propagation_match_func(self.completion, key, 0))
+        key = "1980.1 Maxillaria variabilis"
+        self.assertFalse(propagation_match_func(self.completion, key, 0))
+        for i in range(1, self.len_props):
+            self.assertFalse(propagation_match_func(self.completion, key, i))
+
+    def test_match_func_partial_accession_code_and_species(self):
+        key = "200 Ma var"
+        self.assertTrue(propagation_match_func(self.completion, key, 0))
+        key = "198 Ag pa"
+        self.assertFalse(propagation_match_func(self.completion, key, 0))
+        for i in range(1, self.len_props):
+            self.assertFalse(propagation_match_func(self.completion, key, i))
+
+    def test_match_func_full_species(self):
+        key = "Maxillaria s. str variabilis"
+        self.assertTrue(propagation_match_func(self.completion, key, 0))
+        key = "Agathis papuana"
+        self.assertFalse(propagation_match_func(self.completion, key, 0))
+        for i in range(1, self.len_props):
+            self.assertFalse(propagation_match_func(self.completion, key, i))
+
+    def test_match_func_partial_species(self):
+        key = "Maxil varia"
+        self.assertTrue(propagation_match_func(self.completion, key, 0))
+        key = "Agat papu"
+        self.assertFalse(propagation_match_func(self.completion, key, 0))
+        for i in range(1, self.len_props):
+            self.assertFalse(propagation_match_func(self.completion, key, i))
+
+    def test_match_func_none(self):
+        key = ""
+        self.assertTrue(
+            propagation_match_func(self.completion, key, self.len_props + 1)
+        )
+        # everything matches the empty string
+        for i in range(1, self.len_props):
+            self.assertTrue(propagation_match_func(self.completion, key, i))
+
+    def test_match_func_no_tree_raises(self):
+        key = "19"
+        self.assertRaises(
+            AttributeError,
+            propagation_match_func,
             Gtk.EntryCompletion(),
             key,
             0,

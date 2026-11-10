@@ -210,47 +210,32 @@ class PropEventPresenter(GenericPresenter[PropEvent], Gtk.Frame):
         if self.model.propagation is None:
             return
 
-        events = self.model.propagation.events
-        index = events.index(self.model)
-        len_events = len(events)
+        prior_state = self.model.propagation.get_prior_state(self.model)
 
-        logger.debug("constraining widgets, idex=%s", index)
-
-        prior_quantity = sum(i.quantity for i in events[:index])
-        prior_success = sum(i.success for i in events[:index])
-        prior_available = sum(i.available for i in events[:index])
-
-        prior_remaining_quantity = prior_quantity - prior_success
-        prior_remaining_success = prior_success - prior_available
+        logger.debug("constraining widgets, prior_state=%s", prior_state)
 
         self._constrain_spinbutton(
             "quantity",
             "Q",
-            lower=-prior_remaining_quantity,
+            lower=-prior_state.remaining_quantity,
         )
         self._constrain_spinbutton(
             "success",
             "S",
-            upper=prior_remaining_quantity,
-            lower=-prior_remaining_success,
+            upper=prior_state.remaining_quantity,
+            lower=-prior_state.remaining_success,
         )
         self._constrain_spinbutton(
             "available",
             "A",
-            upper=prior_remaining_success,
-            lower=-prior_available,
+            upper=prior_state.remaining_success,
+            lower=-prior_state.available,
         )
 
-        start_date: datetime.date | None = None
-        end_date: datetime.date | None = None
-
-        if index > 0:
-            start_date = events[index - 1].date
-
-        if index < len_events - 1:
-            end_date = events[index + 1].date
-
-        self.date_picker.constrain_range(start_date, end_date)
+        self.date_picker.constrain_range(
+            prior_state.min_date,
+            prior_state.max_date,
+        )
 
     def _constrain_spinbutton(
         self,
@@ -410,7 +395,7 @@ class SourcePlantEditorDialog(
 
         # exlude any plants that are already in the source list
         current_plant_ids = [
-            p.id for p in self.model.propagation.plants if p is not None
+            p.id for p in self.model.propagation.source_plants if p is not None
         ]
 
         stmt = (
@@ -475,6 +460,8 @@ class PropagationEditorDialog(
     notes_textview = cast(Gtk.TextView, Gtk.Template.Child())
     notes_textbuffer = cast(Gtk.TextBuffer, Gtk.Template.Child())
     add_event_button = cast(Gtk.Button, Gtk.Template.Child())
+    consume_as_plant_button = cast(Gtk.Button, Gtk.Template.Child())
+    consume_as_accession_button = cast(Gtk.Button, Gtk.Template.Child())
     remove_event_button = cast(Gtk.Button, Gtk.Template.Child())
     events_frame = cast(Gtk.Frame, Gtk.Template.Child())
     events_liststore = cast(Gtk.ListStore, Gtk.Template.Child())
@@ -674,6 +661,9 @@ class PropagationEditorDialog(
     def update(self) -> None:
         if self.model.id is None:
             self.code_entry.set_text(self.model.get_next_code())
+
+        self.consume_as_plant_button.set_visible(self.model.is_extendable)
+        self.consume_as_accession_button.set_visible(self.model.is_sourceable)
 
         super().update()
 
@@ -1005,10 +995,42 @@ class PropagationEditorDialog(
         self.on_changed(presenter)
         self.state_label.set_text(
             f"Quantity: {self.model.quantity}\n"
+            f"Remaining quantity: {self.model.remaining_quantity}\n"
+            f"Remaining success: {self.model.remaining_success}\n"
             f"Total available: {self.model.available}\n"
-            f"Currently available: {self.model.unused}\n"
+            f"Currently available: {self.model.available}\n"
+            f"Active: {self.model.active}\n"
             f"Success: {self.model.percent_success:.1f}%"
         )
+
+    @Gtk.Template.Callback()
+    def on_consume_as_plant_btn_clicked(
+        self,
+        _button: Gtk.Button,
+    ) -> None:
+        from .plant_editor import PlantEditorDialog
+
+        plant = Plant()
+        plant.extension_propagation = self.model
+        plant.prop_extension_event.date = max(
+            i.date for i in self.model.events if i.date
+        )
+
+        with db.Session() as session:
+            dialog = PlantEditorDialog(plant, session, transient_for=self)
+
+            dialog.accession_entry.set_sensitive(False)
+            dialog.propagation_entry.set_sensitive(False)
+
+            if dialog.run() not in [Response.OK, Response.RETURN]:
+                dialog.destroy()
+                return
+
+            dialog.destroy()
+
+        self.present()
+        self.session.expire(self.model)
+        self.populate_events()
 
     @Gtk.Template.Callback()
     def on_response(

@@ -30,6 +30,7 @@ from typing import cast
 from gi.repository import GLib
 from gi.repository import Gtk
 from sqlalchemy import and_
+from sqlalchemy import exists
 from sqlalchemy import or_
 from sqlalchemy import select
 from sqlalchemy.engine import Row
@@ -81,6 +82,7 @@ from .widgets.accession import accession_completion_cell_data_func
 from .widgets.accession import accession_match_func
 from .widgets.location import location_match_func
 from .widgets.plant import PlantHistoryPresenter
+from .widgets.propagation import propagation_match_func
 
 PLANT_KML_MAP_PREFS = "kml_templates.plant"
 """pref for path to a custom mako kml template."""
@@ -104,9 +106,9 @@ def validate_unique_code(value: str, *args: Any) -> bool:
             .where(Plant.accession == model.accession)
             .where(Plant.code == value)
         )
-        exists = session.scalars(stmt).one_or_none()
+        existing = session.scalars(stmt).one_or_none()
 
-        if exists is not None and exists is not model:
+        if existing is not None and existing is not model:
             return False
     return True
 
@@ -136,6 +138,8 @@ class PlantEditorDialog(
     id_label = cast(Gtk.Label, Gtk.Template.Child())
     accession_entry = cast(Gtk.Entry, Gtk.Template.Child())
     accession_cell = cast(Gtk.CellRendererText, Gtk.Template.Child())
+    propagation_entry = cast(Gtk.Entry, Gtk.Template.Child())
+    propagation_cell = cast(Gtk.CellRendererText, Gtk.Template.Child())
     code_entry = cast(Gtk.Entry, Gtk.Template.Child())
     type_combo = cast(Gtk.ComboBox, Gtk.Template.Child())
     quantity_entry = cast(Gtk.SpinButton, Gtk.Template.Child())
@@ -186,6 +190,14 @@ class PlantEditorDialog(
         )
         accession_completion.set_match_func(accession_match_func)
 
+        propagation_completion = self.propagation_entry.get_completion()
+        propagation_completion.set_cell_data_func(
+            self.propagation_cell,
+            default_cell_data_func,
+            lambda v: f"{v.code} {v.get_accession()}" if v else "",
+        )
+        propagation_completion.set_match_func(propagation_match_func)
+
         location_completion = self.location_entry.get_completion()
         location_completion.set_cell_data_func(
             self.location_cell,
@@ -215,6 +227,7 @@ class PlantEditorDialog(
 
         self.widgets_to_model_map = {
             self.accession_entry: "accession",
+            self.propagation_entry: "extension_propagation",
             self.code_entry: "code",
             self.type_combo: "acc_type",
             self.quantity_entry: "quantity",
@@ -417,6 +430,96 @@ class PlantEditorDialog(
         return self.session.execute(stmt).all()
 
     @Gtk.Template.Callback()
+    def on_propagation_entry_changed(self, entry: Gtk.Entry) -> None:
+        self.on_completion_entry_matched(
+            entry,
+            get_values=self.propagation_get_completions,
+        )
+        adjustment = self.quantity_entry.get_adjustment()
+
+        propagation = self.model.extension_propagation
+
+        if propagation is None:
+            adjustment.set_upper(10000000)
+            self.date_picker.constrain_range(start_date=None, end_date=None)
+            return
+
+        accession = propagation.get_accession()
+        self.model.accession = accession
+        self.accession_entry.set_text(str(accession))
+
+        if self.model in self.session.new:
+
+            prior_state = propagation.get_prior_state(
+                self.model.prop_extension_event
+            )
+
+            adjustment.set_upper(prior_state.available)
+
+            self.date_picker.constrain_range(
+                start_date=prior_state.min_date,
+                end_date=prior_state.max_date,
+            )
+        else:
+            self.accession_entry.set_sensitive(False)
+            self.propagation_entry.set_sensitive(False)
+
+        self.refresh_labels()
+
+    def propagation_get_completions(
+        self,
+        text: str,
+    ) -> (
+        list[Row | tuple[None]] | list[tuple[Propagation]] | list[tuple[None]]
+    ):
+        if text.strip() == "":
+            return [(None,)]
+
+        # if already populated match.
+        if (
+            self.model.extension_propagation
+            and self.model.extension_propagation.code == text
+        ):
+            return [(self.model.extension_propagation,)]
+
+        # go broad and let the match func take care of it.
+        if self.model.accession:
+            different_acc = exists(
+                select(Propagation.id)
+                .join(Propagation.plant_sources)
+                .join(Plant)
+                .where(Plant.accession != self.model.accession)
+            )
+            stmt = (
+                select(Propagation)
+                .where(~different_acc)
+                .where(Propagation.available > 0)  # type: ignore
+                .order_by(Propagation.code)
+            )
+            return self.session.execute(stmt).all() + [(None,)]
+
+        conditions = [
+            utils.ilike(Propagation.code, f"{text.split()[0]}%"),
+            utils.ilike(Accession.code, f"{text.split()[0]}%"),
+            utils.ilike(Species.full_name, f"{text.split()[0]}%"),
+        ]
+
+        stmt = (
+            select(Propagation)
+            .join(Propagation.plant_sources)
+            .join(Plant)
+            .join(Accession)
+            .join(Species)
+            .join(Genus)
+            .where(Propagation.available > 0)  # type: ignore
+            .where(or_(*conditions))
+            .distinct()
+            .order_by(Propagation.code)
+            .limit(20)
+        )
+        return self.session.execute(stmt).all() + [(None,)]
+
+    @Gtk.Template.Callback()
     def on_code_entry_changed(self, entry: Gtk.Entry) -> None:
         self.on_unique_code_entry_changed(entry)
 
@@ -427,6 +530,12 @@ class PlantEditorDialog(
     @Gtk.Template.Callback()
     def on_quantity_entry_changed(self, spin_btn: Gtk.SpinButton) -> None:
         self.on_spin_button_changed(spin_btn)
+
+        if self.model not in self.session.new:
+            return
+
+        if self.model.prop_extension and self.model.quantity is not None:
+            self.model.prop_extension.event.available = -self.model.quantity
 
     @Gtk.Template.Callback()
     @staticmethod
@@ -496,7 +605,7 @@ class PlantEditorDialog(
             self.model.changes.append(
                 PlantChange(
                     reason=get_widget_value(self.reason_combo),
-                    date=self.change_date_entry.get_text(),
+                    date=self.change_date_entry.get_text(),  # type: ignore
                 )
             )
         return super().do_commit()
@@ -551,6 +660,6 @@ create_plant = edit_callback
 propagate_callback = AddCallback(
     PropagationEditorDialog,
     Propagation,
-    "plants",
+    "source_plants",
     attr_setter=lambda model, attr, value: setattr(model, attr, [value]),
 )

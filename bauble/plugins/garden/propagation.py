@@ -1,3 +1,4 @@
+# pylint: disable=comparison-with-callable,no-member
 # Copyright 2008-2010 Brett Adams
 # Copyright 2015-2017 Mario Frasca <mario@anche.no>.
 # Copyright 2021-2026 Ross Demuth <rossdemuth123@gmail.com>
@@ -29,6 +30,7 @@ import datetime
 import re
 from typing import TYPE_CHECKING
 from typing import Literal
+from typing import NamedTuple
 from typing import TypedDict
 
 import pyparsing as pp
@@ -38,7 +40,6 @@ from sqlalchemy import ForeignKey
 from sqlalchemy import Integer
 from sqlalchemy import String
 from sqlalchemy import UniqueConstraint
-from sqlalchemy import and_
 from sqlalchemy import case
 from sqlalchemy import cast
 from sqlalchemy import func
@@ -59,6 +60,7 @@ from bauble.i18n import _
 
 if TYPE_CHECKING:
     from ..plants.species import Species
+    from .accession import Accession
     from .plant import Plant
     from .source import Source
 
@@ -170,6 +172,17 @@ class PropEventType(db.Base):  # pylint: disable=too-few-public-methods
         return self.name or ""
 
 
+def get_event_type_id(code: str) -> int:
+    """Convenience function to get the id of an event type with the supplied
+    code.
+    """
+    with db.engine.connect() as connection:
+        type_id = connection.scalar(
+            select(PropEventType.id).where(PropEventType.code == code)
+        )
+    return type_id or 0
+
+
 START_DEFAULT_EVENT_TYPES = (
     (
         "STRT",
@@ -191,6 +204,12 @@ START_DEFAULT_EVENT_TYPES = (
         "-S",
     ),
     ("AVLB", _("Available"), _("Propagules available for use."), "+A"),
+    (
+        "CNSM",
+        _("Consumed"),
+        _("Propagules used to create or extend an accession."),
+        "-A",
+    ),
     (
         "DISC",
         _("Discard"),
@@ -273,6 +292,34 @@ class PropEvent(db.Base):  # pylint: disable=too-few-public-methods
 
     person: str = Column(String(64), default=utils.get_user_display_name())
     event_notes: str = Column(String)
+
+    created_extension: Extension = relationship(
+        "Extension",
+        uselist=False,
+        single_parent=True,
+        cascade="all, delete-orphan",
+        back_populates="event",
+    )
+    created_plant = association_proxy(
+        "created_extension",
+        "plant",
+    )
+
+    created_source_id: int = Column(
+        Integer,
+        ForeignKey("source.id"),
+    )
+    created_source: Source = relationship(
+        "Source",
+        uselist=False,
+        single_parent=True,
+        cascade="all, delete-orphan",
+        back_populates="event",
+    )
+    created_accession = association_proxy(
+        "created_source",
+        "accession",
+    )
 
     event_type_id: int = Column(
         Integer,
@@ -372,12 +419,23 @@ PropagationNote = db.make_note_class("Propagation")
 PropagationPicture = db.make_note_class("Propagation", cls_type="picture")
 
 
+class PriorValues(NamedTuple):
+    quantity: int
+    remaining_quantity: int
+    success: int
+    remaining_success: int
+    available: int
+    min_date: datetime.date
+    max_date: datetime.date | None
+
+
 class Propagation(db.Domain):
+    # pylint: disable=too-many-public-methods
     """Propagation"""
 
     __tablename__ = "propagation"
 
-    code = Column(String(32), unique=True)
+    code: str = Column(String(32), unique=True, nullable=False)
 
     species_id = Column(
         Integer,
@@ -386,7 +444,7 @@ class Propagation(db.Domain):
     )
     species: Species = relationship("Species", uselist=False)
 
-    plants = association_proxy(
+    source_plants = association_proxy(
         "plant_sources",
         "plant",
         creator=lambda plant: PlantPropSource(plant=plant, source_type="1"),
@@ -418,15 +476,107 @@ class Propagation(db.Domain):
         order_by=(PropEvent.date, PropEvent.id),
     )
 
-    used_source: list["Source"] = relationship(
-        "Source",
-        primaryjoin="Source.plant_propagation_id==Propagation.id",
-        back_populates="plant_propagation",
-    )
-    accessions = association_proxy(
-        "used_source",
-        "accession",
-    )
+    @property
+    def is_single_accession(self) -> bool:
+        return len({i.accession for i in self.source_plants}) == 1
+
+    def get_accession(self) -> Accession | None:
+        if self.is_single_accession:
+            return self.source_plants[0].accession
+        return None
+
+    @property
+    def is_vegetative(self) -> bool:
+        return all(i.source_material == "V" for i in self.plant_sources)
+
+    @property
+    def is_extendable(self) -> bool:
+        """Check if this propagation can be used to extend an existing
+        accession.
+        """
+        return (
+            self.is_single_accession
+            and self.is_vegetative
+            and self.available > 0
+        )
+
+    @property
+    def is_sourceable(self) -> bool:
+        """Check if this propagation can be used to source a new accession."""
+        return self.available > 0
+
+    def source_new_accession(self, accession: Accession) -> None:
+        """Source a new accession from this propagation."""
+        assert self.available > 0, "Nothing available to extend with"
+
+        assert accession.quantity_recvd, "Accession must have a quantity."
+
+        msg = (
+            f"Only {self.available} available, not enough to create a "
+            f"accession with quantity={accession.quantity_recvd}"
+        )
+        assert accession.quantity_recvd <= self.available, msg
+
+        from .source import Source
+
+        source = accession.source or Source(accession=accession)
+
+        event = PropEvent(
+            event_type_id=get_event_type_id("CNSM"),
+            available=-accession.quantity_recvd,
+            created_source=source,
+        )
+        self.events.append(event)
+
+    def get_prior_state(self, event: PropEvent) -> PriorValues:
+        """Get the state of the propagation prior to the supplied event."""
+        max_planted = max(
+            i.plant.planted.date for i in self.plant_sources if i.plant.planted
+        )
+        min_date = current_date = self.date or max_planted
+
+        if not event.id:
+            # new events get the current state
+            return PriorValues(
+                quantity=self.quantity,
+                remaining_quantity=self.quantity - self.success,
+                success=self.success,
+                remaining_success=self.success - self.available,
+                available=self.available,
+                min_date=min_date,
+                max_date=None,
+            )
+
+        qty = suc = avl = 0
+        max_date = None
+
+        break_after = False
+
+        for e in self.events:
+
+            if break_after:
+                max_date = e.date
+                break
+
+            if e is event:
+                min_date = current_date
+                break_after = True
+                continue
+
+            current_date = e.date
+            qty += e.quantity
+            suc += e.success
+            avl += e.available
+
+        return PriorValues(
+            quantity=qty,
+            remaining_quantity=qty - suc,
+            success=suc,
+            remaining_success=suc - avl,
+            available=avl,
+            min_date=min_date,
+            max_date=max_date,
+        )
 
     def has_children(self) -> bool:
         return bool(self.accessions)
@@ -434,10 +584,20 @@ class Propagation(db.Domain):
     def count_children(self) -> int:
         return len(self.accessions)
 
+    @property
+    def plants(self) -> list[Plant]:
+        return [i.created_plant for i in self.events if i.created_plant]
+
+    @property
+    def accessions(self) -> list[Accession]:
+        return [
+            i.created_accession for i in self.events if i.created_accession
+        ]
+
     @hybrid_property
     def quantity(self) -> int:
         """The current quantity after all culled removed."""
-        return sum(event.quantity for event in self.events)
+        return sum(event.quantity or 0 for event in self.events)
 
     @quantity.expression  # type: ignore [no-redef]
     def quantity(cls) -> ScalarSelect:
@@ -495,7 +655,7 @@ class Propagation(db.Domain):
     @hybrid_property
     def success(self) -> int:
         """Current successful after all culled removed."""
-        return sum(event.success for event in self.events)
+        return sum(event.success or 0 for event in self.events)
 
     @success.expression  # type: ignore [no-redef]
     def success(cls) -> int:
@@ -559,7 +719,7 @@ class Propagation(db.Domain):
 
     @percent_success.expression  # type: ignore [no-redef]
     def percent_success(cls) -> ColumnElement[Float]:
-        # pylint: disable=no-self-argument,comparison-with-callable
+        # pylint: disable=no-self-argument
         return case(
             [(cls.quantity == 0, 0.0)],
             else_=cast(cls.total_success, Float) / cls.quantity * 100,
@@ -568,7 +728,7 @@ class Propagation(db.Domain):
     @hybrid_property
     def available(self) -> int:
         """Total that has ever been made available, excluding discarded."""
-        return sum(event.available for event in self.events)
+        return sum(event.available or 0 for event in self.events)
 
     @available.expression  # type: ignore [no-redef]
     def available(cls) -> ScalarSelect:
@@ -599,11 +759,16 @@ class Propagation(db.Domain):
     @hybrid_property
     def discarded(self) -> int:
         """The amount discarded after becoming available."""
-        return abs(
-            sum(
-                event.available for event in self.events if event.available < 0
-            )
-        )
+        qty = 0
+        for event in self.events:
+            if event.available >= 0:
+                continue
+
+            consuming = event.created_accession or event.created_extension
+            if consuming is None:
+                qty += event.available
+
+        return abs(qty)
 
     @discarded.expression  # type: ignore [no-redef]
     def discarded(cls) -> ScalarSelect:
@@ -612,38 +777,45 @@ class Propagation(db.Domain):
             select(func.abs(func.coalesce(func.sum(PropEvent.available), 0)))
             .where(PropEvent.available < 0)
             .where(PropEvent.propagation_id == cls.id)
+            .where(~PropEvent.created_accession.has())
+            .where(~PropEvent.created_extension.has())
             .scalar_subquery()
         )
 
     @hybrid_property
-    def used(self) -> int:
-        return sum(acc.quantity_recvd or 0 for acc in self.accessions)
+    def consumed(self) -> int:
+        # pylint: disable=not-an-iterable
+        qty = 0
+        for event in self.events:
+            if event.available >= 0:
+                continue
 
-    @used.expression  # type: ignore [no-redef]
-    def used(cls) -> ScalarSelect:
+            if event.created_accession or event.created_extension:
+                qty += event.available
+
+        return abs(qty)
+
+    @consumed.expression  # type: ignore [no-redef]
+    def consumed(cls) -> ScalarSelect:
         # pylint: disable=no-self-argument
-
-        from .accession import Accession
-        from .source import Source
 
         return (
-            select(func.coalesce(func.sum(Accession.quantity_recvd), 0))
-            .where(Source.plant_propagation_id == cls.id)
-            .where(Accession.id == Source.accession_id)
+            select(func.abs(func.coalesce(func.sum(PropEvent.available), 0)))
+            .where(PropEvent.available < 0)
+            .where(PropEvent.propagation_id == cls.id)
+            .where(
+                or_(
+                    PropEvent.created_accession.has(),
+                    PropEvent.created_plant.has(),
+                )
+            )
             .scalar_subquery()
         )
 
-    @hybrid_property
-    def unused(self) -> int:
-        """The quantity still available, after used or culled."""
-        return self.available - self.used
-
-    @unused.expression  # type: ignore [no-redef]
-    def unused(cls) -> ScalarSelect:
-        # pylint: disable=no-self-argument
-        return cls.available - cls.used
-
     def __str__(self) -> str:
+        return self.code
+
+    def string(self) -> str:
 
         parts: list[str] = []
 
@@ -674,8 +846,8 @@ class Propagation(db.Domain):
         if self.percent_success:  # pylint: disable=using-constant-test
             parts.append(_("Success: %s%%") % f"{self.percent_success:.2f}")
 
-        if self.unused:  # pylint: disable=using-constant-test
-            parts.append(_("Available: %s") % self.unused)
+        if self.available:  # pylint: disable=using-constant-test
+            parts.append(_("Available: %s") % self.available)
 
         return "; ".join(parts)
 
@@ -685,7 +857,7 @@ class Propagation(db.Domain):
             f"{self.code} "
             f'<span weight="light">- {self.propagator} {date}</span>'
         )
-        line2 = f"{self.species.markup()}  - Available: {self.unused}"
+        line2 = f"{self.species.markup()}  - Available: {self.available}"
         return line1, line2
 
     def get_next_code(self) -> str:
@@ -758,14 +930,14 @@ class Propagation(db.Domain):
         if len(self.events) == 0:
             return True
 
+        # pylint: disable=not-an-iterable
         for accession in self.accessions:
             if accession.active:
                 return True
 
-        # pylint: disable=comparison-with-callable
         has_remaining = any(
             (
-                self.unused > 0,
+                self.available > 0,
                 self.remaining_quantity > 0,
                 self.remaining_success > 0,
             )
@@ -777,16 +949,25 @@ class Propagation(db.Domain):
     def active(cls) -> ColumnElement[types.Boolean]:
         # pylint: disable=no-self-argument,arguments-renamed
         from .accession import Accession
+        from .source import Source
 
-        # pylint: disable=comparison-with-callable,no-member
+        active_acc = (
+            select(Accession)
+            .join(Source)
+            .join(PropEvent)
+            .where(PropEvent.propagation_id == cls.id)
+            .where(Accession.active.is_(True))
+            .scalar_subquery()
+        )
+
         return cast(
             case(
                 [
                     (~cls.events.any(), 1),
-                    (cls.accessions.any(Accession.active.is_(True)), 1),
+                    (active_acc.exists(), 1),
                     (
                         or_(
-                            cls.unused > 0,
+                            cls.available > 0,
                             cls.remaining_quantity > 0,
                             cls.remaining_success > 0,
                         ),
@@ -797,3 +978,38 @@ class Propagation(db.Domain):
             ),
             types.Boolean,
         )
+
+
+class Extension(db.Base):
+    # pylint: disable=too-few-public-methods
+    """Extend an accesion with vegitatively propagated plants.
+
+    Links propagation to plant via an event."""
+
+    __tablename__ = "extension"
+
+    plant_id = Column(
+        Integer,
+        ForeignKey("plant.id"),
+        nullable=False,
+    )
+    plant: Mapped["Plant"] = relationship(
+        "Plant",
+        uselist=False,
+        single_parent=True,
+        cascade="all, delete-orphan",
+        back_populates="prop_extension",
+    )
+
+    event_id = Column(
+        Integer,
+        ForeignKey("prop_event.id"),
+        nullable=False,
+    )
+    event: Mapped["PropEvent"] = relationship(
+        "PropEvent",
+        uselist=False,
+        single_parent=True,
+        cascade="all, delete-orphan",
+        back_populates="created_extension",
+    )

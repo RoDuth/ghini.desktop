@@ -697,12 +697,12 @@ class QueryBuilderTests(BaubleTestCase):
         qb = QueryBuilder()
         self.assertFalse(prefs.prefs.get(prefs.query_builder_advanced))
         # Float
-        query = "propagation where percent_success = 'extinct'"
+        query = "propagation where percent_success = 80.0"
         qb.set_query(query)
         self.assertIs(qb.expression_rows[0].proptype().python_type, float)
 
         # Integer
-        query = "propagation where used = 'extinct'"
+        query = "propagation where available = 8"
         qb.set_query(query)
         self.assertIs(qb.expression_rows[0].proptype().python_type, int)
 

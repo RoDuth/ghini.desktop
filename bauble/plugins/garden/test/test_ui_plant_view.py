@@ -34,8 +34,10 @@ from ..location import Location
 from ..plant import Plant
 from ..plant import PlantChange
 from ..propagation import Propagation
+from ..propagation import PropEvent
+from ..propagation import PropEventType
+from ..propagation import populate_default_event_types
 from ..propagation import populate_default_prop_types
-from ..source import Source
 from ..test_garden import GardenTestCase
 from ..ui.plant_view import ChangeBox
 from ..ui.plant_view import GeneralPlantExpander
@@ -281,6 +283,7 @@ class ChangeBoxTests(BaubleTestCase):
 class PropagationBoxTests(BaubleTestCase):
     def test_basic(self):
         populate_default_prop_types()
+        populate_default_event_types()
         date = datetime(2001, 1, 1, 0)
         fam = Family(epithet="Myrtaceae")
         gen = Genus(epithet="Syzygium", family=fam)
@@ -306,9 +309,36 @@ class PropagationBoxTests(BaubleTestCase):
             prop_type_id=1,
         )
         plt.propagations.append(prop)
-        acc2 = Accession(code="2025.0001", species=sp)
-        acc2.source = Source(plant_propagation=prop)
-        acc2.source.propagation = prop
+        start = self.session.scalar(
+            select(PropEventType).filter_by(code="STRT")
+        )
+        prop.events.append(
+            PropEvent(
+                quantity=10,
+                event_type=start,
+            )
+        )
+        success = self.session.scalar(
+            select(PropEventType).filter_by(code="SUCC")
+        )
+        prop.events.append(
+            PropEvent(
+                success=8,
+                event_notes="leaves appear",
+                event_type=success,
+            )
+        )
+        available = self.session.scalar(
+            select(PropEventType).filter_by(code="AVLB")
+        )
+        prop.events.append(
+            PropEvent(
+                available=8,
+                event_type=available,
+            )
+        )
+        acc2 = Accession(code="2025.0001", species=sp, quantity_recvd=8)
+        prop.source_new_accession(acc2)
         self.session.add(plt)
         self.session.commit()
 
@@ -327,7 +357,7 @@ class PropagationBoxTests(BaubleTestCase):
             box.get_children()[2].get_label(),
             "Seed; propagated by Jade Green on 01-01-2001; "
             "Media: potting mix; Container: 140; Location: table 3; Notes: "
-            "spam, spam, spam and eggs",
+            "spam, spam, spam and eggs; Quantity: 10; Success: 80.00%",
         )
         self.assertEqual(
             box.get_children()[3].get_children()[0].get_label(),

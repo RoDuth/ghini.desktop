@@ -337,21 +337,31 @@ class GardenPlugin(pluginmgr.Plugin):
                 "SELECT COUNT(*) FROM propagation",
                 "propagation like %",
                 (
-                    "SELECT COUNT(*) FROM propagation "
-                    "WHERE (SELECT coalesce(sum(accession.quantity_recvd), 0) "
-                    "AS used FROM accession, source "
-                    "WHERE source.plant_propagation_id = propagation.id "
-                    "AND accession.id = source.accession_id) > 0"
+                    "SELECT COUNT(*) FROM propagation WHERE (SELECT "
+                    "abs(coalesce(sum(prop_event.available), 0)) AS consumed "
+                    "FROM prop_event WHERE prop_event.available < 0 "
+                    "AND prop_event.propagation_id = propagation.id AND "
+                    "((EXISTS (SELECT 1 FROM source WHERE "
+                    "source.id = prop_event.created_source_id AND "
+                    "(EXISTS (SELECT 1 FROM accession WHERE "
+                    "accession.id = source.accession_id)))) OR "
+                    "(EXISTS (SELECT 1 FROM extension "
+                    "WHERE prop_event.id = extension.event_id)))) > 0"
                 ),
-                "propagation where used > 0",
+                "propagation where consumed > 0",
                 (
-                    "SELECT COUNT(*) FROM propagation "
-                    "WHERE (SELECT coalesce(sum(accession.quantity_recvd), 0) "
-                    "AS used FROM accession, source "
-                    "WHERE source.plant_propagation_id = propagation.id "
-                    "AND accession.id = source.accession_id) = 0"
+                    "SELECT COUNT(*) FROM propagation WHERE (SELECT "
+                    "abs(coalesce(sum(prop_event.available), 0)) AS consumed "
+                    "FROM prop_event WHERE prop_event.available < 0 "
+                    "AND prop_event.propagation_id = propagation.id AND "
+                    "((EXISTS (SELECT 1 FROM source WHERE "
+                    "source.id = prop_event.created_source_id AND "
+                    "(EXISTS (SELECT 1 FROM accession WHERE "
+                    "accession.id = source.accession_id)))) OR "
+                    "(EXISTS (SELECT 1 FROM extension "
+                    "WHERE prop_event.id = extension.event_id)))) = 0"
                 ),
-                "propagation where used = 0",
+                "propagation where consumed = 0",
                 6,
                 False,
             )

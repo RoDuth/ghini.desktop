@@ -2,11 +2,6 @@
 <!-- Generated with glade 3.40.0 -->
 <interface>
   <requires lib="gtk+" version="3.24"/>
-  <object class="GtkAdjustment" id="quantity_adj">
-    <property name="upper">10000000</property>
-    <property name="step-increment">1</property>
-    <property name="page-increment">10</property>
-  </object>
   <object class="GtkListStore" id="accession_liststore">
     <columns>
       <!-- column-name pyobject -->
@@ -19,12 +14,6 @@
       <object class="GtkCellRendererText" id="accession_cell"/>
     </child>
   </object>
-  <object class="GtkListStore" id="type_liststore">
-    <columns>
-      <!-- column-name gchararray -->
-      <column type="gchararray"/>
-    </columns>
-  </object>
   <object class="GtkListStore" id="location_liststore">
     <columns>
       <!-- column-name pyobject -->
@@ -33,15 +22,37 @@
   </object>
   <object class="GtkEntryCompletion" id="location_completion">
     <property name="model">location_liststore</property>
-    <property name="popup-single-match">False</property>
     <child>
       <object class="GtkCellRendererText" id="location_cell"/>
     </child>
+  </object>
+  <object class="GtkListStore" id="propagation_liststore">
+    <columns>
+      <!-- column-name pyobject -->
+      <column type="PyObject"/>
+    </columns>
+  </object>
+  <object class="GtkEntryCompletion" id="propagation_completion">
+    <property name="model">propagation_liststore</property>
+    <child>
+      <object class="GtkCellRendererText" id="propagation_cell"/>
+    </child>
+  </object>
+  <object class="GtkAdjustment" id="quantity_adj">
+    <property name="upper">10000000</property>
+    <property name="step-increment">1</property>
+    <property name="page-increment">10</property>
   </object>
   <object class="GtkListStore" id="reason_liststore">
     <columns>
       <!-- column-name gchararray -->
       <column type="gchararray"/>
+      <!-- column-name gchararray1 -->
+      <column type="gchararray"/>
+    </columns>
+  </object>
+  <object class="GtkListStore" id="type_liststore">
+    <columns>
       <!-- column-name gchararray -->
       <column type="gchararray"/>
     </columns>
@@ -180,13 +191,13 @@
                           <object class="GtkLabel" id="species_label">
                             <property name="visible">True</property>
                             <property name="can-focus">False</property>
+                            <property name="margin-end">8</property>
+                            <property name="margin-top">12</property>
                             <property name="xpad">3</property>
                             <property name="ypad">3</property>
                             <property name="label">--</property>
                             <property name="wrap">True</property>
                             <property name="selectable">True</property>
-                            <property name="margin-top">12</property>
-                            <property name="margin-end">8</property>
                             <property name="xalign">0</property>
                           </object>
                           <packing>
@@ -199,10 +210,10 @@
                           <object class="GtkLabel" id="id_label">
                             <property name="visible">True</property>
                             <property name="can-focus">False</property>
+                            <property name="tooltip-text" translatable="yes">The ID number for this record.</property>
                             <property name="margin-end">4</property>
                             <property name="selectable">True</property>
                             <property name="xalign">1</property>
-                            <property name="tooltip-text" translatable="yes">The ID number for this record.</property>
                           </object>
                           <packing>
                             <property name="expand">True</property>
@@ -218,7 +229,7 @@
                       </packing>
                     </child>
                     <child>
-                      <!-- n-columns=2 n-rows=6 -->
+                      <!-- n-columns=2 n-rows=7 -->
                       <object class="GtkGrid">
                         <property name="visible">True</property>
                         <property name="can-focus">False</property>
@@ -272,10 +283,10 @@
                               <object class="GtkEntry" id="accession_entry">
                                 <property name="visible">True</property>
                                 <property name="can-focus">True</property>
-                                <property name="completion">accession_completion</property>
+                                <property name="tooltip-text" translatable="yes">The accession must be selected from the list of completions.  You can use the 'add' button to create a new one.</property>
                                 <property name="halign">start</property>
                                 <property name="width-chars">18</property>
-                                <property name="tooltip-text" translatable="yes">The accession must be selected from the list of completions.  You can use the 'add' button to a new create one.</property>
+                                <property name="completion">accession_completion</property>
                                 <signal name="changed" handler="on_accession_entry_changed" swapped="no"/>
                               </object>
                               <packing>
@@ -381,6 +392,33 @@
                           </packing>
                         </child>
                         <child>
+                          <object class="GtkLabel">
+                            <property name="visible">True</property>
+                            <property name="can-focus">False</property>
+                            <property name="label" translatable="yes">Propagation</property>
+                            <property name="xalign">0</property>
+                          </object>
+                          <packing>
+                            <property name="left-attach">0</property>
+                            <property name="top-attach">1</property>
+                          </packing>
+                        </child>
+                        <child>
+                          <object class="GtkEntry" id="propagation_entry">
+                            <property name="visible">True</property>
+                            <property name="can-focus">True</property>
+                                <property name="tooltip-text" translatable="yes">A propagation can be selected from the list of completions if any are available.  If you select a propagation the accession will be locked in.</property>
+                            <property name="halign">start</property>
+                            <property name="width-chars">18</property>
+                                <property name="completion">propagation_completion</property>
+                                <signal name="changed" handler="on_propagation_entry_changed" swapped="no"/>
+                          </object>
+                          <packing>
+                            <property name="left-attach">1</property>
+                            <property name="top-attach">1</property>
+                          </packing>
+                        </child>
+                        <child>
                           <object class="GtkBox">
                             <property name="visible">True</property>
                             <property name="can-focus">False</property>
@@ -414,21 +452,21 @@
                           </object>
                           <packing>
                             <property name="left-attach">0</property>
-                            <property name="top-attach">1</property>
+                            <property name="top-attach">2</property>
                           </packing>
                         </child>
                         <child>
                           <object class="GtkEntry" id="code_entry">
                             <property name="visible">True</property>
                             <property name="can-focus">True</property>
+                            <property name="tooltip-text" translatable="yes">The planting code must be a unique code for the accession.  You may also use ranges like 1,2,7 or 1-3 to create multiple plants (opens multiple editors).</property>
                             <property name="halign">start</property>
                             <property name="width-chars">18</property>
-                            <property name="tooltip-text" translatable="yes">The planting code must be a unique code for the accession.  You may also use ranges like 1,2,7 or 1-3 to create multiple plants (opens multiple editors).</property>
-                              <signal name="changed" handler="on_code_entry_changed" swapped="no"/>
+                            <signal name="changed" handler="on_code_entry_changed" swapped="no"/>
                           </object>
                           <packing>
                             <property name="left-attach">1</property>
-                            <property name="top-attach">1</property>
+                            <property name="top-attach">2</property>
                           </packing>
                         </child>
                         <child>
@@ -441,16 +479,16 @@
                           </object>
                           <packing>
                             <property name="left-attach">0</property>
-                            <property name="top-attach">2</property>
+                            <property name="top-attach">3</property>
                           </packing>
                         </child>
                         <child>
                           <object class="GtkComboBox" id="type_combo">
                             <property name="visible">True</property>
                             <property name="can-focus">False</property>
+                            <property name="tooltip-text" translatable="yes">The type of the plant material.</property>
                             <property name="halign">start</property>
                             <property name="model">type_liststore</property>
-                            <property name="tooltip-text" translatable="yes">The type of the plant material.</property>
                             <signal name="changed" handler="on_combobox_changed" swapped="no"/>
                             <child>
                               <object class="GtkCellRendererText"/>
@@ -461,7 +499,7 @@
                           </object>
                           <packing>
                             <property name="left-attach">1</property>
-                            <property name="top-attach">2</property>
+                            <property name="top-attach">3</property>
                           </packing>
                         </child>
                         <child>
@@ -473,7 +511,7 @@
                           </object>
                           <packing>
                             <property name="left-attach">0</property>
-                            <property name="top-attach">3</property>
+                            <property name="top-attach">4</property>
                           </packing>
                         </child>
                         <child>
@@ -486,7 +524,7 @@
                           </object>
                           <packing>
                             <property name="left-attach">1</property>
-                            <property name="top-attach">3</property>
+                            <property name="top-attach">4</property>
                           </packing>
                         </child>
                         <child>
@@ -522,7 +560,7 @@
                           </object>
                           <packing>
                             <property name="left-attach">0</property>
-                            <property name="top-attach">4</property>
+                            <property name="top-attach">5</property>
                           </packing>
                         </child>
                         <child>
@@ -532,13 +570,13 @@
                             <property name="halign">start</property>
                             <property name="width-chars">10</property>
                             <property name="input-purpose">number</property>
-                            <property name="numeric">True</property>
                             <property name="adjustment">quantity_adj</property>
+                            <property name="numeric">True</property>
                             <signal name="changed" handler="on_quantity_entry_changed" swapped="no"/>
                           </object>
                           <packing>
                             <property name="left-attach">1</property>
-                            <property name="top-attach">4</property>
+                            <property name="top-attach">5</property>
                           </packing>
                         </child>
                         <child>
@@ -575,7 +613,7 @@
                           </object>
                           <packing>
                             <property name="left-attach">0</property>
-                            <property name="top-attach">5</property>
+                            <property name="top-attach">6</property>
                           </packing>
                         </child>
                         <child>
@@ -588,10 +626,10 @@
                               <object class="GtkComboBox" id="location_comboentry">
                                 <property name="visible">True</property>
                                 <property name="can-focus">False</property>
+                                <property name="tooltip-text" translatable="yes">The location of the planting in your collection.</property>
                                 <property name="model">location_liststore</property>
                                 <property name="has-entry">True</property>
                                 <property name="popup-fixed-width">False</property>
-                                <property name="tooltip-text" translatable="yes">The location of the planting in your collection.</property>
                                 <signal name="changed" handler="on_location_comboentry_changed" swapped="no"/>
                                 <signal name="format-entry-text" handler="on_comboentry_format" swapped="no"/>
                                 <child internal-child="entry">
@@ -656,9 +694,9 @@
                             <child>
                               <object class="GtkButton" id="location_edit_button">
                                 <property name="visible">True</property>
+                                <property name="sensitive">False</property>
                                 <property name="can-focus">True</property>
                                 <property name="receives-default">True</property>
-                                <property name="sensitive">False</property>
                                 <property name="tooltip-text" translatable="yes">Edit the currently selected location.</property>
                                 <child>
                                   <object class="GtkBox">
@@ -716,7 +754,7 @@
                           </object>
                           <packing>
                             <property name="left-attach">1</property>
-                            <property name="top-attach">5</property>
+                            <property name="top-attach">6</property>
                           </packing>
                         </child>
                       </object>
@@ -732,17 +770,16 @@
                         <property name="can-focus">False</property>
                         <property name="label-xalign">0</property>
                         <property name="shadow-type">none</property>
-                        <property name="margin">5</property>
                         <child>
                           <!-- n-columns=2 n-rows=2 -->
-                          <object class="GtkGrid" id="change_grid">
+                          <object class="GtkGrid">
                             <property name="visible">True</property>
                             <property name="can-focus">False</property>
-                            <property name="row-spacing">5</property>
-                            <property name="column-spacing">3</property>
                             <property name="tooltip-text" translatable="yes">Changes are recorded for new entries and whenever the quantity or location is changed.
 
 The earliest recorded change becomes the "planted" change.  The last recorded change that reduces quantity to 0 becomes the "death"</property>
+                            <property name="row-spacing">5</property>
+                            <property name="column-spacing">3</property>
                             <child>
                               <object class="GtkLabel">
                                 <property name="visible">True</property>
@@ -941,6 +978,9 @@ The earliest recorded change becomes the "planted" change.  The last recorded ch
                   </packing>
                 </child>
               </object>
+              <packing>
+                <property name="index">-1</property>
+              </packing>
             </child>
             <child type="overlay">
               <object class="GtkRevealer" id="revealer">

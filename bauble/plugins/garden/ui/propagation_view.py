@@ -109,7 +109,7 @@ class GeneralPropagationExpander(
         self.notes_label.set_text(row.prop_notes or "")
         self.quantity_label.set_text(str(row.quantity))
         self.success_label.set_text(f"{row.percent_success:.2f}%")
-        self.available_label.set_text(str(row.unused))
+        self.available_label.set_text(str(row.available))
 
         self.update_source_for(row)
 
@@ -158,6 +158,22 @@ class GeneralPropagationExpander(
             )
             label.set_tooltip_markup(
                 accession.species_str(markup=True, authors=True)
+            )
+            box.add(event_box)
+            self.source_for_box.add(box)
+
+        for plant in row.plants:
+            box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
+            event_box = Gtk.EventBox()
+            label = Gtk.Label(label=str(plant))
+            event_box.add(label)
+            utils.make_label_clickable(
+                label,
+                on_clicked_select,
+                plant,
+            )
+            label.set_tooltip_markup(
+                plant.accession.species_str(markup=True, authors=True)
             )
             box.add(event_box)
             self.source_for_box.add(box)

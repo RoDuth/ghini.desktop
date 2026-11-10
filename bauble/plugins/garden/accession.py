@@ -793,8 +793,6 @@ class Accession(db.Domain):
             updates.append(self.source._last_updated)
             if self.source.collection:
                 updates.append(self.source.collection._last_updated)
-            if self.source.propagation:
-                updates.append(self.source.propagation._last_updated)
 
         if self.notes:
             updates.append(max(i._last_updated for i in self.notes))
@@ -826,11 +824,6 @@ class Accession(db.Domain):
             .join(Source, Collection.source_id == Source.id)
             .join(cls)
         )
-        prop_select = (
-            select([Propagation._last_updated, cls.id])
-            .join(Source, Propagation.id == Source.propagation_id)
-            .join(cls)
-        )
 
         note_select = select([AccessionNote._last_updated, cls.id]).join(cls)
 
@@ -850,7 +843,6 @@ class Accession(db.Domain):
             self_select,
             source_select,
             collect_select,
-            prop_select,
             note_select,
             doc_select,
             intended_locs_select,
@@ -2167,12 +2159,6 @@ class SourcePresenter(editor.GenericEditorPresenter):
 
         self._set_source_coll_enabled(enabled)
 
-        if self.source.propagation:
-            self.propagation = self.source.propagation
-            enabled = True
-        else:
-            self.propagation = Propagation()
-            enabled = False
 
         self._set_source_prop_enabled(enabled)
 
@@ -2328,15 +2314,9 @@ class SourcePresenter(editor.GenericEditorPresenter):
         self.refresh_sensitivity()
 
     def on_prop_add_button_clicked(self, *_args):
-        self.model.source.propagation = self.propagation
-        self._set_source_prop_enabled(True)
-        self._dirty = True
         self.refresh_sensitivity()
 
     def on_prop_remove_button_clicked(self, *_args):
-        self.model.source.propagation = None
-        self._set_source_prop_enabled(False)
-        self._dirty = True
         self.refresh_sensitivity()
 
     def on_new_source_button_clicked(self, _button):
@@ -3108,30 +3088,6 @@ class AccessionEditorPresenter(editor.GenericEditorPresenter):
         if self.model.source:
             if utils.get_invalid_columns(self.model.source.collection):
                 return False
-            if utils.get_invalid_columns(self.model.source.propagation):
-                return False
-
-            if not self.model.source.propagation:
-                return True
-
-            prop = self.model.source.propagation
-            prop_ignore = ["id", "propagation_id"]
-            prop_model = None
-            if prop:
-                # pylint: disable=protected-access
-                if prop.prop_type == "Seed":
-                    prop_model = prop.seed
-                elif prop.prop_type == "UnrootedCutting":
-                    prop_model = prop.cutting
-                elif prop.prop_type == "Other":
-                    return True
-                else:
-                    # should never get here.
-                    logger.error("validate unknown prop_type")
-                    return False
-
-            if utils.get_invalid_columns(prop_model, prop_ignore):
-                return False
 
         return True
 
@@ -3378,10 +3334,6 @@ class AccessionEditor(editor.GenericModelViewPresenterEditor):
                     self.presenter.source_presenter.collection
                 )
 
-            if not self.model.source.propagation:
-                utils.delete_or_expunge(
-                    self.presenter.source_presenter.propagation
-                )
 
             # remove any newly created parts if they do not end up used. (i.e.
             # user backed out)
@@ -3394,11 +3346,6 @@ class AccessionEditor(editor.GenericModelViewPresenterEditor):
                 if (
                     isinstance(new, Collection)
                     and new != self.model.source.collection
-                ):
-                    self.session.expunge(new)
-                if (
-                    isinstance(new, Propagation)
-                    and new != self.model.source.propagation
                 ):
                     self.session.expunge(new)
         else:

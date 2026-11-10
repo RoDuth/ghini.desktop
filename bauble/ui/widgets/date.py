@@ -385,9 +385,7 @@ class DatePickerBox(Gtk.Box):
             self.set_selected_date(date)
 
     def get_calendar_date(self) -> dt_date:
-        """Given the calendar widget return the selected date as a
-        datetime.date object.
-        """
+        """Return the selected date as a datetime.date object."""
         year, month, day = self.button.calendar.get_date()
         month += 1
         # Ensure valid date:

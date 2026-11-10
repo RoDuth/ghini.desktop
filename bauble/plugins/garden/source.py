@@ -50,7 +50,9 @@ from sqlalchemy import func
 from sqlalchemy import literal
 from sqlalchemy import or_
 from sqlalchemy import select
+from sqlalchemy.ext.associationproxy import association_proxy
 from sqlalchemy.ext.hybrid import hybrid_property
+from sqlalchemy.orm import Mapped
 from sqlalchemy.orm import Session
 from sqlalchemy.orm import backref
 from sqlalchemy.orm import relationship
@@ -78,6 +80,7 @@ if TYPE_CHECKING:
     from .accession import Accession
     from .accession import SourcePresenter
     from .propagation import Propagation
+    from .propagation import PropEvent
 
 
 def collection_edit_callback(objs, **kwargs):
@@ -203,29 +206,15 @@ class Source(db.Base):
         back_populates="source",
     )
 
-    # relation to a propagation that is specific to this Source and
-    # not attached to a Plant
-    # i.e. a Propagation of source material (i.e. purchased seeds etc.)
-    propagation_id = Column(Integer, ForeignKey("propagation.id"))
-    propagation: "Propagation" = relationship(
-        "Propagation",
+    event: Mapped["PropEvent"] = relationship(
+        "PropEvent",
         uselist=False,
         single_parent=True,
-        primaryjoin="Source.propagation_id==Propagation.id",
         cascade="all, delete-orphan",
-        backref=backref("source", uselist=False),
+        back_populates="created_source",
     )
+    plant_propagation = association_proxy("event", "propagation")
 
-    # relation to a Propagation that already exists and is attached
-    # to a Plant
-    # i.e. a plant is propagated from to create a new accessions
-    plant_propagation_id = Column(Integer, ForeignKey("propagation.id"))
-    plant_propagation: "Propagation" = relationship(
-        "Propagation",
-        uselist=False,
-        primaryjoin="Source.plant_propagation_id==Propagation.id",
-        back_populates="used_source",
-    )
     is_one_to_one = True
 
 
@@ -984,7 +973,7 @@ class PropagationChooserPresenter(editor.ChildPresenter):
         for plant in query:
             has_accessible = False
             for propagation in plant.propagations:
-                if propagation.unused > 0:
+                if propagation.available > 0:
                     has_accessible = True
             if has_accessible:
                 result.append(plant)
@@ -1005,18 +994,18 @@ class PropagationChooserPresenter(editor.ChildPresenter):
         self.tree_model.clear()
         frmt = prefs.prefs.get(prefs.date_format_pref)
         for prop in value.propagations:
-            if prop.unused == 0:
+            if prop.available == 0:
                 continue
-            plants = ", ".join(str(i) for i in prop.plants)
+            plants = ", ".join(str(i) for i in prop.source_plants)
             self.tree_model.append(
                 [
                     prop,
-                    prop.code,
+                    str(prop),
                     prop.species.string(markup=True),
                     plants,
-                    str(prop.unused),
+                    str(prop.available),
                     prop.date.strftime(frmt),
-                    str(prop),
+                    prop.string(),
                 ]
             )
         self.view.widgets.source_prop_treeview.set_sensitive(True)
@@ -1033,22 +1022,24 @@ class PropagationChooserPresenter(editor.ChildPresenter):
             )
             acc_view.widget_set_value(
                 "acc_quantity_recvd_entry",
-                utils.nstr(prop.unused),
+                utils.nstr(prop.available),
             )
+            # temp fix, because widget_set_value set it to the string value.
+            self.parent_ref().model.quantity_recvd = prop.available
             self.parent_ref().model.source = self.model
         else:
             self.parent_ref().model.source = None
 
-        self.model.plant_propagation = prop
+        prop.source_new_accession(self.model.accession)
         self._dirty = True
         self.parent_ref().refresh_sensitivity()
 
     def populate_with_all(self):
         from .plant import Plant
         from .propagation import PlantPropSource
-        from .propagation import Propagation
+        from .propagation import Propagation  # noqa: F811
 
-        stmt = select(Propagation).distinct().where(Propagation.unused > 0)
+        stmt = select(Propagation).distinct().where(Propagation.available > 0)
 
         if self.model.accession and self.model.accession.id:
             stmt = stmt.where(
@@ -1069,18 +1060,18 @@ class PropagationChooserPresenter(editor.ChildPresenter):
         frmt = prefs.prefs.get(prefs.date_format_pref)
 
         for prop in results:
-            if prop.unused == 0:
+            if prop.available == 0:
                 continue
-            plants = ", ".join(str(i) for i in prop.plants)
+            plants = ", ".join(str(i) for i in prop.source_plants)
             self.tree_model.append(
                 [
                     prop,
-                    prop.code,
+                    str(prop),
                     prop.species.string(markup=True),
                     plants,
-                    str(prop.unused),
+                    str(prop.available),
                     prop.date.strftime(frmt),
-                    str(prop),
+                    prop.string(),
                 ]
             )
         self.view.widgets.source_prop_treeview.set_sensitive(True)
@@ -1096,16 +1087,16 @@ class PropagationChooserPresenter(editor.ChildPresenter):
         prop = self.model.plant_propagation
         self.tree_model.clear()
         frmt = prefs.prefs.get(prefs.date_format_pref)
-        plants = ", ".join(str(i) for i in prop.plants)
+        plants = ", ".join(str(i) for i in prop.source_plants)
         self.tree_model.append(
             [
                 prop,
-                prop.code,
+                str(prop),
                 prop.species.string(markup=True),
                 plants,
-                str(prop.unused),
+                str(prop.available),
                 prop.date.strftime(frmt),
-                str(prop),
+                prop.string(),
             ]
         )
 

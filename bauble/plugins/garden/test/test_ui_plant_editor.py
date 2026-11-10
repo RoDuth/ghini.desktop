@@ -17,9 +17,11 @@
 """
 Plant editor tests
 """
+from datetime import datetime
 from unittest import mock
 
 from gi.repository import Gtk
+from sqlalchemy import select
 
 from bauble import db
 from bauble import utils
@@ -39,6 +41,11 @@ from ..plant import deleted_reasons
 from ..plant import new_plt_reasons
 from ..plant import transfer_reasons
 from ..propagation import Propagation
+from ..propagation import PropEvent
+from ..propagation import PropEventType
+from ..propagation import PropType
+from ..propagation import populate_default_event_types
+from ..propagation import populate_default_prop_types
 from ..ui.plant_editor import PlantEditorDialog
 from ..ui.plant_editor import edit_callback
 from ..ui.plant_editor import propagate_callback
@@ -74,6 +81,13 @@ class PlantEditorDialogTests(BaubleTestCase):
         self.assertEqual(editor.pictures_presenter.prop, "pictures")
         self.assertEqual(editor.code_entry.get_text(), "1")
         self.assertEqual(editor.accession_entry.get_text(), "2001.0001")
+        self.assertEqual(editor.propagation_entry.get_text(), "")
+        self.assertEqual(
+            editor.quantity_entry.get_adjustment().get_upper(),
+            10000000,
+        )
+        self.assertTrue(editor.accession_entry.get_sensitive())
+        self.assertTrue(editor.propagation_entry.get_sensitive())
         self.assertEqual(len(editor.problems), 0)
 
         mock_gui.window.destroy()
@@ -132,6 +146,208 @@ class PlantEditorDialogTests(BaubleTestCase):
 
         editor.destroy()
 
+    def test_init_existing_w_extension_propagation(self):
+        populate_default_prop_types()
+        populate_default_event_types()
+        family = Family(epithet="Austrobaileyaceae")
+        genus = Genus(epithet="Austrobaileya", family=family)
+        species = Species(genus=genus, epithet="scandens")
+        accession = Accession(code="2001.0001", species=species)
+        location = Location(
+            code="LOC1",
+            name="Location One",
+            description="First location.",
+        )
+        plant = Plant(
+            accession=accession,
+            location=location,
+            code="1",
+            quantity=1,
+        )
+        plant2 = Plant(
+            accession=accession,
+            location=location,
+            code="2",
+            quantity=5,
+        )
+        seed = self.session.scalar(select(PropType).filter_by(code="S"))
+        prop = Propagation(
+            species=species,
+            code="2019S/1",
+            date=datetime(2019, 1, 19),
+            propagator="Jade Green",
+            prop_type=seed,
+        )
+        plant.propagations.append(prop)
+        start = self.session.scalar(
+            select(PropEventType).filter_by(code="STRT")
+        )
+        prop.events.append(
+            PropEvent(
+                quantity=10,
+                event_type=start,
+            )
+        )
+        success = self.session.scalar(
+            select(PropEventType).filter_by(code="SUCC")
+        )
+        prop.events.append(
+            PropEvent(
+                success=5,
+                event_type=success,
+            )
+        )
+        available = self.session.scalar(
+            select(PropEventType).filter_by(code="AVLB")
+        )
+        prop.events.append(
+            PropEvent(
+                available=4,
+                event_type=available,
+            )
+        )
+        plant2.extension_propagation = prop
+
+        self.session.add(plant)
+        self.session.add(plant2)
+        self.session.commit()
+        editor = PlantEditorDialog(plant2, self.session)
+
+        self.assertEqual(editor.map_menu_btn.model, plant2)
+        self.assertEqual(editor.notes_presenter.model, plant2)
+        self.assertEqual(editor.pictures_presenter.model, plant2)
+        self.assertEqual(editor.pictures_presenter.prop, "pictures")
+        self.assertEqual(editor.code_entry.get_text(), "2")
+        self.assertEqual(editor.accession_entry.get_text(), "2001.0001")
+        self.assertEqual(editor.propagation_entry.get_text(), "2019S/1")
+        self.assertEqual(
+            editor.quantity_entry.get_adjustment().get_upper(),
+            10000000,
+        )
+        self.assertFalse(editor.accession_entry.get_sensitive())
+        self.assertFalse(editor.propagation_entry.get_sensitive())
+        self.assertEqual(len(editor.problems), 0)
+
+        editor.destroy()
+
+    def test_init_new_extension_propagation(self):
+        populate_default_prop_types()
+        populate_default_event_types()
+        family = Family(epithet="Austrobaileyaceae")
+        genus = Genus(epithet="Austrobaileya", family=family)
+        species = Species(genus=genus, epithet="scandens")
+        accession = Accession(code="2001.0001", species=species)
+        location = Location(
+            code="LOC1",
+            name="Location One",
+            description="First location.",
+        )
+        plant = Plant(
+            accession=accession,
+            location=location,
+            code="1",
+            quantity=1,
+        )
+        seed = self.session.scalar(select(PropType).filter_by(code="S"))
+        prop = Propagation(
+            species=species,
+            code="2019S/1",
+            date=datetime(2019, 1, 19),
+            propagator="Jade Green",
+            prop_type=seed,
+        )
+        plant.propagations.append(prop)
+        start = self.session.scalar(
+            select(PropEventType).filter_by(code="STRT")
+        )
+        prop.events.append(
+            PropEvent(
+                quantity=10,
+                event_type=start,
+            )
+        )
+        success = self.session.scalar(
+            select(PropEventType).filter_by(code="SUCC")
+        )
+        prop.events.append(
+            PropEvent(
+                success=5,
+                event_type=success,
+            )
+        )
+        available = self.session.scalar(
+            select(PropEventType).filter_by(code="AVLB")
+        )
+        prop.events.append(
+            PropEvent(
+                available=4,
+                event_type=available,
+            )
+        )
+        self.session.add(plant)
+        self.session.add(prop)
+        self.session.commit()
+
+        editor = PlantEditorDialog(Plant(), db.Session())
+
+        # base case
+        self.assertTrue(editor.map_menu_btn.model)
+        self.assertTrue(editor.notes_presenter.model)
+        self.assertTrue(editor.pictures_presenter.model)
+        self.assertEqual(editor.pictures_presenter.prop, "pictures")
+        self.assertEqual(editor.code_entry.get_text(), "")
+        self.assertEqual(editor.accession_entry.get_text(), "")
+        self.assertEqual(editor.propagation_entry.get_text(), "")
+        self.assertEqual(
+            editor.quantity_entry.get_adjustment().get_upper(),
+            10000000,
+        )
+        self.assertIsNone(editor.date_picker.start_date)
+        self.assertIsNone(editor.date_picker.end_date)
+        self.assertTrue(editor.accession_entry.get_sensitive())
+        self.assertTrue(editor.propagation_entry.get_sensitive())
+        self.assertIsNone(editor.model.extension_propagation)
+        self.assertEqual(len(editor.problems), 3)
+
+        # add a propagation
+        editor.propagation_entry.set_text("2019S/1")
+
+        self.assertEqual(editor.accession_entry.get_text(), "2001.0001")
+        self.assertEqual(editor.propagation_entry.get_text(), "2019S/1")
+        self.assertEqual(editor.code_entry.get_text(), "2")
+        self.assertEqual(editor.quantity_entry.get_adjustment().get_upper(), 4)
+        self.assertIsNotNone(editor.date_picker.start_date)
+        self.assertIsNone(editor.date_picker.end_date)
+        self.assertTrue(editor.accession_entry.get_sensitive())
+        self.assertTrue(editor.propagation_entry.get_sensitive())
+        self.assertIsNotNone(editor.model.extension_propagation)
+        self.assertEqual(editor.model.prop_extension_event.available, 0)
+        self.assertEqual(len(editor.problems), 2)
+
+        # change quantity
+        editor.quantity_entry.set_text("2")
+
+        self.assertEqual(editor.model.prop_extension_event.available, -2)
+
+        # remove the propagation
+        editor.propagation_entry.set_text("")
+
+        self.assertEqual(editor.accession_entry.get_text(), "2001.0001")
+        self.assertEqual(editor.propagation_entry.get_text(), "")
+        self.assertEqual(editor.code_entry.get_text(), "2")
+        self.assertEqual(
+            editor.quantity_entry.get_adjustment().get_upper(), 10000000
+        )
+        self.assertIsNone(editor.date_picker.start_date)
+        self.assertIsNone(editor.date_picker.end_date)
+        self.assertTrue(editor.accession_entry.get_sensitive())
+        self.assertTrue(editor.propagation_entry.get_sensitive())
+        self.assertIsNone(editor.model.extension_propagation)
+        self.assertIsNone(editor.model.prop_extension_event)
+        self.assertEqual(len(editor.problems), 2)
+
+        editor.destroy()
+
     def test_init_new(self):
         plant = Plant()
         editor = PlantEditorDialog(plant, self.session)
@@ -142,6 +358,13 @@ class PlantEditorDialogTests(BaubleTestCase):
         self.assertEqual(editor.pictures_presenter.prop, "pictures")
         self.assertEqual(editor.code_entry.get_text(), "")
         self.assertEqual(editor.accession_entry.get_text(), "")
+        self.assertEqual(editor.propagation_entry.get_text(), "")
+        self.assertEqual(
+            editor.quantity_entry.get_adjustment().get_upper(),
+            10000000,
+        )
+        self.assertTrue(editor.accession_entry.get_sensitive())
+        self.assertTrue(editor.propagation_entry.get_sensitive())
         self.assertEqual(len(editor.problems), 3)
         for problem, widget in editor.problems:
             self.assertIn(
@@ -640,6 +863,122 @@ class PlantEditorDialogTests(BaubleTestCase):
 
         editor.destroy()
 
+    def test_propagation_get_completions(self):
+        populate_default_prop_types()
+        populate_default_event_types()
+        family = Family(epithet="Austrobaileyaceae")
+        genus = Genus(epithet="Austrobaileya", family=family)
+        species = Species(genus=genus, epithet="scandens")
+        accession = Accession(code="2001.0001", species=species)
+        location = Location(
+            code="LOC1",
+            name="Location One",
+            description="First location.",
+        )
+        plant = Plant(
+            accession=accession,
+            location=location,
+            code="1",
+            quantity=1,
+        )
+        seed = self.session.scalar(select(PropType).filter_by(code="S"))
+        prop = Propagation(
+            species=species,
+            code="2019S/1",
+            date=datetime(2019, 1, 19),
+            propagator="Jade Green",
+            prop_type=seed,
+        )
+        plant.propagations.append(prop)
+        start = self.session.scalar(
+            select(PropEventType).filter_by(code="STRT")
+        )
+        prop.events.append(
+            PropEvent(
+                quantity=10,
+                event_type=start,
+            )
+        )
+        success = self.session.scalar(
+            select(PropEventType).filter_by(code="SUCC")
+        )
+        prop.events.append(
+            PropEvent(
+                success=5,
+                event_type=success,
+            )
+        )
+        available = self.session.scalar(
+            select(PropEventType).filter_by(code="AVLB")
+        )
+        prop.events.append(
+            PropEvent(
+                available=4,
+                event_type=available,
+            )
+        )
+        self.session.add(plant)
+        self.session.add(prop)
+        self.session.commit()
+
+        editor = PlantEditorDialog(Plant(), db.Session())
+        prop = editor.session.merge(prop)
+
+        # no accession
+        self.assertEqual(
+            editor.propagation_get_completions(""),
+            [(None,)],
+        )
+        self.assertEqual(
+            editor.propagation_get_completions("Syzyg"),
+            [(None,)],
+        )
+        self.assertEqual(
+            editor.propagation_get_completions("2005"),
+            [(None,)],
+        )
+        self.assertEqual(
+            editor.propagation_get_completions("2019"),
+            [(prop,), (None,)],
+        )
+        self.assertEqual(
+            editor.propagation_get_completions("2001.00"),
+            [(prop,), (None,)],
+        )
+        self.assertEqual(
+            editor.propagation_get_completions("Austrob"),
+            [(prop,), (None,)],
+        )
+
+        # same accession, always returns prop
+        editor.model.accession = editor.session.merge(accession)
+
+        self.assertEqual(
+            editor.propagation_get_completions("Syzyg"),
+            [(prop,), (None,)],
+        )
+        self.assertEqual(
+            editor.propagation_get_completions("20"),
+            [(prop,), (None,)],
+        )
+
+        # different accession with no props never returns prop
+        accession2 = Accession(code="2010.0001", species=species)
+        self.session.add(accession2)
+        self.session.commit()
+        editor.model.accession = editor.session.merge(accession2)
+
+        self.assertEqual(
+            editor.propagation_get_completions("2019"),
+            [(None,)],
+        )
+        self.assertEqual(
+            editor.propagation_get_completions("Austro"),
+            [(None,)],
+        )
+
+        editor.destroy()
+
 
 class FunctionTests(BaubleTestCase):
 
@@ -696,5 +1035,5 @@ class FunctionTests(BaubleTestCase):
             mock_editor.assert_called_once()
             model = mock_editor.call_args.kwargs["model"]
             self.assertIsInstance(model, Propagation)
-            self.assertEqual([i.id for i in model.plants], [plant.id])
+            self.assertEqual([i.id for i in model.source_plants], [plant.id])
             mock_editor().show.assert_called_once()

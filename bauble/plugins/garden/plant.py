@@ -55,6 +55,7 @@ from sqlalchemy.orm.attributes import get_history
 from sqlalchemy.orm.session import object_session
 from sqlalchemy.sql import cast
 from sqlalchemy.sql.expression import ColumnElement
+from sqlalchemy.sql.selectable import ScalarSelect
 
 from bauble import btypes as types
 from bauble import db
@@ -64,8 +65,11 @@ from bauble.i18n import _
 
 from .accession import Accession
 from .location import Location
+from .propagation import Extension
 from .propagation import PlantPropSource
 from .propagation import Propagation
+from .propagation import PropEvent
+from .propagation import get_event_type_id
 
 # TODO: might be worthwhile to have a label or textview next to the
 # location combo that shows the description of the currently selected
@@ -305,7 +309,7 @@ class PlantChange(db.Base):
     )
 
     # date of change
-    date = Column(types.DateTime(timezone=True), default=func.now())
+    date: datetime = Column(types.DateTime(timezone=True), default=func.now())
 
     # relations
     plant: "Plant" = relationship(
@@ -502,6 +506,12 @@ class Plant(db.Domain):
     # `if plt.geojson != val: plt.geojson = val`
     geojson = deferred(Column(types.JSON()))
 
+    _plant_props: list["PlantPropSource"] = relationship(
+        "PlantPropSource",
+        cascade="all, delete-orphan",
+        uselist=True,
+        back_populates="plant",
+    )
     propagations = association_proxy(
         "_plant_props",
         "propagation",
@@ -510,14 +520,17 @@ class Plant(db.Domain):
             source_type="1",
         ),
     )
-    _plant_props: list["PlantPropSource"] = relationship(
-        "PlantPropSource",
-        cascade="all, delete-orphan",
-        uselist=True,
-        back_populates="plant",
-    )
 
     _pictures: list[db.Picture] = sa_synonym("pictures")
+
+    prop_extension: Extension = relationship(
+        "Extension",
+        uselist=False,
+        single_parent=True,
+        cascade="all, delete-orphan",
+        back_populates="plant",
+    )
+    prop_extension_event = association_proxy("prop_extension", "event")
 
     # provide a way to search and use the change that recorded either a death
     # or a planting date directly.  This is not fool proof but close enough.
@@ -639,6 +652,30 @@ class Plant(db.Domain):
     @property
     def delimiter(self):
         return Plant.get_delimiter()
+
+    @property
+    def extension_propagation(self) -> Propagation | None:
+        """Provides a shortcut to the actual ``Propagation``."""
+        if self.prop_extension:
+            return self.prop_extension.event.propagation
+        return None
+
+    @extension_propagation.setter
+    def extension_propagation(self, propagation: Propagation) -> None:
+        if propagation:
+            if not self.prop_extension:
+                self.prop_extension = Extension()
+            if not self.prop_extension_event:
+                consuming = PropEvent(
+                    event_type_id=get_event_type_id("CNSM"),
+                    created_extension=self.prop_extension,
+                )
+                propagation.events.append(consuming)
+            self.prop_extension_event.available = -(self.quantity or 0)
+        else:
+            if self.prop_extension and self.prop_extension.event:
+                self.prop_extension.event.propagation = None
+            self.prop_extension = None
 
     @hybrid_property
     def active(self):

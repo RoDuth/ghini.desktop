@@ -29,7 +29,6 @@ from sqlalchemy.exc import SQLAlchemyError
 from bauble import utils
 from bauble.test import BaubleTestCase
 
-from ...garden.source import Source
 from ...plants.family import Family
 from ...plants.genus import Genus
 from ...plants.species import Species
@@ -49,7 +48,7 @@ from ..ui.propagation_view import remove_callback
 
 class InfoBoxTests(BaubleTestCase):
 
-    def test_general_propagation_expander_update(self):
+    def test_general_propagation_expander_update_source(self):
         # pylint: disable=too-many-statements
         populate_default_prop_types()
         populate_default_event_types()
@@ -153,14 +152,13 @@ class InfoBoxTests(BaubleTestCase):
             event_type=available,
         )
         prop.events.append(event3)
-        source = Source(plant_propagation=prop)
         prop_acc = Accession(
             date_recvd=datetime(2001, 3, 10).date(),
             code="2001.0002",
             species=lc_caligula,
             quantity_recvd=3,
-            source=source,
         )
+        prop.source_new_accession(prop_acc)
         prop_plant = Plant(
             code="1",
             quantity=3,
@@ -197,6 +195,100 @@ class InfoBoxTests(BaubleTestCase):
         self.assertEqual(expander.success_label.get_label(), "80.00%")
         self.assertEqual(expander.available_label.get_label(), "4")
         self.assertEqual(len(expander.source_plants_box.get_children()), 2)
+        self.assertEqual(len(expander.source_for_box.get_children()), 1)
+
+    def test_general_propagation_expander_update_extension(self):
+        # with minimal details
+        populate_default_prop_types()
+        populate_default_event_types()
+        family = Family(epithet="Austrobaileyaceae")
+        genus = Genus(epithet="Austrobaileya", family=family)
+        species = Species(genus=genus, epithet="scandens")
+        accession = Accession(code="2001.0001", species=species)
+        location = Location(
+            code="LOC1",
+            name="Location One",
+            description="First location.",
+        )
+        plant = Plant(
+            accession=accession,
+            location=location,
+            code="1",
+            quantity=1,
+        )
+        seed = self.session.scalar(select(PropType).filter_by(code="S"))
+        prop = Propagation(
+            species=species,
+            code="2019S/1",
+            date=datetime(2019, 1, 19),
+            propagator="Jade Green",
+            prop_type=seed,
+        )
+        plant.propagations.append(prop)
+        start = self.session.scalar(
+            select(PropEventType).filter_by(code="STRT")
+        )
+        prop.events.append(
+            PropEvent(
+                quantity=10,
+                event_type=start,
+            )
+        )
+        success = self.session.scalar(
+            select(PropEventType).filter_by(code="SUCC")
+        )
+        prop.events.append(
+            PropEvent(
+                success=5,
+                event_type=success,
+            )
+        )
+        available = self.session.scalar(
+            select(PropEventType).filter_by(code="AVLB")
+        )
+        prop.events.append(
+            PropEvent(
+                available=4,
+                event_type=available,
+            )
+        )
+        self.session.add(plant)
+        self.session.add(prop)
+        self.session.commit()
+        plant2 = Plant(
+            accession=accession,
+            location=location,
+            code="2",
+            quantity=1,
+        )
+        plant2.extension_propagation = prop
+        self.session.commit()
+        expander = GeneralPropagationExpander()
+
+        expander.update(prop)
+
+        self.assertEqual(expander.code_label.get_label(), "<big>2019S/1</big>")
+        self.assertEqual(
+            expander.name_label.get_label(),
+            f"{prop.species.string(markup=True, authors=True)}",
+        )
+        self.assertEqual(expander.type_label.get_label(), "Seed")
+        self.assertEqual(expander.propagator_label.get_label(), "Jade Green")
+        self.assertEqual(
+            expander.date_label.get_label(),
+            utils.date_string(datetime(2019, 1, 19)),
+        )
+        self.assertEqual(expander.media_label.get_label(), "")
+        self.assertEqual(expander.container_label.get_label(), "")
+        self.assertEqual(expander.location_label.get_label(), "")
+        self.assertEqual(
+            expander.notes_label.get_label(),
+            "",
+        )
+        self.assertEqual(expander.quantity_label.get_label(), "10")
+        self.assertEqual(expander.success_label.get_label(), "50.00%")
+        self.assertEqual(expander.available_label.get_label(), "3")
+        self.assertEqual(len(expander.source_plants_box.get_children()), 1)
         self.assertEqual(len(expander.source_for_box.get_children()), 1)
 
 
@@ -296,15 +388,46 @@ class FunctionTests(BaubleTestCase):
             prop_notes="Fresh, washed, seed.",
             prop_type_id=1,
         )
+        start = self.session.scalars(
+            select(PropEventType).filter_by(code="STRT")
+        ).one()
+        success = self.session.scalars(
+            select(PropEventType).filter_by(code="SUCC")
+        ).one()
+        available = self.session.scalars(
+            select(PropEventType).filter_by(code="AVLB")
+        ).one()
+        event1 = PropEvent(
+            date=datetime(2026, 2, 1).date(),
+            person="Jade Green",
+            quantity=10,
+            event_notes="First batch",
+            event_type=start,
+        )
+        prop.events.append(event1)
+        event2 = PropEvent(
+            date=datetime(2026, 3, 1).date(),
+            person="Jade Green",
+            success=8,
+            event_notes="First batch success",
+            event_type=success,
+        )
+        prop.events.append(event2)
+        event3 = PropEvent(
+            date=datetime(2026, 4, 10).date(),
+            person="Jade Green",
+            available=7,
+            event_notes="First batch available",
+            event_type=available,
+        )
+        prop.events.append(event3)
         self.plant.propagations.append(prop)
-        source = Source(plant_propagation=prop)
         accession = Accession(
             code="2026.0003",
             species=self.species,
-            quantity_recvd=8,
-            source=source,
+            quantity_recvd=7,
         )
-        self.session.add(accession)
+        prop.source_new_accession(accession)
         self.session.commit()
         mock_dlog.return_value = True
 

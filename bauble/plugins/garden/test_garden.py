@@ -28,6 +28,7 @@ import unittest
 from functools import partial
 
 from gi.repository import Gtk
+from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 
 from bauble import db
@@ -85,6 +86,8 @@ from .plant import get_next_code
 from .plant import set_code_format
 from .propagation import PlantPropSource
 from .propagation import Propagation
+from .propagation import PropEvent
+from .propagation import PropEventType
 from .propagation import populate_default_event_types
 from .propagation import populate_default_prop_types
 from .source import Collection
@@ -836,6 +839,84 @@ class PlantTests(GardenTestCase):
 
         self.assertEqual(str(Plant.top_level_count([1, 2], True)), expected)
 
+    def test_extension_propagation(self):
+        prop = Propagation(
+            species_id=1,
+            code="2001S/1",
+            media="potting mix",
+            container="140",
+            location="table 3",
+            prop_notes="bulb division",
+            prop_type_id=1,
+        )
+        start = self.session.scalar(
+            select(PropEventType).filter_by(code="STRT")
+        )
+        prop.events.append(
+            PropEvent(
+                quantity=10,
+                event_type=start,
+            )
+        )
+        success = self.session.scalar(
+            select(PropEventType).filter_by(code="SUCC")
+        )
+        prop.events.append(
+            PropEvent(
+                success=8,
+                event_type=success,
+            )
+        )
+        available = self.session.scalar(
+            select(PropEventType).filter_by(code="AVLB")
+        )
+        prop.events.append(
+            PropEvent(
+                available=8,
+                event_type=available,
+            )
+        )
+        self.plant.propagations.append(prop)
+        self.session.commit()
+
+        # base case
+        self.assertEqual(len(prop.events), 3)
+        self.assertEqual(prop.plants, [])
+        self.assertEqual(prop.available, 8)
+
+        plant2 = self.create(
+            Plant,
+            accession=self.accession,
+            location=self.location,
+            code="2",
+            quantity=1,
+        )
+        # setter
+        plant2.extension_propagation = prop
+        self.session.commit()
+
+        self.assertEqual(prop.plants, [plant2])
+        self.assertEqual(prop.available, 7)
+        self.assertEqual(len(prop.events), 4)
+        self.assertEqual(plant2.prop_extension_event.available, -1)
+
+        # getter
+        self.assertIs(plant2.extension_propagation, prop)
+
+        # check, a slight change does not create anew just refreshses
+        extension = plant2.prop_extension
+        event = plant2.prop_extension_event
+        plant2.quantity = 3
+        plant2.extension_propagation = prop
+
+        self.assertEqual(prop.plants, [plant2])
+        self.assertEqual(prop.available, 5)
+        self.assertEqual(len(prop.events), 4)
+        self.assertEqual(plant2.prop_extension_event.available, -3)
+        self.assertIs(plant2.prop_extension, extension)
+        self.assertIs(plant2.prop_extension_event, event)
+        self.assertIs(plant2.extension_propagation, prop)
+
 
 class PlantUpdatedTests(BaubleTestCase):
 
@@ -1182,38 +1263,69 @@ class SourceTests(GardenTestCase):
         # create a plant and propagation from it
         location = Location(code="1", name="site1")
         plant = Plant(
-            accession=self.accession,
+            accession=self.create(Accession, species=self.species, code="2"),
             location=location,
             code="1",
             quantity=1,
         )
-        plant.propagations.append(
-            Propagation(
-                species_id=1,
-                code="2001S/1",
-                media="potting mix",
-                container="140",
-                location="table 3",
-                prop_notes="bulb division",
-                prop_type_id=1,
+        prop = Propagation(
+            species_id=1,
+            code="2001S/1",
+            media="potting mix",
+            container="140",
+            location="table 3",
+            prop_notes="bulb division",
+            prop_type_id=1,
+        )
+        start = self.session.scalar(
+            select(PropEventType).filter_by(code="STRT")
+        )
+        prop.events.append(
+            PropEvent(
+                quantity=10,
+                event_type=start,
             )
         )
+        success = self.session.scalar(
+            select(PropEventType).filter_by(code="SUCC")
+        )
+        prop.events.append(
+            PropEvent(
+                success=8,
+                event_type=success,
+            )
+        )
+        available = self.session.scalar(
+            select(PropEventType).filter_by(code="AVLB")
+        )
+        prop.events.append(
+            PropEvent(
+                available=8,
+                event_type=available,
+            )
+        )
+        plant.propagations.append(prop)
         self.session.commit()
 
         # add plant propagation to the source and use it as the source for an
         # accession
-        source.plant_propagation = plant.propagations[0]
-        source.accession = self.accession
+        self.accession.source = source
+        self.accession.quantity_recvd = 8
+        prop.source_new_accession(self.accession)
         self.session.commit()
 
         # remove the accessions source
+        event_id = source.event.id
+        self.assertGreater(event_id, 0)
         plant_prop_id = source.plant_propagation.id
+        self.assertGreater(plant_prop_id, 0)
         self.accession.source = None
         self.session.commit()
 
         # the Propagation shouldn't be deleted as it is independant of the
-        # source
+        # source but the event should
         self.assertTrue(self.session.get(Propagation, plant_prop_id))
+        self.assertFalse(self.session.get(PropEvent, event_id))
 
 
 class SourcePresenterTests(GardenTestCase):
@@ -1307,41 +1419,6 @@ class SourcePresenterTests(GardenTestCase):
             view.widgets.source_coll_remove_button.get_sensitive()
         )
         self.assertFalse(view.widgets.source_coll_expander.get_sensitive())
-        presenter.cleanup()
-
-    def test_on_prop_add_remove_clicked(self):
-        view = AccessionEditorView()
-        model = Source()
-        presenter = SourcePresenter(
-            unittest.mock.MagicMock(),
-            Accession(source=model),
-            view,
-            self.session,
-        )
-        update_gui()
-
-        self.assertIsNone(model.propagation)
-        self.assertTrue(view.widgets.source_prop_add_button.get_sensitive())
-        self.assertFalse(
-            view.widgets.source_prop_remove_button.get_sensitive()
-        )
-        self.assertFalse(view.widgets.source_prop_expander.get_sensitive())
-
-        # add
-        view.widgets.source_prop_add_button.clicked()
-        self.assertIsNotNone(model.propagation)
-        self.assertFalse(view.widgets.source_prop_add_button.get_sensitive())
-        self.assertTrue(view.widgets.source_prop_remove_button.get_sensitive())
-        self.assertTrue(view.widgets.source_prop_expander.get_sensitive())
-
-        # remove
-        view.widgets.source_prop_remove_button.clicked()
-        self.assertIsNone(model.propagation)
-        self.assertTrue(view.widgets.source_prop_add_button.get_sensitive())
-        self.assertFalse(
-            view.widgets.source_prop_remove_button.get_sensitive()
-        )
-        self.assertFalse(view.widgets.source_prop_expander.get_sensitive())
         presenter.cleanup()
 
     @unittest.mock.patch(
@@ -2426,44 +2503,6 @@ class AccessionUpdatedTests(BaubleTestCase):
 
         # the python function
         self.assertEqual(acc.updated, acc.source.collection._last_updated)
-
-    def test_updated_source_propagation(self):
-        # make sure the date is not now
-        populate_default_prop_types()
-        date = datetime.datetime(2001, 1, 1, 0)
-        fam = Family(epithet="Myrtaceae")
-        gen = Genus(epithet="Syzygium", family=fam)
-        sp = Species(epithet="luehmannii", genus=gen)
-        acc = Accession(code="2025.0001", species=sp, _last_updated=date)
-        source_detail = SourceDetail(
-            name="Jade Green", source_type="Individual"
-        )
-        prop = Propagation(
-            species_id=1,
-            code="2001S/1",
-            media="potting mix",
-            container="140",
-            location="table 3",
-            prop_notes="bulb division",
-            prop_type_id=1,
-        )
-        acc.source = Source(
-            source_detail=source_detail,
-            propagation=prop,
-            _last_updated=date,
-        )
-        self.session.add(acc)
-        self.session.commit()
-
-        self.assertIs(
-            self.session.query(Accession)
-            .filter(Accession.updated > "Today")
-            .first(),
-            acc,
-        )
-
-        # the python function
-        self.assertEqual(acc.updated, acc.source.propagation._last_updated)
 
     def test_updated_intended_locations(self):
         # make sure the date is not now

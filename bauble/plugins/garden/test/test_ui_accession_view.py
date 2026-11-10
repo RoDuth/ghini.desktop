@@ -18,6 +18,8 @@
 Accession search view tests
 """
 
+from sqlalchemy import select
+
 from bauble.test import BaubleTestCase
 
 from ...plants.test.test_plants import setUp_data as setup_plants_data
@@ -25,7 +27,8 @@ from ..accession import Accession
 from ..accession import IntendedLocation
 from ..location import Location
 from ..plant import Plant
-from ..source import Source
+from ..propagation import PropEvent
+from ..propagation import PropEventType
 from ..test_garden import setUp_data as setup_garden_data
 from ..ui.accession_view import GeneralAccessionExpander
 from ..ui.accession_view import SourceExpander
@@ -103,7 +106,38 @@ class InfoBoxTests(BaubleTestCase):
         acc7 = self.session.get(Accession, 7)
         plt1 = self.session.get(Plant, 1)
         prop = plt1.propagations[0]
-        acc7.source = Source(plant_propagation=prop)
+        start = self.session.scalar(
+            select(PropEventType).filter_by(code="STRT")
+        )
+        prop.events.append(
+            PropEvent(
+                quantity=10,
+                event_type=start,
+            )
+        )
+        success = self.session.scalar(
+            select(PropEventType).filter_by(code="SUCC")
+        )
+        prop.events.append(
+            PropEvent(
+                success=8,
+                event_notes="leaves appear",
+                event_type=success,
+            )
+        )
+        available = self.session.scalar(
+            select(PropEventType).filter_by(code="AVLB")
+        )
+        prop.events.append(
+            PropEvent(
+                available=8,
+                event_type=available,
+            )
+        )
+        self.session.commit()
+        acc7.quantity_recvd = 8
+        prop.source_new_accession(acc7)
+        # acc7.source = Source(plant_propagation=prop)
 
         expander.update(acc7)
 

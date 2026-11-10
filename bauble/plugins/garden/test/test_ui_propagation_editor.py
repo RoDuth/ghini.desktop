@@ -307,13 +307,23 @@ class PropagationEditorDialogTests(BaubleTestCase):
         self.assertEqual(len(editor.model.plant_sources), 0)
 
         mock_source_editor.reset_mock()
-        mock_source_editor().run.return_value = Gtk.ResponseType.OK
+
+        def add_plant(plt_source, session, _dialog):
+            # add the plant and return a mock editor instance that returns OK
+            # on run.
+            mock_source_editor_inst = mock.Mock()
+            mock_source_editor_inst.run.return_value = Gtk.ResponseType.OK
+            plant = session.merge(self.plant)
+            plt_source.plant = plant
+            return mock_source_editor_inst
+
+        mock_source_editor.side_effect = add_plant
         with mock.patch.object(editor, "populate_source_list") as mock_pop:
 
             editor.on_add_source_button_clicked(None)
 
-            mock_pop.assert_called_once()
             self.assertEqual(len(editor.model.plant_sources), 1)
+            mock_pop.assert_called_once()
 
         editor.destroy()
 
@@ -778,6 +788,77 @@ class PropagationEditorDialogTests(BaubleTestCase):
 
         editor.destroy()
 
+    @mock.patch("bauble.plugins.garden.ui.plant_editor.PlantEditorDialog")
+    def test_on_consume_as_plant_btn_clicked(self, mock_editor):
+        prop = Propagation(
+            species=self.species,
+            code="2019S/1",
+            date=datetime.datetime(2019, 1, 19),
+            propagator="Jade Green",
+            prop_type=self.seed,
+        )
+        start = self.session.scalar(
+            select(PropEventType).filter_by(code="STRT")
+        )
+        prop.events.append(
+            PropEvent(
+                quantity=10,
+                event_type=start,
+            )
+        )
+        success = self.session.scalar(
+            select(PropEventType).filter_by(code="SUCC")
+        )
+        prop.events.append(
+            PropEvent(
+                success=5,
+                event_type=success,
+            )
+        )
+        available = self.session.scalar(
+            select(PropEventType).filter_by(code="AVLB")
+        )
+        prop.events.append(
+            PropEvent(
+                available=4,
+                event_type=available,
+            )
+        )
+        self.session.add(prop)
+        self.session.commit()
+
+        mock_editor().run.return_value = Gtk.ResponseType.CANCEL
+
+        editor = PropagationEditorDialog(prop, self.session)
+        with mock.patch.object(editor, "present") as mock_present:
+            editor.on_consume_as_plant_btn_clicked(None)
+
+            mock_present.assert_not_called()
+        mock_editor().accession_entry.set_sensitive.assert_called_once_with(
+            False
+        )
+        mock_editor().propagation_entry.set_sensitive.assert_called_once_with(
+            False
+        )
+        mock_editor().destroy.assert_called_once()
+
+        mock_editor().run.return_value = Gtk.ResponseType.OK
+
+        mock_editor.reset_mock()
+        with mock.patch.object(editor, "present") as mock_present:
+            editor.on_consume_as_plant_btn_clicked(None)
+
+            mock_present.assert_called_once()
+        mock_editor().accession_entry.set_sensitive.assert_called_once_with(
+            False
+        )
+        mock_editor().propagation_entry.set_sensitive.assert_called_once_with(
+            False
+        )
+        mock_editor().destroy.assert_called_once()
+
+        editor.destroy()
+
 
 class SourcePlantEditorDialogTests(BaubleTestCase):
     def setUp(self):
@@ -1080,7 +1161,7 @@ class PropEventPresenterTests(BaubleTestCase):
         presenter.init(self.session)
         presenter.set_model(self.event)
 
-        self.assertEqual(presenter.date_picker.start_date, None)
+        self.assertEqual(presenter.date_picker.start_date, self.prop.date)
         self.assertEqual(presenter.date_picker.end_date, event2.date)
         self.assertTrue(presenter.quantity_spinbutton.get_sensitive())
         self.assertEqual(presenter.quantity_adj.get_lower(), 0)
@@ -1112,7 +1193,7 @@ class PropEventPresenterTests(BaubleTestCase):
 
         presenter.destroy()
 
-    def test_constrian_widgets_cull_discard(self):
+    def test_constrain_widgets_cull_discard(self):
 
         qty_cull = self.session.scalar(
             select(PropEventType).filter_by(code="CULQ")
@@ -1134,7 +1215,7 @@ class PropEventPresenterTests(BaubleTestCase):
         presenter.set_model(self.event)
 
         # base case
-        self.assertEqual(presenter.date_picker.start_date, None)
+        self.assertEqual(presenter.date_picker.start_date, self.prop.date)
         self.assertEqual(presenter.date_picker.end_date, None)
         self.assertTrue(presenter.quantity_spinbutton.get_sensitive())
         self.assertEqual(presenter.quantity_adj.get_lower(), 0)
@@ -1246,6 +1327,7 @@ class FunctionTests(BaubleTestCase):
         seed = self.session.scalar(select(PropType).filter_by(code="S"))
         prop = Propagation(
             species=self.species,
+            code="2001S/1",
             date=datetime.date(2001, 1, 1),
             propagator="Jade Green",
             media="potting mix",
