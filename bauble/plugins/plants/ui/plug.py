@@ -20,6 +20,8 @@ plants plugin UI parts
 from functools import partial
 
 from gi.repository import Gio
+from sqlalchemy import func
+from sqlalchemy import select
 
 import bauble
 from bauble import db
@@ -29,6 +31,7 @@ from bauble.ui.views import HistoryView
 from bauble.ui.views import SearchView
 from bauble.ui.views import home
 
+from ...garden.accession import Accession
 from ..family import Family
 from ..genus import Genus
 from ..geography import Geography
@@ -127,19 +130,18 @@ if bauble.gui:
 home.StatsGrid.stats_rows.append(
     home.StatsRow(
         _("Families:"),
-        "SELECT COUNT(*) FROM family",
+        select(func.count(Family.id)),
         "family like %",
-        (
-            "SELECT COUNT(DISTINCT genus.family_id) FROM genus "
-            "JOIN species ON species.genus_id=genus.id "
-            "JOIN accession ON accession.species_id=species.id"
-        ),
+        select(func.count(func.distinct(Genus.family_id)))
+        .join(Species)
+        .join(Accession),
         "family where genera.species.accessions.id != 0",
-        (
-            "SELECT COUNT(id) FROM family WHERE id NOT IN (SELECT "
-            "DISTINCT genus.family_id FROM genus "
-            "JOIN species ON species.genus_id=genus.id "
-            "JOIN accession ON accession.species_id=species.id)"
+        select(func.count(Family.id)).where(
+            Family.id.not_in(
+                select(func.distinct(Genus.family_id))
+                .join(Species)
+                .join(Accession)
+            )
         ),
         "family where not genera.species.accessions.id != 0",
         1,
@@ -148,17 +150,16 @@ home.StatsGrid.stats_rows.append(
 home.StatsGrid.stats_rows.append(
     home.StatsRow(
         _("Genera:"),
-        "SELECT COUNT(*) FROM genus",
+        select(func.count(Genus.id)),
         "genus like %",
-        (
-            "SELECT COUNT(DISTINCT species.genus_id) FROM species "
-            "JOIN accession ON accession.species_id=species.id"
-        ),
+        select(func.count(func.distinct(Genus.id)))
+        .join(Species)
+        .join(Accession),
         "genus where species.accessions.id != 0",
-        (
-            "SELECT COUNT(id) FROM genus WHERE id NOT IN (SELECT "
-            "DISTINCT species.genus_id FROM species "
-            "JOIN accession ON accession.species_id=species.id)"
+        select(func.count(Genus.id)).where(
+            Genus.id.not_in(
+                select(func.distinct(Genus.id)).join(Species).join(Accession)
+            )
         ),
         "genus where not species.accessions.id != 0",
         2,
@@ -167,17 +168,14 @@ home.StatsGrid.stats_rows.append(
 home.StatsGrid.stats_rows.append(
     home.StatsRow(
         _("Species:"),
-        "SELECT COUNT(*) FROM species",
+        select(func.count(Species.id)),
         "species like %",
-        (
-            "SELECT COUNT(DISTINCT species.id) FROM species "
-            "JOIN accession ON accession.species_id=species.id"
-        ),
+        select(func.count(func.distinct(Species.id))).join(Accession),
         "species where not accessions = Empty",
-        (
-            "SELECT COUNT(id) FROM species WHERE id NOT IN (SELECT "
-            "DISTINCT species.id FROM species "
-            "JOIN accession ON accession.species_id=species.id)"
+        select(func.count(Species.id)).where(
+            Species.id.not_in(
+                select(func.distinct(Species.id)).join(Accession)
+            )
         ),
         "species where accessions = Empty",
         3,

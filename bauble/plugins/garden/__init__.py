@@ -30,6 +30,8 @@ logger = logging.getLogger(__name__)
 
 from gi.repository import Gio
 from gi.repository import Gtk
+from sqlalchemy import func
+from sqlalchemy import select
 from sqlalchemy.orm import object_session
 
 import bauble
@@ -301,17 +303,14 @@ class GardenPlugin(pluginmgr.Plugin):
         home.StatsGrid.stats_rows.append(
             home.StatsRow(
                 _("Accessions:"),
-                "SELECT COUNT(*) FROM accession",
+                select(func.count(Accession.id)),
                 "accession like %",
-                (
-                    "SELECT COUNT(DISTINCT accession.id) FROM accession "
-                    "JOIN plant ON plant.accession_id=accession.id "
-                    "WHERE plant.quantity>0"
+                select(func.count(Accession.id)).where(
+                    Accession.plants.any(Plant.quantity > 0)
                 ),
                 "accession where sum(plants.quantity) > 0",
-                (
-                    "SELECT COUNT(id) FROM accession WHERE id NOT IN (SELECT "
-                    "DISTINCT accession_id FROM plant WHERE plant.quantity>0)"
+                select(func.count(Accession.id)).where(
+                    ~Accession.plants.any(Plant.quantity > 0)
                 ),
                 "accession where plants = Empty or sum(plants.quantity)=0",
                 4,
@@ -321,11 +320,11 @@ class GardenPlugin(pluginmgr.Plugin):
         home.StatsGrid.stats_rows.append(
             home.StatsRow(
                 _("Plants:"),
-                "SELECT COUNT(*) FROM plant",
+                select(func.count(Plant.id)),
                 "plant like %",
-                "SELECT COUNT(*) FROM plant WHERE quantity>0",
+                select(func.count(Plant.id)).where(Plant.quantity > 0),
                 "plant where sum(quantity) > 0",
-                "SELECT COUNT(*) FROM plant WHERE quantity=0",
+                select(func.count(Plant.id)).where(Plant.quantity == 0),
                 "plant where sum(quantity) = 0",
                 5,
                 True,
@@ -334,32 +333,14 @@ class GardenPlugin(pluginmgr.Plugin):
         home.StatsGrid.stats_rows.append(
             home.StatsRow(
                 _("Propagations:"),
-                "SELECT COUNT(*) FROM propagation",
+                select(func.count(Propagation.id)),
                 "propagation like %",
-                (
-                    "SELECT COUNT(*) FROM propagation WHERE (SELECT "
-                    "abs(coalesce(sum(prop_event.available), 0)) AS consumed "
-                    "FROM prop_event WHERE prop_event.available < 0 "
-                    "AND prop_event.propagation_id = propagation.id AND "
-                    "((EXISTS (SELECT 1 FROM source WHERE "
-                    "source.id = prop_event.created_source_id AND "
-                    "(EXISTS (SELECT 1 FROM accession WHERE "
-                    "accession.id = source.accession_id)))) OR "
-                    "(EXISTS (SELECT 1 FROM extension "
-                    "WHERE prop_event.id = extension.event_id)))) > 0"
+                select(func.count(Propagation.id)).where(
+                    Propagation.consumed > 0
                 ),
                 "propagation where consumed > 0",
-                (
-                    "SELECT COUNT(*) FROM propagation WHERE (SELECT "
-                    "abs(coalesce(sum(prop_event.available), 0)) AS consumed "
-                    "FROM prop_event WHERE prop_event.available < 0 "
-                    "AND prop_event.propagation_id = propagation.id AND "
-                    "((EXISTS (SELECT 1 FROM source WHERE "
-                    "source.id = prop_event.created_source_id AND "
-                    "(EXISTS (SELECT 1 FROM accession WHERE "
-                    "accession.id = source.accession_id)))) OR "
-                    "(EXISTS (SELECT 1 FROM extension "
-                    "WHERE prop_event.id = extension.event_id)))) = 0"
+                select(func.count(Propagation.id)).where(
+                    Propagation.consumed == 0
                 ),
                 "propagation where consumed = 0",
                 6,
@@ -369,17 +350,14 @@ class GardenPlugin(pluginmgr.Plugin):
         home.StatsGrid.stats_rows.append(
             home.StatsRow(
                 _("Locations:"),
-                "SELECT COUNT(*) FROM location",
+                select(func.count(Location.id)),
                 "location like %",
-                (
-                    "SELECT COUNT(DISTINCT location.id) FROM location "
-                    "JOIN plant ON plant.location_id=location.id "
-                    "WHERE plant.quantity>0"
+                select(func.count(Location.id)).where(
+                    Location.plants.any(Plant.quantity > 0)
                 ),
                 "location where sum(plants.quantity) > 0",
-                (
-                    "SELECT COUNT(id) FROM location WHERE id NOT IN (SELECT "
-                    "DISTINCT location_id FROM plant WHERE plant.quantity>0)"
+                select(func.count(Location.id)).where(
+                    ~Location.plants.any(Plant.quantity > 0)
                 ),
                 "location where plants = Empty or sum(plants.quantity)=0",
                 7,

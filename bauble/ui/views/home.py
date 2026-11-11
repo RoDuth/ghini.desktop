@@ -34,7 +34,7 @@ from typing import cast
 from gi.repository import GLib
 from gi.repository import Gtk
 from gi.repository import Pango
-from sqlalchemy import text
+from sqlalchemy.sql import Select
 
 import bauble
 from bauble import db
@@ -197,11 +197,11 @@ class StatsRow:
     def __init__(
         self,
         label: str,
-        total_query: str,
+        total_query: Select,
         total_link: str,
-        in_use_query: str,
+        in_use_query: Select,
         in_use_link: str,
-        unused_query: str,
+        unused_query: Select,
         unused_link: str,
         position: int,
         has_active: bool = False,
@@ -216,7 +216,7 @@ class StatsRow:
             on_clicked_search,
             total_link,
         )
-        self.total_query = text(total_query)
+        self.total_query = total_query
 
         self.in_use_label = StatsLabel(label="...")
         self.in_use_viewport = self._wrap(self.in_use_label)
@@ -225,7 +225,7 @@ class StatsRow:
             on_clicked_search,
             in_use_link,
         )
-        self.in_use_query = text(in_use_query)
+        self.in_use_query = in_use_query
 
         self.unused_label = StatsLabel(label="...")
         self.unused_viewport = self._wrap(self.unused_label)
@@ -234,7 +234,7 @@ class StatsRow:
             on_clicked_search,
             unused_link,
         )
-        self.unused_query = text(unused_query)
+        self.unused_query = unused_query
 
         self.position = position
 
