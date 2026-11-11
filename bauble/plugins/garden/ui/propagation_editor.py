@@ -262,7 +262,7 @@ class PropEventPresenter(GenericPresenter[PropEvent], Gtk.Frame):
 
         adjustment = getattr(self, f"{column}_adj")
 
-        start = getattr(self.model, column)
+        start = getattr(self.model, column) or 0
 
         if reduces and not adds:
             upper = 0
