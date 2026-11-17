@@ -201,7 +201,7 @@ class HandlerMethodDescriptor[T: GObject.Object](ABC):
 
         Subclasses that implement ``must_match=True`` can override ``handler``
         to run this instead where required (i.e. where setting the problem and
-        logging is all thats needed).  These subclasses should remove
+        logging is all that is needed).  These subclasses should remove
         ``match_problem`` later where appropriate.
         """
         value = None
@@ -268,6 +268,8 @@ class HandlerMethodDescriptor[T: GObject.Object](ABC):
                 if self.converter:
                     value = self.converter(value, field_name, instance.model)
 
+                logger.debug("setting %s to %s", field_name, value)
+
                 setattr(instance.model, field_name, value)
         except Exception as e:  # pylint: disable=broad-except
             logger.warning(
@@ -304,24 +306,28 @@ class EntryHandler(HandlerMethodDescriptor[Gtk.Entry]):
 
 
 class EntryWCompletionHandler(EntryHandler):
-    """HandlerMethodDescriptor for Gtk.Entry widgets with completions.
-
-    The entry must have a ``Gtk.EntryCompletion`` with model attached.
+    """HandlerMethodDescriptor for ``Gtk.Entry`` widgets with a
+    ``Gtk.EntryCompletion`` and ``Gtk.TreeModel`` attached.
 
     If the completion model handles non-string values set ``must_match=True``.
 
     To work for both string or object values the default "match-selected"
-    behaviour is overriden to update the entry widget with the string of the
+    behaviour is overridden to update the entry widget with the string of the
     object and set the model's value to the object.
 
     If validation or conversion is needed provide a list of ``Validator``s and
     a ``Converter`` callback as required.
 
     ``get_values`` kwarg must be supplied, along with the Entry widget, to the
-    handler as a callable that returns completions given a string to match.
+    handler as a callable that returns completions given a string to match.  If
+    the empty string can match ``None`` make sure it is always returned and set
+    ``minimum_key_length`` on the completion to ``0`` (allows empty string to
+    match).  To avoid ``get_values`` returning too many matches on the empty
+    string, considering using ``if text.strip() == "": return [(None,)]``
+    early.
 
-    If the entry must match one of the completions instanciate with
-    ``must_match=True``
+    If the entry must match one of the completion model values instantiate
+    with ``must_match=True``.
     """
 
     def __init__(
@@ -365,7 +371,7 @@ class EntryWCompletionHandler(EntryHandler):
             """
             field_name = instance.widgets_to_model_map[widget]
             obj = liststore[tree_iter][0]
-            widget.set_text(str(obj))
+            widget.set_text(str("" if obj is None else obj))
             instance.remove_problem(self.match_problem, problem_widget)
 
             if not self.validate(instance, problem_widget, field_name, obj):
@@ -389,20 +395,21 @@ class EntryWCompletionHandler(EntryHandler):
 
         values = get_values(text)
 
-        if self.must_match:
-            # just log and mark the problem
-            super().match_handler(instance, widget, **kwargs)
-        else:
-            super().handler(instance, widget, **kwargs)
-
         if len(text) < min_key_length:
+            if self.must_match:
+                super().match_handler(instance, widget, **kwargs)
+            else:
+                super().handler(instance, widget, **kwargs)
             return
 
         exact_match: list[Gtk.TreeIter] = []
         for value in values:
             tree_iter = completion_model.append(value)
 
-            if str(value[0]).lower() == text.lower():
+            # empty string, None is allowed if it exists
+            if value[0] is None and text == "":
+                exact_match.append(tree_iter)
+            elif str(value[0]).lower() == text.lower():
                 exact_match.append(tree_iter)
 
         # if one exact match exists select it
@@ -410,6 +417,13 @@ class EntryWCompletionHandler(EntryHandler):
             completion.emit("match-selected", completion_model, exact_match[0])
             # force the popup to close
             completion_model.clear()
+
+        if self.must_match:
+            if not exact_match:
+                # log, mark the problem and set to None
+                super().match_handler(instance, widget, **kwargs)
+        else:
+            super().handler(instance, widget, **kwargs)
 
 
 class TextBufferHandler(HandlerMethodDescriptor[Gtk.TextBuffer]):
@@ -451,7 +465,7 @@ class ComboBoxHandler(HandlerMethodDescriptor[Gtk.ComboBox]):
     else column 0 is used.
 
     If the combo has an entry that must match one of the model values
-    instanciate with ``must_match=True``
+    instantiate with ``must_match=True``
     """
 
     def __init__(
@@ -503,7 +517,7 @@ class ComboBoxHandler(HandlerMethodDescriptor[Gtk.ComboBox]):
             entry = cast(Gtk.Entry, widget.get_child())
             problem_widget = entry
 
-            completion = problem_widget.get_completion()
+            completion = entry.get_completion()
             if completion:
                 completion_id = id(completion)
 

@@ -1,3 +1,4 @@
+# pylint: disable=too-many-statements
 # Copyright (c) 2026 Ross Demuth <rossdemuth123@gmail.com>
 #
 # This file is part of ghini.desktop.
@@ -200,6 +201,24 @@ class HandlerTests(TestCase):
         self.assertIsNone(presenter.model.value)
         self.assertEqual(presenter.entry.get_text(), "Foo")
 
+        # no match, must_match=True, empty string
+        type(presenter).entry_w_completion_handler.must_match = True
+        presenter.model.value = "Foo"
+        presenter.entry.set_text("")
+        presenter.entry_w_completion_handler(
+            presenter.entry,
+            get_values=values_getter,
+        )
+
+        self.assertEqual(len(list_store), 0)
+        self.assertCountEqual([i[0] for i in list_store], [])
+        self.assertEqual(len(presenter.problems), 1)
+        self.assertTrue(
+            list(presenter.problems)[0][0].startswith("not_matched")
+        )
+        self.assertIsNone(presenter.model.value)
+        self.assertEqual(presenter.entry.get_text(), "")
+
         # exact match
         presenter.entry.set_text("Foo bar")
         presenter.entry_w_completion_handler(
@@ -212,6 +231,27 @@ class HandlerTests(TestCase):
         self.assertEqual(len(presenter.problems), 0)
         self.assertEqual(presenter.entry.get_text(), "Foo bar")
         self.assertEqual(presenter.model.value, "Foo bar")
+        presenter.update.assert_called()
+
+        # exact match None == empty string
+        completion.set_minimum_key_length(0)
+        presenter.entry.set_text("Foo")  # set a problem to check it clears
+        presenter.entry_w_completion_handler(
+            presenter.entry,
+            get_values=values_getter,
+        )
+        self.assertEqual(len(presenter.problems), 1)
+        presenter.entry.set_text("")
+        presenter.entry_w_completion_handler(
+            presenter.entry,
+            get_values=lambda t: values_getter(t) + [(None,)],
+        )
+
+        # cleared to close the popup
+        self.assertEqual(len(list_store), 0)
+        self.assertEqual(len(presenter.problems), 0)
+        self.assertEqual(presenter.entry.get_text(), "")
+        self.assertEqual(presenter.model.value, None)
         presenter.update.assert_called()
 
         # exact match doesn't validate
