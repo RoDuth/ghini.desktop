@@ -28,10 +28,10 @@ logger = logging.getLogger(__name__)
 
 import datetime
 import re
+from dataclasses import dataclass
 from typing import TYPE_CHECKING
 from typing import Literal
 from typing import NamedTuple
-from typing import TypedDict
 
 import pyparsing as pp
 from sqlalchemy import Column
@@ -75,6 +75,7 @@ SOURCE_TYPES = {
 SOURCE_MATERIALS = {
     "F": _("Seed"),
     "M": _("Pollen"),
+    "H": _("Spore"),
     "R": _("Rootstock"),
     "S": _("Scion"),
     "V": _("Vegetative"),
@@ -128,15 +129,23 @@ flag = pp.Group(prefix + attribute)
 option_grammar = pp.Optional(pp.OneOrMore(flag))
 
 
-class AddReduceDict(TypedDict):
-    adds: bool
-    reduces: bool
+@dataclass
+class AddReduceOption:
+    adds: bool = False
+    reduces: bool = False
 
 
-class OptionDict(TypedDict):
-    Q: AddReduceDict
-    S: AddReduceDict
-    A: AddReduceDict
+@dataclass
+class ParsedOptions:
+    quantity: AddReduceOption
+    success: AddReduceOption
+    available: AddReduceOption
+
+    def is_unrestricted(self) -> bool:
+        return all(
+            opt.adds and opt.reduces
+            for opt in (self.quantity, self.success, self.available)
+        )
 
 
 class PropEventType(db.Base):  # pylint: disable=too-few-public-methods
@@ -150,23 +159,32 @@ class PropEventType(db.Base):  # pylint: disable=too-few-public-methods
     # e.g. for all use "+-Q+-S+-A" for just adding to quantity use "+Q"
     option_str = Column(String(12))
 
-    def parsed_options(self) -> OptionDict:
-        result: OptionDict = {
-            "Q": {"adds": False, "reduces": False},
-            "A": {"adds": False, "reduces": False},
-            "S": {"adds": False, "reduces": False},
-        }
+    def parsed_options(self) -> ParsedOptions:
+        result = ParsedOptions(
+            quantity=AddReduceOption(),
+            success=AddReduceOption(),
+            available=AddReduceOption(),
+        )
         parsed = option_grammar.parse_string(self.option_str or "")
 
         for item in parsed:
             attr: Literal["Q", "S", "A"] = item["attr"]
+            full_name = {
+                "Q": "quantity",
+                "S": "success",
+                "A": "available",
+            }[attr]
             action = item["action"]
-            can_add = "+" in action
-            can_reduce = "-" in action
-
-            result[attr] = {"adds": can_add, "reduces": can_reduce}
+            setattr(
+                result,
+                full_name,
+                AddReduceOption(adds="+" in action, reduces="-" in action),
+            )
 
         return result
+
+    def is_unrestricted_type(self) -> bool:
+        return self.parsed_options().is_unrestricted()
 
     def __str__(self) -> str:
         return self.name or ""
@@ -231,7 +249,7 @@ START_DEFAULT_EVENT_TYPES = (
         "OTHR",
         _("Other"),
         _("Undefined propagation event (add notes)."),
-        "+_Q+-S+-A",
+        "+-Q+-S+-A",
     ),
 )
 
@@ -343,35 +361,51 @@ class PropEvent(db.Base):  # pylint: disable=too-few-public-methods
 
 
 class PropType(db.Base):  # pylint: disable=too-few-public-methods
-    """Propagation types"""
+    """Propagation types.
+
+    :param source_materials: specifies which material types are allowed for
+        this propagation type.  Expressed as a comma separated string of
+        allowed SOURCE_MATERIALS keys.
+
+    """
 
     __tablename__ = "prop_type"
 
     code: str = Column(String(6), unique=True, nullable=False)
     name: str = Column(String(24), unique=True, nullable=False)
     description: str = Column(String)
+    source_materials: str = Column(String(12))
 
     def __str__(self) -> str:
         return self.name
 
 
 START_DEFAULT_PROP_TYPES = (
-    ("O", _("Other"), _("Undefined propagation (add notes).")),
-    ("S", _("Seed"), _("Sexual propagation from seed.")),
+    (
+        "O",
+        _("Other"),
+        _("Undefined propagation (add notes)."),
+        ",".join(k for k in SOURCE_MATERIALS if k),
+    ),
+    ("S", _("Seed"), _("Sexual propagation from seed."), "F,M"),
+    ("N", _("Spore"), _("Propagation from spore."), "H"),
     (
         "C",
         _("Cutting"),
         _("Asexual vegetative propagation from a cutting."),
+        "V",
     ),
     (
         "G",
         _("Graft"),
         _("Asexual vegetative propagation from a rootstock and scion."),
+        "R,S",
     ),
     (
         "M",
         _("Marcot"),
         _("Asexual vegetative propagation from a marcot or air-layering."),
+        "V",
     ),
     (
         "D",
@@ -380,6 +414,7 @@ START_DEFAULT_PROP_TYPES = (
             "Asexual vegetative propagation from a division of a plant (bulb, "
             "rhizome, tuber, etc.)."
         ),
+        "V",
     ),
 )
 
@@ -394,7 +429,7 @@ def populate_default_prop_types() -> None:
             return
 
         for id_, values in enumerate(START_DEFAULT_PROP_TYPES):
-            code, name, description = values
+            code, name, description, materials = values
 
             porp_type_table = PropType.__table__
             connection.execute(
@@ -404,6 +439,7 @@ def populate_default_prop_types() -> None:
                         "code": code,
                         "name": name,
                         "description": description,
+                        "source_materials": materials,
                     }
                 )
             )
@@ -419,7 +455,9 @@ PropagationNote = db.make_note_class("Propagation")
 PropagationPicture = db.make_note_class("Propagation", cls_type="picture")
 
 
-class PriorValues(NamedTuple):
+class PropState(NamedTuple):
+    """Representation of a ``Propagation``s state."""
+
     quantity: int
     remaining_quantity: int
     success: int
@@ -481,6 +519,7 @@ class Propagation(db.Domain):
         return len({i.accession for i in self.source_plants}) == 1
 
     def get_accession(self) -> Accession | None:
+        """If this is a single accession propagation return that accession."""
         if self.is_single_accession:
             return self.source_plants[0].accession
         return None
@@ -528,26 +567,21 @@ class Propagation(db.Domain):
         )
         self.events.append(event)
 
-    def get_prior_state(self, event: PropEvent) -> PriorValues:
-        """Get the state of the propagation prior to the supplied event."""
+    def get_prior_state(self, event: PropEvent) -> PropState:
+        """Get a represention of the state of a ``Propagation`` at a point in
+        time prior to the supplied ``PropEvent``.
+
+        ``min_date`` and ``max_date`` represent allowances, i.e. the minimum
+        date considering the prior state or the maximum date considering the
+        known future state of the propagation.  ``max_date`` will be ``None``
+        for the last event (i.e. no future state).
+        """
         max_planted = max(
             i.plant.planted.date for i in self.plant_sources if i.plant.planted
         )
         min_date = current_date = self.date or max_planted
 
-        if not event.id:
-            # new events get the current state
-            return PriorValues(
-                quantity=self.quantity,
-                remaining_quantity=self.quantity - self.success,
-                success=self.success,
-                remaining_success=self.success - self.available,
-                available=self.available,
-                min_date=min_date,
-                max_date=None,
-            )
-
-        qty = suc = avl = 0
+        qty = suc = avl = total_suc = made_avl = 0
         max_date = None
 
         break_after = False
@@ -560,19 +594,22 @@ class Propagation(db.Domain):
 
             if e is event:
                 min_date = current_date
+                # last event ends here else ends on next to get max_date
                 break_after = True
                 continue
 
             current_date = e.date
             qty += e.quantity
             suc += e.success
+            total_suc += e.success if e.success > 0 else 0
             avl += e.available
+            made_avl += e.available if e.available > 0 else 0
 
-        return PriorValues(
+        return PropState(
             quantity=qty,
-            remaining_quantity=qty - suc,
+            remaining_quantity=qty - total_suc,
             success=suc,
-            remaining_success=suc - avl,
+            remaining_success=suc - made_avl,
             available=avl,
             min_date=min_date,
             max_date=max_date,
@@ -627,7 +664,7 @@ class Propagation(db.Domain):
 
     @hybrid_property
     def remaining_quantity(self) -> int:
-        """Total of quantity, excluding available."""
+        """Total of quantity, excluding success."""
         return self.quantity - self.total_success
 
     @remaining_quantity.expression  # type: ignore [no-redef]
@@ -721,7 +758,7 @@ class Propagation(db.Domain):
     def percent_success(cls) -> ColumnElement[Float]:
         # pylint: disable=no-self-argument
         return case(
-            [(cls.quantity == 0, 0.0)],
+            (cls.quantity == 0, 0.0),
             else_=cast(cls.total_success, Float) / cls.quantity * 100,
         )
 
@@ -741,7 +778,9 @@ class Propagation(db.Domain):
 
     @hybrid_property
     def made_available(self) -> int:
-        """Total that has ever been made available, excluding discarded."""
+        """Total that has ever been made available, excluding discarded and
+        consuming.
+        """
         return sum(
             event.available for event in self.events if event.available > 0
         )
@@ -787,11 +826,9 @@ class Propagation(db.Domain):
         # pylint: disable=not-an-iterable
         qty = 0
         for event in self.events:
-            if event.available >= 0:
-                continue
-
-            if event.created_accession or event.created_extension:
-                qty += event.available
+            if event.available < 0:
+                if event.created_accession or event.created_extension:
+                    qty += event.available
 
         return abs(qty)
 
@@ -810,6 +847,29 @@ class Propagation(db.Domain):
                 )
             )
             .scalar_subquery()
+        )
+
+    @property
+    def is_discarded(self) -> bool:
+        if self.total_quantity > 0:
+            return all(
+                (
+                    self.remaining_quantity == 0,
+                    self.remaining_success == 0,
+                    self.available == 0,
+                )
+            )
+        return False
+
+    @property
+    def is_completed(self) -> bool:
+        return all(
+            (
+                self.consumed > 0,
+                self.remaining_quantity == 0,
+                self.remaining_success == 0,
+                self.available == 0,
+            )
         )
 
     def __str__(self) -> str:
@@ -962,18 +1022,16 @@ class Propagation(db.Domain):
 
         return cast(
             case(
-                [
-                    (~cls.events.any(), 1),
-                    (active_acc.exists(), 1),
-                    (
-                        or_(
-                            cls.available > 0,
-                            cls.remaining_quantity > 0,
-                            cls.remaining_success > 0,
-                        ),
-                        1,
+                (~cls.events.any(), 1),
+                (active_acc.exists(), 1),
+                (
+                    or_(
+                        cls.available > 0,
+                        cls.remaining_quantity > 0,
+                        cls.remaining_success > 0,
                     ),
-                ],
+                    1,
+                ),
                 else_=0,
             ),
             types.Boolean,

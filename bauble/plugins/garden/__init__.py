@@ -412,52 +412,20 @@ class GardenPlugin(pluginmgr.Plugin):
             "{table} where vouchers.id = {obj_id}",
         )
 
-        # These are a little rough, only getting to accessions that have used
-        # them as a source.
         HistoryView.add_translation_query(
+            "prop_event",
             "propagation",
-            "accession",
-            (
-                "{table} where source.plant_propagation.id = {obj_id} or "
-                "source.propagation.id = {obj_id}"
-            ),
-        )
-        HistoryView.add_translation_query(
-            "prop_seed",
-            "accession",
-            (
-                "{table} where source.plant_propagation.seed.id = {obj_id} or "
-                "source.propagation.seed.id = {obj_id}"
-            ),
-        )
-        HistoryView.add_translation_query(
-            "prop_cutting",
-            "accession",
-            (
-                "{table} where source.plant_propagation.cutting.id = {obj_id} "
-                "or source.propagation.cutting.id = {obj_id}"
-            ),
-        )
-        HistoryView.add_translation_query(
-            "prop_cutting",
-            "accession",
-            (
-                "{table} where source.plant_propagation.cutting.id = {obj_id} "
-                "or source.propagation.cutting.id = {obj_id}"
-            ),
-        )
-        HistoryView.add_translation_query(
-            "prop_cutting_rooted",
-            "accession",
-            (
-                "{table} where source.plant_propagation.cutting.rooted.id = "
-                "{obj_id} or source.propagation.cutting.rooted.id = {obj_id}"
-            ),
+            ("{table} where events.id = {obj_id}"),
         )
         HistoryView.add_translation_query(
             "plant_prop",
+            "propagation",
+            ("{table} where plant_sources.id = {obj_id}"),
+        )
+        HistoryView.add_translation_query(
+            "extension",
             "plant",
-            ("{table} where propagations._plant_prop.id = {obj_id}"),
+            ("{table} where prop_extension.id = {obj_id}"),
         )
 
         if not cls._options_menu_set:

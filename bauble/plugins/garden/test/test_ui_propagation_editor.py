@@ -1,4 +1,5 @@
 # pylint: disable=no-self-use,too-many-lines,too-many-locals
+# pylint: disable=too-many-public-methods,too-many-statements
 # Copyright (c) 2026 Ross Demuth <rossdemuth123@gmail.com>
 #
 # This file is part of ghini.desktop.
@@ -31,6 +32,8 @@ from bauble.test import update_gui
 from bauble.ui.presenter import Response
 from bauble.ui.utils import get_widget_value
 from bauble.ui.utils import set_widget_value
+from bauble.ui.widgets import MessageBox
+from bauble.ui.widgets import YesNoMessageBox
 
 from ...plants.family import Family
 from ...plants.genus import Genus
@@ -67,6 +70,9 @@ class PropagationEditorDialogTests(BaubleTestCase):
             quantity=5,
             location=location,
         )
+        self.session.add(self.plant)
+        self.session.commit()
+        self.plant.planted.date = datetime.datetime(2000, 1, 1)
         self.plant2 = Plant(
             code="2",
             accession=self.accession,
@@ -186,6 +192,145 @@ class PropagationEditorDialogTests(BaubleTestCase):
                 ),
                 problem,
             )
+
+        editor.destroy()
+
+    def test_init_existing_consumed_notifies(self):
+        other = self.session.scalar(
+            select(PropEventType).filter_by(code="OTHR")
+        )
+        prop = Propagation(
+            species=self.species,
+            code="2001S/2",
+            date=datetime.date(2001, 1, 1),
+            propagator="Jade Green",
+            media="potting mix",
+            container="140mm",
+            location="table 3",
+            prop_notes="15% moisture content",
+            prop_type=self.seed,
+            source_plants=[self.plant],
+        )
+        prop.events.append(
+            PropEvent(
+                event_type=other,
+                date=datetime.date(2001, 1, 1),
+                person="Jade Green",
+                propagation=prop,
+                quantity=10,
+                success=10,
+                available=10,
+            )
+        )
+        self.session.add(prop)
+        self.session.commit()
+        accession = Accession(
+            code="2026.0003",
+            species=self.species,
+            quantity_recvd=10,
+        )
+        prop.source_new_accession(accession)
+        self.session.add(accession)
+        self.session.commit()
+        editor = PropagationEditorDialog(prop, self.session)
+        editor.revealer.add(Gtk.Box())  # coverage
+        update_gui()
+        child = editor.revealer.get_child()
+
+        self.assertIsInstance(child, YesNoMessageBox)
+        self.assertFalse(editor.note_book.get_sensitive())
+        self.assertEqual(child.get_children()[0].get_label()[:8], "Consumed")
+        self.assertTrue(editor.revealer.get_reveal_child())
+
+        # no
+        child.get_children()[1].get_children()[1].emit("clicked")
+
+        self.assertFalse(editor.revealer.get_reveal_child())
+        self.assertFalse(editor.note_book.get_sensitive())
+
+        editor.destroy()
+
+        editor = PropagationEditorDialog(prop, self.session)
+        editor.revealer.add(Gtk.Box())  # coverage
+        update_gui()
+        child = editor.revealer.get_child()
+
+        # yes
+        child.get_children()[1].get_children()[0].emit("clicked")
+
+        self.assertFalse(editor.revealer.get_reveal_child())
+        self.assertTrue(editor.note_book.get_sensitive())
+
+        editor.destroy()
+
+    def test_init_existing_discarded_notifies(self):
+        other = self.session.scalar(
+            select(PropEventType).filter_by(code="OTHR")
+        )
+        prop = Propagation(
+            species=self.species,
+            code="2001S/2",
+            date=datetime.date(2001, 1, 1),
+            propagator="Jade Green",
+            media="potting mix",
+            container="140mm",
+            location="table 3",
+            prop_notes="15% moisture content",
+            prop_type=self.seed,
+            source_plants=[self.plant],
+        )
+        prop.events.append(
+            PropEvent(
+                event_type=other,
+                date=datetime.date(2001, 1, 1),
+                person="Jade Green",
+                propagation=prop,
+                quantity=10,
+                success=10,
+                available=10,
+            )
+        )
+        prop.events.append(
+            PropEvent(
+                event_type=other,
+                date=datetime.date(2001, 1, 7),
+                person="Jade Green",
+                propagation=prop,
+                quantity=0,
+                success=0,
+                available=-10,
+            )
+        )
+        self.session.add(prop)
+        self.session.commit()
+        editor = PropagationEditorDialog(prop, self.session)
+        editor.revealer.add(Gtk.Box())  # coverage
+        update_gui()
+        child = editor.revealer.get_child()
+
+        self.assertIsInstance(child, YesNoMessageBox)
+        self.assertFalse(editor.note_book.get_sensitive())
+        self.assertEqual(child.get_children()[0].get_label()[:9], "Discarded")
+        self.assertTrue(editor.revealer.get_reveal_child())
+
+        # no
+        child.get_children()[1].get_children()[1].emit("clicked")
+
+        self.assertFalse(editor.revealer.get_reveal_child())
+        self.assertFalse(editor.note_book.get_sensitive())
+
+        editor.destroy()
+
+        editor = PropagationEditorDialog(prop, self.session)
+        editor.revealer.add(Gtk.Box())  # coverage
+        update_gui()
+        child = editor.revealer.get_child()
+
+        # yes
+        child.get_children()[1].get_children()[0].emit("clicked")
+
+        self.assertFalse(editor.revealer.get_reveal_child())
+        self.assertTrue(editor.note_book.get_sensitive())
 
         editor.destroy()
 
@@ -482,6 +627,32 @@ class PropagationEditorDialogTests(BaubleTestCase):
 
         editor.destroy()
 
+    @mock.patch("bauble.plugins.garden.ui.propagation_editor.edit_callback")
+    def test_on_response_save(self, mock_callback):
+        mock_callback.return_value = False
+        prop = Propagation(
+            code="2001S/1",
+            date=datetime.date(2001, 1, 1),
+            propagator=utils.get_user_display_name(),
+            media="potting mix",
+            container="140mm",
+            location="table 3",
+            prop_notes="15% moisture content",
+            prop_type=self.seed,
+            source_plants=[self.plant],
+        )
+        prop.plant_sources[0].source_material = "F"
+        self.session.add(prop)
+        editor = PropagationEditorDialog(prop, self.session)
+
+        self.assertFalse(editor.on_response(editor, Response.SAVE))
+
+        update_gui()
+
+        mock_callback.assert_called_once()
+
+        editor.destroy()
+
     def test_events_selection_func(self):
         prop = Propagation(
             species=self.species,
@@ -762,7 +933,7 @@ class PropagationEditorDialogTests(BaubleTestCase):
 
         editor.destroy()
 
-    def test_on_code_edit_button_clicke(self):
+    def test_on_code_edit_button_clicked(self):
         prop = Propagation(
             species=self.species,
             code="2001S/1",
@@ -796,6 +967,7 @@ class PropagationEditorDialogTests(BaubleTestCase):
             date=datetime.datetime(2019, 1, 19),
             propagator="Jade Green",
             prop_type=self.seed,
+            source_plants=[self.plant],
         )
         start = self.session.scalar(
             select(PropEventType).filter_by(code="STRT")
@@ -830,6 +1002,13 @@ class PropagationEditorDialogTests(BaubleTestCase):
         mock_editor().run.return_value = Gtk.ResponseType.CANCEL
 
         editor = PropagationEditorDialog(prop, self.session)
+
+        # not vegetative
+        self.assertFalse(editor.consume_as_plant_button.get_visible())
+        self.assertTrue(editor.consume_as_plant_button.get_sensitive())
+        self.assertTrue(editor.consume_as_accession_button.get_visible())
+        self.assertTrue(editor.consume_as_accession_button.get_sensitive())
+
         with mock.patch.object(editor, "present") as mock_present:
             editor.on_consume_as_plant_btn_clicked(None)
 
@@ -956,6 +1135,9 @@ class PropEventPresenterTests(BaubleTestCase):
             quantity=5,
             location=location,
         )
+        self.session.add(self.plant)
+        self.session.commit()
+        self.plant.planted.date = datetime.datetime(2000, 1, 1)
         self.seed = self.session.scalar(select(PropType).filter_by(code="S"))
         self.prop = Propagation(
             species=self.species,
@@ -1022,7 +1204,7 @@ class PropEventPresenterTests(BaubleTestCase):
 
         presenter.destroy()
 
-    def set_model_none_sesnitive(self):
+    def set_model_none_sensitive(self):
         presenter = PropEventPresenter()
         presenter.init(self.session)
         presenter.set_model(self.event)
@@ -1300,6 +1482,268 @@ class PropEventPresenterTests(BaubleTestCase):
         self.assertTrue(presenter.available_spinbutton.get_sensitive())
         self.assertEqual(presenter.success_adj.get_lower(), -event3.available)
         self.assertEqual(presenter.success_adj.get_upper(), 0)
+
+        presenter.destroy()
+
+    def test_constrain_widgets_other(self):
+
+        other = self.session.scalar(
+            select(PropEventType).filter_by(code="OTHR")
+        )
+        success = self.session.scalar(
+            select(PropEventType).filter_by(code="SUCC")
+        )
+        available = self.session.scalar(
+            select(PropEventType).filter_by(code="AVLB")
+        )
+        presenter = PropEventPresenter()
+        presenter.init(self.session)
+        presenter.set_model(self.event)
+
+        # base case
+        self.assertEqual(presenter.date_picker.start_date, self.prop.date)
+        self.assertEqual(presenter.date_picker.end_date, None)
+        self.assertTrue(presenter.quantity_spinbutton.get_sensitive())
+        self.assertEqual(presenter.quantity_adj.get_lower(), 0)
+        self.assertEqual(presenter.quantity_adj.get_upper(), 10000000)
+        self.assertFalse(presenter.success_spinbutton.get_sensitive())
+        self.assertFalse(presenter.available_spinbutton.get_sensitive())
+
+        presenter.set_model(
+            PropEvent(
+                event_type=other,
+                date=datetime.date.today(),
+                person="Jade Green",
+                propagation=self.prop,
+                quantity=0,
+                success=0,
+                available=0,
+            )
+        )
+
+        self.assertTrue(presenter.quantity_spinbutton.get_sensitive())
+        self.assertEqual(
+            presenter.quantity_adj.get_lower(), -self.event.quantity
+        )
+        self.assertEqual(presenter.quantity_adj.get_upper(), 10000000)
+        self.assertTrue(presenter.success_spinbutton.get_sensitive())
+        self.assertEqual(presenter.success_adj.get_lower(), 0)
+        self.assertEqual(
+            presenter.success_adj.get_upper(), self.event.quantity
+        )
+        self.assertTrue(presenter.available_spinbutton.get_sensitive())
+        self.assertEqual(presenter.available_adj.get_lower(), 0)
+        self.assertEqual(presenter.available_adj.get_upper(), 0)
+
+        event2 = PropEvent(
+            date=datetime.date(2001, 2, 1),
+            person="Jade Green",
+            success=10,
+            event_notes="First batch",
+            event_type=success,
+            propagation=self.prop,
+        )
+        self.session.add(event2)
+        self.session.commit()
+
+        presenter.set_model(
+            PropEvent(
+                event_type=other,
+                date=datetime.date.today(),
+                person="Jade Green",
+                propagation=self.prop,
+                quantity=0,
+                success=0,
+                available=0,
+            )
+        )
+
+        self.assertTrue(presenter.quantity_spinbutton.get_sensitive())
+        self.assertEqual(presenter.quantity_adj.get_lower(), 0)
+        self.assertEqual(presenter.quantity_adj.get_upper(), 10000000)
+        self.assertTrue(presenter.success_spinbutton.get_sensitive())
+        self.assertEqual(
+            presenter.success_adj.get_lower(), -self.event.quantity
+        )
+        self.assertEqual(presenter.success_adj.get_upper(), 0)
+        self.assertTrue(presenter.available_spinbutton.get_sensitive())
+        self.assertEqual(presenter.available_adj.get_lower(), 0)
+        self.assertEqual(presenter.available_adj.get_upper(), event2.success)
+
+        event3 = PropEvent(
+            date=datetime.date(2001, 2, 10),
+            person="Jade Green",
+            available=10,
+            event_notes="First batch",
+            event_type=available,
+            propagation=self.prop,
+        )
+        self.session.add(event3)
+        self.session.commit()
+
+        presenter.set_model(
+            PropEvent(
+                event_type=other,
+                date=datetime.date.today(),
+                person="Jade Green",
+                propagation=self.prop,
+                quantity=0,
+                success=0,
+                available=0,
+            )
+        )
+
+        self.assertTrue(presenter.quantity_spinbutton.get_sensitive())
+        self.assertEqual(presenter.quantity_adj.get_lower(), 0)
+        self.assertEqual(presenter.quantity_adj.get_upper(), 10000000)
+        self.assertTrue(presenter.success_spinbutton.get_sensitive())
+        self.assertEqual(presenter.success_adj.get_lower(), 0)
+        self.assertEqual(presenter.success_adj.get_upper(), 0)
+        self.assertTrue(presenter.available_spinbutton.get_sensitive())
+        self.assertEqual(
+            presenter.available_adj.get_lower(), -event3.available
+        )
+        self.assertEqual(presenter.available_adj.get_upper(), 0)
+
+        # first event is unrestrained
+        prop = Propagation(
+            species=self.species,
+            code="2001S/1",
+            date=datetime.date(2001, 1, 1),
+            propagator="Jade Green",
+            media="potting mix",
+            container="140mm",
+            location="table 3",
+            prop_notes="15% moisture content",
+            prop_type=self.seed,
+            source_plants=[self.plant],
+        )
+        presenter.set_model(
+            PropEvent(
+                event_type=other,
+                date=datetime.date.today(),
+                person="Jade Green",
+                propagation=prop,
+                quantity=0,
+                success=0,
+                available=0,
+            )
+        )
+
+        self.assertTrue(presenter.quantity_spinbutton.get_sensitive())
+        self.assertEqual(presenter.quantity_adj.get_lower(), 0)
+        self.assertEqual(presenter.quantity_adj.get_upper(), 10000000)
+        self.assertTrue(presenter.success_spinbutton.get_sensitive())
+        self.assertEqual(presenter.success_adj.get_lower(), 0)
+        self.assertEqual(presenter.success_adj.get_upper(), 10000000)
+        self.assertTrue(presenter.available_spinbutton.get_sensitive())
+        self.assertEqual(presenter.available_adj.get_lower(), 0)
+        self.assertEqual(presenter.available_adj.get_upper(), 10000000)
+
+        presenter.destroy()
+
+    def test_constrain_widgets_consumed_accession(self):
+
+        success = self.session.scalar(
+            select(PropEventType).filter_by(code="SUCC")
+        )
+        available = self.session.scalar(
+            select(PropEventType).filter_by(code="AVLB")
+        )
+        presenter = PropEventPresenter()
+        presenter.init(self.session)
+        presenter.set_model(self.event)
+
+        # base case
+        self.assertTrue(presenter.details_grid.get_sensitive())
+        self.assertFalse(presenter.revealer.get_child())
+
+        event2 = PropEvent(
+            date=datetime.date(2001, 2, 1),
+            person="Jade Green",
+            success=10,
+            event_notes="First batch",
+            event_type=success,
+            propagation=self.prop,
+        )
+        event3 = PropEvent(
+            date=datetime.date(2001, 2, 10),
+            person="Jade Green",
+            available=10,
+            event_notes="First batch",
+            event_type=available,
+            propagation=self.prop,
+        )
+        self.session.add(event2)
+        self.session.add(event3)
+        self.session.commit()
+        accession = Accession(
+            code="2026.0003",
+            species=self.species,
+            quantity_recvd=8,
+        )
+        self.prop.source_new_accession(accession)
+        presenter.revealer.add(Gtk.Box())  # coverage
+
+        presenter.set_model(self.prop.events[-1])
+        child = presenter.revealer.get_child()
+
+        self.assertFalse(presenter.details_grid.get_sensitive())
+        self.assertIsInstance(child, MessageBox)
+
+        presenter.destroy()
+
+    def test_constrain_widgets_consumed_plant(self):
+
+        success = self.session.scalar(
+            select(PropEventType).filter_by(code="SUCC")
+        )
+        available = self.session.scalar(
+            select(PropEventType).filter_by(code="AVLB")
+        )
+        presenter = PropEventPresenter()
+        presenter.init(self.session)
+        presenter.set_model(self.event)
+
+        # base case
+        self.assertTrue(presenter.details_grid.get_sensitive())
+        self.assertFalse(presenter.revealer.get_child())
+
+        event2 = PropEvent(
+            date=datetime.date(2001, 2, 1),
+            person="Jade Green",
+            success=10,
+            event_notes="First batch",
+            event_type=success,
+            propagation=self.prop,
+        )
+        event3 = PropEvent(
+            date=datetime.date(2001, 2, 10),
+            person="Jade Green",
+            available=10,
+            event_notes="First batch",
+            event_type=available,
+            propagation=self.prop,
+        )
+        self.session.add(event2)
+        self.session.add(event3)
+        self.session.commit()
+        plant = Plant(quantity=10)
+        plant.extension_propagation = self.prop
+
+        presenter.set_model(self.prop.events[-1])
+        child = presenter.revealer.get_child()
+
+        self.assertFalse(presenter.details_grid.get_sensitive())
+        self.assertIsInstance(child, MessageBox)
+
+        presenter.destroy()
+
+    def test_event_no_type_doesnt_fail(self):
+        # test the guard, doesn't fail
+        presenter = PropEventPresenter()
+        presenter.init(self.session)
+        presenter.set_model(PropEvent())
 
         presenter.destroy()
 

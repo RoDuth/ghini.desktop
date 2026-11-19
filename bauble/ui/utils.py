@@ -550,6 +550,7 @@ def populate_enum_combo(
     combo: Gtk.ComboBox,
     model: db.Base,
     field: str,
+    constrain_func: Callable[[Any, Any], bool] = lambda k, v: True,
 ) -> None:
     """Populate a ComboBox from a Enum Column's values.
 
@@ -571,6 +572,10 @@ def populate_enum_combo(
     values = mapper.c[field].type.translations.copy()
 
     for key, value in values.items():
+
+        if not constrain_func(key, value):
+            continue
+
         if use_translations:
             combo_model.append((key, value))
         else:
@@ -628,6 +633,27 @@ def cell_indicate_modified(
         if not has_problems:
             context.add_class("modified-selected")
         renderer.set_property("foreground", "blue")
+
+
+def cell_indicate_problem(
+    column: Gtk.TreeViewColumn,
+    renderer: Gtk.CellRendererText,
+    value: Any,
+    condition_func: Callable[[Any], bool] = lambda val: True,
+) -> None:
+    """Indicate objects that have a problem in a ``Gtk.TreeView``.
+
+    by changing their style to red background.
+    """
+
+    tree_view = cast(Gtk.TreeView, column.get_tree_view())
+    context = tree_view.get_style_context()
+    context.remove_class("problem-selected")
+    renderer.set_property("background", "white")
+
+    if condition_func(value):
+        context.add_class("problem-selected")
+        renderer.set_property("background", "#FFDCDF")
 
 
 def default_cell_data_func(  # pylint: disable=too-many-arguments

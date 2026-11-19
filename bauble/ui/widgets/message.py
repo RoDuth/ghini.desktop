@@ -99,8 +99,9 @@ class MessageBox(Gtk.Box):
     def __init__(
         self,
         message: str,
+        orientation: Gtk.Orientation = Gtk.Orientation.VERTICAL,
     ) -> None:
-        super().__init__(orientation=Gtk.Orientation.VERTICAL)
+        super().__init__(orientation=orientation)
 
         box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
         close_button = Gtk.Button.new_from_icon_name(
@@ -110,7 +111,10 @@ class MessageBox(Gtk.Box):
         close_button.set_relief(Gtk.ReliefStyle.NONE)
         close_button.connect("clicked", self.on_close_clicked)
         box.pack_end(close_button, False, False, 0)
-        self.pack_start(box, False, False, 0)
+        if orientation == Gtk.Orientation.VERTICAL:
+            self.pack_start(box, False, False, 0)
+        else:
+            self.pack_end(box, False, False, 0)
 
         label = Gtk.Label(use_markup=True, label=message)
         label.set_line_wrap(True)

@@ -1,3 +1,4 @@
+# pylint: disable=too-many-lines
 # Copyright 2026 Ross Demuth <rossdemuth123@gmail.com>
 #
 # This file is part of ghini.desktop.
@@ -24,6 +25,7 @@ import logging
 logger = logging.getLogger(__name__)
 
 import datetime
+import weakref
 from functools import partial
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -52,15 +54,18 @@ from bauble.ui.presenter import GenericPresenter
 from bauble.ui.presenter import Problem
 from bauble.ui.presenter import Response
 from bauble.ui.utils import cell_indicate_modified
+from bauble.ui.utils import cell_indicate_problem
 from bauble.ui.utils import default_cell_data_func
 from bauble.ui.utils import enum_string_func
 from bauble.ui.utils import populate_enum_combo
 from bauble.ui.validators import Validator
 from bauble.ui.validators import validate_date
 from bauble.ui.widgets import DatePickerBox
+from bauble.ui.widgets import MessageBox
 from bauble.ui.widgets import NoteBox
 from bauble.ui.widgets import NotesPresenter
 from bauble.ui.widgets import PictureBox
+from bauble.ui.widgets import YesNoMessageBox
 
 from ...plants.ui.widgets.species import species_cell_data_func
 from ...plants.ui.widgets.species import species_completions
@@ -71,12 +76,46 @@ from ..propagation import PlantPropSource
 from ..propagation import Propagation
 from ..propagation import PropEvent
 from ..propagation import PropEventType
+from ..propagation import PropState
 from ..propagation import PropType
 
 if TYPE_CHECKING:
     from ...plants.species import Species
 
 parent = Path(__file__).resolve().parent
+
+
+def event_type_filter(
+    type_: PropEventType,
+    prior_state: PropState | None,
+) -> bool:
+    """Filter function for ``PropEventType`` against the state of the
+    propatation.
+
+    If no state is provided or the event type has no options (can be used at
+    any time) return True.  Otherwise return True only when values match
+    options appropriately.
+    """
+    if prior_state is None or type_.option_str == "":
+        return True
+
+    options = type_.parsed_options()
+
+    if options.quantity.adds:
+        return True
+
+    if prior_state.quantity > 0:
+        if options.success.adds or options.quantity.reduces:
+            return True
+
+    if prior_state.success > 0:
+        if options.available.adds or options.success.reduces:
+            return True
+
+    if prior_state.available > 0 and options.available.reduces:
+        return True
+
+    return False
 
 
 @Gtk.Template(filename=str(parent / "prop_event_presenter.ui"))
@@ -87,6 +126,8 @@ class PropEventPresenter(GenericPresenter[PropEvent], Gtk.Frame):
 
     __gsignals__: dict = {"changed": (GObject.SignalFlags.RUN_FIRST, None, ())}
 
+    revealer = cast(Gtk.Revealer, Gtk.Template.Child())
+    details_grid = cast(Gtk.Grid, Gtk.Template.Child())
     type_liststore = cast(Gtk.ListStore, Gtk.Template.Child())
     type_combo = cast(Gtk.ComboBox, Gtk.Template.Child())
     type_cell = cast(Gtk.CellRendererText, Gtk.Template.Child())
@@ -116,6 +157,10 @@ class PropEventPresenter(GenericPresenter[PropEvent], Gtk.Frame):
 
         self.session: Session
         self.date_entry: Gtk.Entry
+        self._type_sid = self.type_combo.connect(
+            "changed",
+            self.on_type_changed,
+        )
 
     def init(self, session: Session) -> None:
         self.session = session
@@ -128,7 +173,11 @@ class PropEventPresenter(GenericPresenter[PropEvent], Gtk.Frame):
         self.date_picker.init()
         self.date_entry = self.date_picker.entry
 
-        self.setup_type_combo()
+        self.type_combo.set_cell_data_func(
+            self.type_cell,
+            default_cell_data_func,
+        )
+        self.populate_type_combo()
 
         self.widgets_to_model_map = {
             self.type_combo: "event_type",
@@ -140,30 +189,71 @@ class PropEventPresenter(GenericPresenter[PropEvent], Gtk.Frame):
             self.notes_textbuffer: "event_notes",
         }
 
-    def setup_type_combo(self) -> None:
+    def populate_type_combo(self) -> None:
+        """Populate the type_combo with appropriate event types."""
+        self.type_combo.handler_block(self._type_sid)
 
-        self.type_combo.set_cell_data_func(
-            self.type_cell,
-            default_cell_data_func,
-        )
+        prior_state = None
+        if getattr(self, "model", None) and self.model.propagation:
+            prior_state = self.model.propagation.get_prior_state(self.model)
 
-        type_tooltip = _("The type of event, available types:\n")
+        event_filter = partial(event_type_filter, prior_state=prior_state)
+
+        self.type_liststore.clear()
+
+        type_tooltip = _("The type of event, all available types:\n")
 
         for type_ in self.session.scalars(select(PropEventType)):
-            self.type_liststore.append((type_,))
+            if event_filter(type_):
+                self.type_liststore.append((type_,))
             type_tooltip += f"    {type_.name} - {type_.description}\n"
 
-        type_tooltip += _("You can add more types using the add button")
         self.type_combo.set_tooltip_text(type_tooltip)
-        self.type_combo.set_active(1)
+        # deselect so change signal triggers when updated from the model
+        self.type_combo.set_active(-1)
+
+        self.type_combo.handler_unblock(self._type_sid)
+
+    def notify_consumed(self) -> None:
+        """Consuming events don't allow direct editing, notify instead."""
+
+        for widget in self.revealer.get_children():
+            widget.destroy()
+
+        msg = ""
+        if self.model.created_plant:
+            msg = _("Extends with plant: %s") % self.model.created_plant
+        elif self.model.created_accession:
+            msg = _("Creates accession: %s") % self.model.created_accession
+
+        message_box = MessageBox(msg, orientation=Gtk.Orientation.HORIZONTAL)
+        message_box.set_tooltip_text(
+            _(
+                "Events that generate an accession or extend the accession "
+                "with a plant can not be edited directly (other than notes)."
+                "\n\nFor anything else you may want to delete and recreate."
+                "\n\nCAUTION! Will also delete the attached accession/plant."
+            )
+        )
+
+        message_box.show_all()
+        self.revealer.add(message_box)
+        self.revealer.set_reveal_child(True)
 
     def set_model(self, model: PropEvent | None) -> None:
+        """Set the current model."""
+        self.details_grid.set_sensitive(True)
+        self.revealer.set_reveal_child(False)
+
         if model is None:
             self.set_sensitive(False)
             return
+
         logger.debug("setting model to %s", model)
 
         super().set_model(model)
+
+        self.populate_type_combo()
 
         # ensure current user is always first in the list
         self.person_liststore.append((utils.get_user_display_name(),))
@@ -175,7 +265,6 @@ class PropEventPresenter(GenericPresenter[PropEvent], Gtk.Frame):
                 continue
             self.person_liststore.append((person,))
 
-        self.constrain_widgets()
         self.set_sensitive(True)
         self.refresh_all_widgets_from_model()
 
@@ -184,6 +273,14 @@ class PropEventPresenter(GenericPresenter[PropEvent], Gtk.Frame):
 
         self.person_entry.emit("changed")
         self.emit("changed")
+
+        if model.created_accession or model.created_plant:
+            self.details_grid.set_sensitive(False)
+            self.notify_consumed()
+
+    def refresh(self) -> None:
+        logger.debug("refreshing %s", type(self).__name__)
+        self.set_model(getattr(self, "model", None))
 
     @property
     def can_commit(self) -> bool:
@@ -197,17 +294,26 @@ class PropEventPresenter(GenericPresenter[PropEvent], Gtk.Frame):
 
         return True
 
-    @Gtk.Template.Callback()
     def on_type_changed(self, combo: Gtk.ComboBox) -> None:
         # only after model is set
         if getattr(self, "model", None):
             self.on_type_combo_changed(combo)
             self.constrain_widgets()
-
-        self.emit("changed")
+            self.emit("changed")
 
     def constrain_widgets(self) -> None:
+        """Constrain spinbuttons and date_picker from the priorstate."""
         if self.model.propagation is None:
+            return
+
+        # allow `other` type propagations more free rein for historical reasons
+        first_event = self.model.propagation.events.index(self.model) == 0
+        unrestricted = self.model.event_type.is_unrestricted_type()
+
+        if unrestricted and first_event:
+            self._constrain_spinbutton("quantity")
+            self._constrain_spinbutton("success")
+            self._constrain_spinbutton("available")
             return
 
         prior_state = self.model.propagation.get_prior_state(self.model)
@@ -216,18 +322,15 @@ class PropEventPresenter(GenericPresenter[PropEvent], Gtk.Frame):
 
         self._constrain_spinbutton(
             "quantity",
-            "Q",
             lower=-prior_state.remaining_quantity,
         )
         self._constrain_spinbutton(
             "success",
-            "S",
             upper=prior_state.remaining_quantity,
             lower=-prior_state.remaining_success,
         )
         self._constrain_spinbutton(
             "available",
-            "A",
             upper=prior_state.remaining_success,
             lower=-prior_state.available,
         )
@@ -239,25 +342,24 @@ class PropEventPresenter(GenericPresenter[PropEvent], Gtk.Frame):
 
     def _constrain_spinbutton(
         self,
-        column: str,
-        key: Literal["Q", "S", "A"],
+        column: Literal["quantity", "success", "available"],
         upper: int = 10000000,
         lower: int = 0,
     ) -> None:
-        if self.model.event_type is None:
-            return
 
         options = self.model.event_type.parsed_options()
         logger.debug("options = %s", options)
 
-        adds = options[key]["adds"]
-        reduces = options[key]["reduces"]
+        option = getattr(options, column)
+        adds = option.adds
+        reduces = option.reduces
         sensitive = any((adds, reduces))
 
         spinbutton = getattr(self, f"{column}_spinbutton")
         spinbutton.set_sensitive(sensitive)
 
         if not sensitive:
+            spinbutton.set_value(0)
             return
 
         adjustment = getattr(self, f"{column}_adj")
@@ -354,7 +456,7 @@ class SourcePlantEditorDialog(
         self.set_destroy_with_parent(True)
 
         populate_enum_combo(self.type_combo, self.model, "source_type")
-        populate_enum_combo(self.material_combo, self.model, "source_material")
+        self.populate_material(self.model.propagation.prop_type)
 
         self.plant_entry.grab_focus()
         self.refresh_all_widgets_from_model()
@@ -363,6 +465,23 @@ class SourcePlantEditorDialog(
         self.plant_entry.emit("changed")
         self.type_combo.emit("changed")
         self.material_combo.emit("changed")
+
+    def populate_material(self, prop_type: PropType | None) -> None:
+        cast(Gtk.ListStore, self.material_combo.get_model()).clear()
+        if prop_type is None:
+            populate_enum_combo(
+                self.material_combo,
+                self.model,
+                "source_material",
+            )
+            return
+        allowed = prop_type.source_materials.split(",")
+        populate_enum_combo(
+            self.material_combo,
+            self.model,
+            "source_material",
+            constrain_func=lambda k, v: k in allowed,
+        )
 
     @Gtk.Template.Callback()
     def on_combobox_changed(self, combo: Gtk.ComboBox) -> None:
@@ -431,6 +550,7 @@ class PropagationEditorDialog(
     __gsignals__ = GenericPresenter.gsignals
 
     revealer = cast(Gtk.Revealer, Gtk.Template.Child())
+    note_book = cast(Gtk.Notebook, Gtk.Template.Child())
     code_entry = cast(Gtk.Entry, Gtk.Template.Child())
     species_box = cast(Gtk.Box, Gtk.Template.Child())
     species_entry = cast(Gtk.Entry, Gtk.Template.Child())
@@ -442,6 +562,7 @@ class PropagationEditorDialog(
     date_picker = cast(DatePickerBox, Gtk.Template.Child())
     propagator_entry = cast(Gtk.Entry, Gtk.Template.Child())
     propagator_liststore = cast(Gtk.ListStore, Gtk.Template.Child())
+    add_source_button = cast(Gtk.Button, Gtk.Template.Child())
     source_liststore = cast(Gtk.ListStore, Gtk.Template.Child())
     source_treeview = cast(Gtk.TreeView, Gtk.Template.Child())
     source_plant_column = cast(Gtk.TreeViewColumn, Gtk.Template.Child())
@@ -565,6 +686,13 @@ class PropagationEditorDialog(
         events_selection.set_select_function(self.events_selection_func)
         self.populate_events()
 
+        if self.model.is_completed:
+            self.note_book.set_sensitive(False)
+            GLib.idle_add(self.notify_is_completed)
+        elif self.model.is_discarded:
+            self.note_book.set_sensitive(False)
+            GLib.idle_add(self.notify_is_discarded)
+
     def _populate_liststores(self) -> None:
 
         # ensure current user is always first in the list
@@ -599,9 +727,28 @@ class PropagationEditorDialog(
             self.location_liststore.append((location,))
 
     def _setup_data_funcs(self) -> None:
+        # using weakref ensures garbage collection
+        weak_self = weakref.ref(self)
+
+        def _indicate_mod_or_prob(col, rend, val):
+            allowed = []
+            type_ = weak_self().model.prop_type
+            if type_:
+                allowed = type_.source_materials.split(",")
+
+            cell_indicate_modified(col, rend, val)
+
+            if not weak_self().has_problem(weak_self().source_treeview):
+                cell_indicate_problem(
+                    col,
+                    rend,
+                    val,
+                    lambda v: v.source_material not in allowed,
+                )
+
         cell_data_func = partial(
             default_cell_data_func,
-            render_func=cell_indicate_modified,
+            render_func=_indicate_mod_or_prob,
         )
         self.source_plant_column.set_cell_data_func(
             self.source_plant_cell,
@@ -619,6 +766,10 @@ class PropagationEditorDialog(
             partial(enum_string_func, prop="source_material"),
         )
 
+        cell_data_func = partial(
+            default_cell_data_func,
+            render_func=cell_indicate_modified,
+        )
         self.event_date_column.set_cell_data_func(
             self.event_date_cell,
             cell_data_func,
@@ -658,22 +809,87 @@ class PropagationEditorDialog(
     def on_problems_changed(self, _view: Self, has_problems: bool) -> None:
         self.events_frame.set_sensitive(not has_problems)
 
+    def notify_is_completed(self) -> None:
+
+        for widget in self.revealer.get_children():
+            widget.destroy()
+
+        def on_yes_clicked(_button: Gtk.Button) -> None:
+            self.revealer.set_reveal_child(False)
+            self.note_book.set_sensitive(True)
+
+        def on_no_clicked(_button: Gtk.Button) -> None:
+            self.revealer.set_reveal_child(False)
+
+        msg = _(
+            "Consumed propagation\n\n"
+            "This propagation has been completed and already attached to "
+            "plants/accessions.\n\n"
+            "You probably should not be editing it.\n\n"
+            "Are you sure you want to edit it anyway?"
+        )
+
+        message_box = YesNoMessageBox(
+            msg,
+            on_yes_clicked,
+            on_no_clicked,
+        )
+        message_box.show_all()
+        self.revealer.add(message_box)
+        self.revealer.set_reveal_child(True)
+
+    def notify_is_discarded(self) -> None:
+
+        for widget in self.revealer.get_children():
+            widget.destroy()
+
+        def on_yes_clicked(_button: Gtk.Button) -> None:
+            self.revealer.set_reveal_child(False)
+            self.note_book.set_sensitive(True)
+
+        def on_no_clicked(_button: Gtk.Button) -> None:
+            self.revealer.set_reveal_child(False)
+
+        msg = _(
+            "Discarded propagation\n\n"
+            "This propagation has been completely discarded\n\n"
+            "You probably should not be editing it.\n\n"
+            "Are you sure you want to edit it anyway?"
+        )
+
+        message_box = YesNoMessageBox(
+            msg,
+            on_yes_clicked,
+            on_no_clicked,
+        )
+        message_box.show_all()
+        self.revealer.add(message_box)
+        self.revealer.set_reveal_child(True)
+
     def update(self) -> None:
         if self.model.id is None:
             self.code_entry.set_text(self.model.get_next_code())
 
         self.consume_as_plant_button.set_visible(self.model.is_extendable)
+        self.consume_as_plant_button.set_sensitive(not self.is_modified)
         self.consume_as_accession_button.set_visible(self.model.is_sourceable)
+        self.consume_as_accession_button.set_sensitive(not self.is_modified)
+        self.constrain_date()
+        self.update_state_label()
 
         super().update()
 
     @property
-    def can_commit(self) -> bool:
+    def is_modified(self) -> bool:
         modified = self.session.is_modified(self.model)
         if not modified:
             modified = any(
                 self.session.is_modified(i) for i in self.session.dirty
             )
+        return modified
+
+    @property
+    def can_commit(self) -> bool:
 
         notes_can_commit = self.notes_presenter.can_commit
         pics_can_commit = self.pictures_presenter.can_commit
@@ -683,7 +899,7 @@ class PropagationEditorDialog(
 
         return all(
             (
-                modified,
+                self.is_modified,
                 no_problems,
                 notes_can_commit,
                 pics_can_commit,
@@ -717,6 +933,8 @@ class PropagationEditorDialog(
         if not has_primary:
             self.add_problem(self.PROBLEM_PRIMARY, self.source_treeview)
 
+        self.constrain_date()
+
         if all_same_species:
             self.model.species = species
             self.species_entry.set_text(str(species))
@@ -726,6 +944,19 @@ class PropagationEditorDialog(
                 self.species_entry.set_text("")
             self.species_box.set_sensitive(True)
             self.species_entry.emit("changed")
+
+    def constrain_date(self) -> None:
+        min_date = None
+        if self.model.plant_sources:
+            min_date = max(
+                s.plant.planted.date for s in self.model.plant_sources
+            ).date()
+
+        max_date = None
+        if self.model.events:
+            max_date = min(e.date for e in self.model.events)
+
+        self.date_picker.constrain_range(min_date, max_date)
 
     @Gtk.Template.Callback()
     def on_code_entry_changed(self, entry: Gtk.Entry) -> None:
@@ -755,10 +986,18 @@ class PropagationEditorDialog(
     @Gtk.Template.Callback()
     def on_type_changed(self, combo: Gtk.ComboBox) -> None:
         self.on_type_combo_changed(combo)
+        # when not context_menu>propagate make user select type first.
+        self.add_source_button.set_sensitive(self.model.prop_type is not None)
+        self.populate_source_list()
 
     @Gtk.Template.Callback()
     def on_date_entry_changed(self, datepicker: DatePickerBox) -> None:
         self.on_date_changed(datepicker.entry)
+        self.prop_event_presenter.refresh()
+
+    @on_date_changed.validator(problem_name="not_in_range")
+    def validate_date_range(self, date: datetime.date, *_args) -> bool:
+        return self.date_picker.validate_date_in_range(date)
 
     @Gtk.Template.Callback()
     def on_text_entry_changed(self, entry: Gtk.Entry) -> None:
@@ -790,6 +1029,7 @@ class PropagationEditorDialog(
             source = model[iter_][0]
             self.model.plant_sources.remove(source)
             self.populate_source_list()
+        self.update()
 
     @Gtk.Template.Callback()
     def on_species_add_button_clicked(self, _button: Gtk.Button) -> None:
@@ -839,7 +1079,7 @@ class PropagationEditorDialog(
 
         if dialog.run() == Gtk.ResponseType.OK:
             self.populate_source_list()
-        else:
+        elif source.id:
             self.session.expire(source)
 
         self.update()
@@ -893,7 +1133,6 @@ class PropagationEditorDialog(
             self.type_liststore.append((type_,))
             type_tooltip += f"    {type_.name} - {type_.description}\n"
 
-        type_tooltip += _("You can add more types using the add button")
         self.type_combo.set_tooltip_text(type_tooltip)
 
     @Gtk.Template.Callback()
@@ -934,9 +1173,10 @@ class PropagationEditorDialog(
             model, iter_ = selected
 
         if iter_:
-            source = model[iter_][0]
-            self.model.events.remove(source)
+            event = model[iter_][0]
+            self.model.events.remove(event)
             self.populate_events()
+        self.update()
 
     def populate_events(self) -> None:
         self.events_liststore.clear()
@@ -993,6 +1233,8 @@ class PropagationEditorDialog(
             context.add_class("problem-selected")
 
         self.on_changed(presenter)
+
+    def update_state_label(self) -> None:
         self.state_label.set_text(
             f"Quantity: {self.model.quantity}\n"
             f"Remaining quantity: {self.model.remaining_quantity}\n"
@@ -1043,6 +1285,7 @@ class PropagationEditorDialog(
         if response in [
             Response.NEXT,
             Response.OK,
+            Response.SAVE,
         ]:
             if self.do_commit() is False:
                 logger.debug("commit failed")
@@ -1051,6 +1294,9 @@ class PropagationEditorDialog(
 
         if response == Response.NEXT:
             create_propagation(propagator=propagator, date=date)
+
+        if response == Response.SAVE:
+            edit_callback([self.model])
 
         elif response == Response.CANCEL:
             # most likely not needed

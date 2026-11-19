@@ -76,6 +76,7 @@ class GeneralPlantExpander(
     type_label = cast(Gtk.Label, Gtk.Template.Child())
     geojson_type_label = cast(Gtk.Label, Gtk.Template.Child())
     memorial_image = cast(Gtk.Image, Gtk.Template.Child())
+    extension_label = cast(Gtk.Label, Gtk.Template.Child())
 
     def __init__(self) -> None:
         super().__init__(label=_("General"))
@@ -93,6 +94,7 @@ class GeneralPlantExpander(
         )
         self.location_label.set_label(utils.xml_safe(row.location))
         self.quantity_label.set_label(str(row.quantity))
+        self.extension_label.set_label(str(row.extension_propagation or ""))
 
         # NOTE don't load geojson from the row or history will always record
         # an update and _last_updated will always change when a relationship
@@ -134,6 +136,11 @@ class GeneralPlantExpander(
             self.location_label,
             on_clicked_select,
             row.location,
+        )
+        utils.make_label_clickable(
+            self.extension_label,
+            on_clicked_select,
+            row.extension_propagation,
         )
 
 

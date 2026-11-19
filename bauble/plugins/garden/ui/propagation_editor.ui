@@ -152,6 +152,19 @@
               </packing>
             </child>
             <child>
+              <object class="GtkButton" id="save_button">
+                <property name="label" translatable="yes">Save</property>
+                <property name="visible">True</property>
+                <property name="can-focus">True</property>
+                <property name="receives-default">True</property>
+              </object>
+              <packing>
+                <property name="expand">True</property>
+                <property name="fill">True</property>
+                <property name="position">2</property>
+              </packing>
+            </child>
+            <child>
               <object class="GtkButton" id="next_button">
                 <property name="visible">True</property>
                 <property name="can-focus">True</property>
@@ -194,7 +207,7 @@
               <packing>
                 <property name="expand">False</property>
                 <property name="fill">False</property>
-                <property name="position">2</property>
+                <property name="position">3</property>
               </packing>
             </child>
           </object>
@@ -423,6 +436,9 @@ Use the add button to add a new species if needed.</property>
                           <object class="DatePickerBox" id="date_picker">
                             <property name="visible">True</property>
                             <signal name="changed" handler="on_date_entry_changed"/>
+                            <property name="tooltip-text" translatable="yes">The date the propagation was requested or started.
+
+Can not be earlier than the latest source plants planting date or later than the first event.</property>
                           </object>
                           <packing>
                             <property name="left-attach">1</property>
@@ -478,7 +494,7 @@ Use the add button to add a new species if needed.</property>
                             <property name="valign">start</property>
                             <property name="orientation">vertical</property>
                             <child>
-                              <object class="GtkButton">
+                              <object class="GtkButton" id="add_source_button">
                                 <property name="visible">True</property>
                                 <property name="can-focus">True</property>
                                 <property name="receives-default">True</property>
@@ -773,7 +789,9 @@ There &lt;b&gt;must be at least one primary source&lt;/b&gt;.</property>
                                         <property name="can-focus">True</property>
                                         <property name="receives-default">True</property>
                                         <signal name="clicked" handler="on_consume_as_acccession_btn_clicked" swapped="no"/>
-                                        <property name="tooltip-text" translatable="yes">Creates a new accession and a consuming event here.</property>
+                                        <property name="tooltip-text" translatable="yes">Creates a new accession and a consuming event here.
+
+Will need to SAVE ANY CHANGES to this propagation before you can create an accession.</property>
                                         <child>
                                           <object class="GtkBox">
                                             <property name="visible">True</property>
@@ -817,7 +835,9 @@ There &lt;b&gt;must be at least one primary source&lt;/b&gt;.</property>
                                         <property name="can-focus">True</property>
                                         <property name="receives-default">True</property>
                                         <signal name="clicked" handler="on_consume_as_plant_btn_clicked" swapped="no"/>
-                                        <property name="tooltip-text" translatable="yes">Adds a plant to the existing accession and a consuming event here.</property>
+                                        <property name="tooltip-text" translatable="yes">Adds a plant to the existing accession and a consuming event here.
+
+Will need to SAVE ANY CHANGES to this propagation before you add a plant.</property>
                                         <child>
                                           <object class="GtkBox">
                                             <property name="visible">True</property>
@@ -1128,6 +1148,7 @@ There &lt;b&gt;must be at least one primary source&lt;/b&gt;.</property>
     <action-widgets>
       <action-widget response="-6">cancel_button</action-widget>
       <action-widget response="-5">ok_button</action-widget>
+      <action-widget response="33">save_button</action-widget>
       <action-widget response="22">next_button</action-widget>
     </action-widgets>
   </template>
