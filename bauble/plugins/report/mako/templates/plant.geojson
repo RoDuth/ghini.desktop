@@ -47,6 +47,6 @@ features = []
 ${
 json.dumps(
   {"type": "FeatureCollection", "features": features},
-  indent=options.get("indent") or None
+  indent=options.get("indent")
 )
 }

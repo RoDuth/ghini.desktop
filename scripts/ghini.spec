@@ -67,6 +67,7 @@ hiddenimports = [
     "shapefile",
     "pyproj",
     "pyodbc",
+    "shapely",
 ]
 
 a = Analysis(

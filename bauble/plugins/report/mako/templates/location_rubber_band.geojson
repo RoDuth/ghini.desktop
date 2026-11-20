@@ -1,0 +1,51 @@
+## vim: set filetype=mako:
+## OPTION indent: (type: integer, default: '0', tooltip: 'Indentation level for the output GeoJSON. 0 means no indentation single line, >0 means pretty print with that many spaces of indentation.')
+## OPTION ratio: (type: float[2], default: '0.3', tooltip: 'Concave hull ratio. Lower ratio = tighter hug around shapes; higher ratio = closer to convex hull')
+## This file is part of ghini.desktop.
+##
+## ghini.desktop is free software: you can redistribute it and/or modify
+## it under the terms of the GNU General Public License as published by
+## the Free Software Foundation, either version 3 of the License, or
+## (at your option) any later version.
+##
+## ghini.desktop is distributed in the hope that it will be useful,
+## but WITHOUT ANY WARRANTY; without even the implied warranty of
+## MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+## GNU General Public License for more details.
+##
+## You should have received a copy of the GNU General Public License
+## along with ghini.desktop. If not, see <http://www.gnu.org/licenses/>.
+##
+<%!
+from bauble.plugins.report import get_locations_pertinent_to, options
+from bauble.utils.geo import get_approx_area_from_geojson_sqm
+import json
+
+from shapely import concave_hull
+from shapely.geometry import mapping, shape
+from shapely.ops import unary_union
+
+polygons = []
+%>\
+<%
+  polygons = [shape(loc.geojson) for loc in get_locations_pertinent_to(values, as_task=True) if loc.geojson]
+  combined = unary_union(polygons)
+  rubber_band = concave_hull(combined, ratio=options.get("ratio", 0.3))
+  geometry = mapping(rubber_band)
+  area = get_approx_area_from_geojson_sqm(geometry)
+%>\
+${
+json.dumps(
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "geometry": mapping(rubber_band),
+      "properties": {"description": "Rubber Band Boundry", "area": f"{area:.2f} sq. m."}
+    }
+  ]
+},
+indent=options.get("indent")
+)
+}

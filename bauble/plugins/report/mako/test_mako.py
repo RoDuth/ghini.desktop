@@ -17,11 +17,16 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with ghini.desktop. If not, see <http://www.gnu.org/licenses/>.
+"""
+Mako report tests
+"""
 from pathlib import Path
 from unittest import TestCase
 from unittest import mock
 
+import pytest
 from gi.repository import Gtk
+from sqlalchemy import select
 
 from bauble.plugins.garden import Location
 from bauble.plugins.garden import Plant
@@ -127,12 +132,55 @@ class FormatterTests(BaubleTestCase):
         """MakoFormatterPlugin.format() runs without raising an error for all
         templates.
         """
+        pytest.importorskip("shapely")
         setup_geographies()
         templates_dir = Path(__file__).parent / "templates"
         geos = self.session.query(Geography).all()
 
-        for template in templates_dir.glob("*.geojson"):
+        for template in templates_dir.glob("geo*.geojson"):
             report = MakoFormatterPlugin.format(geos, template=str(template))
+            self.assertTrue(isinstance(report, bytes))
+
+    @mock.patch("bauble.utils.desktop.open", new=mock.Mock())
+    def test_format_all_geojson_templates_locations(self):
+        """MakoFormatterPlugin.format() runs without raising an error for all
+        templates.
+        """
+        pytest.importorskip("shapely")
+        loc1 = self.session.get(Location, 1)
+        loc1.geojson = {
+            "type": "Polygon",
+            "coordinates": [
+                [
+                    [152.96970, -27.47975],
+                    [152.96976, -27.47972],
+                    [152.9698, -27.47992],
+                    [152.96970, -27.47975],
+                ]
+            ],
+        }
+        self.session.commit()
+        templates_dir = Path(__file__).parent / "templates"
+        locs = self.session.scalars(select(Location)).all()
+
+        for template in templates_dir.glob("loc*.geojson"):
+            report = MakoFormatterPlugin.format(locs, template=str(template))
+            self.assertTrue(isinstance(report, bytes))
+
+    @mock.patch("bauble.utils.desktop.open", new=mock.Mock())
+    def test_format_all_geojson_templates_plants(self):
+        """MakoFormatterPlugin.format() runs without raising an error for all
+        templates.
+        """
+        pytest.importorskip("shapely")
+        plt1 = self.session.get(Plant, 1)
+        plt1.geojson = {"type": "Point", "coordinates": [152.96970, -27.47975]}
+        self.session.commit()
+        templates_dir = Path(__file__).parent / "templates"
+        plants = self.session.scalars(select(Plant)).all()
+
+        for template in templates_dir.glob("loc*.geojson"):
+            report = MakoFormatterPlugin.format(plants, template=str(template))
             self.assertTrue(isinstance(report, bytes))
 
 

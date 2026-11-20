@@ -49,7 +49,7 @@ class MakoFormatterSettingsBox(SettingsBox):
 
     pattern = re.compile(
         r"^## OPTION ([a-z_]*): \("
-        r"type: ([a-zN_',\[\]]*), "
+        r"type: ([a-zN_',\[\]0-9]*), "
         r"default: '(.*)', "
         r"tooltip: '(.*)'\)$"
     )
@@ -238,7 +238,21 @@ class MakoFormatterSettingsBox(SettingsBox):
             entry.set_increments(1, 10)
             options.setdefault(fname, int(fdefault))
             entry.set_value(int(fdefault))
+            entry.set_numeric(True)
             entry.connect("value-changed", self.entry_set_option, fname, int)
+            return entry
+
+        if ftype.startswith("float"):
+            digits_str = ftype.removeprefix("float").strip("[]")
+            digits = int(digits_str if digits_str else 3)
+            entry = Gtk.SpinButton(numeric=True)
+            entry.set_range(-9999.9, 9999.9)
+            entry.set_increments(0.1, 1)
+            options.setdefault(fname, float(fdefault))
+            entry.set_value(float(fdefault))
+            entry.set_numeric(True)
+            entry.set_digits(digits)
+            entry.connect("value-changed", self.entry_set_option, fname, float)
             return entry
 
         if ftype.startswith("enum"):
