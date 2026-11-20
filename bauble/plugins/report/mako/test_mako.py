@@ -289,6 +289,16 @@ class FormatterSettingsBoxTests(TestCase):
         widget.set_value(15)
         self.assertEqual(options.get("test_int"), 15)
 
+    def test_get_option_widget_float(self):
+        set_box = MakoFormatterSettingsBox()
+        widget = set_box.get_option_widget("float", "0.1", "test_float")
+        self.assertIsInstance(widget, Gtk.SpinButton)
+        self.assertEqual(widget.get_text(), "0.100")
+
+        self.assertEqual(options.get("test_float"), 0.1)
+        widget.set_value(1.5)
+        self.assertEqual(options.get("test_float"), 1.5)
+
     def test_get_option_widget_enum(self):
         set_box = MakoFormatterSettingsBox()
         widget = set_box.get_option_widget(
