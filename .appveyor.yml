@@ -56,7 +56,6 @@ for:
 
   test_script:
     - . ~/venv3.13/bin/activate
-    - pip install pytest
     - pytest -sv
 -
   matrix:
@@ -67,9 +66,14 @@ for:
   install:
     - if not exist jre\ choco install openjdk -y
     - bash -lc "uname -a"
+    # remove redundant to avoid extra upgrading time
+    - bash -lc "pacman -Rdd --noconfirm $(pacman -Qsq '^mingw-w64-(i686|x86_64)-') 2>/dev/null || true"
+    # update
     - bash -lc "pacman --noconfirm -Syuu"  # Core update.  see: https://msys2.org/docs/ci/
     - bash -lc "pacman --noconfirm -Syuu"  # Normal update
+    # install
     - bash -lc "pacman --noconfirm --needed -S - < ./scripts/mingw64_pkglist.txt"
+    - bash -lc "pacman --noconfirm --needed -S - < ./scripts/mingw64_extras.txt"
     # END
     - bash -lc "python --version"
     - dir %WINDIR%\System32\msodbcsql*.dll
@@ -94,10 +98,10 @@ for:
     - bash -lc "coveralls"
   cache:
     # pip downloads and wheels
-    - '%LOCALAPPDATA%ip\Cache\http-v2 -> requirements.txt, ci-requirements.txt'
+    - '%LOCALAPPDATA%\pip\Cache\http-v2 -> requirements.txt, ci-requirements.txt'
     - '%LOCALAPPDATA%\pip\Cache\wheels -> requirements.txt, ci-requirements.txt'
     # MSYS2 downloaded .pkg.tar.zst installers
-    - C:\msys64\var\cache\pacman\pkg -> ./scripts/mingw64_pkglist.txt
+    - C:\msys64\var\cache\pacman\pkg -> ./scripts/mingw64_pkglist.txt, ./scripts/mingw64_extras.txt
     # fop
     - 'fop-%fop_ver% -> scripts\get_fop.sh'
     # java
@@ -113,8 +117,12 @@ for:
 
   install:
     - bash -lc "uname -a"
+    # remove redundant to avoid extra upgrading time
+    - bash -lc "pacman -Rdd --noconfirm $(pacman -Qsq '^mingw-w64-(i686|x86_64)-') 2>/dev/null || true"
+    # update
     - bash -lc "pacman --noconfirm -Syuu"  # Core update.  see: https://msys2.org/docs/ci/
     - bash -lc "pacman --noconfirm -Syuu"  # Normal update
+    # install
     - bash -lc "pacman --noconfirm --needed -S - < ./scripts/mingw64_pkglist.txt"
     - bash -lc "python --version"
     - dir %WINDIR%\System32\msodbcsql*.dll
@@ -126,7 +134,7 @@ for:
     - bash -lc "BAUBLE_TEST_DB_URI='mssql://sa:Password12!@localhost:1433/master?driver=ODBC+Driver+17+for+SQL+Server&MARS_Connection=Yes' python -m pytest -sv"
   cache:
     # pip downloads and wheels
-    - '%LOCALAPPDATA%ip\Cache\http-v2 -> requirements.txt, ci-requirements.txt'
+    - '%LOCALAPPDATA%\pip\Cache\http-v2 -> requirements.txt, ci-requirements.txt'
     - '%LOCALAPPDATA%\pip\Cache\wheels -> requirements.txt, ci-requirements.txt'
     # MSYS2 downloaded .pkg.tar.zst installers
     - C:\msys64\var\cache\pacman\pkg -> ./scripts/mingw64_pkglist.txt

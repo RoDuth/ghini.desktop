@@ -1,0 +1,3 @@
+mingw-w64-ucrt-x86_64-python-coverage
+mingw-w64-ucrt-x86_64-python-typer
+mingw-w64-ucrt-x86_64-python-shapely
